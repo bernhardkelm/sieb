@@ -81,7 +81,7 @@ defineExpose({ focusSearch })
       @update:model-value="set('q', $event)"
     />
     <div class="controls">
-      <!-- view controls such as the sort menu, first so a scrolling row keeps them in view -->
+      <!-- view controls such as the sort menu, first -->
       <slot />
       <MultiSelectFilter
         v-for="field in visibleFields"
@@ -129,12 +129,7 @@ defineExpose({ focusSearch })
 
   .controls {
     flex: 1 1 100%;
-    flex-wrap: nowrap;
     min-width: 0;
-    margin: calc(-1 * var(--space-0-5));
-    padding: var(--space-0-5);
-    overflow-x: auto;
-    scrollbar-width: none;
   }
 }
 </style>

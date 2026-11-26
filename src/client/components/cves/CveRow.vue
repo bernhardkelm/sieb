@@ -21,12 +21,19 @@ const props = defineProps<{
   summary: string
 }>()
 
+defineEmits<{ select: [event: MouseEvent] }>()
+
 const labels = useLabelsStore()
 const images = computed(() => props.cve.imageRefs.join('\n'))
 </script>
 
 <template>
-  <ListRow class="cve-row" :current="current" :aria-expanded="expanded">
+  <ListRow
+    class="cve-row"
+    :current="current"
+    :aria-expanded="expanded"
+    @click="$emit('select', $event)"
+  >
     <ExpandChevron :expanded="expanded" />
     <SeverityChip :severity="cve.maxSeverity" :score="cve.maxScore" />
     <span v-if="labels.showKev" class="kev"><KevChip v-if="cve.kev" /></span>

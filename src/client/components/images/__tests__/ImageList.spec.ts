@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { nextTick } from 'vue'
 
 import { buildFindingView } from '#core/__tests__/coreBuilders.ts'
@@ -41,11 +41,35 @@ const image = (imageRef: string, overrides: Partial<ImageAggregate> = {}): Image
   ...overrides,
 })
 
+beforeEach(() => {
+  // jsdom lacks window.scrollTo, the virtualizer corrects the scroll position as rows measure
+  vi.spyOn(window, 'scrollTo').mockImplementation(() => {})
+})
+
 afterEach(() => {
   document.body.innerHTML = ''
 })
 
 describe('ImageList', () => {
+  it('shows the not affected and accepted counts as compact text, only when non-zero', () => {
+    const wrapper = mountWithProviders(ImageList, {
+      images: [
+        image(APP, { notAffectedCount: 3, acceptedCount: 1 }),
+        image(NGINX, { notAffectedCount: 0, acceptedCount: 2 }),
+        image('registry.example.com/acme/none', { notAffectedCount: 0, acceptedCount: 0 }),
+      ],
+      expandedRef: null,
+      currentKey: null,
+      findings: [],
+      findingsLoaded: true,
+      sort: null,
+    })
+
+    const tallies = wrapper.findAll('.mobile-tally').map((tally) => tally.text())
+
+    expect(tallies).toEqual(['3 not affected · 1 accepted', '2 accepted'])
+  })
+
   it('renders one row per image with its counts and short name', async () => {
     const wrapper = mountWithProviders(ImageList, {
       images: [image(APP, { owner: 'self' }), image(NGINX)],

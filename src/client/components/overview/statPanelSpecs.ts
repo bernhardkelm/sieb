@@ -53,7 +53,11 @@ export const STAT_PANEL_SPECS: StatPanelSpec[] = [
     label: 'KEV',
     value: (stats) => stats.kev,
     polarity: 'fewer-is-better',
-    target: null,
+    target: {
+      route: ROUTE_NAMES.INBOX,
+      filters: { kev: true },
+      hint: 'Inbox filtered to KEV listed findings',
+    },
     primary: true,
     needsKev: true,
   },

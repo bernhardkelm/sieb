@@ -27,6 +27,8 @@ const ALL_SCOPE: DecisionView = {
 }
 
 beforeEach(() => {
+  // jsdom lacks window.scrollTo, the virtualizer corrects the scroll position as rows measure
+  vi.spyOn(window, 'scrollTo').mockImplementation(() => {})
   vi.useFakeTimers({ toFake: ['Date'] })
   vi.setSystemTime(NOW)
 })

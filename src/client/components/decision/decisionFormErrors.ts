@@ -49,3 +49,33 @@ export const decisionFormErrors = (error: unknown): DecisionFormErrors => {
 
   return errors
 }
+
+/** Messages of the checks the form runs before it submits */
+export type LocalFormErrors = Record<'status' | 'reason' | 'expiresAt', string[]>
+
+export interface LocalFormInput {
+  status: string | null
+  reason: string
+  never: boolean
+  expiresAt: string | null // null for an empty or unreadable date
+}
+
+/**
+ * Checks the input before it is submitted: a status is chosen, the reason is not blank and a
+ * date is set unless the decision never expires.
+ * @param {LocalFormInput} input - Current input
+ * @returns {LocalFormErrors} - Messages per field, empty lists when the input passes
+ */
+export const localFormErrors = (input: LocalFormInput): LocalFormErrors => ({
+  status: input.status === null ? ['Choose a status.'] : [],
+  reason: input.reason.trim() === '' ? ['A reason is required.'] : [],
+  expiresAt: !input.never && input.expiresAt === null ? ['Pick a date or choose never.'] : [],
+})
+
+/**
+ * Returns whether any field carries a message.
+ * @param {LocalFormErrors} errors - Messages per field
+ * @returns {boolean} - True when the input must not be submitted
+ */
+export const hasLocalErrors = (errors: LocalFormErrors): boolean =>
+  Object.values(errors).some((messages) => messages.length > 0)

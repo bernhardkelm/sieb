@@ -7,6 +7,7 @@ import BaseButton from '@/components/common/BaseButton.vue'
 import DecisionCard from '@/components/decision/DecisionCard.vue'
 import DecisionForm from '@/components/decision/DecisionForm.vue'
 import RevokeDialog from '@/components/decision/RevokeDialog.vue'
+import DraftGuardDialog from '@/components/finding/DraftGuardDialog.vue'
 import {
   initialFromDecision,
   type DecisionFormInitial,
@@ -35,6 +36,7 @@ const revokeTarget = ref<Decision | null>(null)
 const revoking = ref(false)
 const reconfirming = ref(false)
 const formDirty = ref(false)
+const drafts = ref(0)
 let handledToken = 0
 
 const current = computed(() =>
@@ -51,8 +53,8 @@ const formInitial = computed<DecisionFormInitial>(() =>
 )
 const formKey = computed(() =>
   mode.value?.kind === 'edit'
-    ? `edit-${mode.value.decision.id}`
-    : `create-${props.detail.finding.id}`,
+    ? `edit-${mode.value.decision.id}-${drafts.value}`
+    : `create-${props.detail.finding.id}-${drafts.value}`,
 )
 const showForm = computed(() => mode.value !== null || current.value.length === 0)
 const editReopened = computed(() => {
@@ -63,6 +65,7 @@ const editReopened = computed(() => {
   )
 })
 const draftDirty = computed(() => showForm.value && formDirty.value)
+const draftGuarded = computed(() => draftDirty.value && !submitting.value)
 
 /**
  * Opens the form for a status: editing the image decision of the finding when there is one,
@@ -97,12 +100,23 @@ const onSubmit = async (value: DecisionFormValue): Promise<void> => {
       scope: existing?.scope ?? value.scope,
     })
     mode.value = null
+    formDirty.value = false
     emit('saved')
   } catch (failure) {
     error.value = failure
   } finally {
     submitting.value = false
   }
+}
+
+/**
+ * Drops the draft on Cancel, a form that stays for a finding without decision starts empty.
+ * @returns {void}
+ */
+const onCancel = (): void => {
+  mode.value = null
+  formDirty.value = false
+  drafts.value += 1
 }
 
 /**
@@ -199,8 +213,9 @@ onBeforeUnmount(() => {
       :submitting="submitting"
       :submit-label="mode?.kind === 'edit' ? 'Save changes' : 'Save decision'"
       :reconfirmable="editReopened"
+      sticky-actions
       @submit="onSubmit"
-      @cancel="mode = null"
+      @cancel="onCancel"
       @dirty="formDirty = $event"
     />
     <p v-if="draftDirty" class="paused">
@@ -216,6 +231,7 @@ onBeforeUnmount(() => {
       @update:open="revokeTarget = $event ? revokeTarget : null"
       @confirm="onRevoke"
     />
+    <DraftGuardDialog :dirty="draftGuarded" @keep="form?.focusReason()" />
   </div>
 </template>
 

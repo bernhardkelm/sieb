@@ -153,6 +153,24 @@ describe('useInboxController', () => {
     expect(router.currentRoute.value.query.finding).toBe('1')
   })
 
+  it('puts the cursor back on the panel row when a guard cancels a row click', async () => {
+    const { router } = await mountInbox('/inbox?finding=1')
+    const removeGuard = router.beforeEach(() => false)
+
+    controller.select(3)
+    await flushPromises()
+
+    expect(router.currentRoute.value.query.finding).toBe('1')
+    expect(controller.currentId.value).toBe(1)
+
+    removeGuard()
+    controller.select(3)
+    await flushPromises()
+
+    expect(router.currentRoute.value.query.finding).toBe('3')
+    expect(controller.currentId.value).toBe(3)
+  })
+
   it('orders rows and j by the sort in the URL', async () => {
     await mountInbox('/inbox?sort=image&dir=asc')
 
@@ -282,6 +300,59 @@ describe('useInboxController', () => {
 
     expect(controller.currentId.value).toBe(2)
     expect(checked()).toEqual([])
+  })
+
+  it.each([
+    ['n', 'not_affected'],
+    ['a', 'accepted'],
+    ['f', 'fix_planned'],
+  ] as const)('opens the bulk dialog on %s for exactly the checked rows', async (key, status) => {
+    const { router } = await mountInbox('/inbox')
+    const requestDecision = vi.spyOn(useFindingDetailStore(), 'requestDecision')
+
+    await press('ArrowDown', document.body, { shiftKey: true })
+    await press('j')
+    await press('x')
+    expect(checked()).toEqual([1, 2, 3])
+    await press(' ')
+    expect(checked()).toEqual([1, 2])
+
+    await press(key)
+
+    expect(controller.bulkOpen.value).toBe(true)
+    expect(controller.bulkStatus.value).toBe(status)
+    expect(controller.bulkTargets.value).toEqual([
+      {
+        vulnId: 'CVE-2025-1000',
+        imageRefs: ['index.docker.io/library/nginx', 'index.docker.io/library/redis'],
+      },
+    ])
+    expect(requestDecision).not.toHaveBeenCalled()
+    expect(router.currentRoute.value.query.finding).toBeUndefined()
+  })
+
+  it('opens the panel form of the cursor row on n without checked rows', async () => {
+    const { router } = await mountInbox('/inbox')
+    const detail = useFindingDetailStore()
+
+    await press('j')
+    await press('n')
+
+    expect(controller.bulkOpen.value).toBe(false)
+    expect(router.currentRoute.value.query.finding).toBe('2')
+    expect(detail.decisionRequest).toMatchObject({ findingId: 2, status: 'not_affected' })
+  })
+
+  it('opens the bulk dialog on Shift+A without a preselected status', async () => {
+    await mountInbox('/inbox')
+
+    await press('x')
+    await press('n')
+    controller.bulkOpen.value = false
+    await press('A', document.body, { shiftKey: true })
+
+    expect(controller.bulkOpen.value).toBe(true)
+    expect(controller.bulkStatus.value).toBeNull()
   })
 
   it('ranges a Shift click and toggles a Ctrl click without opening the panel', async () => {

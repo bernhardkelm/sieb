@@ -55,7 +55,7 @@ defineExpose({ focusSearch })
       @update:model-value="set('q', $event)"
     />
     <div class="controls">
-      <!-- view controls such as the sort menu, first so a scrolling row keeps them in view -->
+      <!-- view controls such as the sort menu, first -->
       <slot />
       <MultiSelectFilter
         label="Severity"
@@ -78,6 +78,12 @@ defineExpose({ focusSearch })
         @update:model-value="set('owner', $event)"
       />
       <ToggleFilter
+        v-if="labels.showKev"
+        label="KEV"
+        :model-value="filters.kev"
+        @update:model-value="set('kev', $event)"
+      />
+      <ToggleFilter
         label="New this week"
         :model-value="filters.newThisWeek"
         @update:model-value="set('newThisWeek', $event)"
@@ -88,7 +94,10 @@ defineExpose({ focusSearch })
         :model-value="filters.includeResolved"
         @update:model-value="set('includeResolved', $event)"
       />
-      <FilterResetButton v-if="hasActiveFilters(filters)" @click="filters = emptyFilters()" />
+      <FilterResetButton
+        v-if="hasActiveFilters(filters, labels.showKev)"
+        @click="filters = emptyFilters()"
+      />
     </div>
   </div>
 </template>
@@ -116,12 +125,7 @@ defineExpose({ focusSearch })
 
   .controls {
     flex: 1 1 100%;
-    flex-wrap: nowrap;
     min-width: 0;
-    margin: calc(-1 * var(--space-0-5));
-    padding: var(--space-0-5);
-    overflow-x: auto;
-    scrollbar-width: none;
   }
 }
 </style>

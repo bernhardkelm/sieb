@@ -6,8 +6,10 @@ import KeyHint from '@/components/common/KeyHint.vue'
 import OverviewStats from '@/components/overview/OverviewStats.vue'
 import { hintsForRoute } from '@/keyboard/keyboardHints'
 import { NAV_ITEMS } from '@/router/navItems'
+import { useHintActionsStore } from '@/stores/hintActionsStore'
 
 const route = useRoute()
+const actions = useHintActionsStore()
 
 const hints = computed(() => hintsForRoute(route.name))
 </script>
@@ -26,12 +28,25 @@ const hints = computed(() => hintsForRoute(route.name))
       </ul>
     </nav>
     <OverviewStats class="overview" />
-    <dl class="hints" aria-label="Keyboard shortcuts">
-      <div v-for="hint in hints" :key="hint.label" class="hint">
-        <dt><KeyHint :keys="hint.keys" /></dt>
-        <dd>{{ hint.label }}</dd>
-      </div>
-    </dl>
+    <ul class="hints" aria-label="Keyboard shortcuts">
+      <li v-for="hint in hints" :key="hint.label">
+        <button
+          v-if="hint.action"
+          type="button"
+          class="hint action"
+          :aria-disabled="actions.reasonOf(hint.action) !== null || undefined"
+          :title="actions.reasonOf(hint.action) ?? undefined"
+          @click="actions.run(hint.action)"
+        >
+          <KeyHint :keys="hint.keys" />
+          <span>{{ hint.label }}</span>
+        </button>
+        <span v-else class="hint">
+          <KeyHint :keys="hint.keys" />
+          <span>{{ hint.label }}</span>
+        </span>
+      </li>
+    </ul>
   </div>
 </template>
 
@@ -88,21 +103,42 @@ const hints = computed(() => hintsForRoute(route.name))
 .hints {
   display: flex;
   flex-direction: column;
-  gap: var(--space-1);
+  gap: var(--space-0-5);
   margin: auto 0 0;
-  padding: 0 var(--space-2);
+  padding: 0;
   color: var(--color-text-subtle);
   font-size: var(--font-size-sm);
+  list-style: none;
 }
 
 .hint {
   display: flex;
   align-items: center;
   gap: var(--space-2);
+  width: 100%;
+  padding: var(--space-0-5) var(--space-2);
+  border-radius: var(--radius);
 }
 
-.hint dd {
-  margin: 0;
+.action {
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font-size: inherit;
+  text-align: left;
+  transition:
+    background-color var(--duration-fast) var(--ease),
+    color var(--duration-fast) var(--ease);
+}
+
+.action:hover:not([aria-disabled='true']) {
+  background: var(--color-hover);
+  color: var(--color-text);
+}
+
+.action[aria-disabled='true'] {
+  cursor: default;
+  opacity: 0.55;
 }
 
 @media (hover: none) and (pointer: coarse) {

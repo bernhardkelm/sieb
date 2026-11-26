@@ -27,7 +27,7 @@ withDefaults(
   { selectable: true, showDecision: false },
 )
 
-defineEmits<{ toggle: [event: MouseEvent] }>()
+defineEmits<{ toggle: [event: MouseEvent]; select: [event: MouseEvent] }>()
 
 const { hidden, classes } = useLabelColumns()
 </script>
@@ -39,6 +39,7 @@ const { hidden, classes } = useLabelColumns()
     :current="current"
     :checked="checked"
     :data-finding-id="finding.id"
+    @click="$emit('select', $event)"
   >
     <RowCheckbox v-if="selectable" :checked="checked" @toggle="$emit('toggle', $event)" />
     <span v-else class="no-check" aria-hidden="true" />
@@ -62,6 +63,7 @@ const { hidden, classes } = useLabelColumns()
         v-if="finding.effective"
         :effective="finding.effective"
         :status="finding.decision?.status ?? null"
+        :justification="finding.decision?.justification ?? null"
       />
       <span v-else class="undecided">Undecided</span>
     </span>

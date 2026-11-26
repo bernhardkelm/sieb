@@ -1,11 +1,12 @@
 import { computed, type ComputedRef } from 'vue'
-import { useRoute, useRouter } from 'vue-router'
+import { isNavigationFailure, useRoute, useRouter } from 'vue-router'
 
 import { readQueryParam, withQueryParam } from '@/router/queryParam'
 
 export interface QueryParam {
   value: ComputedRef<string | null>
-  set: (value: string | null) => Promise<void>
+  /** Resolves with whether the param holds the value afterwards, false when a guard cancelled */
+  set: (value: string | null) => Promise<boolean>
 }
 
 /**
@@ -23,12 +24,16 @@ export const useQueryParam = (key: string): QueryParam => {
   /**
    * Sets or removes the param.
    * @param {string | null} next - New value, null removes it
-   * @returns {Promise<void>} - Resolves after navigation
+   * @returns {Promise<boolean>} - Resolves after navigation, false when it did not go through
    */
-  const set = async (next: string | null): Promise<void> => {
-    if (next !== value.value) {
-      await router.replace({ query: withQueryParam(route.query, key, next) })
+  const set = async (next: string | null): Promise<boolean> => {
+    if (next === value.value) {
+      return true
     }
+
+    const failure = await router.replace({ query: withQueryParam(route.query, key, next) })
+
+    return !isNavigationFailure(failure)
   }
 
   return { value, set }

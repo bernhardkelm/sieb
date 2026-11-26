@@ -161,10 +161,14 @@
   --severity-bar-height: calc(var(--space-base) * 2);
   --severity-bar-gap: 2px; /* surface gap between segments */
   --sheet-max-height: 85dvh;
+  --illustration-width: calc(var(--space-base) * 50);
+  --illustration-width-sm: calc(var(--space-base) * 38);
+  --illustration-text-width: calc(var(--space-base) * 90);
 
   /* motion */
   --duration-fast: 120ms;
   --duration-medium: 220ms;
+  --duration-draw: 560ms;
   --ease: cubic-bezier(0.22, 1, 0.36, 1);
 
   /* layering */
@@ -204,5 +208,6 @@
   :root {
     --duration-fast: 0ms;
     --duration-medium: 0ms;
+    --duration-draw: 0ms;
   }
 }

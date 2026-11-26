@@ -1,5 +1,6 @@
 <script setup lang="ts" generic="T extends string">
 import { RadioGroupIndicator, RadioGroupItem, RadioGroupRoot } from 'reka-ui'
+import { ref } from 'vue'
 
 import type { FilterOption } from '@/components/filters/filterOption'
 
@@ -8,7 +9,9 @@ defineProps<{
   options: (FilterOption<T> & { hint?: string; disabled?: boolean })[]
 }>()
 
-const model = defineModel<T>({ required: true })
+/** Selected value, null while none is chosen */
+const model = defineModel<T | null>({ required: true })
+const root = ref<InstanceType<typeof RadioGroupRoot> | null>(null)
 
 /**
  * Stores a selected value; Reka passes it untyped.
@@ -18,10 +21,26 @@ const model = defineModel<T>({ required: true })
 const onUpdate = (value: unknown): void => {
   model.value = value as T
 }
+
+/**
+ * Focuses the checked option, the first enabled one while none is checked.
+ * @returns {void}
+ */
+const focus = (): void => {
+  const element = root.value?.$el as HTMLElement | undefined
+  const target =
+    element?.querySelector<HTMLElement>('[role="radio"][aria-checked="true"]') ??
+    element?.querySelector<HTMLElement>('[role="radio"]:not(:disabled)')
+
+  target?.focus()
+}
+
+defineExpose({ focus })
 </script>
 
 <template>
   <RadioGroupRoot
+    ref="root"
     class="radio-choice"
     :model-value="model"
     :aria-label="label"
@@ -70,6 +89,10 @@ const onUpdate = (value: unknown): void => {
 .item[aria-checked='true'] {
   border-color: var(--color-accent);
   background: var(--color-selected);
+}
+
+.radio-choice[aria-invalid='true'] .item:not([aria-checked='true']) {
+  border-color: var(--color-danger);
 }
 
 .item:disabled {

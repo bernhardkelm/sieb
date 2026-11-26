@@ -28,6 +28,17 @@ const pickStatus = async (wrapper: VueWrapper, label: string): Promise<void> => 
   await option?.trigger('click')
 }
 
+/**
+ * Returns the label of the checked status option.
+ * @param {VueWrapper} wrapper - Mounted form
+ * @returns {string | undefined} - Label, undefined while none is checked
+ */
+const checkedStatus = (wrapper: VueWrapper): string | undefined =>
+  wrapper
+    .findAll('[role="radiogroup"][aria-label="Status"] [role="radio"]')
+    .find((item) => item.attributes('aria-checked') === 'true')
+    ?.text()
+
 beforeEach(() => {
   setActivePinia(createPinia())
   vi.useFakeTimers({ toFake: ['Date'] })
@@ -92,6 +103,7 @@ describe('DecisionForm', () => {
   it('submits null for never and on Ctrl+Enter', async () => {
     const wrapper = mountForm()
 
+    await pickStatus(wrapper, 'Not affected')
     await wrapper.get('textarea').setValue('vendored, not loaded')
     await wrapper.get('textarea').trigger('keydown', { key: 'Enter', ctrlKey: true })
 
@@ -110,6 +122,9 @@ describe('DecisionForm', () => {
     const trigger = (): HTMLElement | null =>
       document.querySelector<HTMLElement>('[role="combobox"]')
 
+    expect(trigger()).toBeNull()
+
+    await pickStatus(wrapper, 'Not affected')
     expect(wrapper.text()).toContain('Justification (optional)')
     expect(trigger()?.textContent).toContain('No justification')
 
@@ -222,6 +237,11 @@ describe('DecisionForm', () => {
      */
     const placeholder = (): string | undefined => wrapper.get('textarea').attributes('placeholder')
 
+    expect(placeholder()).toBe('Explain the decision.')
+    expect(wrapper.text()).not.toContain('Alerts stop within about two minutes')
+    expect(wrapper.text()).not.toContain('alerts keep firing')
+
+    await pickStatus(wrapper, 'Not affected')
     expect(placeholder()).toBe('Why does this not affect the image?')
     expect(wrapper.text()).toContain('Alerts stop within about two minutes')
 
@@ -280,7 +300,10 @@ describe('DecisionForm', () => {
   })
 
   it('offers to re-confirm a re-opened decision and explains a plain save', async () => {
-    const wrapper = mountForm({ reconfirmable: true, initial: { reason: 'kept' } })
+    const wrapper = mountForm({
+      reconfirmable: true,
+      initial: { status: 'accepted', reason: 'kept', expiresAt: null },
+    })
 
     expect(wrapper.text()).toContain('keeps the decision re-opened')
 
@@ -290,6 +313,57 @@ describe('DecisionForm', () => {
     await wrapper.get('form').trigger('submit')
     expect(wrapper.emitted<[DecisionFormValue]>('submit')?.[0]?.[0]).toMatchObject({
       reconfirm: true,
+    })
+  })
+
+  it('preselects no status without one and offers no justification or expiry yet', () => {
+    const wrapper = mountForm()
+
+    expect(checkedStatus(wrapper)).toBeUndefined()
+    expect(document.querySelector('[role="combobox"]')).toBeNull()
+    expect(wrapper.get<HTMLInputElement>('input[name="never-expires"]').element.checked).toBe(true)
+    expect(wrapper.get<HTMLInputElement>('input[type="date"]').element.value).toBe('')
+  })
+
+  it('keeps a given or requested status preselected', async () => {
+    const wrapper = mountForm({ initial: { status: 'fix_planned' } })
+
+    expect(checkedStatus(wrapper)).toBe('Fix planned')
+
+    const requested = mountForm()
+    const exposed = requested.vm as unknown as { setStatus: (status: string) => void }
+
+    exposed.setStatus('accepted')
+    await flushPromises()
+    expect(checkedStatus(requested)).toBe('Accepted')
+    expect(requested.get<HTMLInputElement>('input[type="date"]').element.value).toBe('2026-08-30')
+  })
+
+  it('asks for a status before submitting and focuses the status group, also on Cmd+Enter', async () => {
+    const wrapper = mountForm()
+    const group = wrapper.get('[role="radiogroup"][aria-label="Status"]')
+
+    await wrapper.get('textarea').setValue('vendored, not loaded')
+    await wrapper.get('form').trigger('submit')
+
+    expect(wrapper.emitted('submit')).toBeUndefined()
+    expect(wrapper.text()).toContain('Choose a status.')
+    expect(group.attributes('aria-invalid')).toBe('true')
+    expect(document.activeElement?.getAttribute('role')).toBe('radio')
+    expect(group.element.contains(document.activeElement)).toBe(true)
+
+    wrapper.get('textarea').element.focus()
+    await wrapper.get('textarea').trigger('keydown', { key: 'Enter', metaKey: true })
+    expect(wrapper.emitted('submit')).toBeUndefined()
+    expect(group.element.contains(document.activeElement)).toBe(true)
+
+    await pickStatus(wrapper, 'Accepted')
+    expect(wrapper.text()).not.toContain('Choose a status.')
+    expect(group.attributes('aria-invalid')).toBeUndefined()
+
+    await wrapper.get('textarea').trigger('keydown', { key: 'Enter', metaKey: true })
+    expect(wrapper.emitted<[DecisionFormValue]>('submit')?.[0]?.[0]).toMatchObject({
+      status: 'accepted',
     })
   })
 

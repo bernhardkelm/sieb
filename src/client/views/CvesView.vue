@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 
+import AllClear from '@/components/common/AllClear.vue'
 import BaseButton from '@/components/common/BaseButton.vue'
 import EmptyState from '@/components/common/EmptyState.vue'
 import LoadState from '@/components/common/LoadState.vue'
@@ -60,15 +61,19 @@ const { hidden } = useLabelColumns()
         :sort-label="sort.label.value"
         @reset-sort="controller.resetSort"
       />
-      <EmptyState
-        v-if="cves.length === 0"
-        :title="hasAggregateFilters(filters) ? 'No matches' : 'Nothing left to decide'"
+      <AllClear
+        v-if="cves.length === 0 && !hasAggregateFilters(filters)"
+        title="Nothing left to decide"
       >
-        {{
-          hasAggregateFilters(filters)
-            ? 'No CVE matches these filters.'
-            : 'Every CVE is fully decided, the decisions view lists them.'
-        }}
+        Every CVE is fully decided, the decisions view lists them.
+        <template #actions>
+          <BaseButton variant="ghost" @click="filters = { ...filters, showDecided: true }">
+            Show decided
+          </BaseButton>
+        </template>
+      </AllClear>
+      <EmptyState v-else-if="cves.length === 0" title="No matches">
+        No CVE matches these filters.
         <BaseButton
           v-if="hiddenCount > 0"
           variant="ghost"
@@ -76,11 +81,7 @@ const { hidden } = useLabelColumns()
         >
           Show decided
         </BaseButton>
-        <BaseButton
-          v-if="hasAggregateFilters(filters)"
-          variant="ghost"
-          @click="filters = emptyAggregateFilters()"
-        >
+        <BaseButton variant="ghost" @click="filters = emptyAggregateFilters()">
           Reset filters
         </BaseButton>
       </EmptyState>

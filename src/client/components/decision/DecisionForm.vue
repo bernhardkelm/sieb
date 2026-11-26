@@ -15,12 +15,17 @@ import FieldErrors from '@/components/decision/FieldErrors.vue'
 import JustificationField from '@/components/decision/JustificationField.vue'
 import RadioChoice from '@/components/decision/RadioChoice.vue'
 import ReconfirmField from '@/components/decision/ReconfirmField.vue'
-import { decisionFormErrors } from '@/components/decision/decisionFormErrors'
+import {
+  decisionFormErrors,
+  hasLocalErrors,
+  localFormErrors,
+  type LocalFormErrors,
+} from '@/components/decision/decisionFormErrors'
 import {
   defaultExpiryDate,
   fromDateInput,
   justificationFor,
-  REASON_PLACEHOLDERS,
+  reasonPlaceholder,
   TEXT_MAX_LENGTH,
   toDateInput,
   type DecisionFormInitial,
@@ -42,6 +47,8 @@ const props = withDefaults(
     submitLabel?: string
     /** Offers to re-confirm, for editing a re-opened decision */
     reconfirmable?: boolean
+    /** Keeps Save and Cancel visible at the bottom of the surrounding scroll container */
+    stickyActions?: boolean
   }>(),
   {
     initial: () => ({}),
@@ -50,6 +57,7 @@ const props = withDefaults(
     submitting: false,
     submitLabel: 'Save decision',
     reconfirmable: false,
+    stickyActions: false,
   },
 )
 
@@ -57,11 +65,12 @@ const emit = defineEmits<{ submit: [value: DecisionFormValue]; cancel: []; dirty
 
 const id = useId()
 const reasonInput = ref<HTMLTextAreaElement | null>(null)
-const initialStatus = props.initial.status ?? 'not_affected'
+const statusChoice = ref<{ focus: () => void } | null>(null)
+const initialStatus = props.initial.status ?? null
 const initialReason = props.initial.reason ?? ''
 const initialScope = props.initial.scope ?? 'image'
 const initialJustification = props.initial.justification ?? null
-const status = ref<DecisionStatus>(initialStatus)
+const status = ref<DecisionStatus | null>(initialStatus)
 const justification = ref<DecisionJustification | null>(initialJustification)
 const reason = ref(initialReason)
 const scope = ref<DecisionScope>(initialScope)
@@ -70,12 +79,17 @@ const expiryTouched = ref(false)
 
 /**
  * Returns the date the form shows for a status while the expiry is untouched: the given expiry
- * for the starting status, the default of any other status, as the server applies it.
- * @param {DecisionStatus} next - Status
+ * for the starting status, the default of any other status, as the server applies it, and no
+ * expiry while no status is chosen.
+ * @param {DecisionStatus | null} next - Status, null for none
  * @returns {string | null} - Date as YYYY-MM-DD, null for no expiry
  */
-const expiryDateFor = (next: DecisionStatus): string | null => {
+const expiryDateFor = (next: DecisionStatus | null): string | null => {
   const given = props.initial.expiresAt
+
+  if (next === null) {
+    return null
+  }
 
   if (given !== undefined && next === initialStatus) {
     return given === null ? null : toDateInput(given)
@@ -87,7 +101,7 @@ const expiryDateFor = (next: DecisionStatus): string | null => {
 const initialDate = expiryDateFor(initialStatus)
 const expiryDate = ref(initialDate ?? '')
 const never = ref(initialDate === null)
-const localErrors = ref<{ reason: string[]; expiresAt: string[] }>({ reason: [], expiresAt: [] })
+const localErrors = ref<LocalFormErrors>({ status: [], reason: [], expiresAt: [] })
 const dirty = computed(
   () =>
     reason.value.trim() !== initialReason.trim() ||
@@ -104,6 +118,7 @@ const scopeOptions = computed(() => [
 ])
 
 const serverErrors = computed(() => decisionFormErrors(props.error))
+const statusErrors = computed(() => [...localErrors.value.status, ...serverErrors.value.status])
 const reasonErrors = computed(() => [...localErrors.value.reason, ...serverErrors.value.reason])
 const expiryErrors = computed(() => [
   ...localErrors.value.expiresAt,
@@ -111,6 +126,8 @@ const expiryErrors = computed(() => [
 ])
 
 watch(status, (next) => {
+  localErrors.value.status = []
+
   if (!expiryTouched.value) {
     const date = expiryDateFor(next)
 
@@ -136,19 +153,25 @@ watch(
 )
 
 /**
- * Checks the input and emits it; a blank reason or a missing date stops here.
+ * Checks the input and emits it; a missing status, a blank reason or a missing date stops here
+ * and focuses the first field in error.
  * @returns {void}
  */
 const submit = (): void => {
   const expiresAt = never.value ? null : fromDateInput(expiryDate.value)
+  const chosen = status.value
 
-  localErrors.value = {
-    reason: reason.value.trim() === '' ? ['A reason is required.'] : [],
-    expiresAt: !never.value && expiresAt === null ? ['Pick a date or choose never.'] : [],
-  }
+  localErrors.value = localFormErrors({
+    status: chosen,
+    reason: reason.value,
+    never: never.value,
+    expiresAt,
+  })
 
-  if (localErrors.value.reason.length > 0 || localErrors.value.expiresAt.length > 0) {
-    if (localErrors.value.reason.length > 0) {
+  if (chosen === null || hasLocalErrors(localErrors.value)) {
+    if (chosen === null) {
+      statusChoice.value?.focus()
+    } else if (localErrors.value.reason.length > 0) {
       reasonInput.value?.focus()
     }
 
@@ -156,8 +179,8 @@ const submit = (): void => {
   }
 
   emit('submit', {
-    status: status.value,
-    justification: justificationFor(status.value, justification.value),
+    status: chosen,
+    justification: justificationFor(chosen, justification.value),
     reason: reason.value.trim(),
     scope: scope.value,
     expiresAt,
@@ -202,8 +225,15 @@ defineExpose({ focusReason, setStatus })
   <form class="decision-form" novalidate @submit.prevent="submit" @keydown="onKeydown">
     <div class="field">
       <span class="label">Status</span>
-      <RadioChoice v-model="status" label="Status" :options="STATUS_OPTIONS" />
-      <FieldErrors :messages="serverErrors.status" />
+      <RadioChoice
+        ref="statusChoice"
+        v-model="status"
+        label="Status"
+        :options="STATUS_OPTIONS"
+        :aria-invalid="statusErrors.length > 0 || undefined"
+        :aria-describedby="statusErrors.length > 0 ? `${id}-status-error` : undefined"
+      />
+      <FieldErrors :id="`${id}-status-error`" :messages="statusErrors" />
     </div>
     <div v-if="status === JUSTIFIABLE_STATUS" class="field">
       <label :for="`${id}-justification`" class="label">Justification (optional)</label>
@@ -226,7 +256,7 @@ defineExpose({ focusReason, setStatus })
         :maxlength="TEXT_MAX_LENGTH"
         :aria-invalid="reasonErrors.length > 0 || undefined"
         :aria-describedby="reasonErrors.length > 0 ? `${id}-reason-error` : undefined"
-        :placeholder="REASON_PLACEHOLDERS[status]"
+        :placeholder="reasonPlaceholder(status)"
       />
       <FieldErrors :id="`${id}-reason-error`" :messages="reasonErrors" />
     </div>
@@ -250,12 +280,12 @@ defineExpose({ focusReason, setStatus })
     <p v-if="status === 'fix_planned'" class="note">
       Fix planned leaves the inbox, but alerts keep firing.
     </p>
-    <p v-else class="note">
+    <p v-else-if="status !== null" class="note">
       Alerts stop within about two minutes, including alerts that already fire. Revoking or expiry
       brings the finding back at once; its alert fires again after the usual 30 minutes.
     </p>
     <FieldErrors :messages="serverErrors.general" role="alert" />
-    <div class="actions">
+    <div class="actions" :class="{ sticky: stickyActions }">
       <KeyHint class="submit-hint" :keys="[MODIFIER_KEY, 'Enter']" />
       <BaseButton variant="ghost" @click="emit('cancel')">Cancel</BaseButton>
       <BaseButton type="submit" variant="primary" :disabled="submitting">
@@ -308,6 +338,16 @@ defineExpose({ focusReason, setStatus })
   align-items: center;
   justify-content: flex-end;
   gap: var(--space-2);
+}
+
+.actions.sticky {
+  position: sticky;
+  bottom: 0;
+  z-index: var(--z-raised);
+  margin: 0 calc(-1 * var(--space-4));
+  padding: var(--space-3) var(--space-4);
+  border-top: var(--border-width) solid var(--color-border);
+  background: var(--color-surface);
 }
 
 .submit-hint {

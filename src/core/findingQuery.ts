@@ -16,6 +16,7 @@ export interface FindingQuery {
   exposure: Exposure[]
   owner: string[]
   newSince: string | null // ISO timestamp, first_seen at or after it
+  kev: boolean // only findings listed in the KEV catalog
 }
 
 export type FindingQueryResult =
@@ -62,7 +63,7 @@ const isSeverity = (value: unknown): value is Severity =>
 /**
  * Parses the query parameters of the finding list. Lists are comma separated, owner entries are
  * free-form owner labels (no commas, at most OWNER_MAX_LENGTH characters), booleans accept true
- * and 1, newSince takes any parseable timestamp.
+ * and 1 (includeResolved, kev), newSince takes any parseable timestamp.
  * @param {RawQuery} raw - Query parameters
  * @returns {FindingQueryResult} - Parsed query or the list of errors
  */
@@ -86,6 +87,7 @@ export const parseFindingQuery = (raw: RawQuery): FindingQueryResult => {
     severity: readList(raw.severity, isSeverity, 'severity', errors),
     exposure: readList(raw.exposure, isExposure, 'exposure', errors),
     owner: readList(raw.owner, isOwner, 'owner', errors),
+    kev: raw.kev === 'true' || raw.kev === '1',
     newSince: newSince === null || Number.isNaN(newSince) ? null : new Date(newSince).toISOString(),
   }
 

@@ -1,57 +1,43 @@
+import type { HintActionId } from '@/keyboard/hintActions'
 import { MODIFIER_KEY } from '@/keyboard/modifierKey'
 import { ROUTE_NAMES, type RouteName } from '@/router/routeNames'
 
 export interface KeyboardHint {
   keys: string[]
   label: string
+  /** Action a click on the hint runs, absent for hints shown as text only */
+  action?: HintActionId
 }
 
-const MOVE: KeyboardHint = { keys: ['j', 'k'], label: 'Move' }
-const ENDS: KeyboardHint = { keys: ['Home', 'End'], label: 'First, last' }
 const TREE: KeyboardHint = { keys: ['←', '→'], label: 'Collapse, expand' }
-const SEARCH: KeyboardHint = { keys: ['/'], label: 'Search' }
-const SYNC: KeyboardHint = { keys: ['r'], label: 'Sync' }
-const EXPAND: KeyboardHint = { keys: ['Enter'], label: 'Expand, open' }
-const COLLAPSE: KeyboardHint = { keys: ['Esc'], label: 'Close, collapse' }
+const SEARCH: KeyboardHint = { keys: ['/'], label: 'Search', action: 'search' }
+const SYNC: KeyboardHint = { keys: ['r'], label: 'Sync', action: 'sync' }
 
 export const KEYBOARD_HINTS: Record<RouteName, KeyboardHint[]> = {
   [ROUTE_NAMES.INBOX]: [
-    MOVE,
-    ENDS,
-    { keys: ['Enter'], label: 'Open' },
-    { keys: ['Esc'], label: 'Close, clear selection' },
-    { keys: ['a'], label: 'Accept' },
-    { keys: ['n'], label: 'Not affected' },
-    { keys: ['f'], label: 'Fix planned' },
-    { keys: ['x', 'Space'], label: 'Select' },
+    { keys: ['a'], label: 'Accept', action: 'accept' },
+    { keys: ['n'], label: 'Not affected', action: 'notAffected' },
+    { keys: ['f'], label: 'Fix planned', action: 'fixPlanned' },
+    { keys: ['x', 'Space'], label: 'Select', action: 'toggle' },
     { keys: ['⇧', '↑', '↓'], label: 'Select range' },
-    { keys: [MODIFIER_KEY, 'A'], label: 'Select all' },
-    { keys: ['⇧', 'A'], label: 'Bulk decide' },
+    { keys: [MODIFIER_KEY, 'A'], label: 'Select all', action: 'selectAll' },
     SEARCH,
     SYNC,
   ],
-  [ROUTE_NAMES.IMAGES]: [MOVE, ENDS, EXPAND, TREE, COLLAPSE, SEARCH, SYNC],
+  [ROUTE_NAMES.IMAGES]: [TREE, SEARCH, SYNC],
   [ROUTE_NAMES.CVES]: [
-    MOVE,
-    ENDS,
-    EXPAND,
     TREE,
-    COLLAPSE,
-    { keys: ['⇧', 'A'], label: 'Decide open images' },
-    { keys: ['⇧', 'D'], label: 'Decide all images' },
+    { keys: ['⇧', 'A'], label: 'Decide open images', action: 'decideOpen' },
+    { keys: ['⇧', 'D'], label: 'Decide all images', action: 'decideAll' },
     SEARCH,
     SYNC,
   ],
   [ROUTE_NAMES.DECISIONS]: [
-    MOVE,
-    ENDS,
-    EXPAND,
     TREE,
-    { keys: ['o'], label: 'Open finding' },
-    { keys: ['e'], label: 'Edit' },
-    { keys: ['⌫'], label: 'Revoke' },
-    { keys: ['c'], label: 'Re-confirm' },
-    COLLAPSE,
+    { keys: ['o'], label: 'Open finding', action: 'openFinding' },
+    { keys: ['e'], label: 'Edit', action: 'edit' },
+    { keys: ['⌫'], label: 'Revoke', action: 'revoke' },
+    { keys: ['c'], label: 'Re-confirm', action: 'reconfirm' },
     SEARCH,
     SYNC,
   ],

@@ -6,6 +6,7 @@ import { bulkTargetsFor, type BulkTarget } from '@/components/decision/bulkTarge
 import { INBOX_SORT_COLUMNS, sortInbox, type InboxSortColumn } from '@/components/inbox/inboxSort'
 import { useCursorRefocus } from '@/composables/useCursorRefocus'
 import { useFindingPanel } from '@/composables/useFindingPanel'
+import { useInboxHintActions } from '@/composables/useInboxHintActions'
 import { useListCursor } from '@/composables/useListCursor'
 import { useListSort, type ListSort } from '@/composables/useListSort'
 import { useNow } from '@/composables/useNow'
@@ -24,6 +25,7 @@ export interface InboxController {
   checkedIds: Ref<Set<number>>
   bulkOpen: Ref<boolean>
   bulkTargets: Ref<BulkTarget[]>
+  bulkStatus: Ref<DecisionStatus | null>
   select: (id: number, event?: MouseEvent) => void
   openBulk: () => void
   toggleChecked: (id: number, event?: MouseEvent) => void
@@ -39,7 +41,8 @@ const ACTION_STATUS: Partial<Record<InboxAction, DecisionStatus>> = {
 /**
  * Drives the inbox on the shared list cursor with multiple selection: cursor and checked rows
  * over the filtered inbox in the sort of the `sort` and `dir` query params, triage order by
- * default, the inbox keymap, the side panel following the cursor and the bulk dialog. A panel
+ * default, the inbox keymap, the side panel following the cursor and the bulk dialog, which a,
+ * n and f open for the checked rows. A panel
  * opened by link on a finding outside the inbox stays until a cursor key moves the cursor.
  * @param {() => void} focusSearch - Focuses the search input of the filter bar
  * @returns {InboxController} - State and actions for the inbox view
@@ -59,9 +62,24 @@ export const useInboxController = (focusSearch: () => void): InboxController => 
   )
   const bulkOpen = ref(false)
   const bulkTargets = ref<BulkTarget[]>([])
+  const bulkStatus = ref<DecisionStatus | null>(null)
 
   /**
-   * Runs an inbox action.
+   * Opens the bulk dialog for targets, with a status preselected or none.
+   * @param {BulkTarget[]} targets - Targets, the dialog stays closed when empty
+   * @param {DecisionStatus | null} status - Preselected status, null for none
+   * @returns {void}
+   */
+  const showBulk = (targets: BulkTarget[], status: DecisionStatus | null): void => {
+    bulkTargets.value = targets
+    bulkStatus.value = status
+    bulkOpen.value = targets.length > 0
+  }
+
+  /**
+   * Runs an inbox action. A decision key decides the checked rows in the bulk dialog, without
+   * checked rows it opens the decision form of the cursor row in the panel, once the panel
+   * shows that row, so a navigation an unsaved draft kept leaves no request behind.
    * @param {InboxAction} action - Action
    * @returns {void}
    */
@@ -81,18 +99,23 @@ export const useInboxController = (focusSearch: () => void): InboxController => 
         }
         return
       case 'bulk':
-        bulkTargets.value = bulkTargetsFor(findings.value, selection.checkedIds.value, id)
-        bulkOpen.value = bulkTargets.value.length > 0
+        showBulk(bulkTargetsFor(findings.value, selection.checkedIds.value, id), null)
         return
       case 'search':
         focusSearch()
         return
       default: {
         const status = ACTION_STATUS[action]
+        const checked = bulkTargetsFor(findings.value, selection.checkedIds.value, null)
 
-        if (id !== null && status) {
-          void openFinding(String(id))
-          detail.requestDecision(id, status)
+        if (status && checked.length > 0) {
+          showBulk(checked, status)
+        } else if (id !== null && status) {
+          void openFinding(String(id)).then((opened) => {
+            if (opened) {
+              detail.requestDecision(id, status)
+            }
+          })
         }
       }
     }
@@ -125,6 +148,8 @@ export const useInboxController = (focusSearch: () => void): InboxController => 
   })
 
   const refocusCursor = useCursorRefocus(cursor.currentKey, rowOf)
+
+  useInboxHintActions({ run, cursor, ids })
 
   /**
    * Handles a click on a row: Shift checks the range from the anchor, Cmd or Ctrl checks or
@@ -189,6 +214,7 @@ export const useInboxController = (focusSearch: () => void): InboxController => 
     checkedIds: cursor.selection.checkedIds,
     bulkOpen,
     bulkTargets,
+    bulkStatus,
     select,
     openBulk,
     toggleChecked,

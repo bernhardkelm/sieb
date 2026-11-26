@@ -12,7 +12,7 @@ const treegrid = inject(LIST_KIND, null) === 'treegrid'
 </script>
 
 <template>
-  <li v-if="treegrid" class="list-header" role="row">
+  <li v-if="treegrid" class="list-header" role="row" aria-rowindex="1">
     <slot />
   </li>
   <div v-else class="list-header-table" role="table" :aria-label="label">

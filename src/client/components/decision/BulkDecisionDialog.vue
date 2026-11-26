@@ -1,15 +1,21 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
 
+import type { DecisionStatus } from '#core/decision.ts'
 import BaseDialog from '@/components/common/BaseDialog.vue'
 import DecisionForm from '@/components/decision/DecisionForm.vue'
-import type { DecisionFormValue } from '@/components/decision/decisionFormModel'
+import type {
+  DecisionFormInitial,
+  DecisionFormValue,
+} from '@/components/decision/decisionFormModel'
 import type { BulkTarget } from '@/components/decision/bulkTargets'
 import { useDecisionCommands } from '@/composables/useDecisionCommands'
 import { countOf } from '@/format/count'
 
 const props = defineProps<{
   targets: BulkTarget[]
+  /** Preselected status, none is selected when absent */
+  status?: DecisionStatus | null
 }>()
 
 const open = defineModel<boolean>('open', { required: true })
@@ -20,6 +26,10 @@ const commands = useDecisionCommands()
 const form = ref<InstanceType<typeof DecisionForm> | null>(null)
 const error = ref<unknown>(null)
 const submitting = ref(false)
+
+const initial = computed<DecisionFormInitial>(() =>
+  props.status ? { scope: 'image', status: props.status } : { scope: 'image' },
+)
 
 const description = computed(() => {
   const [first] = props.targets
@@ -84,7 +94,7 @@ watch(open, (value) => {
     <DecisionForm
       ref="form"
       :scope-choice="false"
-      :initial="{ scope: 'image' }"
+      :initial="initial"
       :error="error"
       :submitting="submitting"
       submit-label="Decide all"

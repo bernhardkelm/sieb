@@ -106,7 +106,23 @@ describe('OverviewStats', () => {
     expect(router.currentRoute.value.name).toBe('inbox')
     expect(findings.filters.severity).toEqual(['Critical', 'High'])
     expect(findings.filters.q).toBe('')
-    expect(wrapper.findAll('.stat-panel')[2]!.element.tagName).toBe('DIV')
+    expect(wrapper.findAll('.stat-panel')[2]!.element.tagName).toBe('A')
+    wrapper.unmount()
+  })
+
+  it('opens the inbox filtered to KEV from its panel', async () => {
+    vi.mocked(fetchStats).mockResolvedValue(HISTORY)
+    const { wrapper, router } = await mountWithRouter(OverviewStats, '/decisions')
+    const findings = useFindingsStore()
+
+    findings.setFilters({ q: 'nginx' })
+    await flush()
+    await wrapper.findAll('.stat-panel')[2]!.trigger('click')
+    await flush()
+
+    expect(router.currentRoute.value.name).toBe('inbox')
+    expect(findings.filters.kev).toBe(true)
+    expect(findings.filters.q).toBe('')
     wrapper.unmount()
   })
 

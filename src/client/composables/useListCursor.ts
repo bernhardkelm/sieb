@@ -3,6 +3,7 @@ import type { Ref } from 'vue'
 import { useCursorKeys } from '@/composables/useCursorKeys'
 import { useFindingPanel } from '@/composables/useFindingPanel'
 import { useListSelection, type ListSelection } from '@/composables/useListSelection'
+import { provideListViewport } from '@/composables/useListViewport'
 import { usePanelFollow } from '@/composables/usePanelFollow'
 import { useRowFocus } from '@/composables/useRowFocus'
 import type { ShortcutScope } from '@/keyboard/inboxKeymap'
@@ -30,6 +31,8 @@ export interface ListCursor<K> {
   selection: ListSelection<K>
   currentKey: Ref<K | null>
   move: (step: CursorStep, extend?: boolean) => void
+  /** Checks or unchecks the cursor row, as Space and x do */
+  toggleCurrent: () => void
   /** Handles the modifier clicks on a row, returns false for a plain click the view handles */
   click: (key: K, event?: MouseEvent) => boolean
   focusKey: (key: K) => Promise<void>
@@ -39,7 +42,8 @@ export interface ListCursor<K> {
 /**
  * Drives the keyboard cursor every list view shares: the cursor keys and the range selection of
  * the shared keymap, the side panel following the cursor and focus kept on the cursor row. The
- * remaining keys go to the view handler.
+ * remaining keys go to the view handler. Cursor and selection work on the row keys, never on
+ * rendered rows, and a virtualized list of the view scrolls the cursor row into view.
  * @param {ListCursorOptions<K>} options - Rows and the view key handler
  * @returns {ListCursor<K>} - Cursor and its actions
  */
@@ -53,8 +57,23 @@ export const useListCursor = <K>(options: ListCursorOptions<K>): ListCursor<K> =
    * @returns {boolean} - True while paused
    */
   const paused = (): boolean => options.paused?.() ?? false
-  const { revealCurrent } = useRowFocus(currentKey, options.rowOf, paused)
-  const { followKeyMove } = usePanelFollow(currentKey, options)
+  const viewport = provideListViewport<K>()
+  const { revealCurrent } = useRowFocus(currentKey, options.rowOf, paused, viewport)
+  const { followKeyMove } = usePanelFollow(currentKey, {
+    ...options,
+    reveal: () => {
+      void revealCurrent()
+    },
+  })
+
+  /**
+   * Returns how many rows PageUp and PageDown move, measured by the virtualized list or from
+   * the cursor row.
+   * @returns {number} - Rows per page
+   */
+  const pageStep = (): number =>
+    viewport.value?.pageStep() ??
+    pageStepOf(currentKey.value === null ? null : options.rowOf(currentKey.value))
 
   /**
    * Moves the cursor by a step, extending the checked range in lists with multiple selection,
@@ -113,15 +132,21 @@ export const useListCursor = <K>(options: ListCursorOptions<K>): ListCursor<K> =
     await revealCurrent()
   }
 
+  /**
+   * Checks or unchecks the cursor row, nothing without a cursor.
+   * @returns {void}
+   */
+  const toggleCurrent = (): void => {
+    if (currentKey.value !== null) {
+      selection.toggleChecked(currentKey.value)
+    }
+  }
+
   useCursorKeys({
     multiselect,
-    pageStep: () => pageStepOf(currentKey.value === null ? null : options.rowOf(currentKey.value)),
+    pageStep,
     move,
-    toggleCurrent: () => {
-      if (currentKey.value !== null) {
-        selection.toggleChecked(currentKey.value)
-      }
-    },
+    toggleCurrent,
     checkAll: selection.checkAll,
     clearChecked: () => {
       const any = selection.checkedIds.value.size > 0
@@ -134,5 +159,5 @@ export const useListCursor = <K>(options: ListCursorOptions<K>): ListCursor<K> =
     paused,
   })
 
-  return { selection, currentKey, move, click, focusKey, refocus: revealCurrent }
+  return { selection, currentKey, move, toggleCurrent, click, focusKey, refocus: revealCurrent }
 }

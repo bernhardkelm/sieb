@@ -19,12 +19,27 @@ const props = defineProps<{
   expanded: boolean
 }>()
 
+defineEmits<{ select: [event: MouseEvent] }>()
+
 const labels = useLabelsStore()
+const mobileTally = computed(() =>
+  [
+    props.image.notAffectedCount > 0 ? `${props.image.notAffectedCount} not affected` : '',
+    props.image.acceptedCount > 0 ? `${props.image.acceptedCount} accepted` : '',
+  ]
+    .filter(Boolean)
+    .join(' · '),
+)
 const workloadNoun = computed(() => pluralize(props.image.workloadCount, 'workload'))
 </script>
 
 <template>
-  <ListRow class="image-row" :current="current" :aria-expanded="expanded">
+  <ListRow
+    class="image-row"
+    :current="current"
+    :aria-expanded="expanded"
+    @click="$emit('select', $event)"
+  >
     <ExpandChevron :expanded="expanded" />
     <span class="name"><ImageName :image-ref="image.imageRef" /></span>
     <OwnerBadge v-if="labels.showOwner" class="optional" :owner="image.owner" />
@@ -48,6 +63,7 @@ const workloadNoun = computed(() => pluralize(props.image.workloadCount, 'worklo
       tone="muted"
     />
     <CountValue class="optional" :value="image.acceptedCount" label="accepted" />
+    <span v-if="mobileTally" class="mobile-tally">{{ mobileTally }}</span>
     <HintTooltip :text="image.workloads.join('\n') || 'No workloads'">
       <span class="workloads optional">
         {{ image.workloadCount }}<span class="visually-hidden">&nbsp;{{ workloadNoun }}</span>
@@ -70,6 +86,12 @@ const workloadNoun = computed(() => pluralize(props.image.workloadCount, 'worklo
   text-align: right;
 }
 
+.mobile-tally {
+  display: none;
+  color: var(--color-text-muted);
+  font-size: var(--font-size-sm);
+}
+
 @container (max-width: 900px) {
   .optional {
     display: none;
@@ -90,6 +112,12 @@ const workloadNoun = computed(() => pluralize(props.image.workloadCount, 'worklo
   .breakdown,
   .tally {
     order: 2;
+  }
+
+  .mobile-tally {
+    display: block;
+    order: 2;
+    margin-left: calc(var(--chevron-size) + var(--space-2));
   }
 
   .breakdown {

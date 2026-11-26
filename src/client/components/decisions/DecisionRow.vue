@@ -19,6 +19,8 @@ const props = defineProps<{
   expanded: boolean
 }>()
 
+defineEmits<{ select: [event: MouseEvent] }>()
+
 const now = useNow()
 
 const why = computed(() => decisionWhy(props.view, now.value))
@@ -26,7 +28,12 @@ const lapsed = computed(() => props.view.effective.state === 'reopened')
 </script>
 
 <template>
-  <ListRow class="decision-row" :current="current" :aria-expanded="expanded">
+  <ListRow
+    class="decision-row"
+    :current="current"
+    :aria-expanded="expanded"
+    @click="$emit('select', $event)"
+  >
     <ExpandChevron :expanded="expanded" />
     <span>
       <DecisionStateChip

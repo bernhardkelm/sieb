@@ -6,20 +6,25 @@ import EmptyState from '@/components/common/EmptyState.vue'
 import LoadState from '@/components/common/LoadState.vue'
 import BulkDecisionDialog from '@/components/decision/BulkDecisionDialog.vue'
 import FilterBar from '@/components/filters/FilterBar.vue'
+import InboxAllClear from '@/components/inbox/InboxAllClear.vue'
 import InboxList from '@/components/inbox/InboxList.vue'
+import InboxSelectionBar from '@/components/inbox/InboxSelectionBar.vue'
 import { INBOX_SORT_COLUMNS } from '@/components/inbox/inboxSort'
 import InboxSummary from '@/components/inbox/InboxSummary.vue'
 import ViewToolbar from '@/components/layout/ViewToolbar.vue'
 import SortMenu from '@/components/list/SortMenu.vue'
 import { useInboxController } from '@/composables/useInboxController'
 import { useLabelColumns } from '@/composables/useLabelColumns'
+import { hasActiveFilters } from '@/stores/findingFilters'
 import { useFindingsStore } from '@/stores/findingsStore'
+import { useLabelsStore } from '@/stores/labelsStore'
 
 const store = useFindingsStore()
+const labels = useLabelsStore()
 const filterBar = ref<InstanceType<typeof FilterBar> | null>(null)
 
 const inbox = useInboxController(() => filterBar.value?.focusSearch())
-const { findings, sort, newCount, currentId, checkedIds, bulkOpen, bulkTargets } = inbox
+const { findings, sort, newCount, currentId, checkedIds, bulkOpen, bulkTargets, bulkStatus } = inbox
 
 const { hidden } = useLabelColumns()
 </script>
@@ -42,9 +47,9 @@ const { hidden } = useLabelColumns()
       :error="store.error"
       @retry="store.refresh()"
     />
-    <EmptyState v-else-if="store.inboxTotal === 0" title="Inbox zero">
-      Every open finding has a decision. New findings show up here after the next sync.
-    </EmptyState>
+    <InboxAllClear
+      v-else-if="store.inboxTotal === 0 && !hasActiveFilters(store.filters, labels.showKev)"
+    />
     <template v-else>
       <InboxSummary
         :shown="findings.length"
@@ -69,7 +74,13 @@ const { hidden } = useLabelColumns()
         @sort="sort.toggle"
         @toggle="inbox.toggleChecked"
       />
+      <InboxSelectionBar :count="checkedIds.size" @clear="inbox.clearChecked" />
     </template>
-    <BulkDecisionDialog v-model:open="bulkOpen" :targets="bulkTargets" @done="inbox.clearChecked" />
+    <BulkDecisionDialog
+      v-model:open="bulkOpen"
+      :targets="bulkTargets"
+      :status="bulkStatus"
+      @done="inbox.clearChecked"
+    />
   </div>
 </template>

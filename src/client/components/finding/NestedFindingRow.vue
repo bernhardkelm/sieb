@@ -1,16 +1,14 @@
 <script setup lang="ts">
-import type { FindingView } from '#core/findingView.ts'
 import FindingRow from '@/components/finding/FindingRow.vue'
+import type { TreeItem } from '@/components/list/flattenTree'
 import NestedPanel from '@/components/list/NestedPanel.vue'
 import { useNow } from '@/composables/useNow'
-import { findingRowKey } from '@/keyboard/rowKey'
 import { isNewFinding } from '@/stores/findingFilters'
 
 defineProps<{
-  findings: FindingView[]
+  /** Finding row below an expanded group, or the loading or empty note standing in for them */
+  item: Extract<TreeItem<unknown>, { kind: 'status' | 'finding' }>
   currentKey: string | null
-  /** Whether the findings store has loaded, shows a loading row before */
-  loaded: boolean
 }>()
 
 defineEmits<{ select: [key: string] }>()
@@ -19,21 +17,19 @@ const now = useNow()
 </script>
 
 <template>
-  <NestedPanel v-if="!loaded">Loading findings…</NestedPanel>
-  <NestedPanel v-else-if="findings.length === 0">No open findings.</NestedPanel>
+  <NestedPanel v-if="item.kind === 'status'">{{ item.text }}</NestedPanel>
   <FindingRow
-    v-for="finding in findings"
-    :key="finding.id"
+    v-else
     class="nested"
-    :finding="finding"
-    :current="currentKey === findingRowKey(finding.id)"
+    :finding="item.finding"
+    :current="currentKey === item.key"
     :checked="false"
-    :is-new="isNewFinding(finding.firstSeen, now)"
+    :is-new="isNewFinding(item.finding.firstSeen, now)"
     :selectable="false"
     show-decision
-    :data-row-key="findingRowKey(finding.id)"
+    :data-row-key="item.key"
     aria-level="2"
-    @click="$emit('select', findingRowKey(finding.id))"
+    @select="$emit('select', item.key)"
   />
 </template>
 

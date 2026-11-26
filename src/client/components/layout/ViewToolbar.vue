@@ -1,5 +1,5 @@
 <template>
-  <div class="view-toolbar">
+  <div class="view-toolbar" data-sticky-edge="top">
     <slot />
   </div>
 </template>

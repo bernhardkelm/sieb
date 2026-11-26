@@ -13,6 +13,7 @@ const ALL: FindingQuery = {
   exposure: [],
   owner: [],
   newSince: null,
+  kev: false,
 }
 
 describe('parseFindingQuery', () => {
@@ -26,6 +27,7 @@ describe('parseFindingQuery', () => {
         exposure: 'public',
         owner: 'self',
         newSince: '2026-05-25',
+        kev: 'true',
       }),
     ).toEqual({
       ok: true,
@@ -37,6 +39,7 @@ describe('parseFindingQuery', () => {
         exposure: ['public'],
         owner: ['self'],
         newSince: '2026-05-25T00:00:00.000Z',
+        kev: true,
       },
     })
     expect(parseFindingQuery({})).toEqual({ ok: true, value: ALL })
@@ -65,7 +68,14 @@ describe('filterFindings', () => {
     buildFindingView({ id: 2, severity: 'Low', inInbox: false }),
     buildFindingView({ id: 3, resolvedAt: NOW.toISOString(), inInbox: false }),
     buildFindingView({ id: 4, firstSeen: NOW.toISOString(), owner: 'self', packages: ['zlib'] }),
-    buildFindingView({ id: 5, owner: null, exposure: null, inInbox: false, severity: 'Low' }),
+    buildFindingView({
+      id: 5,
+      kev: true,
+      owner: null,
+      exposure: null,
+      inInbox: false,
+      severity: 'Low',
+    }),
   ]
 
   /**
@@ -84,6 +94,7 @@ describe('filterFindings', () => {
     expect(ids({ owner: ['self'] })).toEqual([4])
     expect(ids({ exposure: ['internal'] })).toEqual([1, 2, 4])
     expect(ids({ newSince: '2026-05-25T00:00:00.000Z' })).toEqual([4])
+    expect(ids({ kev: true })).toEqual([5])
     expect(ids({ q: 'ZLIB' })).toEqual([4])
     expect(ids({ q: 'nginx' })).toEqual([1, 2, 4, 5])
   })

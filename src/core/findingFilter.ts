@@ -14,6 +14,7 @@ type FilterableFinding = Pick<
   | 'firstSeen'
   | 'resolvedAt'
   | 'inInbox'
+  | 'kev'
 >
 
 /**
@@ -65,6 +66,10 @@ export const matchesFindingQuery = (finding: FilterableFinding, query: FindingQu
   }
 
   if (query.newSince !== null && Date.parse(finding.firstSeen) < Date.parse(query.newSince)) {
+    return false
+  }
+
+  if (query.kev && !finding.kev) {
     return false
   }
 

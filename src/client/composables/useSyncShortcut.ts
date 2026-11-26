@@ -1,13 +1,23 @@
+import { useHintActions } from '@/composables/useHintActions'
 import { useWindowKeydown } from '@/composables/useWindowKeydown'
 import { isShortcutEvent, shortcutScope } from '@/keyboard/keyboardTarget'
 import { useSyncStore } from '@/stores/syncStore'
 
 /**
- * Triggers a sync when r is pressed outside text entries, popovers and dialogs.
+ * Triggers a sync when r is pressed outside text entries, popovers and dialogs, or its hint is
+ * clicked; a running sync blocks the hint as it makes the store ignore the key.
  * @returns {void}
  */
 export const useSyncShortcut = (): void => {
   const sync = useSyncStore()
+
+  /**
+   * Starts a sync.
+   * @returns {void}
+   */
+  const runSync = (): void => {
+    void sync.sync()
+  }
 
   /**
    * Handles a global keydown.
@@ -20,8 +30,11 @@ export const useSyncShortcut = (): void => {
     }
 
     event.preventDefault()
-    void sync.sync()
+    runSync()
   }
 
   useWindowKeydown(onKeydown)
+  useHintActions({
+    sync: { run: runSync, blockedBy: () => (sync.running ? 'A sync is running' : null) },
+  })
 }

@@ -31,7 +31,7 @@ watch(
 
 <template>
   <div class="app-shell">
-    <AppSidebar class="sidebar" />
+    <AppSidebar class="sidebar" data-sticky-edge="bottom" />
     <div class="column">
       <AppTopBar />
       <div class="body">

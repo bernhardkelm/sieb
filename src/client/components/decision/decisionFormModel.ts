@@ -17,6 +17,14 @@ export const REASON_PLACEHOLDERS: Record<DecisionStatus, string> = {
   fix_planned: 'What is the plan?',
 }
 
+/**
+ * Returns the prompt of the reason field, a neutral one while no status is chosen.
+ * @param {DecisionStatus | null} status - Chosen status, null for none
+ * @returns {string} - Placeholder
+ */
+export const reasonPlaceholder = (status: DecisionStatus | null): string =>
+  status === null ? 'Explain the decision.' : REASON_PLACEHOLDERS[status]
+
 /** What the decision form submits, expiresAt null for no expiry */
 export interface DecisionFormValue {
   status: DecisionStatus

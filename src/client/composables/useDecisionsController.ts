@@ -16,6 +16,7 @@ import {
 import { governedFindings } from '@/components/decisions/governedFindings'
 import { useCursorList } from '@/composables/useCursorList'
 import { useDecisionEditing, type DecisionEditing } from '@/composables/useDecisionEditing'
+import { useDecisionHintActions } from '@/composables/useDecisionHintActions'
 import { useExpandedGroup } from '@/composables/useExpandedGroup'
 import { useFindingPanel } from '@/composables/useFindingPanel'
 import { useListSort, type ListSort } from '@/composables/useListSort'
@@ -151,6 +152,17 @@ export const useDecisionsController = (focusSearch: () => void): DecisionsContro
   })
 
   expanded.placeCursor(keys, cursor)
+
+  useDecisionHintActions({
+    currentKey: cursor.currentKey,
+    decisionOf,
+    editing,
+    openFirst,
+    hasOpenFinding: (view) => governedFindings(view.decision, findings.items).length > 0,
+    select: cursor.select,
+    focusSearch,
+    refocus: cursor.refocus,
+  })
 
   /**
    * Returns to the default order and focuses the cursor row, as the reset button disappears.

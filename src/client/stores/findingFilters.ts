@@ -13,6 +13,7 @@ export interface FindingFilters {
   exposure: Exposure[]
   owner: string[]
   newThisWeek: boolean
+  kev: boolean
   includeResolved: boolean
 }
 
@@ -26,6 +27,7 @@ export const emptyFilters = (): FindingFilters => ({
   exposure: [],
   owner: [],
   newThisWeek: false,
+  kev: false,
   includeResolved: false,
 })
 
@@ -51,12 +53,14 @@ export const isNewFinding = (firstSeen: string, now: Date): boolean =>
  * @param {FindingFilters} filters - Filter bar state
  * @param {FindingListView} view - Inbox or all findings
  * @param {Date} now - Current time, anchors "new this week"
+ * @param {boolean} kevAvailable - Whether a KEV source is configured, the KEV filter is ignored without
  * @returns {FindingQuery} - Query for filterFindings
  */
 export const toFindingQuery = (
   filters: FindingFilters,
   view: FindingListView,
   now: Date,
+  kevAvailable = true,
 ): FindingQuery => ({
   view,
   includeResolved: filters.includeResolved,
@@ -65,17 +69,20 @@ export const toFindingQuery = (
   exposure: filters.exposure,
   owner: filters.owner,
   newSince: filters.newThisWeek ? newSince(now) : null,
+  kev: filters.kev && kevAvailable,
 })
 
 /**
  * Returns whether any filter narrows the list.
  * @param {FindingFilters} filters - Filter bar state
+ * @param {boolean} kevAvailable - Whether a KEV source is configured, the KEV filter is ignored without
  * @returns {boolean} - True when a filter is set
  */
-export const hasActiveFilters = (filters: FindingFilters): boolean =>
+export const hasActiveFilters = (filters: FindingFilters, kevAvailable = true): boolean =>
   filters.q.trim() !== '' ||
   filters.severity.length > 0 ||
   filters.exposure.length > 0 ||
   filters.owner.length > 0 ||
   filters.newThisWeek ||
+  (filters.kev && kevAvailable) ||
   filters.includeResolved

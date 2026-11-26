@@ -31,21 +31,21 @@ Checked before identity:
 
 ## Routes
 
-| Route | Purpose |
-| --- | --- |
-| `GET /api/health` | `{ status, source }`, no Host check |
-| `GET /api/me` | `{ username }` of the acting user |
-| `GET /api/findings` | Findings in inbox order; `view=inbox\|all`, `includeResolved`, `q`, `severity`, `exposure`, `owner` (comma lists, `owner` takes free-form owner labels), `newSince` |
-| `GET /api/findings/:id` | Finding detail: instances, decisions, history and `kev`, the CISA catalog entry, see [KEV source](#kev-source) |
-| `GET /api/images`, `GET /api/cves` | Open findings aggregated per image or per CVE, `includeResolved=true` adds resolved ones |
-| `GET /api/decisions` | Decisions with their state, `state=active\|expiring\|expired\|revoked\|reopened\|fix_planned` |
-| `POST /api/decisions` | Create an image-scoped or all-scope decision, `{ vulnId, scope, imageRef?, status, justification?, reason, expiresAt? }` |
-| `PATCH /api/decisions/:id` | Change status, justification, reason or expiry; `reconfirm: true` re-confirms at the current findings |
-| `POST /api/decisions/:id/revoke` | Revoke, optional `{ "comment" }` |
-| `POST /api/decisions/bulk` | `{ vulnId, imageRefs: [...] \| "all-open", status, justification?, reason, expiresAt? }`, images with a decision are skipped with reason `decided`, `expired` or `reopened`, unknown ones with `unknown_finding` |
-| `GET /api/sync`, `POST /api/sync` | `{ run, lastFinished, running, kevFeed }`: latest run and the health of the CISA catalog; run a sync and answer the finished run |
-| `GET /api/stats` | `{ current, series }`: live overview counts and their history, `range=7d\|30d\|90d` (default `30d`) |
-| `GET /api/labels` | `{ exposure, owners, kev }`: which optional labels the open findings carry and the KEV source, see [Labels](#labels) |
+| Route                              | Purpose                                                                                                                                                                                                                   |
+| ---------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `GET /api/health`                  | `{ status, source }`, no Host check                                                                                                                                                                                       |
+| `GET /api/me`                      | `{ username }` of the acting user                                                                                                                                                                                         |
+| `GET /api/findings`                | Findings in inbox order; `view=inbox\|all`, `includeResolved`, `q`, `severity`, `exposure`, `owner` (comma lists, `owner` takes free-form owner labels), `newSince`, `kev` (`true` or `1` keeps KEV listed findings only) |
+| `GET /api/findings/:id`            | Finding detail: instances, decisions, history and `kev`, the CISA catalog entry, see [KEV source](#kev-source)                                                                                                            |
+| `GET /api/images`, `GET /api/cves` | Open findings aggregated per image or per CVE, `includeResolved=true` adds resolved ones                                                                                                                                  |
+| `GET /api/decisions`               | Decisions with their state, `state=active\|expiring\|expired\|revoked\|reopened\|fix_planned`                                                                                                                             |
+| `POST /api/decisions`              | Create an image-scoped or all-scope decision, `{ vulnId, scope, imageRef?, status, justification?, reason, expiresAt? }`                                                                                                  |
+| `PATCH /api/decisions/:id`         | Change status, justification, reason or expiry; `reconfirm: true` re-confirms at the current findings                                                                                                                     |
+| `POST /api/decisions/:id/revoke`   | Revoke, optional `{ "comment" }`                                                                                                                                                                                          |
+| `POST /api/decisions/bulk`         | `{ vulnId, imageRefs: [...] \| "all-open", status, justification?, reason, expiresAt? }`, images with a decision are skipped with reason `decided`, `expired` or `reopened`, unknown ones with `unknown_finding`          |
+| `GET /api/sync`, `POST /api/sync`  | `{ run, lastFinished, running, kevFeed }`: latest run and the health of the CISA catalog; run a sync and answer the finished run                                                                                          |
+| `GET /api/stats`                   | `{ current, series }`: live overview counts and their history, `range=7d\|30d\|90d` (default `30d`)                                                                                                                       |
+| `GET /api/labels`                  | `{ exposure, owners, kev }`: which optional labels the open findings carry and the KEV source, see [Labels](#labels)                                                                                                      |
 
 ## Justification
 

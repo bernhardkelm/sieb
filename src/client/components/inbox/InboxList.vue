@@ -6,6 +6,7 @@ import DenseList from '@/components/list/DenseList.vue'
 import ListHeader from '@/components/list/ListHeader.vue'
 import type { SortState } from '@/components/list/listSort'
 import SortHeader from '@/components/list/SortHeader.vue'
+import { rowEstimate } from '@/components/list/virtualRows'
 import { useLabelColumns } from '@/composables/useLabelColumns'
 import { useNow } from '@/composables/useNow'
 import { isNewFinding } from '@/stores/findingFilters'
@@ -26,6 +27,21 @@ defineEmits<{
 const now = useNow()
 const columns = INBOX_SORT_COLUMNS
 const { hidden, classes } = useLabelColumns()
+
+/**
+ * Returns the virtualizer key of an inbox row, its finding id as the cursor uses it.
+ * @param {FindingView} finding - Finding
+ * @returns {number} - Finding id
+ */
+const idOf = (finding: FindingView): number => finding.id
+
+/**
+ * Estimates the height of an inbox row until it is measured.
+ * @param {FindingView} _finding - Finding
+ * @param {boolean} narrow - Whether the row wraps to two lines
+ * @returns {number} - Height in px
+ */
+const estimate = (_finding: FindingView, narrow: boolean): number => rowEstimate(narrow)
 </script>
 
 <template>
@@ -82,17 +98,25 @@ const { hidden, classes } = useLabelColumns()
         @sort="$emit('sort', $event)"
       />
     </ListHeader>
-    <DenseList label="Inbox findings">
-      <FindingRow
-        v-for="finding in findings"
-        :key="finding.id"
-        :finding="finding"
-        :current="finding.id === currentId"
-        :checked="checkedIds.has(finding.id)"
-        :is-new="isNewFinding(finding.firstSeen, now)"
-        @click="$emit('select', finding.id, $event)"
-        @toggle="$emit('toggle', finding.id, $event)"
-      />
+    <DenseList
+      label="Inbox findings"
+      :items="findings"
+      :key-of="idOf"
+      :estimate="estimate"
+      :pinned="currentId"
+    >
+      <template #default="{ item: finding, attrs, measure }">
+        <FindingRow
+          :ref="measure"
+          v-bind="attrs"
+          :finding="finding"
+          :current="finding.id === currentId"
+          :checked="checkedIds.has(finding.id)"
+          :is-new="isNewFinding(finding.firstSeen, now)"
+          @select="$emit('select', finding.id, $event)"
+          @toggle="$emit('toggle', finding.id, $event)"
+        />
+      </template>
     </DenseList>
   </div>
 </template>

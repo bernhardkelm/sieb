@@ -8,6 +8,7 @@ import { countHiddenImages, filterImages } from '@/components/images/imageFilter
 import { IMAGE_SORT_COLUMNS, sortImages, type ImageSortColumn } from '@/components/images/imageSort'
 import { useCursorList } from '@/composables/useCursorList'
 import { useExpandedGroup } from '@/composables/useExpandedGroup'
+import { useHintActions } from '@/composables/useHintActions'
 import { useListSort, type ListSort } from '@/composables/useListSort'
 import { findingRowKey, groupRowKey } from '@/keyboard/rowKey'
 import { IMAGE_QUERY } from '@/router/routeNames'
@@ -71,6 +72,8 @@ export const useImagesController = (focusSearch: () => void): ImagesController =
   })
 
   expanded.placeCursor(keys, cursor)
+
+  useHintActions({ search: { run: focusSearch } }, cursor.refocus)
 
   /**
    * Returns to the default order and focuses the cursor row, as the reset button disappears.

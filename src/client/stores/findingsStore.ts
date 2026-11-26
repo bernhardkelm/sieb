@@ -8,6 +8,7 @@ import type { FindingListView } from '#core/findingQuery.ts'
 import type { FindingView } from '#core/findingView.ts'
 import { fetchFindings } from '@/api/findingsApi'
 import { useRemoteList } from '@/composables/useRemoteList'
+import { useLabelsStore } from '@/stores/labelsStore'
 import { emptyFilters, toFindingQuery, type FindingFilters } from '@/stores/findingFilters'
 
 /**
@@ -23,6 +24,7 @@ export const useFindingsStore = defineStore('findings', () => {
       now.value = new Date()
     },
   )
+  const labels = useLabelsStore()
   const filters = ref<FindingFilters>(emptyFilters())
 
   /**
@@ -31,7 +33,7 @@ export const useFindingsStore = defineStore('findings', () => {
    * @returns {FindingView[]} - Findings in inbox order
    */
   const list = (view: FindingListView): FindingView[] =>
-    filterFindings(items.value, toFindingQuery(filters.value, view, now.value))
+    filterFindings(items.value, toFindingQuery(filters.value, view, now.value, labels.showKev))
 
   const inbox = computed(() => list('inbox'))
   const inboxTotal = computed(() => items.value.filter((finding) => finding.inInbox).length)

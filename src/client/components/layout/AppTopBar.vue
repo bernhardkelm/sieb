@@ -28,7 +28,7 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <header class="top-bar">
+  <header class="top-bar" data-sticky-edge="top">
     <h1 class="title">{{ title }}</h1>
     <div class="tools">
       <SyncControl

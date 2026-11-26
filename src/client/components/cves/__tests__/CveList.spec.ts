@@ -1,5 +1,5 @@
 import { flushPromises } from '@vue/test-utils'
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { computed, defineComponent, h } from 'vue'
 
 import { buildDecision, buildFindingView } from '#core/__tests__/coreBuilders.ts'
@@ -39,6 +39,11 @@ const cve = (vulnId: string, overrides: Partial<CveAggregate> = {}): CveAggregat
   },
   allScopeDecision: null,
   ...overrides,
+})
+
+beforeEach(() => {
+  // jsdom lacks window.scrollTo, the virtualizer corrects the scroll position as rows measure
+  vi.spyOn(window, 'scrollTo').mockImplementation(() => {})
 })
 
 afterEach(() => {

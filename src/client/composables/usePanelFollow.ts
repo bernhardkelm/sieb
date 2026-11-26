@@ -1,4 +1,5 @@
-import { watch, type Ref } from 'vue'
+import { onScopeDispose, watch, type Ref } from 'vue'
+import { isNavigationFailure, NavigationFailureType, useRouter } from 'vue-router'
 
 import { useFindingPanel } from '@/composables/useFindingPanel'
 
@@ -7,6 +8,8 @@ export interface PanelFollowOptions<K> {
   /** Finding shown by a row, null for group rows */
   findingIdOf: (key: K) => number | null
   keyOfFinding: (id: number) => K
+  /** Scrolls the cursor row into view, after the cursor moved to the panel finding */
+  reveal?: () => void
 }
 
 export interface PanelFollow<K> {
@@ -18,7 +21,8 @@ export interface PanelFollow<K> {
  * Couples the side panel and the cursor of a list. While the panel shows the cursor row, or the
  * cursor moved by key, the panel follows the cursor, so a decided row leaving the list hands
  * panel and cursor to the next row; a finding opened by link puts the cursor on its row once
- * listed, and an empty cursor starts on the first row.
+ * listed and scrolls that row into view, and an empty cursor starts on the first row. A
+ * cancelled navigation, such as one an unsaved draft kept, puts the cursor back on the panel row.
  * @param {Ref<K | null>} currentKey - Cursor row
  * @param {PanelFollowOptions<K>} options - Rows and their findings
  * @returns {PanelFollow<K>} - Hook for key moves
@@ -28,7 +32,28 @@ export const usePanelFollow = <K>(
   options: PanelFollowOptions<K>,
 ): PanelFollow<K> => {
   const { findingId, openFinding } = useFindingPanel()
+  const router = useRouter()
   let followOnChange = false
+
+  /**
+   * Puts the cursor on the row of the panel finding.
+   * @param {readonly K[]} keys - Listed rows
+   * @returns {boolean} - Whether the panel finding is listed
+   */
+  const cursorToPanel = (keys: readonly K[]): boolean => {
+    const key = findingId.value === null ? null : options.keyOfFinding(Number(findingId.value))
+
+    if (key === null || !keys.includes(key)) {
+      return false
+    }
+
+    if (currentKey.value !== key) {
+      currentKey.value = key
+      options.reveal?.()
+    }
+
+    return true
+  }
 
   /**
    * Shows the cursor row in the panel while the panel is open on another finding.
@@ -69,16 +94,20 @@ export const usePanelFollow = <K>(
 
   watch(
     [findingId, options.keys],
-    ([id, keys]) => {
-      const key = id === null ? null : options.keyOfFinding(Number(id))
-
-      if (key !== null && keys.includes(key)) {
-        currentKey.value = key
-      } else if (currentKey.value === null && keys.length > 0) {
+    ([, keys]) => {
+      if (!cursorToPanel(keys) && currentKey.value === null && keys.length > 0) {
         currentKey.value = keys[0]!
       }
     },
     { immediate: true },
+  )
+
+  onScopeDispose(
+    router.afterEach((_to, _from, failure) => {
+      if (isNavigationFailure(failure, NavigationFailureType.aborted)) {
+        cursorToPanel(options.keys.value)
+      }
+    }),
   )
 
   return { followKeyMove }

@@ -9,6 +9,7 @@ import { summarizeDecisions } from '@/components/cves/decisionSummary'
 import type { BulkTarget } from '@/components/decision/bulkTargets'
 import { emptyAggregateFilters, type AggregateFilters } from '@/components/filters/aggregateFilters'
 import { useCursorList } from '@/composables/useCursorList'
+import { useCveHintActions } from '@/composables/useCveHintActions'
 import { useExpandedGroup } from '@/composables/useExpandedGroup'
 import { useListSort, type ListSort } from '@/composables/useListSort'
 import { findingIdOfRowKey, findingRowKey, groupOfRowKey, groupRowKey } from '@/keyboard/rowKey'
@@ -137,6 +138,18 @@ export const useCvesController = (focusSearch: () => void): CvesController => {
   })
 
   expanded.placeCursor(keys, cursor)
+
+  useCveHintActions({
+    currentCve: () => {
+      const vulnId = vulnIdOf(cursor.currentKey.value)
+
+      return store.items.find((cve) => cve.vulnId === vulnId) ?? null
+    },
+    openBulk,
+    openDecideAll,
+    focusSearch,
+    refocus: cursor.refocus,
+  })
 
   /**
    * Returns to the default order and focuses the cursor row, as the reset button disappears.

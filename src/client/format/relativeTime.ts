@@ -32,21 +32,23 @@ export const formatRelative = (iso: string, now: Date): string => {
   return delta < 0 ? `${amount} ago` : `in ${amount}`
 }
 
+// shared formatters, toLocaleString builds a new Intl.DateTimeFormat on every call
+const ABSOLUTE = new Intl.DateTimeFormat(undefined, { dateStyle: 'medium', timeStyle: 'short' })
+const DATE = new Intl.DateTimeFormat(undefined, { dateStyle: 'medium' })
+
 /**
  * Formats a timestamp as local date and time.
  * @param {string} iso - ISO timestamp
  * @returns {string} - Date and time in the locale of the browser
  */
-export const formatAbsolute = (iso: string): string =>
-  new Date(iso).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' })
+export const formatAbsolute = (iso: string): string => ABSOLUTE.format(new Date(iso))
 
 /**
  * Formats a timestamp as local date without time.
  * @param {string} iso - ISO timestamp
  * @returns {string} - Date in the locale of the browser
  */
-export const formatDate = (iso: string): string =>
-  new Date(iso).toLocaleDateString(undefined, { dateStyle: 'medium' })
+export const formatDate = (iso: string): string => DATE.format(new Date(iso))
 
 /**
  * Formats a calendar day without shifting it into the local time zone.
