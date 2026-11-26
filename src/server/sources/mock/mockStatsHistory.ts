@@ -85,7 +85,14 @@ const syntheticStats = (current: OverviewStats, t: number, noise: () => number):
   const triaged = easeOut(t)
   const inboxShare = share(current.inbox)
   const inbox = Math.round(open * lerp(Math.max(inboxShare, 0.9), inboxShare, triaged))
-  const suppressedShare = share(current.suppressed)
+  /**
+   * Returns a decided count that grows with the triage progress towards its current value.
+   * @param {number} count - Current count
+   * @returns {number} - Count at this point
+   */
+  const decided = (count: number): number =>
+    Math.round(open * lerp(share(count) * 0.2, share(count), triaged))
+  const notAffected = Math.min(open - inbox, decided(current.notAffected))
 
   return {
     open,
@@ -93,10 +100,8 @@ const syntheticStats = (current: OverviewStats, t: number, noise: () => number):
     kev: Math.min(open, current.kev + (t < 0.55 ? 1 : 0)),
     public: Math.min(open, Math.round(open * share(current.public) * jitter())),
     bySeverity,
-    suppressed: Math.min(
-      open - inbox,
-      Math.round(open * lerp(suppressedShare * 0.2, suppressedShare, triaged)),
-    ),
+    notAffected,
+    accepted: Math.min(open - inbox - notAffected, decided(current.accepted)),
     fixPlanned: Math.round(lerp(0, current.fixPlanned, triaged)),
     reopened: t >= 0.8 ? current.reopened : 0,
     activeDecisions: Math.round(

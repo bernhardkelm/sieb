@@ -26,9 +26,15 @@ as `sieb_suppressed{vuln_id, image_ref}`. Your Prometheus alert rules drop the s
 - KEV listing from the CISA Known Exploited Vulnerabilities catalog, fetched daily with date
   added, due date, ransomware use and required action in the finding panel; alternatively from a
   Prometheus query, or switched off
-- Decisions per image or for all images of a CVE, with reason, optional expiry and bulk actions
+- By image as a risk view: findings decided not affected leave the counts, accepted risk stays
+  in; by CVE as a triage view that hides CVEs whose open findings are all decided. A filter toggle
+  brings either back
+- Decisions per image or for all images of a CVE (not affected, accepted or fix planned), with
+  reason, optional expiry and bulk actions; not affected takes an optional OpenVEX justification
+  such as component not present (false positive)
 - Decisions re-open on their own when a governed finding gets more severe or becomes KEV listed
-- History of every decision, and overview stats with a 7, 30 or 90 day trend
+- History of every decision, and overview stats with a 7, 30 or 90 day trend that count not
+  affected and accepted findings apart
 - `/metrics` for Prometheus: alert silencing without hiding findings
 - Single Node process with an embedded SQLite file, no external database
 - Fully keyboard driven, light and dark theme

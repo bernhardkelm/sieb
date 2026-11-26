@@ -17,6 +17,7 @@ describe('validateBulkDecisionInput', () => {
         vulnId: 'CVE-1',
         imageRefs: ['a', 'b'],
         status: 'accepted',
+        justification: null,
         reason: 'ok',
         expiresAt: '2026-08-30T12:00:00.000Z',
       },
@@ -40,6 +41,26 @@ describe('validateBulkDecisionInput', () => {
         ],
       },
     )
+  })
+
+  it('carries a not_affected justification and rejects one with another status', () => {
+    const base = { vulnId: 'CVE-1', imageRefs: 'all-open', reason: 'x' }
+
+    expect(
+      validateBulkDecisionInput(
+        { ...base, status: 'not_affected', justification: 'vulnerable_code_not_in_execute_path' },
+        NOW,
+      ),
+    ).toMatchObject({
+      ok: true,
+      value: { justification: 'vulnerable_code_not_in_execute_path' },
+    })
+    expect(
+      validateBulkDecisionInput(
+        { ...base, status: 'accepted', justification: 'component_not_present' },
+        NOW,
+      ),
+    ).toEqual({ ok: false, errors: [{ field: 'justification', code: 'not_allowed' }] })
   })
 
   it('caps the image list', () => {

@@ -3,11 +3,16 @@ defineProps<{
   checked: boolean
 }>()
 
-defineEmits<{ toggle: [] }>()
+defineEmits<{ toggle: [event: MouseEvent] }>()
 </script>
 
 <template>
-  <span class="row-checkbox" :class="{ checked }" aria-hidden="true" @click.stop="$emit('toggle')">
+  <span
+    class="row-checkbox"
+    :class="{ checked }"
+    aria-hidden="true"
+    @click.stop="$emit('toggle', $event)"
+  >
     <svg v-if="checked" viewBox="0 0 16 16" focusable="false">
       <path d="M3.5 8.5 6.5 11.5 12.5 4.5" />
     </svg>
@@ -52,8 +57,9 @@ defineEmits<{ toggle: [] }>()
 }
 
 svg {
-  width: var(--checkbox-size);
-  height: var(--checkbox-size);
+  display: block;
+  width: 100%;
+  height: 100%;
   fill: none;
   stroke: currentColor;
   stroke-width: 2;

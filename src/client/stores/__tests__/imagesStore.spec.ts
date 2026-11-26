@@ -26,9 +26,17 @@ const image = (imageRef: string): ImageAggregate => ({
   fixableCount: 1,
   kevCount: 0,
   inboxCount: 1,
-  suppressedCount: 0,
+  notAffectedCount: 0,
+  acceptedCount: 0,
   workloadCount: 1,
   workloads: ['shop/Deployment/web'],
+  includingNotAffected: {
+    maxSeverity: 'High',
+    openCount: 1,
+    openBySeverity: { Critical: 0, High: 1, Medium: 0, Low: 0, Unknown: 0 },
+    fixableCount: 1,
+    kevCount: 0,
+  },
 })
 
 /**

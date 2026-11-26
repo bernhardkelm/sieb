@@ -1,6 +1,6 @@
 import type { DatabaseSync } from 'node:sqlite'
 
-import { emptyOverviewStats, type OverviewStats, type StatsPoint } from '#core/overviewStats.ts'
+import { emptyOverviewStats, type RecordedStats, type StatsPoint } from '#core/overviewStats.ts'
 
 interface StatsSnapshotRow {
   taken_at: string
@@ -8,15 +8,24 @@ interface StatsSnapshotRow {
 }
 
 /**
- * Parses stored stats, counts added after the snapshot was written read as zero.
+ * Parses stored stats, counts added after the snapshot was written read as zero. The verdict
+ * counts read as null instead, older snapshots only hold their sum as suppressed, which is dropped.
  * @param {string} json - Stored stats
- * @returns {OverviewStats} - Stats
+ * @returns {RecordedStats} - Stats
  */
-const parseStats = (json: string): OverviewStats => {
+const parseStats = (json: string): RecordedStats => {
   const empty = emptyOverviewStats()
-  const stored = JSON.parse(json) as Partial<OverviewStats>
+  const stored = JSON.parse(json) as Partial<RecordedStats> & { suppressed?: number }
 
-  return { ...empty, ...stored, bySeverity: { ...empty.bySeverity, ...stored.bySeverity } }
+  delete stored.suppressed
+
+  return {
+    ...empty,
+    notAffected: null,
+    accepted: null,
+    ...stored,
+    bySeverity: { ...empty.bySeverity, ...stored.bySeverity },
+  }
 }
 
 /**

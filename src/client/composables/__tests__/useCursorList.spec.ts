@@ -19,7 +19,7 @@ let mounted: RoutedMount | null = null
 
 const Host = defineComponent({
   setup: () => {
-    cursor = useCursorList({ keys, activateGroup, close })
+    cursor = useCursorList({ keys, activateGroup, close, expanded: () => 'a' })
 
     return () => h('div', [h('button', { id: 'tab', role: 'tab' }, 'Active')])
   },
@@ -93,5 +93,33 @@ describe('useCursorList', () => {
     useFindingDetailStore().setDraftDirty(false)
     await press('Escape')
     expect(close).toHaveBeenCalledTimes(1)
+  })
+
+  it('steps through the tree with ArrowRight and ArrowLeft', async () => {
+    await mountList('/images')
+
+    await press('ArrowRight')
+    expect(cursor.currentKey.value).toBe(findingRowKey(1))
+
+    await press('ArrowLeft')
+    expect(cursor.currentKey.value).toBe(groupRowKey('a'))
+
+    await press('ArrowLeft')
+    expect(close).toHaveBeenCalledTimes(1)
+
+    await press('End')
+    await press('ArrowRight')
+    expect(activateGroup).toHaveBeenCalledWith('b')
+  })
+
+  it('jumps to the ends and pages through the list', async () => {
+    await mountList('/images')
+
+    await press('End')
+    expect(cursor.currentKey.value).toBe(groupRowKey('b'))
+
+    await press('Home')
+    await press('PageDown')
+    expect(cursor.currentKey.value).toBe(groupRowKey('b'))
   })
 })

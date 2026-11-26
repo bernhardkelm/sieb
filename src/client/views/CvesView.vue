@@ -10,7 +10,7 @@ import { CVE_SORT_COLUMNS } from '@/components/cves/cveSort'
 import CvesSummary from '@/components/cves/CvesSummary.vue'
 import BulkDecisionDialog from '@/components/decision/BulkDecisionDialog.vue'
 import AggregateFilterBar from '@/components/filters/AggregateFilterBar.vue'
-import { emptyAggregateFilters } from '@/components/filters/aggregateFilters'
+import { emptyAggregateFilters, hasAggregateFilters } from '@/components/filters/aggregateFilters'
 import ViewToolbar from '@/components/layout/ViewToolbar.vue'
 import SortMenu from '@/components/list/SortMenu.vue'
 import { useCvesController } from '@/composables/useCvesController'
@@ -23,7 +23,8 @@ const findings = useFindingsStore()
 const filterBar = ref<InstanceType<typeof AggregateFilterBar> | null>(null)
 
 const controller = useCvesController(() => filterBar.value?.focusSearch())
-const { filters, cves, sort, expandedId, expandedFindings, summaries, currentKey } = controller
+const { filters, cves, hiddenCount, sort, expandedId, expandedFindings, summaries, currentKey } =
+  controller
 const { bulkOpen, bulkTargets, decideOpen, decideCve } = controller
 
 const { hidden } = useLabelColumns()
@@ -36,6 +37,7 @@ const { hidden } = useLabelColumns()
         ref="filterBar"
         v-model:filters="filters"
         :fields="['severity', 'exposure']"
+        :toggles="{ showDecided: 'Show decided' }"
         placeholder="Search CVE, title or image"
       >
         <SortMenu
@@ -54,12 +56,31 @@ const { hidden } = useLabelColumns()
       <CvesSummary
         :cves="cves"
         :total="store.items.length"
+        :hidden="hiddenCount"
         :sort-label="sort.label.value"
         @reset-sort="controller.resetSort"
       />
-      <EmptyState v-if="cves.length === 0" title="No matches">
-        No CVE matches these filters.
-        <BaseButton variant="ghost" @click="filters = emptyAggregateFilters()">
+      <EmptyState
+        v-if="cves.length === 0"
+        :title="hasAggregateFilters(filters) ? 'No matches' : 'Nothing left to decide'"
+      >
+        {{
+          hasAggregateFilters(filters)
+            ? 'No CVE matches these filters.'
+            : 'Every CVE is fully decided, the decisions view lists them.'
+        }}
+        <BaseButton
+          v-if="hiddenCount > 0"
+          variant="ghost"
+          @click="filters = { ...filters, showDecided: true }"
+        >
+          Show decided
+        </BaseButton>
+        <BaseButton
+          v-if="hasAggregateFilters(filters)"
+          variant="ghost"
+          @click="filters = emptyAggregateFilters()"
+        >
           Reset filters
         </BaseButton>
       </EmptyState>

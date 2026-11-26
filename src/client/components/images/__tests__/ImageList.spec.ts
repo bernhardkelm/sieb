@@ -27,9 +27,17 @@ const image = (imageRef: string, overrides: Partial<ImageAggregate> = {}): Image
   fixableCount: 3,
   kevCount: 1,
   inboxCount: 2,
-  suppressedCount: 1,
+  notAffectedCount: 1,
+  acceptedCount: 0,
   workloadCount: 2,
   workloads: ['shop/Deployment/web', 'shop/Deployment/worker'],
+  includingNotAffected: {
+    maxSeverity: 'High',
+    openCount: 3,
+    openBySeverity: { Critical: 1, High: 2, Medium: 0, Low: 0, Unknown: 0 },
+    fixableCount: 3,
+    kevCount: 1,
+  },
   ...overrides,
 })
 

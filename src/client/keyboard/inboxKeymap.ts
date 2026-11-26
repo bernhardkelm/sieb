@@ -1,12 +1,9 @@
 export type InboxAction =
-  | 'next'
-  | 'previous'
   | 'open'
   | 'close'
   | 'accept'
   | 'notAffected'
   | 'fixPlanned'
-  | 'toggleCheck'
   | 'bulk'
   | 'search'
 
@@ -14,27 +11,22 @@ export type InboxAction =
 export type ShortcutScope = 'page' | 'panel' | 'overlay'
 
 const KEYS: Record<string, InboxAction> = {
-  j: 'next',
-  ArrowDown: 'next',
-  k: 'previous',
-  ArrowUp: 'previous',
   Enter: 'open',
   o: 'open',
   Escape: 'close',
   a: 'accept',
   n: 'notAffected',
   f: 'fixPlanned',
-  x: 'toggleCheck',
   A: 'bulk',
   '/': 'search',
 }
 
-const PAGE_ONLY = new Set(['ArrowDown', 'ArrowUp', 'Enter', 'o', 'Escape', 'x', 'a', 'n', 'f'])
+const PAGE_ONLY = new Set(['Enter', 'o', 'Escape', 'a', 'n', 'f'])
 
 /**
- * Maps a key press in the inbox to its action. Inside popovers and dialogs nothing applies;
- * inside the side panel only j, k, Shift+A and / apply, the panel handles the rest itself and
- * arrows keep scrolling it.
+ * Maps a key press in the inbox to its action, on top of the cursor keys every list shares.
+ * Inside popovers and dialogs nothing applies; inside the side panel only Shift+A and / apply,
+ * the panel handles the rest itself.
  * @param {Pick<KeyboardEvent, 'key' | 'shiftKey'>} event - Key press
  * @param {ShortcutScope} scope - Where the key was pressed
  * @returns {InboxAction | null} - Action, null for keys without one

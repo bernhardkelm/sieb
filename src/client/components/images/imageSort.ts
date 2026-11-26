@@ -13,7 +13,8 @@ export type ImageSortColumn =
   | 'kev'
   | 'open'
   | 'inbox'
-  | 'silenced'
+  | 'notAffected'
+  | 'accepted'
   | 'workloads'
 
 export const IMAGE_SORT_COLUMNS: SortColumns<ImageAggregate, ImageSortColumn> = {
@@ -28,7 +29,12 @@ export const IMAGE_SORT_COLUMNS: SortColumns<ImageAggregate, ImageSortColumn> = 
   kev: { label: 'KEV', first: 'desc', value: (image) => image.kevCount },
   open: { label: 'Open', first: 'desc', value: (image) => image.openCount },
   inbox: { label: 'Inbox', first: 'desc', value: (image) => image.inboxCount },
-  silenced: { label: 'Silenced', first: 'desc', value: (image) => image.suppressedCount },
+  notAffected: {
+    label: 'Not affected',
+    first: 'desc',
+    value: (image) => image.notAffectedCount,
+  },
+  accepted: { label: 'Accepted', first: 'desc', value: (image) => image.acceptedCount },
   workloads: { label: 'Workloads', first: 'desc', value: (image) => image.workloadCount },
 }
 

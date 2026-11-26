@@ -19,8 +19,16 @@ const INPUT: DecisionInput = {
   scope: 'image',
   imageRef: NGINX,
   status: 'accepted',
+  justification: null,
   reason: 'behind auth',
   expiresAt: '2026-08-30T12:00:00.000Z',
+}
+
+const NOT_AFFECTED: DecisionInput = {
+  ...INPUT,
+  status: 'not_affected',
+  justification: 'vulnerable_code_not_in_execute_path',
+  expiresAt: null,
 }
 
 describe('createDecision', () => {
@@ -33,6 +41,20 @@ describe('createDecision', () => {
       decision: { id: 1, severityAtDecision: 'High', kevAtDecision: false, createdBy: 'dev' },
     })
     expect(listDecisionEvents(db, [1])).toMatchObject([{ type: 'created', actor: 'dev' }])
+  })
+
+  it('stores the justification and records it in the created event', () => {
+    const db = seededDatabase(NOW)
+
+    expect(createDecision(db, NOT_AFFECTED, 'dev', NOW)).toMatchObject({
+      ok: true,
+      decision: { justification: 'vulnerable_code_not_in_execute_path' },
+    })
+    expect(getDecision(db, 1)?.justification).toBe('vulnerable_code_not_in_execute_path')
+    expect(listDecisionEvents(db, [1])[0]?.payload).toMatchObject({
+      status: 'not_affected',
+      justification: 'vulnerable_code_not_in_execute_path',
+    })
   })
 
   it('snapshots the highest open severity for scope all', () => {
@@ -121,6 +143,58 @@ describe('updateDecision', () => {
     })
   })
 
+  it('records a changed justification and keeps it on unrelated edits', () => {
+    const db = seededDatabase(NOW)
+    createDecision(db, NOT_AFFECTED, 'dev', NOW)
+
+    updateDecision(db, 1, { justification: 'component_not_present' }, 'alex', LATER)
+    const kept = updateDecision(db, 1, { reason: 'no shell' }, 'alex', LATER)
+    const events = listDecisionEvents(db, [1])
+
+    expect(kept).toMatchObject({ ok: true, decision: { justification: 'component_not_present' } })
+    expect(events[1]?.payload).toEqual({
+      reconfirm: false,
+      justification: ['vulnerable_code_not_in_execute_path', 'component_not_present'],
+    })
+    expect(events[2]?.payload).toEqual({ reconfirm: false, reason: ['behind auth', 'no shell'] })
+
+    updateDecision(db, 1, { justification: null }, 'alex', LATER)
+    expect(getDecision(db, 1)?.justification).toBeNull()
+  })
+
+  it('clears the justification when the status leaves not_affected', () => {
+    const db = seededDatabase(NOW)
+    createDecision(db, NOT_AFFECTED, 'dev', NOW)
+
+    expect(updateDecision(db, 1, { status: 'accepted' }, 'alex', LATER)).toMatchObject({
+      ok: true,
+      decision: { status: 'accepted', justification: null },
+    })
+    expect(listDecisionEvents(db, [1])[1]?.payload).toMatchObject({
+      status: ['not_affected', 'accepted'],
+      justification: ['vulnerable_code_not_in_execute_path', null],
+    })
+  })
+
+  it('refuses a justification for a decision that is not not_affected', () => {
+    const db = seededDatabase(NOW)
+    createDecision(db, INPUT, 'dev', NOW)
+
+    expect(
+      updateDecision(db, 1, { justification: 'component_not_present' }, 'alex', LATER),
+    ).toEqual({ ok: false, error: 'justification_not_allowed' })
+    expect(listDecisionEvents(db, [1])).toHaveLength(1)
+    expect(
+      updateDecision(
+        db,
+        1,
+        { status: 'not_affected', justification: 'component_not_present' },
+        'alex',
+        LATER,
+      ),
+    ).toMatchObject({ ok: true, decision: { justification: 'component_not_present' } })
+  })
+
   it('refuses unknown and revoked decisions', () => {
     const db = seededDatabase(NOW)
     createDecision(db, INPUT, 'dev', NOW)
@@ -153,6 +227,7 @@ describe('createBulkDecisions', () => {
         vulnId: 'CVE-2025-1000',
         imageRefs: [NGINX, REDIS],
         status: 'accepted',
+        justification: null,
         reason: 'x',
         expiresAt: null,
       },

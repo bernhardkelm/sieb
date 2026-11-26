@@ -31,6 +31,7 @@ export const buildDecision = (overrides: Partial<Decision> = {}): Decision => ({
   scope: 'image',
   imageRef: 'index.docker.io/library/nginx',
   status: 'not_affected',
+  justification: null,
   reason: 'not reachable',
   expiresAt: null,
   createdBy: 'dev',

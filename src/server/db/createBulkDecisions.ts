@@ -70,6 +70,7 @@ export const createBulkDecisions = (
           scope: 'image',
           imageRef,
           status: input.status,
+          justification: input.justification,
           reason: input.reason,
           expiresAt: input.expiresAt,
         },

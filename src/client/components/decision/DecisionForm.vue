@@ -1,17 +1,26 @@
 <script setup lang="ts">
 import { computed, ref, useId, watch } from 'vue'
 
-import { DECISION_STATUSES, type DecisionScope, type DecisionStatus } from '#core/decision.ts'
+import {
+  DECISION_STATUSES,
+  JUSTIFIABLE_STATUS,
+  type DecisionJustification,
+  type DecisionScope,
+  type DecisionStatus,
+} from '#core/decision.ts'
 import BaseButton from '@/components/common/BaseButton.vue'
 import KeyHint from '@/components/common/KeyHint.vue'
 import ExpiryField from '@/components/decision/ExpiryField.vue'
 import FieldErrors from '@/components/decision/FieldErrors.vue'
+import JustificationField from '@/components/decision/JustificationField.vue'
 import RadioChoice from '@/components/decision/RadioChoice.vue'
 import ReconfirmField from '@/components/decision/ReconfirmField.vue'
 import { decisionFormErrors } from '@/components/decision/decisionFormErrors'
 import {
   defaultExpiryDate,
   fromDateInput,
+  justificationFor,
+  REASON_PLACEHOLDERS,
   TEXT_MAX_LENGTH,
   toDateInput,
   type DecisionFormInitial,
@@ -51,7 +60,9 @@ const reasonInput = ref<HTMLTextAreaElement | null>(null)
 const initialStatus = props.initial.status ?? 'not_affected'
 const initialReason = props.initial.reason ?? ''
 const initialScope = props.initial.scope ?? 'image'
+const initialJustification = props.initial.justification ?? null
 const status = ref<DecisionStatus>(initialStatus)
+const justification = ref<DecisionJustification | null>(initialJustification)
 const reason = ref(initialReason)
 const scope = ref<DecisionScope>(initialScope)
 const reconfirm = ref(false)
@@ -81,6 +92,7 @@ const dirty = computed(
   () =>
     reason.value.trim() !== initialReason.trim() ||
     scope.value !== initialScope ||
+    justification.value !== initialJustification ||
     expiryTouched.value ||
     reconfirm.value,
 )
@@ -145,6 +157,7 @@ const submit = (): void => {
 
   emit('submit', {
     status: status.value,
+    justification: justificationFor(status.value, justification.value),
     reason: reason.value.trim(),
     scope: scope.value,
     expiresAt,
@@ -192,6 +205,16 @@ defineExpose({ focusReason, setStatus })
       <RadioChoice v-model="status" label="Status" :options="STATUS_OPTIONS" />
       <FieldErrors :messages="serverErrors.status" />
     </div>
+    <div v-if="status === JUSTIFIABLE_STATUS" class="field">
+      <label :for="`${id}-justification`" class="label">Justification (optional)</label>
+      <JustificationField
+        v-model="justification"
+        :trigger-id="`${id}-justification`"
+        :error-id="`${id}-justification-error`"
+        :invalid="serverErrors.justification.length > 0"
+      />
+      <FieldErrors :id="`${id}-justification-error`" :messages="serverErrors.justification" />
+    </div>
     <div class="field">
       <label :for="`${id}-reason`" class="label">Reason</label>
       <textarea
@@ -203,7 +226,7 @@ defineExpose({ focusReason, setStatus })
         :maxlength="TEXT_MAX_LENGTH"
         :aria-invalid="reasonErrors.length > 0 || undefined"
         :aria-describedby="reasonErrors.length > 0 ? `${id}-reason-error` : undefined"
-        placeholder="Why is this safe to silence, or what is the plan?"
+        :placeholder="REASON_PLACEHOLDERS[status]"
       />
       <FieldErrors :id="`${id}-reason-error`" :messages="reasonErrors" />
     </div>
@@ -225,12 +248,11 @@ defineExpose({ focusReason, setStatus })
     </div>
     <ReconfirmField v-if="reconfirmable" v-model="reconfirm" />
     <p v-if="status === 'fix_planned'" class="note">
-      Fix planned leaves the inbox but does not silence alerts.
+      Fix planned leaves the inbox, but alerts keep firing.
     </p>
     <p v-else class="note">
-      Silencing takes effect within about two minutes and resolves alerts that already fire.
-      Revoking or expiry brings the finding back at once; its alert fires again after the usual 30
-      minutes.
+      Alerts stop within about two minutes, including alerts that already fire. Revoking or expiry
+      brings the finding back at once; its alert fires again after the usual 30 minutes.
     </p>
     <FieldErrors :messages="serverErrors.general" role="alert" />
     <div class="actions">

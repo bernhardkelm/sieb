@@ -161,4 +161,78 @@ describe('decision routes', () => {
       (await requestJson(app, `/api/decisions/${id}`, 'PATCH', { expiresAt: '2020-01-01' })).status,
     ).toBe(400)
   })
+
+  it('stores, lists, validates and clears a not_affected justification', async () => {
+    const { app } = await syncedTestApp()
+    const cve = await spreadCve(app)
+    const input = { vulnId: cve.vulnId, scope: 'all', reason: 'feature unused' }
+
+    expect(
+      await requestJson(app, '/api/decisions', 'POST', {
+        ...input,
+        status: 'accepted',
+        justification: 'component_not_present',
+      }),
+    ).toEqual({
+      status: 400,
+      body: { error: 'validation', errors: [{ field: 'justification', code: 'not_allowed' }] },
+    })
+    expect(
+      await requestJson(app, '/api/decisions', 'POST', {
+        ...input,
+        status: 'not_affected',
+        justification: 'false_positive',
+      }),
+    ).toEqual({
+      status: 400,
+      body: { error: 'validation', errors: [{ field: 'justification', code: 'invalid' }] },
+    })
+
+    const created = await requestJson<DecisionView>(app, '/api/decisions', 'POST', {
+      ...input,
+      status: 'not_affected',
+      justification: 'vulnerable_code_not_present',
+    })
+    const id = created.body.decision.id
+    const listed = await requestJson<DecisionView[]>(app, '/api/decisions')
+    const [imageRef] = cve.imageRefs
+    const findings = await requestJson<FindingView[]>(app, '/api/findings?view=all')
+    const finding = findings.body.find(
+      (candidate) => candidate.vulnId === cve.vulnId && candidate.imageRef === imageRef,
+    )
+    const detail = await requestJson<{ decisions: DecisionView[] }>(
+      app,
+      `/api/findings/${finding?.id}`,
+    )
+
+    expect(created.status).toBe(201)
+    expect(created.body.decision.justification).toBe('vulnerable_code_not_present')
+    expect(listed.body.find((view) => view.decision.id === id)?.decision.justification).toBe(
+      'vulnerable_code_not_present',
+    )
+    expect(detail.body.decisions[0]?.decision.justification).toBe('vulnerable_code_not_present')
+    expect(await suppressedSeries(app)).toHaveLength(cve.imageRefs.length)
+
+    const cleared = await requestJson<DecisionView>(app, `/api/decisions/${id}`, 'PATCH', {
+      status: 'accepted',
+    })
+
+    expect(cleared.body.decision).toMatchObject({ status: 'accepted', justification: null })
+    expect(
+      await requestJson(app, `/api/decisions/${id}`, 'PATCH', {
+        justification: 'component_not_present',
+      }),
+    ).toEqual({
+      status: 400,
+      body: { error: 'validation', errors: [{ field: 'justification', code: 'not_allowed' }] },
+    })
+    expect(
+      (
+        await requestJson<DecisionView>(app, `/api/decisions/${id}`, 'PATCH', {
+          status: 'not_affected',
+          justification: 'inline_mitigations_already_exist',
+        })
+      ).body.decision.justification,
+    ).toBe('inline_mitigations_already_exist')
+  })
 })

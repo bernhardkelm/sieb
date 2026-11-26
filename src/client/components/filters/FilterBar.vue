@@ -50,6 +50,7 @@ defineExpose({ focusSearch })
     <SearchInput
       ref="search"
       :model-value="filters.q"
+      label="Search findings"
       placeholder="Search CVE, image, package, workload"
       @update:model-value="set('q', $event)"
     />

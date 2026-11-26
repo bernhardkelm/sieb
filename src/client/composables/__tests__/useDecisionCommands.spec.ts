@@ -37,6 +37,7 @@ const REDIS = 'index.docker.io/library/redis'
 
 const VALUE: DecisionFormValue = {
   status: 'accepted',
+  justification: null,
   reason: 'internal only',
   scope: 'image',
   expiresAt: null,

@@ -2,7 +2,7 @@ import { ApiError } from '@/api/ApiError'
 import { errorMessage } from '@/api/apiRequest'
 import { errorCodeMessage } from '@/format/labels'
 
-const FORM_FIELDS = ['status', 'reason', 'expiresAt'] as const
+const FORM_FIELDS = ['status', 'justification', 'reason', 'expiresAt'] as const
 
 export type FormField = (typeof FORM_FIELDS)[number]
 
@@ -16,7 +16,13 @@ export type DecisionFormErrors = Record<FormField | 'general', string[]>
  * @returns {DecisionFormErrors} - Messages per field
  */
 export const decisionFormErrors = (error: unknown): DecisionFormErrors => {
-  const errors: DecisionFormErrors = { status: [], reason: [], expiresAt: [], general: [] }
+  const errors: DecisionFormErrors = {
+    status: [],
+    justification: [],
+    reason: [],
+    expiresAt: [],
+    general: [],
+  }
 
   if (error === null || error === undefined) {
     return errors

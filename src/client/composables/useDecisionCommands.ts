@@ -91,6 +91,7 @@ export const useDecisionCommands = (): DecisionCommands => {
               scope: value.scope,
               imageRef: value.scope === 'image' ? finding.imageRef : null,
               status: value.status,
+              justification: value.justification,
               reason: value.reason,
               expiresAt: value.expiresAt,
             })
@@ -107,7 +108,7 @@ export const useDecisionCommands = (): DecisionCommands => {
   }
 
   /**
-   * Re-confirms a re-opened decision at the current findings, so it silences again.
+   * Re-confirms a re-opened decision at the current findings, so it takes effect again.
    * @param {Decision} decision - Re-opened decision
    * @returns {Promise<DecisionView>} - Re-confirmed decision
    */
@@ -116,7 +117,7 @@ export const useDecisionCommands = (): DecisionCommands => {
       const view = await updateDecision(decision.id, { reconfirm: true })
 
       settle([view])
-      notifySuccess(`Re-confirmed: ${decision.vulnId}`, 'Silenced again at the current severity')
+      notifySuccess(`Re-confirmed: ${decision.vulnId}`, 'Back in effect at the current severity')
       return view
     } catch (error) {
       return fail('Decision not re-confirmed', error)
@@ -159,6 +160,7 @@ export const useDecisionCommands = (): DecisionCommands => {
           vulnId: target.vulnId,
           imageRefs: target.imageRefs,
           status: value.status,
+          justification: value.justification,
           reason: value.reason,
           expiresAt: value.expiresAt,
         })

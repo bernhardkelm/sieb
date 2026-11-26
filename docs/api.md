@@ -25,6 +25,9 @@ Checked before identity:
   `2026-09-01T23:59:59+02:00`), or a date `YYYY-MM-DD` meaning the end of that day in UTC.
   Date-times without an offset are `invalid`, past ones `in_past`, ones more than 3 years ahead
   `too_far`.
+- `justification` is optional and only allowed with status `not_affected`, see
+  [Justification](#justification): an unknown value is `invalid`, one next to another status
+  `not_allowed`, `null` or omitted means none.
 
 ## Routes
 
@@ -36,13 +39,31 @@ Checked before identity:
 | `GET /api/findings/:id` | Finding detail: instances, decisions, history and `kev`, the CISA catalog entry, see [KEV source](#kev-source) |
 | `GET /api/images`, `GET /api/cves` | Open findings aggregated per image or per CVE, `includeResolved=true` adds resolved ones |
 | `GET /api/decisions` | Decisions with their state, `state=active\|expiring\|expired\|revoked\|reopened\|fix_planned` |
-| `POST /api/decisions` | Create an image-scoped or all-scope decision |
-| `PATCH /api/decisions/:id` | Change status, reason or expiry; `reconfirm: true` re-confirms at the current findings |
+| `POST /api/decisions` | Create an image-scoped or all-scope decision, `{ vulnId, scope, imageRef?, status, justification?, reason, expiresAt? }` |
+| `PATCH /api/decisions/:id` | Change status, justification, reason or expiry; `reconfirm: true` re-confirms at the current findings |
 | `POST /api/decisions/:id/revoke` | Revoke, optional `{ "comment" }` |
-| `POST /api/decisions/bulk` | `{ vulnId, imageRefs: [...] \| "all-open", status, reason, expiresAt? }`, images with a decision are skipped with reason `decided`, `expired` or `reopened`, unknown ones with `unknown_finding` |
+| `POST /api/decisions/bulk` | `{ vulnId, imageRefs: [...] \| "all-open", status, justification?, reason, expiresAt? }`, images with a decision are skipped with reason `decided`, `expired` or `reopened`, unknown ones with `unknown_finding` |
 | `GET /api/sync`, `POST /api/sync` | `{ run, lastFinished, running, kevFeed }`: latest run and the health of the CISA catalog; run a sync and answer the finished run |
 | `GET /api/stats` | `{ current, series }`: live overview counts and their history, `range=7d\|30d\|90d` (default `30d`) |
 | `GET /api/labels` | `{ exposure, owners, kev }`: which optional labels the open findings carry and the KEV source, see [Labels](#labels) |
+
+## Justification
+
+A `not_affected` decision may carry an OpenVEX justification: `component_not_present`,
+`vulnerable_code_not_present`, `vulnerable_code_not_in_execute_path`,
+`vulnerable_code_cannot_be_controlled_by_adversary` or `inline_mitigations_already_exist`. Every
+decision in the list, detail and write answers has `justification`, the value or `null`. It is
+accepted by create, patch and bulk; on a bulk every created decision gets it. A `PATCH` that sets
+a justification answers 400 `not_allowed` unless the decision is `not_affected` after the patch,
+`justification: null` clears it, and a `PATCH` that changes the status away from `not_affected`
+clears it without being asked. History records it like any other field: the `created` event holds
+it with the decision, an `updated` event a change as `justification: [before, after]`. The
+justification is informational: any effective `not_affected` decision silences and leaves the risk
+counts, with or without one, and `/metrics` is unchanged.
+
+Schema step 6 adds the nullable column `decisions.justification` with checks for the known values
+and status `not_affected`. Existing decisions keep `null`, no row is rewritten; the step runs on
+the next start like every migration.
 
 ## Labels
 
@@ -64,13 +85,29 @@ offers `owners`. For `kev: "none"` it hides every KEV element: the KEV column, s
 lists and the panel, the KEV stat, the KEV catalog link and the KEV wording of decisions. Until the
 first answer it hides exposure and owner and shows KEV. It refetches after every sync and decision.
 
+## Aggregates
+
+`GET /api/images` answers one entry per image. Its risk counts `openCount`, `openBySeverity`,
+`maxSeverity`, `kevCount` and `fixableCount` leave out open findings governed by an active
+`not_affected` decision; `includingNotAffected` holds the same five counts over every open
+finding. `notAffectedCount` and `acceptedCount` count the open findings governed by an active
+decision of that status, accepted findings stay in the risk counts. An image whose open findings
+are all not affected has `openCount` 0. The default order uses the risk counts.
+
+`GET /api/cves` answers one entry per CVE, `decisionStates` counts its open findings by the state
+of their governing decision. The client treats a CVE as fully decided when every open finding has
+the state `active` or `fix_planned`, and hides it in the by-CVE view until "Show decided" is on.
+
 ## Stats
 
 `GET /api/stats` counts open findings (vuln_id x image_ref): `open`, `inbox`, `kev`, `public`
 (max exposure public, 0 without exposure labels), `bySeverity` (`critical`, `high`, `medium`, `low`, `unknown`),
-`suppressed` (governed by an active decision), `images` (distinct image_refs), and decisions by
-state: `activeDecisions`, `fixPlanned`, `reopened`. `current` is computed on every request.
-`series` holds `{ at, stats }` snapshots, written by every successful sync in its transaction:
+`notAffected` and `accepted` (governed by an active decision of that status, together the findings
+whose alerts are silenced), `images` (distinct image_refs), and decisions by state:
+`activeDecisions`, `fixPlanned`, `reopened`. `current` is computed on every request.
+`series` holds `{ at, stats }` snapshots, written by every successful sync in its transaction;
+`notAffected` and `accepted` are `null` in snapshots taken before they were counted apart, which
+held only their sum as `suppressed`, so a trend of those two starts with the first newer snapshot:
 the range is split into 60 equal buckets and the latest snapshot of each is kept, oldest first.
 Snapshots older than 180 days are deleted during the sync. In mock mode, when no snapshot is older
 than a day, the first sync is followed by 30 days of deterministic synthetic history (one point per

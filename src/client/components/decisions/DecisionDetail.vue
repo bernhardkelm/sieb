@@ -7,6 +7,7 @@ import KeyHint from '@/components/common/KeyHint.vue'
 import RelativeTime from '@/components/common/RelativeTime.vue'
 import { decisionWhy } from '@/components/decisions/decisionWhy'
 import { useNow } from '@/composables/useNow'
+import { JUSTIFICATION_LABELS } from '@/format/labels'
 import { formatDate } from '@/format/relativeTime'
 import { RECONFIRM_HINT } from '@/format/reopenText'
 import { useLabelsStore } from '@/stores/labelsStore'
@@ -33,6 +34,9 @@ const reopened = computed(() => props.view.effective.state === 'reopened')
   <div class="decision-detail">
     <p v-if="why" class="why" :class="{ lapsed: reopened }" role="note">
       {{ why }}.{{ reopened ? ` ${RECONFIRM_HINT}` : '' }}
+    </p>
+    <p v-if="view.decision.justification" class="justification">
+      Justification: {{ JUSTIFICATION_LABELS[view.decision.justification] }}
     </p>
     <p class="reason">{{ view.decision.reason }}</p>
     <p class="meta">
@@ -79,6 +83,11 @@ const reopened = computed(() => props.view.effective.state === 'reopened')
 
 .lapsed {
   color: var(--color-danger);
+}
+
+.justification {
+  color: var(--color-text-muted);
+  font-size: var(--font-size-sm);
 }
 
 .reason {

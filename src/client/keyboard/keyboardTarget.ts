@@ -13,13 +13,15 @@ export const isEditableTarget = (target: EventTarget | null): boolean => {
 
 /**
  * Returns whether a keydown event may trigger a single-key shortcut: not yet handled, no
- * modifier besides Shift, not typed into a text entry and not a key repeat.
+ * modifier besides Shift, so browser chords such as Cmd+R stay with the browser, not typed into
+ * a text entry and not a key repeat unless the shortcut repeats.
  * @param {KeyboardEvent} event - Keydown event
+ * @param {boolean} allowRepeat - Whether a held key may repeat the shortcut
  * @returns {boolean} - True when the shortcut may run
  */
-export const isShortcutEvent = (event: KeyboardEvent): boolean =>
+export const isShortcutEvent = (event: KeyboardEvent, allowRepeat: boolean = false): boolean =>
   !event.defaultPrevented &&
-  !event.repeat &&
+  (allowRepeat || !event.repeat) &&
   !event.altKey &&
   !event.ctrlKey &&
   !event.metaKey &&
@@ -57,3 +59,14 @@ export const shortcutScope = (target: EventTarget | null): 'page' | 'panel' | 'o
  */
 export const isControlTarget = (target: EventTarget | null): boolean =>
   target instanceof Element && target.closest('button, a[href], [role="tab"]') !== null
+
+/**
+ * Returns whether a key press targets a list or nothing in particular, where list chords such as
+ * select all apply instead of their browser default.
+ * @param {EventTarget | null} target - Event target
+ * @returns {boolean} - True for the page body, the main landmark and elements inside a list
+ */
+export const isListTarget = (target: EventTarget | null): boolean =>
+  target === document.body ||
+  (target instanceof Element &&
+    (target.tagName === 'MAIN' || target.closest('[role="listbox"], [role="treegrid"]') !== null))

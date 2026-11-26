@@ -1,6 +1,6 @@
-import type { DecisionStatus } from '#core/decision.ts'
+import type { DecisionJustification, DecisionStatus } from '#core/decision.ts'
 import type { DecisionEvent } from '#core/decisionEvent.ts'
-import { EVENT_LABELS, REOPEN_LABELS, STATUS_LABELS } from '@/format/labels'
+import { EVENT_LABELS, JUSTIFICATION_LABELS, REOPEN_LABELS, STATUS_LABELS } from '@/format/labels'
 import { formatDate } from '@/format/relativeTime'
 import { reopenText, triggerOfPayload } from '@/format/reopenText'
 
@@ -19,6 +19,16 @@ type Payload = Record<string, unknown>
  */
 const statusLabel = (value: unknown): string =>
   STATUS_LABELS[value as DecisionStatus] ?? String(value)
+
+/**
+ * Returns a readable justification for a payload value.
+ * @param {unknown} value - Raw justification or null
+ * @returns {string} - Label, "none" for null, the raw value for unknown justifications
+ */
+const justificationLabel = (value: unknown): string =>
+  value === null || value === undefined
+    ? 'none'
+    : (JUSTIFICATION_LABELS[value as DecisionJustification] ?? String(value))
 
 /**
  * Returns a readable expiry for a payload value.
@@ -42,6 +52,8 @@ const describeChanges = (payload: Payload): string[] => {
 
     if (field === 'status') {
       lines.push(`Status ${statusLabel(before)} → ${statusLabel(after)}`)
+    } else if (field === 'justification') {
+      lines.push(`Justification ${justificationLabel(before)} → ${justificationLabel(after)}`)
     } else if (field === 'reason') {
       lines.push(`Reason: ${String(after)}`)
     } else if (field === 'expiresAt') {
@@ -107,7 +119,13 @@ export const describeEvent = (event: DecisionEvent): EventSummary => {
     case 'created':
       return {
         title: `Decided ${statusLabel(payload.status)}`,
-        lines: [String(payload.reason ?? ''), `Expires ${expiryLabel(payload.expiresAt)}`],
+        lines: [
+          ...(payload.justification
+            ? [`Justification: ${justificationLabel(payload.justification)}`]
+            : []),
+          String(payload.reason ?? ''),
+          `Expires ${expiryLabel(payload.expiresAt)}`,
+        ],
       }
     case 'updated':
       return describeUpdate(payload)

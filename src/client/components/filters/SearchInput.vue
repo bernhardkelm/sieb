@@ -6,6 +6,8 @@ import KeyHint from '@/components/common/KeyHint.vue'
 withDefaults(
   defineProps<{
     placeholder?: string
+    /** Accessible name of the input, the placeholder when omitted */
+    label?: string
   }>(),
   { placeholder: 'Search' },
 )
@@ -43,7 +45,7 @@ defineExpose({ focus })
 
 <template>
   <label class="search-input">
-    <span class="visually-hidden">Search findings</span>
+    <span class="visually-hidden">{{ label ?? placeholder }}</span>
     <svg class="icon" viewBox="0 0 16 16" aria-hidden="true" focusable="false">
       <circle cx="7" cy="7" r="4.5" />
       <path d="M10.5 10.5 14 14" />

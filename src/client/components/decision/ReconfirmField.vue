@@ -15,7 +15,7 @@ const labels = useLabelsStore()
     <p class="note" :class="{ kept: !reconfirm }">
       {{
         reconfirm
-          ? 'Saving silences the decision again and records the current findings as its baseline.'
+          ? 'Saving puts the decision back in effect and records the current findings as its baseline.'
           : 'Saving without re-confirming keeps the decision re-opened; its findings stay in the inbox.'
       }}
     </p>

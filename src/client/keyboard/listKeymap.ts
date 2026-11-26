@@ -1,23 +1,22 @@
 import type { ShortcutScope } from '@/keyboard/inboxKeymap'
 
-export type ListAction = 'next' | 'previous' | 'activate' | 'close' | 'search'
+export type ListAction = 'activate' | 'close' | 'expand' | 'collapse' | 'search'
 
 const KEYS: Record<string, ListAction> = {
-  j: 'next',
-  ArrowDown: 'next',
-  k: 'previous',
-  ArrowUp: 'previous',
   Enter: 'activate',
   o: 'activate',
   Escape: 'close',
+  ArrowRight: 'expand',
+  ArrowLeft: 'collapse',
   '/': 'search',
 }
 
-const PAGE_ONLY = new Set(['ArrowDown', 'ArrowUp', 'Enter', 'o', 'Escape'])
+const PAGE_ONLY = new Set(['Enter', 'o', 'Escape', 'ArrowRight', 'ArrowLeft'])
 
 /**
- * Maps a key press in a grouped list view to its action. Inside popovers and dialogs nothing
- * applies; inside the side panel only j, k and / apply, so arrows keep scrolling the panel.
+ * Maps a key press in a grouped list view to its action, on top of the cursor keys every list
+ * shares. Inside popovers and dialogs nothing applies; inside the side panel only / applies, so
+ * arrows keep scrolling the panel.
  * @param {Pick<KeyboardEvent, 'key'>} event - Key press
  * @param {ShortcutScope} scope - Where the key was pressed
  * @returns {ListAction | null} - Action, null for keys without one

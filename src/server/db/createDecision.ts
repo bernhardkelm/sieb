@@ -43,15 +43,16 @@ export const createDecision = (
     // summary placeholder, recordDecisionSnapshot needs the stored row to resolve governance
     const { lastInsertRowid } = db
       .prepare(
-        `INSERT INTO decisions (vuln_id, scope, image_ref, status, reason, expires_at, created_by,
-           created_at, updated_at, severity_at_decision, kev_at_decision)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'Unknown', 0)`,
+        `INSERT INTO decisions (vuln_id, scope, image_ref, status, justification, reason,
+           expires_at, created_by, created_at, updated_at, severity_at_decision, kev_at_decision)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'Unknown', 0)`,
       )
       .run(
         input.vulnId,
         input.scope,
         input.imageRef,
         input.status,
+        input.justification,
         input.reason,
         input.expiresAt,
         actor,

@@ -16,8 +16,38 @@ describe('validateDecisionInput', () => {
   it('trims the reason and applies the default expiry', () => {
     expect(validateDecisionInput(VALID, NOW)).toEqual({
       ok: true,
-      value: { ...VALID, reason: 'behind auth', expiresAt: '2026-08-30T12:00:00.000Z' },
+      value: {
+        ...VALID,
+        justification: null,
+        reason: 'behind auth',
+        expiresAt: '2026-08-30T12:00:00.000Z',
+      },
     })
+  })
+
+  it('takes a justification only with status not_affected', () => {
+    const notAffected = { ...VALID, status: 'not_affected' }
+
+    expect(
+      validateDecisionInput({ ...notAffected, justification: 'component_not_present' }, NOW),
+    ).toMatchObject({ ok: true, value: { justification: 'component_not_present' } })
+    expect(validateDecisionInput({ ...notAffected, justification: null }, NOW)).toMatchObject({
+      ok: true,
+      value: { justification: null },
+    })
+
+    for (const status of ['accepted', 'fix_planned']) {
+      expect(
+        validateDecisionInput({ ...VALID, status, justification: 'component_not_present' }, NOW),
+      ).toEqual({ ok: false, errors: [{ field: 'justification', code: 'not_allowed' }] })
+    }
+
+    for (const justification of ['false_positive', '', 3]) {
+      expect(validateDecisionInput({ ...notAffected, justification }, NOW)).toEqual({
+        ok: false,
+        errors: [{ field: 'justification', code: 'invalid' }],
+      })
+    }
   })
 
   it('keeps an explicit null expiry and normalises a given one to UTC', () => {
@@ -116,6 +146,40 @@ describe('validateDecisionInput', () => {
 })
 
 describe('validateDecisionPatch', () => {
+  it('takes a justification with not_affected or without status, null clears it', () => {
+    expect(
+      validateDecisionPatch(
+        { status: 'not_affected', justification: 'inline_mitigations_already_exist' },
+        NOW,
+      ),
+    ).toEqual({
+      ok: true,
+      value: { status: 'not_affected', justification: 'inline_mitigations_already_exist' },
+    })
+    expect(validateDecisionPatch({ justification: 'vulnerable_code_not_present' }, NOW)).toEqual({
+      ok: true,
+      value: { justification: 'vulnerable_code_not_present' },
+    })
+    expect(validateDecisionPatch({ justification: null }, NOW)).toEqual({
+      ok: true,
+      value: { justification: null },
+    })
+    expect(validateDecisionPatch({ status: 'accepted', justification: null }, NOW)).toEqual({
+      ok: true,
+      value: { status: 'accepted', justification: null },
+    })
+  })
+
+  it('rejects a justification with another status and unknown justifications', () => {
+    expect(
+      validateDecisionPatch({ status: 'fix_planned', justification: 'component_not_present' }, NOW),
+    ).toEqual({ ok: false, errors: [{ field: 'justification', code: 'not_allowed' }] })
+    expect(validateDecisionPatch({ justification: 'nope' }, NOW)).toEqual({
+      ok: false,
+      errors: [{ field: 'justification', code: 'invalid' }],
+    })
+  })
+
   it('keeps the given fields only', () => {
     expect(validateDecisionPatch({ reason: ' x ', expiresAt: null }, NOW)).toEqual({
       ok: true,

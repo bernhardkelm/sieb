@@ -6,14 +6,17 @@ import type { ShortcutScope } from '@/keyboard/inboxKeymap'
 import { listActionFor, type ListAction } from '@/keyboard/listKeymap'
 import { rowByKey } from '@/keyboard/revealRow'
 import { findingIdOfRowKey, findingRowKey, groupOfRowKey } from '@/keyboard/rowKey'
+import { treeMoveFor } from '@/keyboard/treeNavigation'
 
 export interface CursorListOptions {
   /** Row keys in display order, group rows and the finding rows of expanded groups */
   keys: Readonly<Ref<readonly string[]>>
   /** Runs Enter or o on a group row */
   activateGroup: (group: string) => void
-  /** Runs Escape while the panel is closed */
+  /** Runs Escape while the panel is closed, and ArrowLeft on the expanded group row */
   close?: () => void
+  /** Expanded group, for ArrowRight and ArrowLeft */
+  expanded?: () => string | null
   focusSearch?: () => void
   /** View keys checked before the list keys, returns whether it handled the event */
   viewKey?: (event: KeyboardEvent, scope: ShortcutScope, currentKey: string | null) => boolean
@@ -30,8 +33,8 @@ export interface CursorList {
 
 /**
  * Drives a keyboard list of group rows with expandable finding rows on the shared list cursor:
- * j and k move, Enter or o expands a group or opens a finding in the side panel, Escape
- * collapses, / searches.
+ * the shared cursor keys move, Enter or o expands a group or opens a finding in the side panel,
+ * ArrowRight and ArrowLeft expand and collapse as in a tree view, Escape collapses, / searches.
  * @param {CursorListOptions} options - Rows and view callbacks
  * @returns {CursorList} - Cursor and its actions
  */
@@ -55,16 +58,46 @@ export const useCursorList = (options: CursorListOptions): CursorList => {
   }
 
   /**
+   * Runs ArrowRight or ArrowLeft on the cursor row.
+   * @param {'in' | 'out'} direction - In for ArrowRight, out for ArrowLeft
+   * @returns {boolean} - Whether the key did something on the row
+   */
+  const step = (direction: 'in' | 'out'): boolean => {
+    const move = treeMoveFor(
+      options.keys.value,
+      cursor.currentKey.value,
+      options.expanded?.() ?? null,
+      direction,
+    )
+
+    switch (move?.kind) {
+      case 'expand':
+        options.activateGroup(move.group)
+        return true
+      case 'collapse':
+        options.close?.()
+        return options.close !== undefined
+      case 'enter':
+        cursor.move(1)
+        return true
+      case 'focus':
+        void cursor.focusKey(move.key)
+        return true
+    }
+
+    return false
+  }
+
+  /**
    * Runs a list action.
    * @param {ListAction} action - Action
    * @returns {boolean} - Whether the action applied
    */
   const run = (action: ListAction): boolean => {
     switch (action) {
-      case 'next':
-      case 'previous':
-        cursor.move(action === 'next' ? 1 : -1)
-        return true
+      case 'expand':
+      case 'collapse':
+        return step(action === 'expand' ? 'in' : 'out')
       case 'activate':
         if (cursor.currentKey.value !== null) {
           activate(cursor.currentKey.value)

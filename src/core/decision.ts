@@ -5,6 +5,20 @@ export const DECISION_STATUSES = ['not_affected', 'accepted', 'fix_planned'] as 
 
 export type DecisionStatus = (typeof DECISION_STATUSES)[number]
 
+/** OpenVEX justifications of a not_affected decision */
+export const DECISION_JUSTIFICATIONS = [
+  'component_not_present',
+  'vulnerable_code_not_present',
+  'vulnerable_code_not_in_execute_path',
+  'vulnerable_code_cannot_be_controlled_by_adversary',
+  'inline_mitigations_already_exist',
+] as const
+
+export type DecisionJustification = (typeof DECISION_JUSTIFICATIONS)[number]
+
+/** The only status that may carry a justification */
+export const JUSTIFIABLE_STATUS: DecisionStatus = 'not_affected'
+
 export const DECISION_SCOPES = ['image', 'all'] as const
 
 export type DecisionScope = (typeof DECISION_SCOPES)[number]
@@ -15,6 +29,7 @@ export interface DecisionInput {
   scope: DecisionScope
   imageRef: string | null // set for scope image, null for scope all
   status: DecisionStatus
+  justification: DecisionJustification | null // only with status not_affected
   reason: string
   expiresAt: string | null
 }
@@ -22,6 +37,7 @@ export interface DecisionInput {
 /** Validated change of an existing decision, absent fields stay as they are */
 export interface DecisionPatch {
   status?: DecisionStatus
+  justification?: DecisionJustification | null // null clears it
   reason?: string
   expiresAt?: string | null
   reconfirm?: true // clears a re-open and records new baselines
@@ -33,6 +49,7 @@ export interface Decision {
   scope: DecisionScope
   imageRef: string | null
   status: DecisionStatus
+  justification: DecisionJustification | null // cleared when the status leaves not_affected
   reason: string
   expiresAt: string | null
   createdBy: string

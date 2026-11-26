@@ -10,7 +10,8 @@ const CURRENT: OverviewStats = {
   kev: 2,
   public: 12,
   bySeverity: { critical: 6, high: 24, medium: 30, low: 15, unknown: 5 },
-  suppressed: 20,
+  notAffected: 14,
+  accepted: 6,
   fixPlanned: 4,
   reopened: 1,
   activeDecisions: 12,
@@ -52,7 +53,9 @@ describe('generateMockStatsHistory', () => {
 
       expect(severities.reduce((total, count) => total + count, 0)).toBe(stats.open)
       expect(severities.every((count) => count >= 0)).toBe(true)
-      expect(stats.inbox + stats.suppressed).toBeLessThanOrEqual(stats.open)
+      expect(stats.inbox + (stats.notAffected ?? 0) + (stats.accepted ?? 0)).toBeLessThanOrEqual(
+        stats.open,
+      )
       expect(stats.kev).toBeLessThanOrEqual(stats.open)
       expect(stats.public).toBeLessThanOrEqual(stats.open)
       expect(stats.images).toBeLessThanOrEqual(stats.open)

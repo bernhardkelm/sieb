@@ -1,3 +1,9 @@
+import {
+  DECISION_JUSTIFICATIONS,
+  JUSTIFIABLE_STATUS,
+  type DecisionJustification,
+  type DecisionStatus,
+} from '#core/decision.ts'
 import { MAX_EXPIRY_DAYS } from '#core/decisionExpiry.ts'
 import type { DecisionField, DecisionInputError } from '#core/decisionInputError.ts'
 import { parseExpiry } from '#core/expiryParsing.ts'
@@ -99,4 +105,35 @@ export const readLiteral = <T extends string>(
 
   errors.push({ field, code: value === undefined ? 'required' : 'invalid' })
   return null
+}
+
+/**
+ * Reads a justification: absent stays undefined, null means none, otherwise one of the OpenVEX
+ * justifications, allowed only with status not_affected. A status of null or undefined is not
+ * checked, the caller resolves it.
+ * @param {unknown} value - Raw justification
+ * @param {DecisionStatus | null | undefined} status - Status the justification goes with
+ * @param {DecisionInputError[]} errors - Collected errors, appended to
+ * @returns {DecisionJustification | null | undefined} - Justification
+ */
+export const readJustification = (
+  value: unknown,
+  status: DecisionStatus | null | undefined,
+  errors: DecisionInputError[],
+): DecisionJustification | null | undefined => {
+  if (value === undefined || value === null) {
+    return value
+  }
+
+  if (!(DECISION_JUSTIFICATIONS as readonly unknown[]).includes(value)) {
+    errors.push({ field: 'justification', code: 'invalid' })
+    return undefined
+  }
+
+  if (status !== null && status !== undefined && status !== JUSTIFIABLE_STATUS) {
+    errors.push({ field: 'justification', code: 'not_allowed' })
+    return undefined
+  }
+
+  return value as DecisionJustification
 }

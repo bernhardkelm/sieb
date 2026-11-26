@@ -17,7 +17,11 @@ defineProps<{
   sort: SortState<InboxSortColumn> | null
 }>()
 
-defineEmits<{ select: [id: number]; toggle: [id: number]; sort: [column: InboxSortColumn] }>()
+defineEmits<{
+  select: [id: number, event: MouseEvent]
+  toggle: [id: number, event: MouseEvent]
+  sort: [column: InboxSortColumn]
+}>()
 
 const now = useNow()
 const columns = INBOX_SORT_COLUMNS
@@ -86,8 +90,8 @@ const { hidden, classes } = useLabelColumns()
         :current="finding.id === currentId"
         :checked="checkedIds.has(finding.id)"
         :is-new="isNewFinding(finding.firstSeen, now)"
-        @click="$emit('select', finding.id)"
-        @toggle="$emit('toggle', finding.id)"
+        @click="$emit('select', finding.id, $event)"
+        @toggle="$emit('toggle', finding.id, $event)"
       />
     </DenseList>
   </div>

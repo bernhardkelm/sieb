@@ -28,7 +28,13 @@ const lapsed = computed(() => props.view.effective.state === 'reopened')
 <template>
   <ListRow class="decision-row" :current="current" :aria-expanded="expanded">
     <ExpandChevron :expanded="expanded" />
-    <span><DecisionStateChip :effective="view.effective" :status="view.decision.status" /></span>
+    <span>
+      <DecisionStateChip
+        :effective="view.effective"
+        :status="view.decision.status"
+        :justification="view.decision.justification"
+      />
+    </span>
     <span class="vuln-id">{{ view.decision.vulnId }}</span>
     <span v-if="view.decision.imageRef" class="scope">
       <ImageName :image-ref="view.decision.imageRef" />

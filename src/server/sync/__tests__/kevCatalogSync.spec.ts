@@ -71,6 +71,7 @@ describe('sync with the CISA catalog', () => {
         scope: 'image',
         imageRef: NGINX,
         status: 'not_affected',
+        justification: null,
         reason: 'x',
         expiresAt: null,
       },

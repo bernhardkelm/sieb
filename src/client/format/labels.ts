@@ -1,4 +1,4 @@
-import type { DecisionScope, DecisionStatus } from '#core/decision.ts'
+import type { DecisionJustification, DecisionScope, DecisionStatus } from '#core/decision.ts'
 import type { DecisionEventType } from '#core/decisionEvent.ts'
 import type { DecisionState, ReopenReason } from '#core/effectiveDecision.ts'
 import type { Exposure } from '#core/exposure.ts'
@@ -8,6 +8,14 @@ export const STATUS_LABELS: Record<DecisionStatus, string> = {
   not_affected: 'Not affected',
   accepted: 'Accepted',
   fix_planned: 'Fix planned',
+}
+
+export const JUSTIFICATION_LABELS: Record<DecisionJustification, string> = {
+  component_not_present: 'Component not present (false positive)',
+  vulnerable_code_not_present: 'Vulnerable code not present',
+  vulnerable_code_not_in_execute_path: 'Vulnerable code not in execute path',
+  vulnerable_code_cannot_be_controlled_by_adversary: 'Cannot be controlled by an adversary',
+  inline_mitigations_already_exist: 'Mitigated',
 }
 
 export const STATE_LABELS: Record<DecisionState, string> = {

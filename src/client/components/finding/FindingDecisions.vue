@@ -128,7 +128,7 @@ const onRevoke = async (comment: string): Promise<void> => {
 }
 
 /**
- * Re-confirms a re-opened decision, so it silences again.
+ * Re-confirms a re-opened decision, so it takes effect again.
  * @param {Decision} decision - Re-opened decision
  * @returns {Promise<void>} - Resolves when re-confirmed or failed
  */

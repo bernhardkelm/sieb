@@ -31,7 +31,7 @@ export const createDecision = (input: DecisionRequest): Promise<DecisionView> =>
 /**
  * Changes status, reason or expiry of a decision, or re-confirms a re-opened one.
  * @param {number} id - Decision id
- * @param {DecisionPatchRequest} patch - Changed fields, reconfirm true to silence it again
+ * @param {DecisionPatchRequest} patch - Changed fields, reconfirm true to put it back in effect
  * @returns {Promise<DecisionView>} - Changed decision with its state
  * @throws {ApiError} - 400 with validation errors, 404 unknown, 409 revoked
  */

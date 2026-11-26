@@ -1,12 +1,26 @@
-import type { Decision, DecisionScope, DecisionStatus } from '#core/decision.ts'
+import {
+  JUSTIFIABLE_STATUS,
+  type Decision,
+  type DecisionJustification,
+  type DecisionScope,
+  type DecisionStatus,
+} from '#core/decision.ts'
 import { defaultExpiresAt } from '#core/decisionExpiry.ts'
 
 /** Longest reason or comment the server accepts */
 export const TEXT_MAX_LENGTH = 2000
 
+/** Prompt of the reason field per status */
+export const REASON_PLACEHOLDERS: Record<DecisionStatus, string> = {
+  not_affected: 'Why does this not affect the image?',
+  accepted: 'Why is the risk acceptable, and until when?',
+  fix_planned: 'What is the plan?',
+}
+
 /** What the decision form submits, expiresAt null for no expiry */
 export interface DecisionFormValue {
   status: DecisionStatus
+  justification: DecisionJustification | null // null for none and for every other status
   reason: string
   scope: DecisionScope
   expiresAt: string | null
@@ -20,6 +34,17 @@ export type DecisionFormInitial = Partial<
 > & {
   expiresAt?: string | null
 }
+
+/**
+ * Returns the justification a status may carry: the chosen one for not_affected, none otherwise.
+ * @param {DecisionStatus} status - Chosen status
+ * @param {DecisionJustification | null} justification - Chosen justification
+ * @returns {DecisionJustification | null} - Justification to submit
+ */
+export const justificationFor = (
+  status: DecisionStatus,
+  justification: DecisionJustification | null,
+): DecisionJustification | null => (status === JUSTIFIABLE_STATUS ? justification : null)
 
 /**
  * Pads a number to two digits.
@@ -86,6 +111,7 @@ export const isLapsed = (expiresAt: string | null, now: Date): boolean =>
  */
 export const initialFromDecision = (decision: Decision, now: Date): DecisionFormInitial => ({
   status: decision.status,
+  justification: decision.justification,
   reason: decision.reason,
   scope: decision.scope,
   expiresAt: isLapsed(decision.expiresAt, now)

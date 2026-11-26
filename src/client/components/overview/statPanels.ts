@@ -32,7 +32,8 @@ const DAY_FORMAT = new Intl.DateTimeFormat(undefined, { month: 'short', day: 'nu
 
 /**
  * Builds the view model of one panel. The live value ends the trend at the time of the fetch,
- * so a decision moves the line before the next sync records a snapshot.
+ * so a decision moves the line before the next sync records a snapshot. Snapshots without the
+ * count of the panel are left out of its trend.
  * @param {StatPanelSpec} spec - Panel definition
  * @param {StatsResponse} response - Live stats and history
  * @param {number} fetchedAt - Epoch ms of the answer
@@ -45,7 +46,7 @@ const buildPanel = (
   fetchedAt: number,
   period: string,
 ): StatPanelModel => {
-  const current = spec.value(response.current)
+  const current = spec.value(response.current) ?? 0
   const base = {
     key: spec.key,
     label: spec.label,
@@ -53,10 +54,11 @@ const buildPanel = (
     target: spec.target,
     primary: spec.primary,
   }
-  const history = response.series.map((point) => ({
-    time: Date.parse(point.at),
-    value: spec.value(point.stats),
-  }))
+  const history = response.series.flatMap((point) => {
+    const value = spec.value(point.stats)
+
+    return value === null ? [] : [{ time: Date.parse(point.at), value }]
+  })
   const first = history[0]
 
   if (first === undefined) {

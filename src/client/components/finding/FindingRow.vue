@@ -27,7 +27,7 @@ withDefaults(
   { selectable: true, showDecision: false },
 )
 
-defineEmits<{ toggle: [] }>()
+defineEmits<{ toggle: [event: MouseEvent] }>()
 
 const { hidden, classes } = useLabelColumns()
 </script>
@@ -40,7 +40,7 @@ const { hidden, classes } = useLabelColumns()
     :checked="checked"
     :data-finding-id="finding.id"
   >
-    <RowCheckbox v-if="selectable" :checked="checked" @toggle="$emit('toggle')" />
+    <RowCheckbox v-if="selectable" :checked="checked" @toggle="$emit('toggle', $event)" />
     <span v-else class="no-check" aria-hidden="true" />
     <SeverityChip :severity="finding.severity" :score="finding.score" :source="null" />
     <span v-if="!hidden.includes('kev')" class="kev"><KevChip v-if="finding.kev" /></span>

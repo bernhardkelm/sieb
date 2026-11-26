@@ -1,3 +1,4 @@
+import { MODIFIER_KEY } from '@/keyboard/modifierKey'
 import { ROUTE_NAMES, type RouteName } from '@/router/routeNames'
 
 export interface KeyboardHint {
@@ -6,6 +7,8 @@ export interface KeyboardHint {
 }
 
 const MOVE: KeyboardHint = { keys: ['j', 'k'], label: 'Move' }
+const ENDS: KeyboardHint = { keys: ['Home', 'End'], label: 'First, last' }
+const TREE: KeyboardHint = { keys: ['←', '→'], label: 'Collapse, expand' }
 const SEARCH: KeyboardHint = { keys: ['/'], label: 'Search' }
 const SYNC: KeyboardHint = { keys: ['r'], label: 'Sync' }
 const EXPAND: KeyboardHint = { keys: ['Enter'], label: 'Expand, open' }
@@ -14,20 +17,25 @@ const COLLAPSE: KeyboardHint = { keys: ['Esc'], label: 'Close, collapse' }
 export const KEYBOARD_HINTS: Record<RouteName, KeyboardHint[]> = {
   [ROUTE_NAMES.INBOX]: [
     MOVE,
+    ENDS,
     { keys: ['Enter'], label: 'Open' },
-    { keys: ['Esc'], label: 'Close' },
+    { keys: ['Esc'], label: 'Close, clear selection' },
     { keys: ['a'], label: 'Accept' },
     { keys: ['n'], label: 'Not affected' },
     { keys: ['f'], label: 'Fix planned' },
-    { keys: ['x'], label: 'Select' },
+    { keys: ['x', 'Space'], label: 'Select' },
+    { keys: ['⇧', '↑', '↓'], label: 'Select range' },
+    { keys: [MODIFIER_KEY, 'A'], label: 'Select all' },
     { keys: ['⇧', 'A'], label: 'Bulk decide' },
     SEARCH,
     SYNC,
   ],
-  [ROUTE_NAMES.IMAGES]: [MOVE, EXPAND, COLLAPSE, SEARCH, SYNC],
+  [ROUTE_NAMES.IMAGES]: [MOVE, ENDS, EXPAND, TREE, COLLAPSE, SEARCH, SYNC],
   [ROUTE_NAMES.CVES]: [
     MOVE,
+    ENDS,
     EXPAND,
+    TREE,
     COLLAPSE,
     { keys: ['⇧', 'A'], label: 'Decide open images' },
     { keys: ['⇧', 'D'], label: 'Decide all images' },
@@ -36,7 +44,9 @@ export const KEYBOARD_HINTS: Record<RouteName, KeyboardHint[]> = {
   ],
   [ROUTE_NAMES.DECISIONS]: [
     MOVE,
+    ENDS,
     EXPAND,
+    TREE,
     { keys: ['o'], label: 'Open finding' },
     { keys: ['e'], label: 'Edit' },
     { keys: ['⌫'], label: 'Revoke' },

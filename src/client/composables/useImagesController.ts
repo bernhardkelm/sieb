@@ -1,9 +1,10 @@
 import { computed, onMounted, ref, type ComputedRef, type Ref } from 'vue'
 
+import { isNotAffectedFinding } from '#core/findingDecisionState.ts'
 import type { FindingView } from '#core/findingView.ts'
 import type { ImageAggregate } from '#core/imageAggregation.ts'
 import { emptyAggregateFilters, type AggregateFilters } from '@/components/filters/aggregateFilters'
-import { filterImages } from '@/components/images/imageFilters'
+import { countHiddenImages, filterImages } from '@/components/images/imageFilters'
 import { IMAGE_SORT_COLUMNS, sortImages, type ImageSortColumn } from '@/components/images/imageSort'
 import { useCursorList } from '@/composables/useCursorList'
 import { useExpandedGroup } from '@/composables/useExpandedGroup'
@@ -16,6 +17,7 @@ import { useImagesStore } from '@/stores/imagesStore'
 export interface ImagesController {
   filters: Ref<AggregateFilters>
   images: ComputedRef<ImageAggregate[]>
+  hiddenCount: ComputedRef<number>
   sort: ListSort<ImageSortColumn>
   resetSort: () => Promise<void>
   expandedRef: ComputedRef<string | null>
@@ -26,7 +28,8 @@ export interface ImagesController {
 
 /**
  * Drives the by-image view: filtered images in the sort of the `sort` and `dir` query params, the image expanded through the `image` query param
- * with its open findings, and the keyboard cursor over both.
+ * with its open findings, and the keyboard cursor over both. Not affected findings stay out of the
+ * counts and the expanded findings until the showNotAffected filter brings them back.
  * @param {() => void} focusSearch - Focuses the search input
  * @returns {ImagesController} - State and actions for the view
  */
@@ -40,10 +43,14 @@ export const useImagesController = (focusSearch: () => void): ImagesController =
   const images = computed(() =>
     sortImages(filterImages(store.items, filters.value), sort.sort.value),
   )
+  const hiddenCount = computed(() => countHiddenImages(store.items, filters.value))
   const expanded = useExpandedGroup(IMAGE_QUERY)
   const expandedFindings = computed(() =>
     findings.items.filter(
-      (finding) => finding.imageRef === expanded.value.value && finding.resolvedAt === null,
+      (finding) =>
+        finding.imageRef === expanded.value.value &&
+        finding.resolvedAt === null &&
+        (filters.value.showNotAffected || !isNotAffectedFinding(finding)),
     ),
   )
   const keys = computed(() =>
@@ -59,6 +66,7 @@ export const useImagesController = (focusSearch: () => void): ImagesController =
     keys,
     activateGroup: expanded.toggle,
     close: () => expanded.collapse(cursor.focusKey),
+    expanded: () => expanded.value.value,
     focusSearch,
   })
 
@@ -81,6 +89,7 @@ export const useImagesController = (focusSearch: () => void): ImagesController =
   return {
     filters,
     images,
+    hiddenCount,
     sort,
     resetSort,
     expandedRef: expanded.value,

@@ -3,6 +3,7 @@ import { nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 
 import BaseButton from '@/components/common/BaseButton.vue'
 import CloseButton from '@/components/common/CloseButton.vue'
+import CopyButton from '@/components/common/CopyButton.vue'
 import LoadingSpinner from '@/components/common/LoadingSpinner.vue'
 import DecisionHistory from '@/components/decision/DecisionHistory.vue'
 import FindingDecisions from '@/components/finding/FindingDecisions.vue'
@@ -89,6 +90,7 @@ onBeforeUnmount(() => {
   >
     <header class="header">
       <h2 class="vuln-id">{{ store.detail?.finding.vulnId ?? `Finding ${findingId}` }}</h2>
+      <CopyButton v-if="store.detail" :value="store.detail.finding.vulnId" label="Copy CVE ID" />
       <LoadingSpinner v-if="store.loading" />
       <CloseButton label="Close panel" @click="closeFinding" />
     </header>
@@ -189,7 +191,7 @@ onBeforeUnmount(() => {
 }
 
 .vuln-id {
-  flex: 1;
+  flex: 0 1 auto;
   font-family: var(--font-mono);
   font-size: var(--font-size-md);
 }

@@ -62,7 +62,10 @@ export const decisionsInTab = <T extends TabDecision>(
 ): T[] => views.filter((view) => matchesDecisionFilter(view, tab, now))
 
 export const DECISION_TAB_EMPTY: Record<DecisionFilter, { title: string; text: string }> = {
-  active: { title: 'No active decisions', text: 'Decisions that silence alerts show up here.' },
+  active: {
+    title: 'No active decisions',
+    text: 'Not affected and accepted decisions in effect show up here.',
+  },
   expiring: {
     title: 'Nothing expires soon',
     text: 'Active decisions expiring within 14 days show up here.',

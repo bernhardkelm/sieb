@@ -121,6 +121,7 @@ export const useDecisionsController = (focusSearch: () => void): DecisionsContro
     keys,
     activateGroup: expanded.toggle,
     close: () => expanded.collapse(cursor.focusKey),
+    expanded: () => expanded.value.value,
     focusSearch,
     paused: () => editing.editOpen.value || editing.revokeOpen.value,
     viewKey: (event, scope, currentKey) => {

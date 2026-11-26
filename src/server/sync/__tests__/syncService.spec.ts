@@ -79,6 +79,7 @@ describe('createSyncService', () => {
         scope: 'image',
         imageRef: NGINX,
         status: 'not_affected',
+        justification: null,
         reason: 'x',
         expiresAt: null,
       },

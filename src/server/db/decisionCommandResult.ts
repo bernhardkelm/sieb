@@ -3,7 +3,12 @@ import type { DatabaseSync } from 'node:sqlite'
 import type { Decision } from '#core/decision.ts'
 import { getDecision } from '#server/db/decisionRepository.ts'
 
-export type DecisionCommandError = 'not_found' | 'revoked' | 'conflict' | 'unknown_finding'
+export type DecisionCommandError =
+  | 'not_found'
+  | 'revoked'
+  | 'conflict'
+  | 'unknown_finding'
+  | 'justification_not_allowed' // a justification for a decision that stays other than not_affected
 
 export type DecisionCommandResult =
   | { ok: true; decision: Decision }

@@ -78,7 +78,16 @@ const { hidden, classes } = useLabelColumns()
         />
         <SortHeader
           class="optional"
-          column="silenced"
+          column="notAffected"
+          short="Not aff."
+          end
+          :columns="columns"
+          :sort="sort"
+          @sort="$emit('sort', $event)"
+        />
+        <SortHeader
+          class="optional"
+          column="accepted"
           end
           :columns="columns"
           :sort="sort"
@@ -123,7 +132,8 @@ const { hidden, classes } = useLabelColumns()
 .columns {
   --row-columns: var(--chevron-size) minmax(0, 1fr) calc(var(--space-base) * 20)
     calc(var(--space-base) * 16) calc(var(--space-base) * 40) var(--kev-track, var(--count-width))
-    var(--count-width) var(--count-width) calc(var(--space-base) * 14) var(--count-width);
+    var(--count-width) var(--count-width) calc(var(--space-base) * 14) calc(var(--space-base) * 14)
+    var(--count-width);
 }
 
 /* no-kev empties --kev-track, an empty custom property drops the track from the list */
@@ -135,19 +145,19 @@ const { hidden, classes } = useLabelColumns()
 .columns.no-owner {
   --row-columns: var(--chevron-size) minmax(0, 1fr) calc(var(--space-base) * 16)
     calc(var(--space-base) * 40) var(--kev-track, var(--count-width)) var(--count-width)
-    var(--count-width) calc(var(--space-base) * 14) var(--count-width);
+    var(--count-width) calc(var(--space-base) * 14) calc(var(--space-base) * 14) var(--count-width);
 }
 
 .columns.no-exposure {
   --row-columns: var(--chevron-size) minmax(0, 1fr) calc(var(--space-base) * 20)
     calc(var(--space-base) * 40) var(--kev-track, var(--count-width)) var(--count-width)
-    var(--count-width) calc(var(--space-base) * 14) var(--count-width);
+    var(--count-width) calc(var(--space-base) * 14) calc(var(--space-base) * 14) var(--count-width);
 }
 
 .columns.no-exposure.no-owner {
   --row-columns: var(--chevron-size) minmax(0, 1fr) calc(var(--space-base) * 40)
     var(--kev-track, var(--count-width)) var(--count-width) var(--count-width)
-    calc(var(--space-base) * 14) var(--count-width);
+    calc(var(--space-base) * 14) calc(var(--space-base) * 14) var(--count-width);
 }
 
 @container (max-width: 900px) {

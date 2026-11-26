@@ -20,12 +20,13 @@ const HISTORY = buildStatsResponse(
     inbox: 40,
     kev: 3,
     public: 18,
-    suppressed: 25,
+    notAffected: 15,
+    accepted: 10,
     bySeverity: { critical: 4, high: 16, medium: 60, low: 30, unknown: 10 },
   },
   [
-    ['2026-06-01T12:00:00.000Z', { open: 150, inbox: 70, suppressed: 20 }],
-    ['2026-06-15T12:00:00.000Z', { open: 130, inbox: 50, suppressed: 22 }],
+    ['2026-06-01T12:00:00.000Z', { open: 150, inbox: 70, notAffected: 12, accepted: 8 }],
+    ['2026-06-15T12:00:00.000Z', { open: 130, inbox: 50, notAffected: 14, accepted: 8 }],
   ],
 )
 
@@ -65,7 +66,8 @@ describe('OverviewStats', () => {
       'KEV',
       'Crit + High',
       'Public',
-      'Silenced',
+      'Not affected',
+      'Accepted',
     ])
     expect(open.get('.value').text()).toBe('120')
     expect(open.get('.delta').text()).toBe('−30')
@@ -133,7 +135,8 @@ describe('OverviewStats', () => {
       'Inbox',
       'KEV',
       'Crit + High',
-      'Silenced',
+      'Not affected',
+      'Accepted',
     ])
     wrapper.unmount()
   })
@@ -149,7 +152,7 @@ describe('OverviewStats', () => {
     await wrapper.get('[role="alert"] button').trigger('click')
     await flush()
 
-    expect(wrapper.findAll('.stat-panel')).toHaveLength(6)
+    expect(wrapper.findAll('.stat-panel')).toHaveLength(7)
     wrapper.unmount()
   })
 

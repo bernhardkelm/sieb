@@ -7,7 +7,13 @@ import {
   type DecisionStatus,
 } from '#core/decision.ts'
 import { defaultExpiresAt } from '#core/decisionExpiry.ts'
-import { nonBlank, readExpiry, readLiteral, readText } from '#core/decisionFieldReaders.ts'
+import {
+  nonBlank,
+  readExpiry,
+  readJustification,
+  readLiteral,
+  readText,
+} from '#core/decisionFieldReaders.ts'
 import type { DecisionInputError, Validated } from '#core/decisionInputError.ts'
 
 type RawInput = Record<string, unknown>
@@ -16,7 +22,8 @@ type RawInput = Record<string, unknown>
  * Validates the input of a new decision. The reason is trimmed, mandatory and at most
  * MAX_REASON_LENGTH characters, scope image needs
  * an image_ref and scope all must not have one, and an omitted expiry gets the default of the
- * status while an explicit null keeps it open-ended.
+ * status while an explicit null keeps it open-ended. A justification is optional and only allowed
+ * with status not_affected, omitted or null means none.
  * @param {RawInput} raw - Parsed request body
  * @param {Date} now - Current time
  * @returns {Validated<DecisionInput>} - Validated input or the list of errors
@@ -26,6 +33,7 @@ export const validateDecisionInput = (raw: RawInput, now: Date): Validated<Decis
   const vulnId = nonBlank(raw.vulnId)
   const scope = readLiteral<DecisionScope>(raw.scope, DECISION_SCOPES, 'scope', errors)
   const status = readLiteral<DecisionStatus>(raw.status, DECISION_STATUSES, 'status', errors)
+  const justification = readJustification(raw.justification, status, errors)
   const imageRef = nonBlank(raw.imageRef)
   const expiresAt = readExpiry(raw.expiresAt, now, errors)
 
@@ -60,6 +68,7 @@ export const validateDecisionInput = (raw: RawInput, now: Date): Validated<Decis
       scope,
       imageRef: scope === 'image' ? imageRef : null,
       status,
+      justification: justification ?? null,
       reason,
       expiresAt: expiresAt === undefined ? defaultExpiresAt(status, now) : expiresAt,
     },
@@ -67,9 +76,11 @@ export const validateDecisionInput = (raw: RawInput, now: Date): Validated<Decis
 }
 
 /**
- * Validates a change of an existing decision. Only status, reason and expiresAt may change,
- * reconfirm true re-confirms the decision at the current findings, at least one of them must be
- * present, and a present reason must not be blank. reconfirm false counts as absent.
+ * Validates a change of an existing decision. Only status, justification, reason and expiresAt
+ * may change, reconfirm true re-confirms the decision at the current findings, at least one of
+ * them must be present, and a present reason must not be blank. reconfirm false counts as absent.
+ * A justification next to a status other than not_affected is not allowed; next to no status the
+ * stored status is checked by the update.
  * @param {RawInput} raw - Parsed request body
  * @param {Date} now - Current time
  * @returns {Validated<DecisionPatch>} - Validated patch or the list of errors
@@ -84,6 +95,16 @@ export const validateDecisionPatch = (raw: RawInput, now: Date): Validated<Decis
     if (status !== null) {
       patch.status = status
     }
+  }
+
+  const justification = readJustification(
+    raw.justification,
+    raw.status === undefined ? undefined : (patch.status ?? null),
+    errors,
+  )
+
+  if (justification !== undefined) {
+    patch.justification = justification
   }
 
   if (raw.reason !== undefined) {

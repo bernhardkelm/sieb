@@ -77,6 +77,16 @@ const aggregateCve = (
 }
 
 /**
+ * Returns whether every open finding of a CVE carries a decision in effect: active not_affected
+ * or accepted, or fix_planned. Expired, revoked and re-opened decisions do not count, and a CVE
+ * without open findings is never fully decided.
+ * @param {Pick<CveAggregate, 'openCount' | 'decisionStates'>} cve - CVE aggregate
+ * @returns {boolean} - True when no open finding of the CVE needs triage
+ */
+export const isFullyDecided = (cve: Pick<CveAggregate, 'openCount' | 'decisionStates'>): boolean =>
+  cve.openCount > 0 && cve.decisionStates.active + cve.decisionStates.fix_planned === cve.openCount
+
+/**
  * Aggregates findings per vuln_id, sorted like the inbox: KEV, exposure, severity, score, id.
  * @param {readonly FindingView[]} findings - Findings with their governing decision
  * @param {readonly Decision[]} decisions - Decisions, used for the all-scope decision of each CVE

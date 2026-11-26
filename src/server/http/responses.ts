@@ -21,7 +21,8 @@ export const notFound = (c: Context): Response => c.json<ErrorBody>({ error: 'no
 
 /**
  * Answers a refused decision command: 404 for an unknown decision, 409 for a revoked or
- * conflicting one with its id, 400 for a vuln_id or image without a finding.
+ * conflicting one with its id, 400 for a vuln_id or image without a finding and for a
+ * justification on a decision whose status is not not_affected.
  * @param {Context} c - Request context
  * @param {{ error: DecisionCommandError; decisionId?: number }} result - Refusal
  * @param {string} findingField - Field reported for unknown_finding
@@ -38,6 +39,9 @@ export const commandRefused = (
     }
     case 'unknown_finding': {
       return validationFailed(c, [{ field: findingField, code: 'unknown_finding' }])
+    }
+    case 'justification_not_allowed': {
+      return validationFailed(c, [{ field: 'justification', code: 'not_allowed' }])
     }
     case 'revoked':
     case 'conflict': {

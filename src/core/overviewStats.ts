@@ -1,6 +1,5 @@
 import type { Decision } from '#core/decision.ts'
 import { countDecisionStates } from '#core/decisionStates.ts'
-import { isSuppressing } from '#core/effectiveDecision.ts'
 import type { Finding } from '#core/finding.ts'
 import { isInInbox } from '#core/inbox.ts'
 import type { Severity } from '#core/severity.ts'
@@ -21,17 +20,24 @@ export interface OverviewStats {
   kev: number
   public: number // open findings whose max exposure is public
   bySeverity: SeverityCounts
-  suppressed: number // open findings whose governing decision silences alerts
+  notAffected: number // open findings governed by an active not_affected decision
+  accepted: number // open findings governed by an active accepted decision
   fixPlanned: number // decisions in state fix_planned
   reopened: number // decisions in state reopened
   activeDecisions: number // decisions in state active
   images: number // distinct image_refs with an open finding
 }
 
+/** Overview counts as stored, the verdict counts are null in snapshots taken before they existed */
+export type RecordedStats = Omit<OverviewStats, 'notAffected' | 'accepted'> & {
+  notAffected: number | null
+  accepted: number | null
+}
+
 /** Overview counts recorded at a time */
 export interface StatsPoint {
   at: string
-  stats: OverviewStats
+  stats: RecordedStats
 }
 
 export type StatsFinding = TriageFinding & Pick<Finding, 'exposure'>
@@ -54,7 +60,8 @@ export const emptyOverviewStats = (): OverviewStats => ({
   kev: 0,
   public: 0,
   bySeverity: { critical: 0, high: 0, medium: 0, low: 0, unknown: 0 },
-  suppressed: 0,
+  notAffected: 0,
+  accepted: 0,
   fixPlanned: 0,
   reopened: 0,
   activeDecisions: 0,
@@ -80,13 +87,16 @@ export const computeOverviewStats = (
   const stats = emptyOverviewStats()
 
   for (const finding of open) {
-    const effective = triage.byFinding.get(finding.id)?.effective ?? null
+    const governing = triage.byFinding.get(finding.id) ?? null
+    const effective = governing?.effective ?? null
+    const activeStatus = effective?.state === 'active' ? governing?.decision.status : null
 
     stats.open += 1
     stats.inbox += isInInbox(finding, effective) ? 1 : 0
     stats.kev += finding.kev ? 1 : 0
     stats.public += finding.exposure === 'public' ? 1 : 0
-    stats.suppressed += effective !== null && isSuppressing(effective) ? 1 : 0
+    stats.notAffected += activeStatus === 'not_affected' ? 1 : 0
+    stats.accepted += activeStatus === 'accepted' ? 1 : 0
     stats.bySeverity[SEVERITY_KEYS[finding.severity]] += 1
   }
 

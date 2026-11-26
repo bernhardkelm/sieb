@@ -53,6 +53,36 @@ describe('bulk decision route', () => {
     expect(again.body.skipped).toHaveLength(cve.imageCount)
   })
 
+  it('carries a justification to every created decision and rejects it for accepted', async () => {
+    const { app } = await syncedTestApp()
+    const [cve] = (await requestJson<CveAggregate[]>(app, '/api/cves')).body
+
+    if (!cve) {
+      throw new Error('fixtures lack CVEs')
+    }
+
+    const body = { vulnId: cve.vulnId, imageRefs: 'all-open', reason: 'not shipped' }
+    const refused = await requestJson(app, '/api/decisions/bulk', 'POST', {
+      ...body,
+      status: 'accepted',
+      justification: 'component_not_present',
+    })
+    const bulk = await requestJson<BulkDecisionResult>(app, '/api/decisions/bulk', 'POST', {
+      ...body,
+      status: 'not_affected',
+      justification: 'component_not_present',
+    })
+
+    expect(refused).toEqual({
+      status: 400,
+      body: { error: 'validation', errors: [{ field: 'justification', code: 'not_allowed' }] },
+    })
+    expect(bulk.body.created).toHaveLength(cve.imageCount)
+    expect(
+      bulk.body.created.every((view) => view.decision.justification === 'component_not_present'),
+    ).toBe(true)
+  })
+
   it('rejects a bulk without images', async () => {
     const { app } = await syncedTestApp()
 

@@ -3,7 +3,7 @@ import { shortImageName } from '@/format/imageName'
 import { REOPEN_LABELS } from '@/format/labels'
 
 export const RECONFIRM_HINT =
-  'Re-confirm to silence it again; saving other changes keeps it re-opened.'
+  'Re-confirm to put it back in effect; saving other changes keeps it re-opened.'
 
 /**
  * Explains what re-opened a decision against the baseline of the image that triggered it, such

@@ -24,6 +24,7 @@ const decision = buildDecision({
  */
 const value = (overrides: Partial<DecisionFormValue> = {}): DecisionFormValue => ({
   status: 'accepted',
+  justification: null,
   reason: 'internal only',
   scope: 'image',
   expiresAt: fromDateInput(toDateInput(STORED_EXPIRY)),
@@ -47,6 +48,31 @@ describe('decisionPatch', () => {
   it('round trips the stored expiry through the date input to another instant', () => {
     expect(toDateInput(STORED_EXPIRY)).toBe('2026-08-31')
     expect(fromDateInput('2026-08-31')).toBe('2026-09-01T06:59:59.000Z')
+  })
+
+  it('sends a changed justification only while the status is not affected', () => {
+    const justified = buildDecision({ justification: 'component_not_present' })
+    const untouched = initialFromDecision(justified, NOW)
+    const same = value({ ...untouched, expiresAt: null, status: 'not_affected' })
+
+    expect(untouched.justification).toBe('component_not_present')
+    expect(decisionPatch(justified, same, NOW)).toEqual({})
+    expect(decisionPatch(justified, { ...same, justification: null }, NOW)).toEqual({
+      justification: null,
+    })
+    expect(
+      decisionPatch(justified, { ...same, justification: 'inline_mitigations_already_exist' }, NOW),
+    ).toEqual({ justification: 'inline_mitigations_already_exist' })
+    expect(
+      decisionPatch(justified, { ...same, status: 'accepted', justification: null }, NOW),
+    ).toEqual({ status: 'accepted' })
+    expect(
+      decisionPatch(
+        decision,
+        value({ status: 'not_affected', justification: 'component_not_present' }),
+        NOW,
+      ),
+    ).toMatchObject({ status: 'not_affected', justification: 'component_not_present' })
   })
 
   it('sends only the reason when only the reason changed', () => {

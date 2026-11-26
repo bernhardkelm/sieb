@@ -9,6 +9,8 @@ const props = defineProps<{
   /** Images passing the filters */
   images: ImageAggregate[]
   total: number
+  /** Images left out because all their open findings are not affected */
+  hidden: number
   /** Active custom sort, null for the default order */
   sortLabel: string | null
 }>()
@@ -30,5 +32,6 @@ const kev = computed(() => props.images.filter((image) => image.kevCount > 0).le
     </span>
     <span v-if="own > 0"> · {{ own }} own, rebuild those first</span>
     <span v-if="kev > 0"> · {{ kev }} with KEV findings</span>
+    <span v-if="hidden > 0"> · {{ hidden }} hidden as not affected</span>
   </ListSummary>
 </template>

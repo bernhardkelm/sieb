@@ -27,21 +27,41 @@ describe('buildStatPanels', () => {
   })
 
   it('compares the live value with the first snapshot and ends the trend with it', () => {
-    const response = buildStatsResponse({ open: 1211, suppressed: 9 }, [
-      ['2026-06-01T12:00:00.000Z', { open: 1284, suppressed: 4 }],
-      ['2026-06-20T12:00:00.000Z', { open: 1250, suppressed: 6 }],
+    const response = buildStatsResponse({ open: 1211, accepted: 9 }, [
+      ['2026-06-01T12:00:00.000Z', { open: 1284, accepted: 4 }],
+      ['2026-06-20T12:00:00.000Z', { open: 1250, accepted: 6 }],
     ])
     const panels = buildStatPanels(response, FETCHED_AT, '30d')
     const open = pick(panels, 'open')
-    const silenced = pick(panels, 'silenced')
+    const accepted = pick(panels, 'accepted')
 
     expect(open.deltaText).toBe('−73')
     expect(open.tone).toBe('good')
     expect(open.points.map((point) => point.value)).toEqual([1284, 1250, 1211])
     expect(open.points.at(-1)?.time).toBe(FETCHED_AT)
     expect(open.trendLabel).toBe('Trend down 73 over 30 days, from 1,284 to 1,211')
-    expect(silenced.deltaText).toBe('+5')
-    expect(silenced.tone).toBe('neutral')
+    expect(accepted.deltaText).toBe('+5')
+    expect(accepted.tone).toBe('neutral')
+  })
+
+  it('shows not affected and accepted apart and leaves snapshots without them out of their trend', () => {
+    const response = buildStatsResponse({ open: 30, notAffected: 7, accepted: 3 }, [
+      ['2026-06-01T12:00:00.000Z', { open: 40, notAffected: null, accepted: null }],
+      ['2026-06-20T12:00:00.000Z', { open: 35, notAffected: 5, accepted: 1 }],
+    ])
+    const panels = buildStatPanels(response, FETCHED_AT, '30d')
+    const notAffected = pick(panels, 'notAffected')
+    const accepted = pick(panels, 'accepted')
+
+    expect([notAffected.label, notAffected.valueText]).toEqual(['Not affected', '7'])
+    expect(notAffected.points.map((point) => point.value)).toEqual([5, 7])
+    expect(notAffected.deltaText).toBe('+2')
+    expect([accepted.label, accepted.valueText, accepted.deltaText]).toEqual([
+      'Accepted',
+      '3',
+      '+2',
+    ])
+    expect(pick(panels, 'open').points).toHaveLength(3)
   })
 
   it('sums critical and high and keeps the primary panels first', () => {
@@ -51,6 +71,14 @@ describe('buildStatPanels', () => {
     const panels = buildStatPanels(response, FETCHED_AT, '7d')
 
     expect(pick(panels, 'criticalHigh').valueText).toBe('7')
-    expect(panels.map((panel) => panel.primary)).toEqual([true, true, true, true, false, false])
+    expect(panels.map((panel) => panel.primary)).toEqual([
+      true,
+      true,
+      true,
+      true,
+      false,
+      false,
+      false,
+    ])
   })
 })

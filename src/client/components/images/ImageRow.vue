@@ -41,7 +41,13 @@ const workloadNoun = computed(() => pluralize(props.image.workloadCount, 'worklo
     />
     <CountValue class="open" :value="image.openCount" label="open" />
     <CountValue class="tally" :value="image.inboxCount" label="in the inbox" />
-    <CountValue class="optional" :value="image.suppressedCount" label="suppressed" />
+    <CountValue
+      class="optional"
+      :value="image.notAffectedCount"
+      label="not affected"
+      tone="muted"
+    />
+    <CountValue class="optional" :value="image.acceptedCount" label="accepted" />
     <HintTooltip :text="image.workloads.join('\n') || 'No workloads'">
       <span class="workloads optional">
         {{ image.workloadCount }}<span class="visually-hidden">&nbsp;{{ workloadNoun }}</span>

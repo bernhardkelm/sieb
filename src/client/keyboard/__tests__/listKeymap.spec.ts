@@ -5,18 +5,19 @@ import { findingIdOfRowKey, findingRowKey, groupOfRowKey, groupRowKey } from '@/
 
 describe('listActionFor', () => {
   it('maps list keys on the page', () => {
-    expect(listActionFor({ key: 'j' }, 'page')).toBe('next')
-    expect(listActionFor({ key: 'ArrowUp' }, 'page')).toBe('previous')
     expect(listActionFor({ key: 'Enter' }, 'page')).toBe('activate')
     expect(listActionFor({ key: 'Escape' }, 'page')).toBe('close')
+    expect(listActionFor({ key: 'ArrowRight' }, 'page')).toBe('expand')
+    expect(listActionFor({ key: 'ArrowLeft' }, 'page')).toBe('collapse')
+    expect(listActionFor({ key: 'j' }, 'page')).toBeNull()
     expect(listActionFor({ key: 'q' }, 'page')).toBeNull()
   })
 
-  it('keeps only j, k and / inside the panel and nothing in overlays', () => {
-    expect(listActionFor({ key: 'j' }, 'panel')).toBe('next')
+  it('keeps only / inside the panel and nothing in overlays', () => {
+    expect(listActionFor({ key: '/' }, 'panel')).toBe('search')
     expect(listActionFor({ key: 'Enter' }, 'panel')).toBeNull()
-    expect(listActionFor({ key: 'ArrowDown' }, 'panel')).toBeNull()
-    expect(listActionFor({ key: 'j' }, 'overlay')).toBeNull()
+    expect(listActionFor({ key: 'ArrowLeft' }, 'panel')).toBeNull()
+    expect(listActionFor({ key: '/' }, 'overlay')).toBeNull()
   })
 })
 

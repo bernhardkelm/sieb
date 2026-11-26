@@ -6,11 +6,13 @@ import {
   emptyAggregateFilters,
   hasAggregateFilters,
   type AggregateFilters,
+  type AggregateToggle,
 } from '@/components/filters/aggregateFilters'
 import FilterResetButton from '@/components/filters/FilterResetButton.vue'
 import { EXPOSURE_OPTIONS, ownerOptions, SEVERITY_OPTIONS } from '@/components/filters/labelOptions'
 import MultiSelectFilter from '@/components/filters/MultiSelectFilter.vue'
 import SearchInput from '@/components/filters/SearchInput.vue'
+import ToggleFilter from '@/components/filters/ToggleFilter.vue'
 import { useLabelsStore } from '@/stores/labelsStore'
 
 type SelectField = 'severity' | 'exposure' | 'owner'
@@ -19,9 +21,11 @@ const props = withDefaults(
   defineProps<{
     /** Multi-select filters next to the search in this order, exposure and owner only when present */
     fields: SelectField[]
+    /** Toggles after the multi-selects in this order, with their labels */
+    toggles?: Partial<Record<AggregateToggle, string>>
     placeholder?: string
   }>(),
-  { placeholder: 'Search' },
+  { toggles: () => ({}), placeholder: 'Search' },
 )
 
 const filters = defineModel<AggregateFilters>('filters', { required: true })
@@ -35,6 +39,8 @@ const options = computed<Record<SelectField, { label: string; options: FilterOpt
     owner: { label: 'Owner', options: ownerOptions(labels.owners) },
   }),
 )
+
+const visibleToggles = computed(() => Object.entries(props.toggles) as [AggregateToggle, string][])
 
 const visibleFields = computed(() =>
   props.fields.filter(
@@ -84,6 +90,13 @@ defineExpose({ focusSearch })
         :options="options[field].options"
         :model-value="filters[field]"
         @update:model-value="set(field, $event as AggregateFilters[typeof field])"
+      />
+      <ToggleFilter
+        v-for="[toggle, label] in visibleToggles"
+        :key="toggle"
+        :label="label"
+        :model-value="filters[toggle]"
+        @update:model-value="set(toggle, $event)"
       />
       <FilterResetButton
         v-if="hasAggregateFilters(filters)"

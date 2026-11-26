@@ -177,10 +177,17 @@ const onUpdate = (values: unknown[]): void => {
   color: var(--color-on-accent);
 }
 
+.indicator {
+  display: grid;
+  place-items: center;
+  width: 100%;
+  height: 100%;
+}
+
 .indicator svg {
   display: block;
-  width: var(--checkbox-size);
-  height: var(--checkbox-size);
+  width: 100%;
+  height: 100%;
   fill: none;
   stroke: currentColor;
   stroke-width: 2;

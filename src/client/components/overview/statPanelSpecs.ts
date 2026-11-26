@@ -1,9 +1,16 @@
-import type { OverviewStats } from '#core/overviewStats.ts'
+import type { RecordedStats } from '#core/overviewStats.ts'
 import type { DeltaPolarity } from '@/components/overview/statDelta'
 import { DECISION_TAB_QUERY, ROUTE_NAMES, type RouteName } from '@/router/routeNames'
 import type { FindingFilters } from '@/stores/findingFilters'
 
-export type StatPanelKey = 'open' | 'inbox' | 'kev' | 'public' | 'criticalHigh' | 'silenced'
+export type StatPanelKey =
+  | 'open'
+  | 'inbox'
+  | 'kev'
+  | 'public'
+  | 'criticalHigh'
+  | 'notAffected'
+  | 'accepted'
 
 /** View a panel opens; finding filters are reset first, then the given ones applied */
 export interface StatTarget {
@@ -16,7 +23,7 @@ export interface StatTarget {
 export interface StatPanelSpec {
   key: StatPanelKey
   label: string
-  value: (stats: OverviewStats) => number
+  value: (stats: RecordedStats) => number | null // null leaves a snapshot out of the trend
   polarity: DeltaPolarity
   target: StatTarget | null
   primary: boolean // kept when the sidebar is short
@@ -76,9 +83,21 @@ export const STAT_PANEL_SPECS: StatPanelSpec[] = [
     needsExposure: true,
   },
   {
-    key: 'silenced',
-    label: 'Silenced',
-    value: (stats) => stats.suppressed,
+    key: 'notAffected',
+    label: 'Not affected',
+    value: (stats) => stats.notAffected,
+    polarity: 'neutral',
+    target: {
+      route: ROUTE_NAMES.DECISIONS,
+      query: { [DECISION_TAB_QUERY]: 'active' },
+      hint: 'Active decisions',
+    },
+    primary: false,
+  },
+  {
+    key: 'accepted',
+    label: 'Accepted',
+    value: (stats) => stats.accepted,
     polarity: 'neutral',
     target: {
       route: ROUTE_NAMES.DECISIONS,

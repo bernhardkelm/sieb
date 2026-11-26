@@ -9,6 +9,8 @@ const props = defineProps<{
   /** CVEs passing the filters */
   cves: CveAggregate[]
   total: number
+  /** CVEs left out because all their open findings are decided */
+  hidden: number
   /** Active custom sort, null for the default order */
   sortLabel: string | null
 }>()
@@ -26,5 +28,6 @@ const undecided = computed(() => props.cves.filter((cve) => cve.inboxCount > 0).
     }}</span>
     <span v-if="kev > 0"> · {{ kev }} KEV listed</span>
     <span> · {{ undecided }} with undecided images</span>
+    <span v-if="hidden > 0"> · {{ hidden }} hidden as fully decided</span>
   </ListSummary>
 </template>

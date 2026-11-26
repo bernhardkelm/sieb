@@ -76,6 +76,7 @@ const decide = (db: DatabaseSync, input: Partial<DecisionInput>, now: Date): num
       scope: 'image',
       imageRef: NGINX,
       status: 'not_affected',
+      justification: null,
       reason: 'x',
       expiresAt: null,
       ...input,

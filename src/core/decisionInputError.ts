@@ -4,6 +4,7 @@ export type DecisionField =
   | 'imageRef'
   | 'imageRefs'
   | 'status'
+  | 'justification'
   | 'reason'
   | 'expiresAt'
   | 'reconfirm'

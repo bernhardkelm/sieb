@@ -61,15 +61,17 @@ export interface BulkDecisionResult {
 }
 
 /** Body of POST /api/decisions, an omitted expiresAt takes the default of the status */
-export type DecisionRequest = Omit<DecisionInput, 'expiresAt' | 'imageRef'> & {
+export type DecisionRequest = Omit<DecisionInput, 'expiresAt' | 'imageRef' | 'justification'> & {
   imageRef?: string | null
   expiresAt?: string | null
+  justification?: DecisionInput['justification']
 }
 
 /** Body of PATCH /api/decisions/:id, reconfirm true clears a re-open and records new baselines */
 export type DecisionPatchRequest = Omit<DecisionPatch, 'reconfirm'> & { reconfirm?: boolean }
 
 /** Body of POST /api/decisions/bulk */
-export type BulkDecisionRequest = Omit<BulkDecisionInput, 'expiresAt'> & {
+export type BulkDecisionRequest = Omit<BulkDecisionInput, 'expiresAt' | 'justification'> & {
   expiresAt?: string | null
+  justification?: BulkDecisionInput['justification']
 }

@@ -10,7 +10,7 @@ export const MAX_BULK_IMAGES = 200
 /** Validated input for image-scoped decisions of one vuln_id in several images */
 export interface BulkDecisionInput extends Pick<
   DecisionInput,
-  'vulnId' | 'status' | 'reason' | 'expiresAt'
+  'vulnId' | 'status' | 'justification' | 'reason' | 'expiresAt'
 > {
   imageRefs: string[] | typeof ALL_OPEN_IMAGES // all-open: every image with an open finding
 }
@@ -47,7 +47,7 @@ const readImageRefs = (
 
 /**
  * Validates a bulk decision: the fields of a single decision without scope and image_ref, the
- * expiry default included, plus the target images.
+ * expiry default and the justification rules included, plus the target images.
  * @param {Record<string, unknown>} raw - Parsed request body
  * @param {Date} now - Current time
  * @returns {Validated<BulkDecisionInput>} - Validated input or the list of errors
@@ -63,6 +63,7 @@ export const validateBulkDecisionInput = (
       vulnId: raw.vulnId,
       scope: 'all',
       status: raw.status,
+      justification: raw.justification,
       reason: raw.reason,
       expiresAt: raw.expiresAt,
     },
@@ -77,7 +78,7 @@ export const validateBulkDecisionInput = (
     return { ok: false, errors }
   }
 
-  const { vulnId, status, reason, expiresAt } = single.value
+  const { vulnId, status, justification, reason, expiresAt } = single.value
 
-  return { ok: true, value: { vulnId, imageRefs, status, reason, expiresAt } }
+  return { ok: true, value: { vulnId, imageRefs, status, justification, reason, expiresAt } }
 }

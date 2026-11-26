@@ -8,6 +8,7 @@ import { MIGRATIONS, runMigrations, schemaVersion } from '#server/db/migrations.
 import { MIGRATION_1 } from '#server/db/migrations/migration1.ts'
 import { MIGRATION_4 } from '#server/db/migrations/migration4.ts'
 import { MIGRATION_5 } from '#server/db/migrations/migration5.ts'
+import { MIGRATION_6 } from '#server/db/migrations/migration6.ts'
 import { MEMORY_DB, openDatabase } from '#server/db/openDatabase.ts'
 
 describe('openDatabase', () => {
@@ -31,6 +32,12 @@ describe('openDatabase', () => {
       'sync_runs',
     ])
     expect(db.prepare('PRAGMA foreign_keys').get()?.foreign_keys).toBe(1)
+    expect(
+      db
+        .prepare('PRAGMA table_info(decisions)')
+        .all()
+        .some((column) => column.name === 'justification'),
+    ).toBe(true)
   })
 
   it('keeps decision_events append-only and one current decision per scope', () => {
@@ -145,7 +152,7 @@ describe('openDatabase', () => {
       'INSERT INTO kev_catalog (cve_id, date_added, known_ransomware) VALUES (?, ?, ?)',
     )
 
-    expect(schemaVersion(db)).toBe(5)
+    expect(schemaVersion(db)).toBe(MIGRATIONS.length)
     expect(db.prepare('SELECT kev FROM findings').all()).toEqual([{ kev: 1 }])
     expect(db.prepare('SELECT id, last_success_at, entry_count FROM kev_feed').all()).toEqual([
       { id: 1, last_success_at: null, entry_count: 0 },
@@ -155,5 +162,53 @@ describe('openDatabase', () => {
     expect(() => insert.run('CVE-2024-3', '2024-01-02', 2)).toThrow(/CHECK/)
     expect(() => insert.run('CVE-2024-1', '2024-01-02', 0)).toThrow(/UNIQUE|PRIMARY/)
     expect(() => db.exec('INSERT INTO kev_feed (id) VALUES (2)')).toThrow(/CHECK/)
+  })
+
+  it('adds an empty justification to existing decisions, only for not_affected', () => {
+    const schema5 = MIGRATIONS.slice(0, 5)
+    const db = new DatabaseSync(MEMORY_DB)
+    runMigrations(db, schema5)
+    const insert = db.prepare(
+      `INSERT INTO decisions (vuln_id, scope, image_ref, status, reason, created_by, created_at,
+         updated_at, severity_at_decision, kev_at_decision)
+       VALUES (?, 'all', NULL, ?, 'x', 'u', 't', 't', 'High', 0)`,
+    )
+
+    insert.run('CVE-1', 'not_affected')
+    insert.run('CVE-2', 'accepted')
+    runMigrations(db, [...schema5, MIGRATION_6])
+
+    /**
+     * Runs a statement and returns its error message.
+     * @param {string} sql - Statement
+     * @returns {string | null} - Error message, null when it succeeded
+     */
+    const failure = (sql: string): string | null => {
+      try {
+        db.exec(sql)
+        return null
+      } catch (error) {
+        return (error as Error).message
+      }
+    }
+
+    expect(schemaVersion(db)).toBe(6)
+    expect(db.prepare('SELECT id, status, justification FROM decisions').all()).toEqual([
+      { id: 1, status: 'not_affected', justification: null },
+      { id: 2, status: 'accepted', justification: null },
+    ])
+    expect(
+      failure("UPDATE decisions SET justification = 'component_not_present' WHERE id = 1"),
+    ).toBeNull()
+    expect(failure("UPDATE decisions SET justification = 'false_positive' WHERE id = 1")).toMatch(
+      /CHECK/,
+    )
+    expect(
+      failure("UPDATE decisions SET justification = 'component_not_present' WHERE id = 2"),
+    ).toMatch(/CHECK/)
+    expect(failure("UPDATE decisions SET status = 'accepted' WHERE id = 1")).toMatch(/CHECK/)
+    expect(
+      failure("UPDATE decisions SET status = 'accepted', justification = NULL WHERE id = 1"),
+    ).toBeNull()
   })
 })

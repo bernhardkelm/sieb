@@ -3,7 +3,7 @@ import { computed, onMounted, ref, type ComputedRef, type Ref } from 'vue'
 import type { CveAggregate } from '#core/cveAggregation.ts'
 import type { FindingView } from '#core/findingView.ts'
 import { groupBy } from '#core/groupBy.ts'
-import { filterCves } from '@/components/cves/cveFilters'
+import { countHiddenCves, filterCves } from '@/components/cves/cveFilters'
 import { CVE_SORT_COLUMNS, sortCves, type CveSortColumn } from '@/components/cves/cveSort'
 import { summarizeDecisions } from '@/components/cves/decisionSummary'
 import type { BulkTarget } from '@/components/decision/bulkTargets'
@@ -19,6 +19,7 @@ import { useFindingsStore } from '@/stores/findingsStore'
 export interface CvesController {
   filters: Ref<AggregateFilters>
   cves: ComputedRef<CveAggregate[]>
+  hiddenCount: ComputedRef<number>
   sort: ListSort<CveSortColumn>
   resetSort: () => Promise<void>
   expandedId: ComputedRef<string | null>
@@ -36,9 +37,9 @@ export interface CvesController {
 
 /**
  * Drives the by-CVE view: filtered CVEs with their decision summary in the sort of the `sort` and
- * `dir` query params, the CVE expanded through
- * the `cve` query param with its open findings per image, the keyboard cursor, Shift+A to decide
- * every open image of the CVE and Shift+D to decide it for all images including future ones.
+ * `dir` query params, fully decided CVEs hidden until the showDecided filter, the CVE expanded
+ * through the `cve` query param with its open findings per image, the keyboard cursor, Shift+A to
+ * decide every open image of the CVE and Shift+D to decide it for all images including future ones.
  * @param {() => void} focusSearch - Focuses the search input
  * @returns {CvesController} - State and actions for the view
  */
@@ -54,6 +55,7 @@ export const useCvesController = (focusSearch: () => void): CvesController => {
   const sort = useListSort(CVE_SORT_COLUMNS)
 
   const cves = computed(() => sortCves(filterCves(store.items, filters.value), sort.sort.value))
+  const hiddenCount = computed(() => countHiddenCves(store.items, filters.value))
   const openByCve = computed(() =>
     groupBy(
       findings.items.filter((finding) => finding.resolvedAt === null),
@@ -114,6 +116,7 @@ export const useCvesController = (focusSearch: () => void): CvesController => {
     keys,
     activateGroup: expanded.toggle,
     close: () => expanded.collapse(cursor.focusKey),
+    expanded: () => expanded.value.value,
     focusSearch,
     paused: () => bulkOpen.value || decideOpen.value,
     viewKey: (event, _scope, currentKey) => {
@@ -152,6 +155,7 @@ export const useCvesController = (focusSearch: () => void): CvesController => {
   return {
     filters,
     cves,
+    hiddenCount,
     sort,
     resetSort,
     expandedId: expanded.value,

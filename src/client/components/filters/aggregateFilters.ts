@@ -7,7 +7,11 @@ export interface AggregateFilters {
   severity: Severity[]
   exposure: Exposure[]
   owner: string[]
+  showNotAffected: boolean // by image: counts and lists not affected findings, off by default
+  showDecided: boolean // by CVE: lists CVEs whose open findings are all decided, off by default
 }
+
+export type AggregateToggle = 'showNotAffected' | 'showDecided'
 
 /**
  * Returns aggregate filters that match everything.
@@ -18,6 +22,8 @@ export const emptyAggregateFilters = (): AggregateFilters => ({
   severity: [],
   exposure: [],
   owner: [],
+  showNotAffected: false,
+  showDecided: false,
 })
 
 /**
@@ -29,7 +35,9 @@ export const hasAggregateFilters = (filters: AggregateFilters): boolean =>
   filters.q.trim() !== '' ||
   filters.severity.length > 0 ||
   filters.exposure.length > 0 ||
-  filters.owner.length > 0
+  filters.owner.length > 0 ||
+  filters.showNotAffected ||
+  filters.showDecided
 
 /**
  * Returns whether one of several texts contains the search text, case-insensitive.

@@ -4,8 +4,8 @@ withDefaults(
     value: number
     /** What is counted, read by screen readers after the number */
     label: string
-    /** Colours a non-zero count, such as KEV */
-    tone?: 'default' | 'kev' | 'danger'
+    /** Colours a non-zero count, such as KEV, muted for counts outside the risk */
+    tone?: 'default' | 'kev' | 'danger' | 'muted'
   }>(),
   { tone: 'default' },
 )
@@ -33,6 +33,10 @@ withDefaults(
 .danger {
   color: var(--color-danger);
   font-weight: var(--font-weight-semibold);
+}
+
+.muted {
+  color: var(--color-text-subtle);
 }
 
 .zero {

@@ -46,6 +46,37 @@ describe('describeEvent', () => {
     })
   })
 
+  it('names justification changes and the justification of a new decision', () => {
+    expect(
+      describeEvent(
+        event('updated', {
+          reconfirm: false,
+          status: ['not_affected', 'accepted'],
+          justification: ['component_not_present', null],
+        }),
+      ).lines,
+    ).toEqual([
+      'Status Not affected → Accepted',
+      'Justification Component not present (false positive) → none',
+    ])
+    expect(
+      describeEvent(
+        event('created', {
+          status: 'not_affected',
+          justification: 'inline_mitigations_already_exist',
+          reason: 'WAF rule',
+          expiresAt: null,
+        }),
+      ),
+    ).toEqual({
+      title: 'Decided Not affected',
+      lines: ['Justification: Mitigated', 'WAF rule', 'Expires never'],
+    })
+    expect(
+      describeEvent(event('created', { status: 'accepted', reason: 'ok', expiresAt: null })).lines,
+    ).toEqual(['ok', 'Expires never'])
+  })
+
   it('explains a re-open from its trigger, also for old events without one', () => {
     expect(
       describeEvent(

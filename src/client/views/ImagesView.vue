@@ -5,7 +5,7 @@ import BaseButton from '@/components/common/BaseButton.vue'
 import EmptyState from '@/components/common/EmptyState.vue'
 import LoadState from '@/components/common/LoadState.vue'
 import AggregateFilterBar from '@/components/filters/AggregateFilterBar.vue'
-import { emptyAggregateFilters } from '@/components/filters/aggregateFilters'
+import { emptyAggregateFilters, hasAggregateFilters } from '@/components/filters/aggregateFilters'
 import ImageList from '@/components/images/ImageList.vue'
 import { IMAGE_SORT_COLUMNS } from '@/components/images/imageSort'
 import ImagesSummary from '@/components/images/ImagesSummary.vue'
@@ -20,8 +20,8 @@ const store = useImagesStore()
 const findings = useFindingsStore()
 const filterBar = ref<InstanceType<typeof AggregateFilterBar> | null>(null)
 
-const { filters, images, sort, resetSort, expandedRef, expandedFindings, currentKey, select } =
-  useImagesController(() => filterBar.value?.focusSearch())
+const controller = useImagesController(() => filterBar.value?.focusSearch())
+const { filters, images, hiddenCount, sort, expandedRef, expandedFindings, currentKey } = controller
 
 const { hidden } = useLabelColumns()
 </script>
@@ -33,6 +33,7 @@ const { hidden } = useLabelColumns()
         ref="filterBar"
         v-model:filters="filters"
         :fields="['owner', 'exposure', 'severity']"
+        :toggles="{ showNotAffected: 'Show not affected' }"
         placeholder="Search image or workload"
       >
         <SortMenu
@@ -56,12 +57,31 @@ const { hidden } = useLabelColumns()
       <ImagesSummary
         :images="images"
         :total="store.items.length"
+        :hidden="hiddenCount"
         :sort-label="sort.label.value"
-        @reset-sort="resetSort"
+        @reset-sort="controller.resetSort"
       />
-      <EmptyState v-if="images.length === 0" title="No matches">
-        No image matches these filters.
-        <BaseButton variant="ghost" @click="filters = emptyAggregateFilters()">
+      <EmptyState
+        v-if="images.length === 0"
+        :title="hasAggregateFilters(filters) ? 'No matches' : 'No open risk'"
+      >
+        {{
+          hasAggregateFilters(filters)
+            ? 'No image matches these filters.'
+            : 'Every image has only not affected findings open.'
+        }}
+        <BaseButton
+          v-if="hiddenCount > 0"
+          variant="ghost"
+          @click="filters = { ...filters, showNotAffected: true }"
+        >
+          Show not affected
+        </BaseButton>
+        <BaseButton
+          v-if="hasAggregateFilters(filters)"
+          variant="ghost"
+          @click="filters = emptyAggregateFilters()"
+        >
           Reset filters
         </BaseButton>
       </EmptyState>
@@ -73,7 +93,7 @@ const { hidden } = useLabelColumns()
         :findings="expandedFindings"
         :findings-loaded="findings.loaded"
         :sort="sort.sort.value"
-        @select="select"
+        @select="controller.select"
         @sort="sort.toggle"
       />
     </template>

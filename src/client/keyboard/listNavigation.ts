@@ -20,6 +20,33 @@ export const moveCursor = <T>(ids: readonly T[], currentId: T | null, delta: num
   return ids[Math.min(ids.length - 1, Math.max(0, index + delta))]!
 }
 
+/** Cursor movement: a number of rows, negative moves up, or a jump to an end of the list */
+export type CursorStep = number | 'first' | 'last'
+
+/**
+ * Returns where a cursor step lands: the first or last row for the jumps, otherwise the row a
+ * number of rows away, clamped to the ends as in moveCursor.
+ * @param {readonly T[]} ids - Item ids in display order
+ * @param {T | null} currentId - Current item
+ * @param {CursorStep} step - Step
+ * @returns {T | null} - Target item, null for an empty list
+ */
+export const stepCursor = <T>(
+  ids: readonly T[],
+  currentId: T | null,
+  step: CursorStep,
+): T | null => {
+  if (step === 'first') {
+    return ids[0] ?? null
+  }
+
+  if (step === 'last') {
+    return ids[ids.length - 1] ?? null
+  }
+
+  return moveCursor(ids, currentId, step)
+}
+
 /**
  * Keeps the cursor sensible after the list changed. An item that left the list hands the cursor
  * to the next item that is still listed, or the previous one at the end of the list.

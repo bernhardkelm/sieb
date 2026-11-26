@@ -4,7 +4,7 @@ import DecisionStateChip from '@/components/chips/DecisionStateChip.vue'
 import BaseButton from '@/components/common/BaseButton.vue'
 import RelativeTime from '@/components/common/RelativeTime.vue'
 import { countOf } from '@/format/count'
-import { SCOPE_LABELS } from '@/format/labels'
+import { JUSTIFICATION_LABELS, SCOPE_LABELS } from '@/format/labels'
 import { formatDate } from '@/format/relativeTime'
 import { RECONFIRM_HINT, reopenText } from '@/format/reopenText'
 
@@ -22,7 +22,11 @@ defineEmits<{ edit: []; revoke: []; reconfirm: [] }>()
 <template>
   <article class="decision-card" :class="{ governing }">
     <header class="head">
-      <DecisionStateChip :effective="view.effective" :status="view.decision.status" />
+      <DecisionStateChip
+        :effective="view.effective"
+        :status="view.decision.status"
+        :justification="view.decision.justification"
+      />
       <span class="scope">{{ SCOPE_LABELS[view.decision.scope] }}</span>
       <span v-if="governing" class="governing-label">governs this finding</span>
       <span class="actions">
@@ -40,6 +44,9 @@ defineEmits<{ edit: []; revoke: []; reconfirm: [] }>()
     </header>
     <p v-if="view.effective.state === 'reopened'" class="why" role="note">
       {{ reopenText(view.effective) }}. {{ RECONFIRM_HINT }}
+    </p>
+    <p v-if="view.decision.justification" class="justification">
+      Justification: {{ JUSTIFICATION_LABELS[view.decision.justification] }}
     </p>
     <p class="reason">{{ view.decision.reason }}</p>
     <p class="meta">
@@ -89,6 +96,11 @@ defineEmits<{ edit: []; revoke: []; reconfirm: [] }>()
 
 .why {
   color: var(--color-danger);
+  font-size: var(--font-size-sm);
+}
+
+.justification {
+  color: var(--color-text-muted);
   font-size: var(--font-size-sm);
 }
 

@@ -1,4 +1,4 @@
-import { mount, type VueWrapper } from '@vue/test-utils'
+import { flushPromises, mount, type VueWrapper } from '@vue/test-utils'
 import { createPinia, setActivePinia } from 'pinia'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
@@ -80,6 +80,7 @@ describe('DecisionForm', () => {
 
     expect(value).toEqual({
       status: 'accepted',
+      justification: null,
       reason: 'internal only',
       scope: 'all',
       expiresAt: new Date(2026, 7, 30, 23, 59, 59).toISOString(),
@@ -97,6 +98,64 @@ describe('DecisionForm', () => {
     expect(wrapper.emitted<[DecisionFormValue]>('submit')?.[0]?.[0]).toMatchObject({
       status: 'not_affected',
       expiresAt: null,
+    })
+  })
+
+  it('offers the justification only for not affected and submits the picked one', async () => {
+    const wrapper = mountForm()
+    /**
+     * Returns the trigger of the justification select, null while hidden.
+     * @returns {HTMLElement | null} - Trigger
+     */
+    const trigger = (): HTMLElement | null =>
+      document.querySelector<HTMLElement>('[role="combobox"]')
+
+    expect(wrapper.text()).toContain('Justification (optional)')
+    expect(trigger()?.textContent).toContain('No justification')
+
+    trigger()?.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }))
+    await flushPromises()
+
+    const option = [...document.querySelectorAll<HTMLElement>('[role="option"]')].find(
+      (item) => item.textContent?.trim() === 'Vulnerable code not in execute path',
+    )
+
+    expect(document.querySelectorAll('[role="option"]')).toHaveLength(6)
+    option?.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }))
+    await flushPromises()
+
+    expect(trigger()?.textContent).toContain('Vulnerable code not in execute path')
+
+    await wrapper.get('textarea').setValue('only the CLI links it')
+    await wrapper.get('form').trigger('submit')
+    expect(wrapper.emitted<[DecisionFormValue]>('submit')?.[0]?.[0]).toMatchObject({
+      status: 'not_affected',
+      justification: 'vulnerable_code_not_in_execute_path',
+    })
+
+    await pickStatus(wrapper, 'Accepted')
+    expect(trigger()).toBeNull()
+    expect(wrapper.text()).not.toContain('Justification (optional)')
+  })
+
+  it('drops a stored justification when the status changes away from not affected', async () => {
+    const wrapper = mountForm({
+      initial: {
+        status: 'not_affected',
+        justification: 'component_not_present',
+        reason: 'not installed',
+      },
+    })
+
+    expect(document.querySelector('[role="combobox"]')?.textContent).toContain(
+      'Component not present (false positive)',
+    )
+
+    await pickStatus(wrapper, 'Fix planned')
+    await wrapper.get('form').trigger('submit')
+    expect(wrapper.emitted<[DecisionFormValue]>('submit')?.[0]?.[0]).toMatchObject({
+      status: 'fix_planned',
+      justification: null,
     })
   })
 
@@ -151,7 +210,23 @@ describe('DecisionForm', () => {
       'Accepted',
       'Fix planned',
     ])
-    expect(wrapper.text()).toContain('does not silence alerts')
+    expect(wrapper.text()).toContain('alerts keep firing')
+    expect(wrapper.get('textarea').attributes('placeholder')).toBe('What is the plan?')
+  })
+
+  it('asks for the reason the chosen status needs and says when alerts stop', async () => {
+    const wrapper = mountForm()
+    /**
+     * Returns the placeholder of the reason field.
+     * @returns {string | undefined} - Placeholder
+     */
+    const placeholder = (): string | undefined => wrapper.get('textarea').attributes('placeholder')
+
+    expect(placeholder()).toBe('Why does this not affect the image?')
+    expect(wrapper.text()).toContain('Alerts stop within about two minutes')
+
+    await pickStatus(wrapper, 'Accepted')
+    expect(placeholder()).toBe('Why is the risk acceptable, and until when?')
   })
 
   it('shows the given expiry for the starting status and the default for any other', async () => {
@@ -210,7 +285,7 @@ describe('DecisionForm', () => {
     expect(wrapper.text()).toContain('keeps the decision re-opened')
 
     await wrapper.get('input[name="reconfirm"]').setValue(true)
-    expect(wrapper.text()).toContain('silences the decision again')
+    expect(wrapper.text()).toContain('puts the decision back in effect')
 
     await wrapper.get('form').trigger('submit')
     expect(wrapper.emitted<[DecisionFormValue]>('submit')?.[0]?.[0]).toMatchObject({

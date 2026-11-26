@@ -1,6 +1,11 @@
 import type { DatabaseSync } from 'node:sqlite'
 
-import type { Decision, DecisionScope, DecisionStatus } from '#core/decision.ts'
+import type {
+  Decision,
+  DecisionJustification,
+  DecisionScope,
+  DecisionStatus,
+} from '#core/decision.ts'
 import type { DecisionBaseline, ReopenTrigger } from '#core/reopenTrigger.ts'
 import type { Severity } from '#core/severity.ts'
 import { listBaselines } from '#server/db/decisionBaselineRepository.ts'
@@ -11,6 +16,7 @@ export interface DecisionRow {
   scope: string
   image_ref: string | null
   status: string
+  justification: string | null
   reason: string
   expires_at: string | null
   created_by: string
@@ -36,6 +42,7 @@ const toDecision = (row: DecisionRow, baselines: DecisionBaseline[]): Decision =
   scope: row.scope as DecisionScope,
   imageRef: row.image_ref,
   status: row.status as DecisionStatus,
+  justification: row.justification as DecisionJustification | null,
   reason: row.reason,
   expiresAt: row.expires_at,
   createdBy: row.created_by,
