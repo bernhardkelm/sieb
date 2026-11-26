@@ -1,6 +1,6 @@
 {
   "name": "sieb",
-  "version": "0.0.3",
+  "version": "0.1.0",
   "private": true,
   "description": "Triage inbox for Trivy Operator findings that silences Prometheus alerts per CVE and image",
   "license": "AGPL-3.0-or-later",
