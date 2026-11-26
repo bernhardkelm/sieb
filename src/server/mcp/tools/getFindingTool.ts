@@ -2,7 +2,7 @@ import type { McpServer } from '@modelcontextprotocol/server'
 import { z } from 'zod'
 
 import { DECISION_EVENT_TYPES } from '#core/decisionEvent.ts'
-import { distinctPackageVersions } from '#core/instance.ts'
+import { currentInstances, distinctPackageVersions } from '#core/instance.ts'
 import { withoutImageTag } from '#core/nameMatch.ts'
 import { cveUrl, imageUrl, linkBase } from '#core/siebLinks.ts'
 import { listFindingsByVuln } from '#server/db/findingRepository.ts'
@@ -20,11 +20,13 @@ import {
 import { instanceRowSchema, toInstanceRow } from '#server/mcp/views/affectedImage.ts'
 import { decisionSummarySchema, toDecisionSummary } from '#server/mcp/views/decisionSummary.ts'
 import { findingRowSchema, toFindingRow } from '#server/mcp/views/findingRow.ts'
+import { foundInSchema, toFoundIn } from '#server/mcp/views/foundIn.ts'
 
 const MAX_INSTANCES = 50
 
 const outputSchema = z.object({
   finding: findingRowSchema.extend({ lastSeen: z.string() }),
+  foundIn: foundInSchema,
   instances: z
     .array(
       instanceRowSchema.extend({
@@ -102,7 +104,7 @@ export const registerGetFindingTool = (server: McpServer, deps: McpToolDeps): vo
     {
       title: 'Get a finding',
       description:
-        'Reads one finding (a CVE in one image) by findingId, or by vulnId plus imageRef: its instances per workload and container with package versions, every decision covering it with reasons and history, the KEV source with CISA KEV details when it is cisa, and links.',
+        'Reads one finding (a CVE in one image) by findingId, or by vulnId plus imageRef: its instances per workload and container with package versions, where Trivy found the package, every decision covering it with reasons and history, the KEV source with CISA KEV details when it is cisa, and links.',
       inputSchema,
       outputSchema,
       annotations: READ_ONLY_TOOL,
@@ -128,15 +130,14 @@ export const registerGetFindingTool = (server: McpServer, deps: McpToolDeps): vo
 
       const base = linkBase(deps.baseUrl)
       const { finding, instances } = detail
-      const current = instances.filter(
-        (instance) => instance.resolvedAt === null || instance.resolvedAt === finding.resolvedAt,
-      )
+      const current = currentInstances(instances, finding.resolvedAt)
 
       return toolResult({
         finding: {
           ...toFindingRow(finding, distinctPackageVersions(current), base, deps.publicRegistries),
           lastSeen: finding.lastSeen,
         },
+        foundIn: toFoundIn(current),
         instances: instances.slice(0, MAX_INSTANCES).map((instance) => ({
           ...toInstanceRow(instance),
           firstSeen: instance.firstSeen,

@@ -15,7 +15,9 @@ vi.mock('@/toast/toastManager', () => ({
 }))
 
 const REASON =
-  'Connect Claude first: create an API token (your name in the top bar, API tokens) or add the sieb connector in Claude.'
+  'Connect Claude first: add the sieb connector in claude.ai or create an API token (your name in the top bar, API tokens).'
+
+const PROMPTS = { chat: 'Chat it', code: 'Triage it' }
 
 const writeText = vi.fn<(text: string) => Promise<void>>()
 const assign = vi.fn<(url: string) => void>()
@@ -67,7 +69,7 @@ const menuItem = (label: string): HTMLElement => {
  * @returns {VueWrapper} - Wrapper
  */
 const mountButton = (command: string | null, connected = true): VueWrapper => {
-  const wrapper = mountWithProviders(HandoffButton, { prompt: 'Triage it', command })
+  const wrapper = mountWithProviders(HandoffButton, { prompts: PROMPTS, command })
 
   useMcpStore().info = {
     enabled: true,
@@ -131,7 +133,7 @@ describe('HandoffButton', () => {
   })
 
   it.each([
-    ['desktop-chat', 'Open in Claude chat', 'claude://claude.ai/new?q=Triage%20it'],
+    ['desktop-chat', 'Open in Claude chat', 'claude://claude.ai/new?q=Chat%20it'],
     ['cli', 'Open in terminal', 'claude-cli://open?q=Triage%20it'],
     ['vscode', 'Open in VS Code', 'vscode://anthropic.claude-code/open?prompt=Triage%20it'],
   ])('follows the stored default %s', async (target, label, link) => {
@@ -158,7 +160,7 @@ describe('HandoffButton', () => {
     await flushPromises()
 
     expect(assign).not.toHaveBeenCalled()
-    expect(writeText).toHaveBeenCalledWith('Triage it')
+    expect(writeText).toHaveBeenCalledWith('Chat it')
     expect(primary.classes()).toContain('copied')
     expect(wrapper.get('[role="status"]').text()).toBe('Copied')
     wrapper.unmount()
@@ -265,7 +267,7 @@ describe('HandoffButton', () => {
     copyPrompt.click()
     await flushPromises()
 
-    expect(writeText).toHaveBeenCalledWith('Triage it')
+    expect(writeText).toHaveBeenCalledWith('Chat it')
     wrapper.unmount()
   })
 
@@ -287,7 +289,7 @@ describe('HandoffButton', () => {
     await primary.trigger('click')
     await flushPromises()
 
-    expect(writeText).toHaveBeenCalledWith('Triage it')
+    expect(writeText).toHaveBeenCalledWith('Chat it')
     wrapper.unmount()
   })
 

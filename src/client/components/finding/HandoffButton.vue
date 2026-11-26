@@ -2,6 +2,7 @@
 import { computed } from 'vue'
 
 import type { HandoffTarget } from '#core/handoffLinks.ts'
+import type { HandoffPrompts } from '#core/handoffPrompt.ts'
 import HandoffMenu from '@/components/finding/HandoffMenu.vue'
 import { useClipboardCopy } from '@/composables/useClipboardCopy'
 import { useHandoffOpen } from '@/composables/useHandoffOpen'
@@ -10,8 +11,8 @@ import { useHandoffTargetStore } from '@/stores/handoffTargetStore'
 import { useMcpStore } from '@/stores/mcpStore'
 
 const props = defineProps<{
-  /** Prompt that hands the finding over to Claude */
-  prompt: string
+  /** Prompts per client kind that hand the finding over to Claude, chat is the copied one */
+  prompts: HandoffPrompts
   /** claude command for own images, null leaves the command out of the menu */
   command: string | null
 }>()
@@ -36,11 +37,11 @@ const runPrimary = (): void => {
   }
 
   if (targets.preferred === 'copy') {
-    void copy(props.prompt)
+    void copy(props.prompts.chat)
     return
   }
 
-  open(targets.preferred, props.prompt)
+  open(targets.preferred, props.prompts)
 }
 
 /**
@@ -49,7 +50,7 @@ const runPrimary = (): void => {
  * @returns {void}
  */
 const openTarget = (target: HandoffTarget): void => {
-  open(target, props.prompt)
+  open(target, props.prompts)
 }
 
 /**
@@ -59,7 +60,7 @@ const openTarget = (target: HandoffTarget): void => {
  * @returns {void}
  */
 const copyText = (kind: 'prompt' | 'command'): void => {
-  const text = kind === 'command' ? props.command : props.prompt
+  const text = kind === 'command' ? props.command : props.prompts.chat
 
   if (text !== null) {
     void copy(text)

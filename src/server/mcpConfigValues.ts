@@ -1,6 +1,6 @@
-export const DEFAULT_OAUTH_CLIENT_LABEL = 'claude.ai'
+export const DEFAULT_OAUTH_CLIENT_LABEL = 'Claude'
 
-/** OAuth resource server settings for claude.ai connectors, tokens come from the issuer */
+/** OAuth resource server settings for the Claude connector, tokens come from the issuer */
 export interface OAuthConfig {
   issuer: string // exact iss claim, also the base of the OpenID discovery document
   clientId: string // exact aud claim

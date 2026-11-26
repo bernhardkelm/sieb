@@ -37,7 +37,7 @@ export const usePanelHandoff = (): PanelHandoff => {
    * @returns {string | null} - Reason, null while a finding is loaded
    */
   const promptBlockedBy = (): string | null =>
-    handoff.prompt.value === null ? NO_FINDING_REASON : null
+    handoff.prompts.value === null ? NO_FINDING_REASON : null
 
   /**
    * Returns why the default action cannot run, copying the prompt needs no connection.
@@ -68,17 +68,17 @@ export const usePanelHandoff = (): PanelHandoff => {
   }
 
   /**
-   * Opens the default client with the prompt, or copies it when copy is the default.
+   * Opens the default client with its prompt, or copies the prompt when copy is the default.
    * @returns {boolean} - Whether the action ran
    */
   const openPreferred = (): boolean => {
-    const prompt = handoff.prompt.value
+    const prompts = handoff.prompts.value
 
-    if (prompt === null || openBlockedBy() !== null) {
+    if (prompts === null || openBlockedBy() !== null) {
       return false
     }
 
-    open(targets.preferred, prompt)
+    open(targets.preferred, prompts)
     return true
   }
 
@@ -87,7 +87,8 @@ export const usePanelHandoff = (): PanelHandoff => {
     promptBlockedBy,
     openBlockedBy,
     commandBlockedBy,
-    copyPrompt: async () => handoff.prompt.value !== null && copyPrompt(handoff.prompt.value),
+    copyPrompt: async () =>
+      handoff.prompts.value !== null && copyPrompt(handoff.prompts.value.chat),
     copyCommand,
     openPreferred,
   }

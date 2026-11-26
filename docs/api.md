@@ -45,7 +45,7 @@ Checked before identity:
 | `GET /api/health`                  | `{ status, source }`, no Host check                                                                                                                                                                                       |
 | `GET /api/me`                      | `{ username, authMode, version, sourceCodeUrl }`: the acting user, `header` or `oidc` so the client knows whether a 401 means log in again, and the running version with the link to its source code (`SIEB_SOURCE_URL`, otherwise the upstream tag) |
 | `GET /api/findings`                | Findings in triage order, more parameters under [Finding filters](#finding-filters); `view=inbox\|all` (default `all`), `includeResolved`, `q`, `severity`, `exposure`, `owner` (comma lists, `owner` takes free-form owner labels), `newSince`, `kev` (`true` or `1` keeps KEV listed findings only) |
-| `GET /api/findings/:id`            | Finding detail: instances, decisions, history, `kev`, the CISA catalog entry, see [KEV source](#kev-source), and `sourceAccess` of the image, see [Source access](#source-access)                                                                                                            |
+| `GET /api/findings/:id`            | Finding detail: instances with where Trivy found the package, see [Found in](#found-in), decisions, history, `kev`, the CISA catalog entry, see [KEV source](#kev-source), and `sourceAccess` of the image, see [Source access](#source-access)                                                                                                            |
 | `GET /api/images`, `GET /api/cves` | Open findings aggregated per image or per CVE, `includeResolved=true` adds resolved ones                                                                                                                                  |
 | `GET /api/decisions`               | Decisions with their state, `state=active\|expiring\|expired\|revoked\|reopened\|fix_planned`                                                                                                                             |
 | `POST /api/decisions`              | Create an image-scoped or all-scope decision, `{ vulnId, scope, imageRef?, status, justification?, reason, expiresAt? }`                                                                                                  |
@@ -393,10 +393,42 @@ may or may not be pullable. An image without a registry
 host counts as Docker Hub. It appears in the finding detail, the proposal detail and the MCP
 finding rows.
 
+## Found in
+
+Every instance of the finding detail carries where Trivy found its package, read from the
+vulnerability entry of the VulnerabilityReport:
+
+| Field          | Content                                                                            |
+| -------------- | ---------------------------------------------------------------------------------- |
+| `locations`    | `[{ target, pkgPath }]`, distinct, at most 20; empty when the report names neither |
+| `packageType`  | Trivy `packageType`, such as `gobinary`, `npm`, `python-pkg`, `debian` or `alpine` |
+| `packageClass` | Trivy `class`, `os-pkgs` or `lang-pkgs`                                            |
+| `purl`         | `packagePURL`, else `pkgIdentifier.PURL` or `purl`, only with the `pkg:` scheme    |
+
+`target` is the scanned file or the OS release: a Go binary (`usr/local/bin/traefik`), a lockfile
+(`app/package-lock.json`), `Python` or `Node.js` for installed packages, or the image with its OS
+release for OS packages. `pkgPath` is the package file inside the image when Trivy reports one.
+Every field is optional and `null` (or `[]`) when missing, when it is not a plain string (control
+or format characters) or when it exceeds its cap: 1024 characters for paths, 512 for the PURL, 64
+for type and class. trivy-operator writes target, class, packageType and pkgPath only when
+`trivy.additionalVulnerabilityReportFields` includes `Target`, `Class`, `PackageType` and
+`PackagePath`.
+
+One instance is one package version in one container, so when Trivy lists the same package in two
+binaries of a container, the instance keeps both locations; different workloads of an image keep
+their own. Type, class and PURL come from the first entry that has them. The panel shows the
+merged paths per package version under "Found in", and the MCP tools `get_finding` and
+`check_vulnerability` answer them as `foundIn` per image.
+
+Schema step 12 adds the nullable columns `finding_instances.locations` (a JSON array, checked to be
+one), `package_type`, `package_class` and `purl`. Existing rows stay `null` until the next sync,
+which writes them for every instance it sees; each sync overwrites them with what the latest
+report says.
+
 ## Tokens
 
-Personal tokens authenticate Claude Code on [`/mcp`](#mcp-endpoint), see
-[mcp.md](mcp.md#claude-code). The routes need the acting user of the UI login (401
+Personal tokens authenticate `claude -p`, CI and scripts on [`/mcp`](#mcp-endpoint), see
+[mcp.md](mcp.md#personal-tokens). The routes need the acting user of the UI login (401
 `{ "error": "unauthorized" }` without one), never a token, answer `Cache-Control: no-store`, and
 a user only ever sees, revokes and deletes their own tokens. While `SIEB_MCP_ENABLED` is off every
 `/api/tokens` request answers 404 `{ "error": "mcp_disabled" }` and stored tokens stay untouched.

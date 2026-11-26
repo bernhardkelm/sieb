@@ -1,3 +1,5 @@
+import type { PackageLocation } from '#core/packageOrigin.ts'
+
 /** Workload placement of an instance, the part of its key shared by a whole workload */
 export interface InstanceWorkload {
   namespace: string
@@ -13,6 +15,10 @@ export interface InstanceDetails {
   package: string | null
   installedVersion: string | null
   fixedVersion: string | null
+  locations: PackageLocation[] // where Trivy found the package, distinct, empty when unknown
+  packageType: string | null // Trivy package type, such as gobinary, npm or debian
+  packageClass: string | null // Trivy class, such as os-pkgs or lang-pkgs
+  purl: string | null
 }
 
 /** One sighting of a finding: workload x container x package x installed version */
@@ -45,3 +51,16 @@ export const distinctPackageVersions = (instances: readonly PackageVersion[]): P
 
   return [...seen.values()]
 }
+
+/**
+ * Returns the current instances of a finding: the open ones, or the last sighting of a resolved
+ * finding.
+ * @param {readonly T[]} instances - Instances of the finding
+ * @param {string | null} resolvedAt - Resolution time of the finding
+ * @returns {T[]} - Current instances
+ */
+export const currentInstances = <T extends Pick<FindingInstance, 'resolvedAt'>>(
+  instances: readonly T[],
+  resolvedAt: string | null,
+): T[] =>
+  instances.filter((instance) => instance.resolvedAt === null || instance.resolvedAt === resolvedAt)

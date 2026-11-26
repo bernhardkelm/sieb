@@ -2,16 +2,16 @@ import { describe, expect, it } from 'vitest'
 
 import { buildFindingView } from '#core/__tests__/coreBuilders.ts'
 import {
-  CLI_PROMPT_LIMIT,
   claudeCliLink,
   claudeDesktopChatLink,
   claudeDesktopCodeLink,
-  DESKTOP_PROMPT_LIMIT,
+  HANDOFF_CLIENTS,
   HANDOFF_TARGETS,
   handoffLink,
+  PROMPT_LINK_LIMIT,
   vscodeLink,
 } from '#core/handoffLinks.ts'
-import { buildHandoffPrompt } from '#core/handoffPrompt.ts'
+import { buildHandoffPrompt, buildHandoffPrompts } from '#core/handoffPrompt.ts'
 
 const PROMPT = 'Triage #7: CVE-2024-1 in a/b:1 & more?\nsecond line'
 const ENCODED = 'Triage%20%237%3A%20CVE-2024-1%20in%20a%2Fb%3A1%20%26%20more%3F%0Asecond%20line'
@@ -37,7 +37,6 @@ describe('hand-off links', () => {
     const prompt = buildHandoffPrompt({
       finding: buildFindingView({ id: 7, vulnId: 'CVE-2024-3094', imageRef: 'nginx:1.25' }),
       instances: [],
-      url: 'https://sieb.example.com/triage?finding=7',
     })
 
     for (const target of HANDOFF_TARGETS) {
@@ -49,26 +48,58 @@ describe('hand-off links', () => {
     }
   })
 
-  it('refuses prompts whose encoded form reaches the desktop limit', () => {
-    expect(claudeDesktopCodeLink('a'.repeat(DESKTOP_PROMPT_LIMIT - 1))).not.toBeNull()
-    expect(claudeDesktopCodeLink('a'.repeat(DESKTOP_PROMPT_LIMIT))).toBeNull()
-    expect(claudeDesktopChatLink('a'.repeat(DESKTOP_PROMPT_LIMIT))).toBeNull()
+  it('opens Claude Code for the code targets and the chat for desktop-chat', () => {
+    expect(HANDOFF_CLIENTS).toEqual({
+      'desktop-code': 'code',
+      'desktop-chat': 'chat',
+      cli: 'code',
+      vscode: 'code',
+    })
   })
 
-  it('refuses prompts whose encoded form reaches the CLI limit, also for VS Code', () => {
-    const fits = 'a'.repeat(CLI_PROMPT_LIMIT - 1)
+  it('refuses prompts whose encoded form reaches the link limit, for every target', () => {
+    const fits = 'a'.repeat(PROMPT_LINK_LIMIT - 1)
 
-    expect(claudeCliLink(fits)).not.toBeNull()
-    expect(vscodeLink(fits)).not.toBeNull()
-    expect(claudeCliLink(`${fits}a`)).toBeNull()
-    expect(vscodeLink(`${fits}a`)).toBeNull()
-    expect(claudeDesktopCodeLink(`${fits}a`)).not.toBeNull()
+    expect(PROMPT_LINK_LIMIT).toBeLessThanOrEqual(800)
+
+    for (const target of HANDOFF_TARGETS) {
+      expect(handoffLink(target, fits)).not.toBeNull()
+      expect(handoffLink(target, `${fits}a`)).toBeNull()
+    }
   })
 
   it('counts the encoded length, so spaces weigh three characters', () => {
-    const spaces = ' '.repeat(Math.ceil(CLI_PROMPT_LIMIT / 3))
+    const spaces = ' '.repeat(Math.ceil(PROMPT_LINK_LIMIT / 3))
 
-    expect(spaces.length).toBeLessThan(CLI_PROMPT_LIMIT)
+    expect(spaces.length).toBeLessThan(PROMPT_LINK_LIMIT)
     expect(claudeCliLink(spaces)).toBeNull()
+  })
+
+  it('fits a realistic worst case into the link of every target', () => {
+    const prompts = buildHandoffPrompts({
+      finding: buildFindingView({
+        id: 123_456,
+        vulnId: 'GHSA-abcd-efgh-ijkl',
+        imageRef: 'registry.gitlab.com/example-group/platform-team/payments-api/worker-service',
+        owner: 'self',
+      }),
+      instances: [
+        'google.golang.org/grpc',
+        'github.com/opencontainers/runc',
+        'golang.org/x/net',
+        'golang.org/x/crypto',
+        'stdlib',
+      ].map((name) => ({ package: name, resolvedAt: null })),
+    })
+
+    for (const target of HANDOFF_TARGETS) {
+      const prompt = prompts[HANDOFF_CLIENTS[target]]
+
+      expect(handoffLink(target, prompt)).not.toBeNull()
+      expect(prompt).toContain('#123456: GHSA-abcd-efgh-ijkl in registry.gitlab.com/')
+      expect(prompt).toContain('Reply in the sieb format from the server instructions.')
+    }
+
+    expect(prompts.code).toContain('working directory')
   })
 })

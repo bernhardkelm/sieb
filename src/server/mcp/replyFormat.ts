@@ -6,7 +6,7 @@ Checked: advisory, image · Not checked: runtime
 Fix: upgrade libexample to 1.2.1 in the base image`
 
 const BLOCK_RULES =
-  'The first line contains the word "confidence". Why has at most 25 words. Checked and Not checked hold only comma-separated keywords: advisory, upstream_source, image, own_source, runtime.'
+  'The first line contains the word "confidence". Why has at most 25 words. Checked and Not checked hold only comma-separated keywords: advisory, upstream_source, image, own_source, runtime; sieb data counts as advisory.'
 
 /**
  * Returns the sieb reply format for one finding, with the proposal line of the connection.

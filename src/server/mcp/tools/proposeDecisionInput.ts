@@ -86,7 +86,11 @@ export const proposeDecisionInput = z.object({
     .array(z.enum(EVIDENCE_BASES))
     .min(1)
     .describe(
-      'only what you actually checked; advisory alone for private images you cannot inspect',
+      "only what you checked yourself. advisory: advisories, changelogs and sieb's data, its Trivy" +
+        " findings included; upstream_source: the upstream project's code; image: you inspected" +
+        " the image's files or config yourself; own_source: you read the repository that builds" +
+        ' the image; runtime: you observed the running workload. advisory alone for private' +
+        ' images you cannot inspect',
     ),
   agent: text(LIMITS.agent).optional().describe('your client, e.g. Claude Code'),
 })

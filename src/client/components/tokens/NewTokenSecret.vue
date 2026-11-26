@@ -10,8 +10,6 @@ const props = defineProps<{
   secret: string
   /** Absolute URL of the MCP endpoint */
   mcpUrl: string
-  /** Whether claude.ai connectors can sign in through OAuth */
-  oauth: boolean
 }>()
 
 defineEmits<{ done: [] }>()
@@ -48,7 +46,7 @@ defineExpose({ focus })
       <code class="secret">{{ secret }}</code>
       <CopyButton :value="secret" label="Copy token" />
     </div>
-    <h4 class="label">Claude Code</h4>
+    <h4 class="label">Claude Code with this token</h4>
     <div class="copy-row">
       <code class="snippet">{{ command }}</code>
       <CopyButton :value="command" label="Copy Claude Code command" />
@@ -57,14 +55,6 @@ defineExpose({ focus })
       Claude Code stores the token in plain text in <code>~/.claude.json</code>. Never commit an
       <code>.mcp.json</code> that contains it.
     </p>
-    <template v-if="oauth">
-      <h4 class="label">claude.ai</h4>
-      <div class="copy-row">
-        <code class="snippet">{{ mcpUrl }}</code>
-        <CopyButton :value="mcpUrl" label="Copy connector URL" />
-      </div>
-      <p class="note">Add as custom connector in claude.ai, sign in with your identity provider.</p>
-    </template>
     <div class="actions">
       <BaseButton variant="primary" @click="$emit('done')">Done</BaseButton>
     </div>

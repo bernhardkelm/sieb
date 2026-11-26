@@ -97,6 +97,22 @@ describe('propose_decision', () => {
     expect(JSON.stringify(prompt.messages)).toContain('propose_decision is not available')
   })
 
+  it('explains each evidence basis in its input schema, sieb data counting as advisory', async () => {
+    const client = await connect(['sieb:read', 'sieb:propose'])
+    const tool = (await client.listTools()).find(
+      (candidate) => candidate.name === 'propose_decision',
+    )
+    const { description } = (tool?.inputSchema.properties?.evidenceBasis ?? {}) as {
+      description?: string
+    }
+
+    expect(description).toContain("advisory: advisories, changelogs and sieb's data, its Trivy")
+    expect(description).toContain("upstream_source: the upstream project's code")
+    expect(description).toContain("image: you inspected the image's files or config yourself")
+    expect(description).toContain('own_source: you read the repository that builds the image')
+    expect(description).toContain('runtime: you observed the running workload')
+  })
+
   it('files a proposal for a propose token and answers the review url', async () => {
     const deps = seededToolDeps()
     const client = await connect(['sieb:read', 'sieb:propose'], deps)

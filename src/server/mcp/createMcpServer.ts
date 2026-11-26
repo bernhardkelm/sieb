@@ -3,6 +3,7 @@ import { McpServer, type AuthInfo } from '@modelcontextprotocol/server'
 import { baseUrlFromAuthInfo } from '#server/mcp/baseUrlFromAuthInfo.ts'
 import { callerFromAuthInfo } from '#server/mcp/callerFromAuthInfo.ts'
 import { canPropose } from '#server/mcp/mcpCaller.ts'
+import { isClaudeCodeClient } from '#server/mcp/mcpClient.ts'
 import type { McpToolDeps } from '#server/mcp/mcpToolDeps.ts'
 import { serverInstructions } from '#server/mcp/serverInstructions.ts'
 import { registerProposeDecisionTool } from '#server/mcp/tools/proposeDecisionTool.ts'
@@ -12,7 +13,8 @@ import { registerTriagePrompt } from '#server/mcp/triagePrompt.ts'
 /**
  * Creates the MCP server of one request: the read-only query tools for the caller, with the
  * sieb:propose scope also propose_decision, and the triage prompt, with the server instructions
- * that explain sieb to the model. Links use the origin of the resource the token was verified for.
+ * that explain sieb to the model, for Claude Code with the hint to look for the repository of an
+ * own image. Links use the origin of the resource the token was verified for.
  * @param {Omit<McpToolDeps, 'baseUrl'>} deps - Database, clock, KEV source, registries, logger and proposal limiter
  * @param {AuthInfo} authInfo - Verified token information of the request
  * @param {string} version - sieb version reported in serverInfo
@@ -27,7 +29,7 @@ export const createMcpServer = (
   const proposing = canPropose(caller)
   const server = new McpServer(
     { name: 'sieb', version },
-    { instructions: serverInstructions(proposing) },
+    { instructions: serverInstructions(proposing, isClaudeCodeClient(authInfo)) },
   )
   const toolDeps: McpToolDeps = {
     db: deps.db,

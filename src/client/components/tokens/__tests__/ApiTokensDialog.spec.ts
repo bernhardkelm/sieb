@@ -169,7 +169,6 @@ describe('ApiTokensDialog', () => {
     const expiresAt = Date.parse(vi.mocked(createToken).mock.calls[0]![0].expiresAt)
 
     expect(Math.round((expiresAt - Date.now()) / 86_400_000)).toBe(90)
-    expect(dialog().textContent).toContain('sign in with your identity provider')
     expect(dialog().textContent).not.toContain('authentik')
 
     const secretBlock = dialog().querySelector<HTMLElement>('.new-token-secret')!
@@ -181,7 +180,7 @@ describe('ApiTokensDialog', () => {
     )
     expect(secretBlock.textContent).toContain('only this once')
     expect(secretBlock.textContent).toContain('~/.claude.json')
-    expect(secretBlock.textContent).toContain('Add as custom connector in claude.ai')
+    expect(secretBlock.textContent).not.toContain('Connector URL')
     expect(dialog().querySelector('[data-token-id="5"]')).not.toBeNull()
 
     open.value = false
@@ -191,6 +190,34 @@ describe('ApiTokensDialog', () => {
 
     expect(document.body.textContent).not.toContain(SECRET)
     expect(dialog().querySelector('form')).not.toBeNull()
+  })
+
+  it('leads with the connector when OAuth is configured and keeps the token form', async () => {
+    await openDialog()
+
+    const note = dialog().querySelector<HTMLElement>('.connector-note')!
+
+    expect(note.textContent).toContain(
+      'Claude apps and Claude Code connect through the sieb connector in claude.ai without a token.',
+    )
+    expect(note.textContent).toContain('Tokens are for claude -p, CI and scripts.')
+    expect(note.querySelector('.snippet')!.textContent).toBe(MCP_URL)
+    expect(button('Copy connector URL')).toBeDefined()
+    expect(dialog().textContent).toContain('without a browser sign-in')
+    expect(
+      note.compareDocumentPosition(dialog().querySelector('form')!) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy()
+  })
+
+  it('keeps the token text without OAuth', async () => {
+    mcpInfo = { enabled: true, mcpUrl: MCP_URL, oauth: false, claude: null }
+    await openDialog()
+
+    expect(dialog().querySelector('.connector-note')).toBeNull()
+    expect(dialog().textContent).toContain(
+      'Personal tokens let Claude Code read sieb through MCP. Each token acts as you.',
+    )
   })
 
   it('creates a read and propose token, labelled as proposals only', async () => {
@@ -263,6 +290,7 @@ describe('ApiTokensDialog', () => {
     await submitName('laptop')
 
     expect(dialog().textContent).not.toContain('claude.ai')
+    expect(button('Copy connector URL')).toBeUndefined()
 
     button('Done')!.click()
     await flushPromises()

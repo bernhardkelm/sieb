@@ -5,7 +5,7 @@ import type { McpInfoResponse } from '#core/apiTypes.ts'
 import { fetchMcpInfo } from '@/api/tokensApi'
 
 export const CONNECT_TOKEN_STEP = 'create an API token (your name in the top bar, API tokens)'
-export const CONNECT_CONNECTOR_STEP = 'add the sieb connector in Claude'
+export const CONNECT_CONNECTOR_STEP = 'add the sieb connector in claude.ai'
 
 /**
  * Holds whether the Claude integration (MCP, tokens, hand-off) is switched on and whether Claude
@@ -25,9 +25,12 @@ export const useMcpStore = defineStore('mcp', () => {
       return null
     }
 
-    const steps = info.value?.oauth === true ? ` or ${CONNECT_CONNECTOR_STEP}` : ''
+    const steps =
+      info.value?.oauth === true
+        ? `${CONNECT_CONNECTOR_STEP} or ${CONNECT_TOKEN_STEP}`
+        : CONNECT_TOKEN_STEP
 
-    return `Connect Claude first: ${CONNECT_TOKEN_STEP}${steps}.`
+    return `Connect Claude first: ${steps}.`
   })
 
   /**

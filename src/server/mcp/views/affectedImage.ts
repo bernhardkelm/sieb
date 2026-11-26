@@ -8,6 +8,7 @@ import { SEVERITIES } from '#core/severity.ts'
 import { findingUrl } from '#core/siebLinks.ts'
 import { SOURCE_ACCESS_LEVELS, sourceAccess } from '#core/sourceAccess.ts'
 import { decisionSummarySchema, type DecisionSummary } from '#server/mcp/views/decisionSummary.ts'
+import { foundInSchema, toFoundIn } from '#server/mcp/views/foundIn.ts'
 
 const MAX_INSTANCES = 20
 
@@ -37,6 +38,7 @@ export const affectedImageSchema = z.object({
   decision: decisionSummarySchema.nullable().describe('governing decision'),
   instances: z.array(instanceRowSchema).describe(`open instances, at most ${MAX_INSTANCES}`),
   instanceCount: z.number().int(),
+  foundIn: foundInSchema,
   firstSeen: z.string(),
   url: z.string(),
 })
@@ -95,6 +97,7 @@ export const toAffectedImage = (
     decision,
     instances: open.slice(0, MAX_INSTANCES).map(toInstanceRow),
     instanceCount: open.length,
+    foundIn: toFoundIn(open),
     firstSeen: finding.firstSeen,
     url: findingUrl(base, finding.id),
   }

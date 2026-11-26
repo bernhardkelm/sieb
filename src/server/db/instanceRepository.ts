@@ -1,6 +1,7 @@
 import type { DatabaseSync } from 'node:sqlite'
 
 import type { FindingInstance } from '#core/instance.ts'
+import { parseStoredLocations } from '#server/db/storedLocations.ts'
 
 export interface InstanceRow {
   id: number
@@ -15,6 +16,10 @@ export interface InstanceRow {
   package: string | null
   installed_version: string | null
   fixed_version: string | null
+  locations: string | null
+  package_type: string | null
+  package_class: string | null
+  purl: string | null
   first_seen: string
   last_seen: string
   resolved_at: string | null
@@ -37,6 +42,10 @@ export const toInstance = (row: InstanceRow): FindingInstance => ({
   package: row.package,
   installedVersion: row.installed_version,
   fixedVersion: row.fixed_version,
+  locations: parseStoredLocations(row.locations),
+  packageType: row.package_type,
+  packageClass: row.package_class,
+  purl: row.purl,
   firstSeen: row.first_seen,
   lastSeen: row.last_seen,
   resolvedAt: row.resolved_at,

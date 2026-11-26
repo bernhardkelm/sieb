@@ -1,6 +1,8 @@
 <script setup lang="ts">
-import { nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 
+import { currentInstances } from '#core/instance.ts'
+import { packageOrigins } from '#core/packageOrigin.ts'
 import BaseButton from '@/components/common/BaseButton.vue'
 import CloseButton from '@/components/common/CloseButton.vue'
 import CopyButton from '@/components/common/CopyButton.vue'
@@ -8,6 +10,7 @@ import LoadingSpinner from '@/components/common/LoadingSpinner.vue'
 import DecisionHistory from '@/components/decision/DecisionHistory.vue'
 import FindingDecisions from '@/components/finding/FindingDecisions.vue'
 import FindingHeader from '@/components/finding/FindingHeader.vue'
+import FoundIn from '@/components/finding/FoundIn.vue'
 import HandoffButton from '@/components/finding/HandoffButton.vue'
 import InstanceTable from '@/components/finding/InstanceTable.vue'
 import KevDetails from '@/components/finding/KevDetails.vue'
@@ -23,11 +26,16 @@ import { useMcpStore } from '@/stores/mcpStore'
 const { findingId, closeFinding } = useFindingPanel()
 const store = useFindingDetailStore()
 const mcp = useMcpStore()
-const { prompt: handoffPrompt, command: handoffCommand } = useHandoff()
+const { prompts: handoffPrompts, command: handoffCommand } = useHandoff()
 
 useHandoffHintActions()
 
 const panel = ref<HTMLElement | null>(null)
+const origins = computed(() =>
+  store.detail
+    ? packageOrigins(currentInstances(store.detail.instances, store.detail.finding.resolvedAt))
+    : [],
+)
 let opener: Element | null = null
 
 /**
@@ -112,8 +120,8 @@ onBeforeUnmount(() => {
       <h2 class="vuln-id">{{ store.detail?.finding.vulnId ?? `Finding ${findingId}` }}</h2>
       <CopyButton v-if="store.detail" :value="store.detail.finding.vulnId" label="Copy CVE ID" />
       <HandoffButton
-        v-if="mcp.enabled && handoffPrompt !== null"
-        :prompt="handoffPrompt"
+        v-if="mcp.enabled && handoffPrompts !== null"
+        :prompts="handoffPrompts"
         :command="handoffCommand"
       />
       <LoadingSpinner v-if="store.loading" />
@@ -132,6 +140,10 @@ onBeforeUnmount(() => {
       <section class="section" aria-labelledby="panel-decision">
         <h3 id="panel-decision" class="section-title">Decision</h3>
         <FindingDecisions :detail="store.detail" @saved="focusPanel" />
+      </section>
+      <section v-if="origins.length > 0" class="section" aria-labelledby="panel-found-in">
+        <h3 id="panel-found-in" class="section-title">Found in</h3>
+        <FoundIn :origins="origins" />
       </section>
       <section class="section" aria-labelledby="panel-instances">
         <h3 id="panel-instances" class="section-title">

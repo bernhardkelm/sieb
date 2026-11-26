@@ -44,9 +44,11 @@ as `sieb_suppressed{vuln_id, image_ref}`. Your Prometheus alert rules drop the s
   port
 - Login through your forward-auth proxy (default) or sieb's own OpenID Connect login with
   sessions and logout, see [authentication](docs/deployment.md#authentication)
-- Optional Claude integration over MCP, off by default: Claude Code (personal API tokens from the
-  user menu) and claude.ai (custom connector with OAuth) query findings, images and decisions and,
-  with `sieb:propose`, file verdicts as proposals you accept or reject, and a hand-off button
+- Optional Claude integration over MCP, off by default: a custom connector in claude.ai (OAuth
+  through your identity provider) serves the Claude apps and, with the same account, Claude Code,
+  personal API tokens from the user menu serve `claude -p`, CI and scripts. Claude queries
+  findings, images and decisions and, with `sieb:propose`, files verdicts as proposals you accept
+  or reject, and a hand-off button
   (`Shift+H`, `h`, `y`) opens a finding in Claude Code (desktop, terminal or VS Code) or Claude
   chat with the prompt prefilled, never sent, or copies it, see [docs/mcp.md](docs/mcp.md)
 - Single Node process with an embedded SQLite file, no external database
@@ -75,8 +77,9 @@ SIEB_MCP_ENABLED=true npm run dev:mock
 
 Open the user menu (`dev` in the top bar), choose **API tokens…**, create a token and run the
 `claude mcp add` command sieb shows, which points Claude Code at `http://localhost:5173/mcp`. Then
-ask Claude Code "how are we doing?". claude.ai needs a public https URL and an OAuth provider, see
-[docs/mcp.md](docs/mcp.md).
+ask Claude Code "how are we doing?". The connector in claude.ai, the recommended setup for the
+Claude apps and Claude Code, needs a public https URL and an OAuth client at your identity
+provider, see [docs/mcp.md](docs/mcp.md#connecting-claude).
 
 Live mode reads your cluster through read-only `kubectl` (current context, or `SIEB_KUBE_CONTEXT`):
 
@@ -124,11 +127,11 @@ variables inline as above.
 | `SIEB_MCP_ENABLED` | `false` | `true` or `1` serves `/mcp`, the personal token routes and, with OAuth, its metadata, see [docs/mcp.md](docs/mcp.md) |
 | `SIEB_PUBLIC_URL` | derived per request | Origin sieb is reached at (`https://sieb.example.com`, no path or trailing slash, https in production), for absolute links in MCP results, the MCP resource URL and the OIDC redirect URI; required for OAuth and in oidc mode |
 | `SIEB_MCP_ALLOWED_ORIGINS` | empty | Comma list of browser origins `/mcp` accepts besides its own host; requests without `Origin` always pass |
-| `SIEB_OAUTH_ISSUER` | empty | OAuth issuer for claude.ai, the exact `iss` claim and the base of OpenID discovery; set together with `SIEB_OAUTH_CLIENT_ID`, empty accepts personal tokens only |
-| `SIEB_OAUTH_CLIENT_ID` | empty | Client id of the OAuth provider, the exact `aud` claim |
+| `SIEB_OAUTH_ISSUER` | empty | OAuth issuer of the Claude connector, the exact `iss` claim and the base of OpenID discovery; set together with `SIEB_OAUTH_CLIENT_ID`, empty accepts personal tokens only |
+| `SIEB_OAUTH_CLIENT_ID` | empty | Client id of the MCP client at the identity provider (a public client with PKCE), the exact `aud` claim |
 | `SIEB_OAUTH_JWKS_URL` | discovered | Key set URL of the issuer, unset reads `jwks_uri` from its OpenID configuration |
 | `SIEB_OAUTH_REQUIRED_GROUP` | empty | Entry of the `groups` claim an OAuth caller must have, empty admits every user of the issuer |
-| `SIEB_OAUTH_CLIENT_LABEL` | `claude.ai` | Client name of OAuth callers in logs and tool results |
+| `SIEB_OAUTH_CLIENT_LABEL` | `Claude` | Client name of OAuth callers in logs and tool results, shared by the Claude apps and Claude Code through the connector |
 | `SIEB_PUBLIC_REGISTRIES` | `docker.io`, `index.docker.io`, `registry-1.docker.io`, `mirror.gcr.io`, `ghcr.io`, `quay.io`, `registry.k8s.io`, `gcr.io`, `public.ecr.aws`, `mcr.microsoft.com`, `cgr.dev` | Comma list of registry hosts whose images count as public for the source access Claude sees; own images (owner `self`) are always private, images of other registries unknown, see [source access](docs/api.md#source-access) |
 | `SIEB_SOURCE_URL` | upstream tag | http(s) URL of the source code the UI links next to the version (AGPL), for forks; unset links `https://github.com/bernhardkelm/sieb/tree/<version>` |
 
@@ -158,7 +161,7 @@ up to 6h. Rules, timing and a `SiebDown` alert: [docs/prometheus-rules.md](docs/
 - [docs/prometheus-rules.md](docs/prometheus-rules.md): required labels, example recording rules, silencing rules
 - [docs/deployment.md](docs/deployment.md): container image, authentication modes, metrics port, Kubernetes manifests, security notes
 - [docs/api.md](docs/api.md): HTTP API, finding filters, login routes, decision re-opening, metrics, tokens and the MCP endpoint
-- [docs/mcp.md](docs/mcp.md): Claude Code and claude.ai setup, MCP tools, hand-off, security model
+- [docs/mcp.md](docs/mcp.md): the claude.ai connector, personal tokens, MCP tools, hand-off, security model
 - [CONTRIBUTING.md](CONTRIBUTING.md): development setup, scripts, code layout, releasing
 - [SECURITY.md](SECURITY.md): reporting a vulnerability, scope
 

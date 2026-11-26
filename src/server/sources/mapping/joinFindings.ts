@@ -18,9 +18,10 @@ export const joinKey = (row: JoinFields): string =>
 /**
  * Joins the Prometheus info series with the report vulnerabilities. Prometheus decides what is
  * a finding and wins for severity, score, exposure and owner; every matching report row adds an
- * instance with container, package and versions. A series without report rows yields one
- * instance with those fields null. Report rows without a series are dropped: Prometheus already
- * filters to fixable findings and re-rates their severity.
+ * instance with container, package, versions and where Trivy found the package. A series
+ * without report rows yields one instance with those fields null or empty. Report rows without
+ * a series are dropped: Prometheus already filters to fixable findings and re-rates their
+ * severity.
  * @param {readonly InfoSeries[]} info - Info series
  * @param {readonly ReportVulnerability[]} vulnerabilities - Report vulnerabilities
  * @returns {SourceInstance[]} - Joined rows
@@ -51,6 +52,10 @@ export const joinFindings = (
           fixedVersion: null,
           title: null,
           primaryLink: null,
+          locations: [],
+          packageType: null,
+          packageClass: null,
+          purl: null,
         },
       ]
     }
@@ -65,6 +70,10 @@ export const joinFindings = (
       fixedVersion: match.fixedVersion,
       title: match.title,
       primaryLink: match.primaryLink,
+      locations: match.locations,
+      packageType: match.packageType,
+      packageClass: match.packageClass,
+      purl: match.purl,
     }))
   })
 }

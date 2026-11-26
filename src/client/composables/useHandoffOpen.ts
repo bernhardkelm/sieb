@@ -1,4 +1,5 @@
-import { handoffLink } from '#core/handoffLinks.ts'
+import { HANDOFF_CLIENTS, handoffLink } from '#core/handoffLinks.ts'
+import type { HandoffPrompts } from '#core/handoffPrompt.ts'
 import { useClipboardCopy } from '@/composables/useClipboardCopy'
 import type { HandoffPreference } from '@/format/handoffTargets'
 import { notifySuccess, notifyWithAction } from '@/toast/toastManager'
@@ -6,8 +7,8 @@ import { notifySuccess, notifyWithAction } from '@/toast/toastManager'
 export interface HandoffOpen {
   /** Copies a prompt and confirms it with a toast, resolves whether it was copied */
   copyPrompt: (prompt: string) => Promise<boolean>
-  /** Opens a client with the prompt prefilled, or copies it for the copy preference */
-  open: (preference: HandoffPreference, prompt: string) => void
+  /** Opens a client with its prompt prefilled, or copies the chat prompt for the copy preference */
+  open: (preference: HandoffPreference, prompts: HandoffPrompts) => void
 }
 
 /**
@@ -44,13 +45,14 @@ export const useHandoffOpen = (): HandoffOpen => {
   }
 
   /**
-   * Opens the client of a preference, or copies the prompt for copy and for prompts too long
-   * for a link.
+   * Opens the client of a preference with the prompt of its client kind, or copies the prompt
+   * for copy, the chat one, and for prompts too long for a link.
    * @param {HandoffPreference} preference - Client or copy
-   * @param {string} prompt - Prompt
+   * @param {HandoffPrompts} prompts - Prompt per client kind
    * @returns {void}
    */
-  const open = (preference: HandoffPreference, prompt: string): void => {
+  const open = (preference: HandoffPreference, prompts: HandoffPrompts): void => {
+    const prompt = prompts[preference === 'copy' ? 'chat' : HANDOFF_CLIENTS[preference]]
     const link = preference === 'copy' ? null : handoffLink(preference, prompt)
 
     if (link === null) {

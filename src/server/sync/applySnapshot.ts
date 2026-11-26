@@ -2,6 +2,7 @@ import type { DatabaseSync } from 'node:sqlite'
 
 import { aggregateFinding, groupByFinding } from '#core/findingAggregation.ts'
 import { findingKey, instanceKey } from '#core/instanceKey.ts'
+import { mergeDuplicateInstances } from '#core/mergeDuplicateInstances.ts'
 import type { SourceSnapshot } from '#core/sourceSnapshot.ts'
 import type { SyncCounts } from '#core/syncRun.ts'
 import {
@@ -41,7 +42,8 @@ const resolveUnseen = (
 /**
  * Writes a successful snapshot: inserts new findings and instances with first_seen, refreshes
  * last_seen and the aggregated fields of seen ones and clears their resolved_at, and resolves
- * every open finding and instance the snapshot lacks. A snapshot without a KEV list keeps the
+ * every open finding and instance the snapshot lacks. Rows sharing an instance key are merged,
+ * keeping every place Trivy found the package. A snapshot without a KEV list keeps the
  * stored KEV flags and inserts new findings as not listed. kev_since marks findings that became
  * KEV listed, but not the findings of the initial import, by default the snapshot written while
  * no earlier sync succeeded. Call it inside a transaction.
@@ -93,16 +95,10 @@ export const applySnapshot = (
     seenFindings.add(findingId)
 
     const instances = storedInstances.get(findingId)
-    const seenKeys = new Set<string>()
+    const merged = mergeDuplicateInstances(group.instances)
 
-    for (const instance of group.instances) {
+    for (const instance of merged) {
       const key = instanceKey(instance)
-
-      if (seenKeys.has(key)) {
-        continue
-      }
-
-      seenKeys.add(key)
       const storedInstance = instances?.get(key)
 
       if (storedInstance) {
@@ -114,7 +110,7 @@ export const applySnapshot = (
       }
     }
 
-    counts.instancesSeen += seenKeys.size
+    counts.instancesSeen += merged.length
   }
 
   counts.findingsSeen = seenFindings.size

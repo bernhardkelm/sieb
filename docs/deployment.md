@@ -146,9 +146,32 @@ proxy application of header mode and its tile.
 - **Access:** bind the application to your group, for example `sieb-users`, and set the same name in
   `SIEB_OIDC_REQUIRED_GROUP`, so a user outside it is refused by both.
 
-The claude.ai connector of the MCP endpoint is a separate application (`sieb-mcp`), see
-[mcp.md](mcp.md). sieb refuses to start when `SIEB_OIDC_CLIENT_ID` and `SIEB_OAUTH_CLIENT_ID` are
-the same.
+### Identity provider for the MCP client
+
+The Claude connector of the MCP endpoint signs in through a second client of the identity
+provider, separate from the UI login (for authentik a separate application, for example
+`sieb-mcp`). sieb refuses to start when `SIEB_OIDC_CLIENT_ID` and `SIEB_OAUTH_CLIENT_ID` are the
+same. The full client setup, scopes and claims are in
+[mcp.md](mcp.md#identity-provider); for the deployment:
+
+- **Public client.** Register it without a client secret, claude.ai gets only the client id.
+  sieb never sees a secret of this client, it only verifies the access tokens. A confidential
+  client works too, its secret is then entered in claude.ai.
+- **PKCE enforced.** The authorization code flow must use PKCE with `S256`. If your provider
+  accepts requests without PKCE, or with the `plain` method, add a policy that requires
+  `code_challenge_method=S256` for this client, so an intercepted code is useless without the
+  verifier.
+- **Refresh tokens with rotation.** Keep the access token validity short (minutes) and let
+  refresh tokens carry the session; with rotation every refresh issues a new refresh token and
+  invalidates the old one.
+- **Audience and signing key.** The access token's `aud` must be the client id alone, signed with
+  RS256 or ES256 by a key of the issuer's key set.
+- **Group.** Admit only your group to the client and set the same name as
+  `SIEB_OAUTH_REQUIRED_GROUP`; in production sieb warns at startup without it.
+- **Client label.** Every OAuth caller appears under `SIEB_OAUTH_CLIENT_LABEL` in the logs, the
+  handshake line and `get_overview`, default `Claude`. Keep a generic label such as `Claude`: the
+  Claude apps and Claude Code, which picks up the connector from claude.ai, use the same client,
+  so the label cannot tell them apart.
 
 ## Metrics port
 
@@ -162,7 +185,7 @@ mode, where leaving it unset keeps `/metrics` on the main port. The metrics list
 Example manifests, adapt namespace, hostname, storage and the labels of your Prometheus and ingress
 controller. SQLite allows one writer, so keep one replica and the `Recreate` strategy. The example
 runs oidc mode with MCP enabled (personal tokens only; add the `SIEB_OAUTH_*` variables of
-[mcp.md](mcp.md#claudeai) for claude.ai) behind one Ingress.
+[mcp.md](mcp.md#connector-in-claudeai) for the Claude connector) behind one Ingress.
 
 ```yaml
 apiVersion: v1

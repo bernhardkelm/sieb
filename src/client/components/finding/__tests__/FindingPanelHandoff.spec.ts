@@ -93,17 +93,29 @@ afterEach(() => {
 })
 
 describe('FindingPanel hand-off keys', () => {
-  it('copies the prompt on h with the absolute deep link, on Triage from the Inbox', async () => {
-    const panel = await openPanel('third-party')
+  it('copies the chat prompt on h, without the repository sentence of Claude Code', async () => {
+    const panel = await openPanel('self')
 
     await press(panel, 'h')
 
     expect(writeText).toHaveBeenCalledOnce()
     expect(writeText.mock.calls[0]![0]).toMatch(/^Triage sieb finding #1: /)
-    expect(writeText.mock.calls[0]![0]).toContain(
-      `sieb: ${window.location.origin}/triage?finding=1.`,
-    )
+    expect(writeText.mock.calls[0]![0]).not.toContain('working directory')
     expect(notifySuccess).toHaveBeenCalledWith('Copied for Claude', 'Paste the prompt into Claude.')
+  })
+
+  it('opens Claude Code with the repository sentence for own images, the chat without', async () => {
+    const panel = await openPanel('self')
+
+    await press(panel, 'H', { shiftKey: true })
+    expect(decodeURIComponent(assign.mock.calls[0]![0])).toContain(
+      'Own image: check the code in the working directory',
+    )
+
+    useHandoffTargetStore().setPreferred('desktop-chat')
+    await press(panel, 'H', { shiftKey: true })
+    expect(assign.mock.calls[1]![0]).toMatch(/^claude:\/\/claude\.ai\/new\?q=/)
+    expect(decodeURIComponent(assign.mock.calls[1]![0])).not.toContain('working directory')
   })
 
   it('copies the claude command on y for own images only', async () => {
@@ -214,7 +226,7 @@ describe('FindingPanel hand-off keys', () => {
     const panel = await openPanel('self', true, false)
     const hints = useHintActionsStore()
     const reason =
-      'Connect Claude first: create an API token (your name in the top bar, API tokens) or add the sieb connector in Claude.'
+      'Connect Claude first: add the sieb connector in claude.ai or create an API token (your name in the top bar, API tokens).'
 
     await press(panel, 'y')
     await press(panel, 'H', { shiftKey: true })

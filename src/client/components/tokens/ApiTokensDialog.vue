@@ -5,6 +5,7 @@ import type { ApiTokenCreateRequest } from '#core/apiTypes.ts'
 import BaseButton from '@/components/common/BaseButton.vue'
 import BaseDialog from '@/components/common/BaseDialog.vue'
 import LoadingSpinner from '@/components/common/LoadingSpinner.vue'
+import ConnectorNote from '@/components/tokens/ConnectorNote.vue'
 import CreateTokenForm from '@/components/tokens/CreateTokenForm.vue'
 import { fallbackMcpUrl } from '@/components/tokens/mcpSetup'
 import NewTokenSecret from '@/components/tokens/NewTokenSecret.vue'
@@ -32,6 +33,12 @@ const form = ref<InstanceType<typeof CreateTokenForm> | null>(null)
 const secretBlock = ref<InstanceType<typeof NewTokenSecret> | null>(null)
 
 const mcpUrl = computed(() => mcp.info?.mcpUrl ?? fallbackMcpUrl(window.location.origin))
+const oauth = computed(() => mcp.info?.oauth === true)
+const description = computed(() =>
+  oauth.value
+    ? 'Personal tokens let Claude read sieb through MCP without a browser sign-in. Each token acts as you.'
+    : 'Personal tokens let Claude Code read sieb through MCP. Each token acts as you.',
+)
 
 /**
  * Creates a token and focuses its one-time secret.
@@ -82,17 +89,17 @@ watch(
   <BaseDialog
     v-model:open="open"
     title="API tokens"
-    description="Personal tokens let Claude Code read sieb through MCP. Each token acts as you."
+    :description="description"
     :dismissible="created === null"
     @open-auto-focus="onOpenAutoFocus"
   >
+    <ConnectorNote v-if="oauth" :mcp-url="mcpUrl" />
     <NewTokenSecret
       v-if="created"
       ref="secretBlock"
       :name="created.token.name"
       :secret="created.secret"
       :mcp-url="mcpUrl"
-      :oauth="mcp.info?.oauth ?? false"
       @done="onSecretDone"
     />
     <CreateTokenForm v-else ref="form" :create="createAndReveal" />

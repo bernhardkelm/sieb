@@ -31,6 +31,7 @@ const INITIALIZE = {
   },
 }
 const TOOLS_LIST = { jsonrpc: '2.0', id: 2, method: 'tools/list', params: {} }
+const ALL_SCOPES = 'scope="sieb:read sieb:propose"'
 
 const rsa = await generateKeyPair('RS256')
 const jwtKeys = createLocalJWKSet({
@@ -115,14 +116,29 @@ const accessToken = (claims: JWTPayload = {}): Promise<string> =>
     .sign(rsa.privateKey)
 
 describe('/mcp authentication', () => {
-  it('answers 401 with a Bearer challenge without a token, with the metadata URL under OAuth', async () => {
+  it('answers 401 with a Bearer challenge naming every scope, with the metadata URL under OAuth', async () => {
     const plain = await post(mcpApp(), INITIALIZE)
     const oauth = await post(mcpApp({ publicUrl: PUBLIC_URL, oauth: OAUTH }), INITIALIZE)
 
     expect(plain.status).toBe(401)
     expect(plain.headers.get('WWW-Authenticate')).toMatch(/^Bearer error="invalid_token"/)
+    expect(plain.headers.get('WWW-Authenticate')).toContain(ALL_SCOPES)
     expect(oauth.status).toBe(401)
+    expect(oauth.headers.get('WWW-Authenticate')).toContain(ALL_SCOPES)
     expect(oauth.headers.get('WWW-Authenticate')).toContain(`resource_metadata="${METADATA_URL}"`)
+  })
+
+  it('challenges an invalid OAuth token with every scope', async () => {
+    const app = mcpApp({ publicUrl: PUBLIC_URL, oauth: OAUTH })
+    const expired = await post(app, INITIALIZE, {
+      Authorization: `Bearer ${await accessToken({ exp: Math.floor(Date.now() / 1000) - 3600 })}`,
+    })
+    const challenge = expired.headers.get('WWW-Authenticate')
+
+    expect(expired.status).toBe(401)
+    expect(challenge).toMatch(/^Bearer error="invalid_token"/)
+    expect(challenge).toContain(ALL_SCOPES)
+    expect(challenge).toContain(`resource_metadata="${METADATA_URL}"`)
   })
 
   it('ignores the forward-auth header and unknown tokens', async () => {
@@ -132,6 +148,8 @@ describe('/mcp authentication', () => {
     const garbage = await post(app, INITIALIZE, { Authorization: 'Bearer nonsense' })
 
     expect([header.status, unknown.status, garbage.status]).toEqual([401, 401, 401])
+    expect(unknown.headers.get('WWW-Authenticate')).toContain(ALL_SCOPES)
+    expect(garbage.headers.get('WWW-Authenticate')).toContain(ALL_SCOPES)
   })
 
   it('lets a personal token initialize and list the tools', async () => {
@@ -166,14 +184,22 @@ describe('/mcp authentication', () => {
 
   it('accepts an OAuth access token with sieb:read and refuses one without', async () => {
     const app = mcpApp({ publicUrl: PUBLIC_URL, oauth: OAUTH })
-    const valid = await post(app, INITIALIZE, { Authorization: `Bearer ${await accessToken()}` })
+    const auth = { Authorization: `Bearer ${await accessToken()}` }
+    const valid = await post(app, INITIALIZE, auth)
+    const tools = (await (await post(app, TOOLS_LIST, auth)).json()) as {
+      result: { tools: { name: string }[] }
+    }
     const noScope = await post(app, INITIALIZE, {
       Authorization: `Bearer ${await accessToken({ scope: 'openid' })}`,
     })
 
     expect(valid.status).toBe(200)
+    expect(tools.result.tools.map((tool) => tool.name)).toContain('search_findings')
+    expect(tools.result.tools.map((tool) => tool.name)).not.toContain('propose_decision')
     expect(noScope.status).toBe(403)
-    expect(noScope.headers.get('WWW-Authenticate')).toContain('insufficient_scope')
+    expect(noScope.headers.get('WWW-Authenticate')).toMatch(
+      /^Bearer error="insufficient_scope", .*, scope="sieb:read", resource_metadata=/,
+    )
   })
 
   it('logs each initialize with actor, via and scopes, never the token', async () => {
@@ -188,9 +214,30 @@ describe('/mcp authentication', () => {
     const handshakes = lines.filter((line) => line.includes('MCP initialize'))
 
     expect(handshakes).toEqual([
-      '[sieb] MCP initialize by alice via oauth (claude.ai), scopes sieb:read sieb:propose',
+      '[sieb] MCP initialize by alice via oauth (claude.ai) from test, scopes sieb:read sieb:propose',
     ])
     expect(lines.join('\n')).not.toContain(token)
+  })
+
+  it('points Claude Code at the repository of own images in the instructions', async () => {
+    const app = mcpApp({ publicUrl: PUBLIC_URL })
+    const auth = { Authorization: `Bearer ${await aliceSecret(app)}` }
+    const instructionsOf = async (name: string): Promise<string> => {
+      const body = {
+        ...INITIALIZE,
+        params: { ...INITIALIZE.params, clientInfo: { name, version: '1' } },
+      }
+      const result = (await (await post(app, body, auth)).json()) as {
+        result: { instructions: string }
+      }
+
+      return result.result.instructions
+    }
+
+    expect(await instructionsOf('claude-code')).toContain(
+      'its repository is probably on this machine: if the working directory is not it',
+    )
+    expect(await instructionsOf('claude-ai')).not.toContain('working directory')
   })
 
   it('never takes a bearer token as identity on /api', async () => {

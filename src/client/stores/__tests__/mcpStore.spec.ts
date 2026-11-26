@@ -87,7 +87,7 @@ describe('mcpStore', () => {
     await store.load()
     expect(store.connected).toBe(false)
     expect(store.connectReason).toBe(
-      'Connect Claude first: create an API token (your name in the top bar, API tokens) or add the sieb connector in Claude.',
+      'Connect Claude first: add the sieb connector in claude.ai or create an API token (your name in the top bar, API tokens).',
     )
 
     vi.mocked(fetchMcpInfo).mockResolvedValueOnce({

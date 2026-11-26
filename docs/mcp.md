@@ -2,10 +2,12 @@
 
 sieb serves a [Model Context Protocol](https://modelcontextprotocol.io) endpoint at `/mcp`, so
 Claude can read and query sieb's data while you investigate findings: "does CVE-X affect us",
-"which public images still have critical openssl findings", "what is open in namespace Y". Claude
-Code connects with a personal token you create in the UI, claude.ai through a custom connector
-that signs in with authentik (OAuth). Claude reads, and with `sieb:propose` files its verdict as a
-proposal that you accept or reject in sieb; nothing changes before you decide.
+"which public images still have critical openssl findings", "what is open in namespace Y". The
+recommended way in is a custom connector in claude.ai that signs in through your identity provider
+(OAuth). It works in the Claude apps and, signed in with the same claude.ai account, in Claude Code
+without any further setup. Personal tokens you create in the UI cover what cannot sign in through
+a browser: `claude -p`, CI, the Agent SDK and scripts. Claude reads, and with `sieb:propose` files
+its verdict as a proposal that you accept or reject in sieb; nothing changes before you decide.
 
 The integration is off by default. While it is off, sieb serves no `/mcp` and no OAuth metadata,
 the token routes answer 404 `mcp_disabled`, and the UI hides the token dialog, the hand-off button
@@ -15,13 +17,13 @@ and its keys.
 
 | Variable | Needed for | Meaning |
 | --- | --- | --- |
-| `SIEB_MCP_ENABLED=true` | both clients | Serves `/mcp` and the personal token routes |
-| `SIEB_PUBLIC_URL` | claude.ai, recommended for both | Origin sieb is reached at, for example `https://sieb.example.com`, https in production |
-| `SIEB_OAUTH_ISSUER` | claude.ai | Issuer of the authentik provider, must equal the `iss` claim exactly |
-| `SIEB_OAUTH_CLIENT_ID` | claude.ai | Client id of the authentik provider, must equal the `aud` claim |
+| `SIEB_MCP_ENABLED=true` | both | Serves `/mcp` and the personal token routes |
+| `SIEB_PUBLIC_URL` | connector, recommended for both | Origin sieb is reached at, for example `https://sieb.example.com`, https in production |
+| `SIEB_OAUTH_ISSUER` | connector | Issuer of the identity provider's MCP client, must equal the `iss` claim exactly |
+| `SIEB_OAUTH_CLIENT_ID` | connector | Client id of the MCP client, must equal the `aud` claim |
 | `SIEB_OAUTH_REQUIRED_GROUP` | optional | Group an OAuth caller must have in the `groups` claim |
 | `SIEB_OAUTH_JWKS_URL` | optional | Key set URL, discovered from the issuer when unset |
-| `SIEB_OAUTH_CLIENT_LABEL` | optional | Client name of OAuth callers in logs and tool results, default `claude.ai` |
+| `SIEB_OAUTH_CLIENT_LABEL` | optional | Client name of OAuth callers in logs and tool results, default `Claude` |
 | `SIEB_MCP_ALLOWED_ORIGINS` | optional | Browser origins `/mcp` accepts besides its own host, for browser-based MCP clients |
 
 Without `SIEB_OAUTH_ISSUER` and `SIEB_OAUTH_CLIENT_ID`, `/mcp` accepts personal tokens only. The
@@ -32,12 +34,100 @@ request reached it at (`Host` and `X-Forwarded-Proto`). See the
 [configuration table](../README.md#configuration) for defaults and
 [deployment.md](deployment.md) for exposing sieb.
 
-## Claude Code
+Every OAuth caller shows up under one client label, `SIEB_OAUTH_CLIENT_LABEL`, since the Claude
+apps and Claude Code share the connector and with it the client. Token callers show the token
+name.
+
+## Connecting Claude
+
+| Client | Connects through |
+| --- | --- |
+| claude.ai, the Claude desktop and mobile apps | the [connector](#connector-in-claudeai) |
+| Claude Code, interactive, signed in with the same claude.ai account | the same connector, [synced automatically](#claude-code-through-the-connector) |
+| `claude -p`, CI, the Agent SDK, scripts | a [personal token](#personal-tokens) |
+
+To try it locally against the fixtures with a token, see the
+[quick start](../README.md#quick-start).
+
+### Connector in claude.ai
+
+claude.ai connects from Anthropic's servers and signs you in through your identity provider. sieb
+is the OAuth resource server: it publishes
+[protected resource metadata](api.md#oauth-protected-resource-metadata) that names the issuer as
+the authorization server and verifies the issuer's access tokens on every request. sieb does not
+support Dynamic Client Registration, the client is registered with the identity provider
+beforehand.
+
+#### Identity provider
+
+1. Register an OAuth 2.0 / OpenID Connect client for MCP, for example named `sieb-mcp`, separate
+   from the client of the UI login:
+   - a public client: no client secret, claude.ai gets only the client id,
+   - the authorization code grant with PKCE, `code_challenge_method=S256` required. If your
+     provider accepts requests without PKCE, add a policy that refuses them,
+   - redirect URIs `https://claude.ai/api/mcp/auth_callback` and
+     `https://claude.com/api/mcp/auth_callback`,
+   - access tokens as JWT signed with an asymmetric key, RS256 or ES256: sieb verifies them
+     against the issuer's key set and refuses tokens signed with a shared secret (HS256),
+   - the client id as the audience (`aud`) of the access token, the only one,
+   - a short access token validity, and refresh tokens with rotation for longer sessions.
+
+   A confidential client works as well: enter its client secret in claude.ai next to the client
+   id. The public client is recommended, since no secret has to be stored in claude.ai, and PKCE
+   protects the code exchange either way.
+2. Add the scopes `sieb:read` and, for proposals, `sieb:propose`, and allow them for the client.
+   sieb reads the granted scopes from the space separated `scope` claim of the access token; a
+   token without `sieb:read` gets 403 `insufficient_scope`. sieb advertises both in its metadata.
+   A connector added before sieb 0.3.0 holds only `sieb:read`: disconnect and connect it again in
+   claude.ai to get `sieb:propose`.
+3. Make sure the access token carries the claims sieb needs, also when claude.ai requests only the
+   sieb scopes. If your provider puts profile claims only into the ID token, map them into the
+   `sieb:read` scope:
+   - `preferred_username`: the sieb user the caller acts as, the same username as in the UI, so
+     decisions and logs match. A token without it is refused.
+   - `groups`: only when `SIEB_OAUTH_REQUIRED_GROUP` is set, a list that must contain that group.
+   - `iss` equal to `SIEB_OAUTH_ISSUER`, `aud` equal to `SIEB_OAUTH_CLIENT_ID`, and `exp`.
+4. Admit only your group to the client, the same group you set as `SIEB_OAUTH_REQUIRED_GROUP`.
+5. Configure sieb with `SIEB_OAUTH_ISSUER` (the issuer exactly as the provider shows it), the
+   client id as `SIEB_OAUTH_CLIENT_ID` and the group as `SIEB_OAUTH_REQUIRED_GROUP`. sieb finds
+   the key set through `<issuer>/.well-known/openid-configuration`, or uses
+   `SIEB_OAUTH_JWKS_URL`.
+
+With authentik, this is an OAuth2/OpenID provider of client type public with a signing key (an
+RSA or EC certificate), scope mappings named `sieb:read` and `sieb:propose`, and an application
+bound to your group; the issuer is
+`https://authentik.example.com/application/o/<application slug>/` with its trailing slash. See
+[deployment.md](deployment.md#identity-provider-for-the-mcp-client) for PKCE enforcement and the
+client label.
+
+#### Adding the connector
+
+Add a custom connector in claude.ai, named for example `sieb`, with the MCP URL
+`https://sieb.example.com/mcp` and, in its advanced settings, the client id of the MCP client.
+Leave the client secret empty for a public client. claude.ai then sends you through the sign-in of
+your identity provider. With OAuth configured, the token dialog in sieb (your name in the top bar,
+**API tokens…**) shows the connector URL at the top with a copy button.
+
+The connector is available in claude.ai and the Claude desktop and mobile apps of the same
+account.
+
+### Claude Code through the connector
+
+Signed in to Claude Code with the same claude.ai account, the connector shows up in Claude Code by
+itself, without a token: `claude mcp list` lists it as `claude.ai sieb`, and `/mcp` shows its
+state. Its tools and prompts are named after the connector, `mcp__claude_ai_sieb__<tool>`, the
+middle part following the connector name chosen in claude.ai. A server added by hand with
+`claude mcp add … sieb` is named `mcp__sieb__<tool>` instead.
+
+### Personal tokens
+
+`claude -p`, CI, the Agent SDK and scripts cannot sign in through a browser, so they use a
+personal token. Interactive Claude Code works with one too, where no connector is set up.
 
 1. In sieb, open the user menu (your username in the top bar) and choose **API tokens…**.
-2. Create a token: a name such as the machine it is for, access **Read**, or **Read and propose**
-   so Claude can file its verdicts as [proposals](#proposals), and an expiry of 30 days, 90 days
-   (default) or 1 year. Every token expires, after at most a year.
+2. Create a token: a name such as the machine or job it is for, access **Read**, or **Read and
+   propose** so Claude can file its verdicts as [proposals](#proposals), and an expiry of 30 days,
+   90 days (default) or 1 year. Every token expires, after at most a year.
 3. sieb shows the secret once, together with the command to register sieb in Claude Code. The
    dialog stays open until you click **Done**, Esc and clicks outside do not close it. Copy the
    command and run it in a terminal:
@@ -49,71 +139,25 @@ request reached it at (`Host` and `X-Forwarded-Proto`). See the
 
 4. Check the connection with `claude mcp list`, or `/mcp` inside Claude Code.
 
-To try this locally against the fixtures, see the [quick start](../README.md#quick-start).
+Other MCP clients, the Agent SDK included, send the same `Authorization: Bearer` header to the
+same URL. In CI, keep the token in the secret store of the pipeline.
 
 Claude Code stores the header, and with it the token, in plain text in `~/.claude.json`. Keep the
 `--scope user` of the command: user scope keeps the token out of every repository. Never put the
 token into a project `.mcp.json` and never commit one that contains it. A token acts as you, so
 treat it like a password, and revoke it in the dialog when a machine is lost or the token leaked.
 
-## claude.ai
+### Switching from a token to the connector
 
-> Needs verification: the authentik and claude.ai parts below follow the code sieb runs and the
-> MCP authorization spec, but have not yet been checked end to end against a real authentik and claude.ai. The
-> points to confirm are listed at the end of this section.
+A configured `Authorization` header turns off OAuth for that server entry, and with both entries
+Claude sees every tool twice. To move an interactive Claude Code from a token to the connector:
 
-claude.ai connects from Anthropic's servers and signs you in through authentik. sieb is the OAuth
-resource server: it publishes [protected resource metadata](api.md#oauth-protected-resource-metadata)
-that names authentik as the authorization server and verifies authentik's access tokens on every
-request. sieb does not support Dynamic Client Registration, the client is registered in authentik
-beforehand.
+1. Remove the token entry: `claude mcp remove --scope user sieb`.
+2. Run `/mcp` in Claude Code and check that `claude.ai sieb` is connected; sign in if it asks.
+3. Revoke the token in sieb's token dialog unless a script still uses it.
 
-### authentik
-
-1. Create an OAuth2/OpenID provider, for example named `sieb-mcp`:
-   - client type confidential, note the client id and the client secret,
-   - PKCE with `S256`,
-   - redirect URIs `https://claude.ai/api/mcp/auth_callback` and
-     `https://claude.com/api/mcp/auth_callback`,
-   - an RSA certificate as signing key: sieb accepts only RS256 and ES256 signed tokens, a provider
-     without signing key signs with the client secret (HS256), which sieb refuses,
-   - a short access token validity, refresh tokens for longer sessions.
-2. Add scope mappings named `sieb:read` and, for proposals, `sieb:propose`, and select them
-   on the provider. sieb reads the granted scopes from the space separated `scope` claim of the
-   access token; a token without `sieb:read` gets 403 `insufficient_scope`.
-3. Make sure the access token carries the claims sieb needs:
-   - `preferred_username`: the sieb user the caller acts as, the same username as in the UI, so
-     decisions and logs match. A token without it is refused.
-   - `groups`: only when `SIEB_OAUTH_REQUIRED_GROUP` is set, a list that must contain that group.
-   - `iss` equal to `SIEB_OAUTH_ISSUER`, `aud` equal to `SIEB_OAUTH_CLIENT_ID`, and `exp`.
-4. Create an application for the provider and bind a policy that admits only your group, the same
-   group you set as `SIEB_OAUTH_REQUIRED_GROUP`.
-5. Configure sieb with `SIEB_OAUTH_ISSUER` (the provider's issuer, usually
-   `https://authentik.example.com/application/o/<application slug>/` with its trailing slash), the
-   client id as `SIEB_OAUTH_CLIENT_ID` and the group as `SIEB_OAUTH_REQUIRED_GROUP`. sieb finds the
-   key set through `<issuer>.well-known/openid-configuration`, or uses `SIEB_OAUTH_JWKS_URL`.
-
-### Connector
-
-Add a custom connector in claude.ai with the MCP URL, `https://sieb.example.com/mcp`, and the
-client id and client secret of the authentik provider. Once OAuth is configured, the token dialog
-also shows that URL with a copy button after you create a token. claude.ai then sends you through
-the authentik sign-in. Where claude.ai asks for the client id and secret is not verified yet, see
-below.
-
-### To verify
-
-- claude.ai accepts a pre-registered client id and secret for a custom connector, and where its
-  connector form asks for them.
-- The redirect URIs claude.ai uses match the two listed above.
-- claude.ai finds authentik from sieb's metadata and discovers authentik's endpoints through its
-  OpenID configuration.
-- The access token authentik issues is a JWT signed with RS256 and carries `aud`, `scope`
-  (including `sieb:read`), `preferred_username` and `groups`, also when claude.ai requests only the
-  scopes sieb advertises. If the profile claims are missing, add them to the `sieb:read` scope
-  mapping.
-- Which scopes claude.ai requests, and whether authentik grants the advertised `sieb:propose`,
-  which `propose_decision` needs.
+Commands and prompts then carry the connector prefix, for example
+`/mcp__claude_ai_sieb__triage_finding`.
 
 ## Tools
 
@@ -124,9 +168,9 @@ else on the origin the request reached sieb at.
 | Tool | Answers |
 | --- | --- |
 | `get_overview` | "How are we doing?": open, inbox, KEV, public, by severity, not affected, accepted, fix planned, re-opened, the Inbox counts of the connected user (`inboxItems`: proposals, re-opened, expiring, new KEV), the last successful sync, the KEV source and catalog health, and who is connected (`connectedAs`: actor, via, client, `scopes` and `canPropose`) |
-| `check_vulnerability` | "Does CVE-X affect us?": every scanned image and workload carrying it with package, installed and fixed version, exposure, owner and governing decision, KEV details, images it was found in before; when absent, says so with the time of the last sync |
+| `check_vulnerability` | "Does CVE-X affect us?": every scanned image and workload carrying it with package, installed and fixed version, `foundIn` (paths, package type and PURL from Trivy), exposure, owner and governing decision, KEV details, images it was found in before; when absent, says so with the time of the last sync |
 | `search_findings` | Questions across findings, with the [finding filters](api.md#finding-filters) plus `groupBy` (`none`, `cve`, `image`, `namespace`, `package`) for counts per group, `limit` (at most 50, default 20) and `offset`, and the `total` |
-| `get_finding` | One finding by `findingId`, or by `vulnId` and `imageRef`: instances per workload and container, every decision covering it with history, KEV details |
+| `get_finding` | One finding by `findingId`, or by `vulnId` and `imageRef`: instances per workload and container, `foundIn` (paths, package type and PURL from Trivy), every decision covering it with history, KEV details |
 | `get_image` | One image: owner, exposure, risk counts, workloads and its open findings |
 | `list_decisions` | Earlier verdicts on the same CVE, package or image, filtered by state or status, newest first |
 | `list_my_proposals` | The proposals filed for the connected sieb user, newest first, with state, resolution, outdated flag, reject reason (under `untrusted`) and review URL; `state` (default `all`), `vulnId`, `limit`, `offset` |
@@ -151,10 +195,14 @@ Claude to say so with the sync time.
 `check_vulnerability`, `get_finding`, `get_image` and `search_findings` rows carry `sourceAccess`
 per image: `private` only for own images (owner `self`), `public` for images of a registry in
 `SIEB_PUBLIC_REGISTRIES` with another owner, `unknown` for every other registry and for a ref
-without one. The server instructions tell Claude that for `private` images only advisory-level
-checks are possible unless it runs inside the repository that builds the image (the triage prompt
-points to the hand-off `claude` command), and that an `unknown` image may or may not be
-inspectable, so it tries to pull it.
+without one. For `private` images the server instructions depend on the client: Claude Code
+(clientInfo name `claude-code`, which the terminal, the desktop app's Code tab and the IDE
+extensions send at the handshake) is told that the repository is probably on the machine, to check
+whether the working directory is it (git remote, Dockerfile or build config naming the image) and
+otherwise to ask for its path before concluding. Every other client hears that only advisory-level
+checks are possible unless it runs inside that repository. The triage prompt asks for the
+repository the same way. For an `unknown` image Claude is told it may or may not be inspectable,
+so it tries to pull it.
 
 `get_finding` and `check_vulnerability` name the configured KEV source as `kevSource` (`cisa`,
 `prometheus` or `none`). Only `cisa` fills `kevCatalog` with the CISA dates and text. For a KEV
@@ -164,7 +212,7 @@ with the cisa KEV source." The server instructions tell Claude this is no contra
 
 Every MCP handshake (`initialize`, or `server/discover` of the 2026-07-28 revision) writes one log
 line with the actor, how it authenticated, the client and the granted sieb scopes, never a token,
-for example `[sieb] MCP initialize by alice via oauth (claude.ai), scopes sieb:read`. It shows
+for example `[sieb] MCP initialize by alice via oauth (Claude), scopes sieb:read`. It shows
 which scopes a connector really got.
 
 ## Proposals
@@ -220,7 +268,8 @@ proposal fields, the chat answer stays in the reply format below. A vulnerabilit
 but practically unreachable, with an upgrade as the fix, is `needs_patch` or `fix_planned`, not
 `not_affected`. Without `sieb:propose` the prompt ends in the same short reply, which says that no
 proposal was filed because the connection is read-only. In Claude Code it appears as
-`/mcp__sieb__triage_finding`.
+`/mcp__claude_ai_sieb__triage_finding` through the connector (the middle part follows the
+connector name) or as `/mcp__sieb__triage_finding` for a server added with a token.
 
 ### Reply format
 
@@ -259,13 +308,17 @@ server instructions tell Claude to say so plainly when asked to triage: the conn
 and filing a proposal needs a "Read and propose" token or reconnecting the connector with
 `sieb:propose`. `get_overview` shows the granted scopes under `connectedAs`.
 
-The finding panel has a hand-off split button that passes the open finding to Claude: the CVE,
-image, packages with installed and fixed versions, the sieb link and a short instruction to call
+The finding panel has a hand-off split button that passes the open finding to Claude in one short
+line, the essentials first: finding id, CVE, image and package names, then the instruction to call
 `get_finding`, check presence, reachability and exposure, file the verdict with
-`propose_decision` without asking when it is available, and reply in the five-line reply format
-(or end with the read-only line without it). The prompt is one line of roughly 800 to 1,100
-characters, far below the link limits. The main
-button runs your default action, the chevron menu lists the rest:
+`propose_decision` without asking, and reply in the sieb format from the server instructions.
+Versions, links and the reply template come from the tools and the instructions, so a typical
+prompt stays around 330 characters. For your own images (owner `self`) the Claude Code targets
+(desktop Code tab, terminal, VS Code) add one sentence: check the code in the working directory if
+it is the image's repository, else ask for its local path. Where the registry path mirrors the
+repository, as for `registry.gitlab.com/<group>/<project>` or `ghcr.io/<owner>/<repo>`, it names
+the likely repository as a hint. The chat target and images of others get the plain prompt. The
+main button runs your default action, the chevron menu lists the rest:
 
 | Target | Link | Needs |
 | --- | --- | --- |
@@ -277,19 +330,21 @@ button runs your default action, the chevron menu lists the rest:
 The links only prefill the prompt, you review and send it yourself. They carry nothing but the
 prompt, no token, folder or repository, so the sieb MCP server or connector must already be set up
 in that client. A browser cannot tell whether a handler is installed, so after opening sieb shows a
-toast to copy the prompt instead. A prompt too long for a link (14,000 encoded characters for the
-desktop app, 5,000 for the terminal and VS Code) is copied instead of cut.
+toast to copy the prompt instead. Receiving apps cut long prompts silently, so a link carries at
+most 800 encoded characters; the package names are dropped first, and a prompt still too long is
+copied instead of cut.
 
-The menu also copies the prompt, and for your own images (owner `self`) a ready
-`claude '<prompt>'` command meant to be run inside the repository that builds the image. Under
+The menu also copies the prompt (the chat variant, without the repository sentence), and for your
+own images a ready `claude '<prompt>'` command meant to be run inside the repository that builds
+the image, which says so instead. Under
 **Default action** you pick what the main button does; the choice is stored in the browser and
 defaults to Claude Code desktop, or to copying on touch devices. With the panel open, `Shift+H`
 runs the default action, `h` copies the prompt and `y` the command.
 
 The deep links and the command only help once Claude can reach sieb, so they stay disabled, with
-a note on how to connect, until you hold a live API token (your name in the top bar, **API
-tokens**) or sieb saw an MCP request of yours through the OAuth connector within the last 30
-days. Copying the prompt always works.
+a note on how to connect, until sieb saw an MCP request of yours through the connector within the
+last 30 days or you hold a live API token (your name in the top bar, **API tokens**). With OAuth
+configured the note names the connector first. Copying the prompt always works.
 
 ## What Claude can and cannot do
 
@@ -320,7 +375,7 @@ effect when you accept it in sieb.
 - OAuth tokens must be signed with RS256 or ES256 by a key of the issuer's key set, with the exact
   issuer, the client id as the only audience (a string, or an array holding only it), an `exp`
   that has not passed on sieb's clock (the MCP SDK refuses a token at `exp`, without tolerance),
-  and a `typ` header, when present, of `at+jwt` or `JWT`. An ID token of the UI login fails the
+  and a `typ` header, when present, of `at+jwt`, `application/at+jwt` or `JWT`. An ID token of the UI login fails the
   exact audience, and a token without `sieb:read` in its `scope` claim gets 403. `preferred_username` must be 1 to 256 characters without
   control or invisible format characters. With `SIEB_OAUTH_REQUIRED_GROUP` the `groups` claim
   must contain the group, else 403.
@@ -334,8 +389,8 @@ effect when you accept it in sieb.
 
 ### Offboarding
 
-`/mcp` never uses the UI login, so removing someone from authentik does not stop their personal
-tokens by itself. In oidc mode, a login refused because the user lacks
+`/mcp` never uses the UI login, so removing someone from the identity provider does not stop
+their personal tokens by itself. In oidc mode, a login refused because the user lacks
 `SIEB_OIDC_REQUIRED_GROUP` deletes all their sessions and revokes all their live tokens (logged),
 but only once they try to log in. Tokens without an expiry, from before expiry became mandatory,
 no longer work at all. Revoke them in the token dialog before the account goes, or revoke every live token of a
@@ -349,6 +404,6 @@ kubectl -n sieb exec deploy/sieb -- node -e "
 " alice
 ```
 
-OAuth access ends with the authentik account or group membership: authentik issues no new tokens,
-and an access token already issued stays valid until it expires, which is why its validity should
-be short.
+OAuth access ends with the account or group membership at the identity provider: it issues no new
+access tokens and refuses the refresh, and an access token already issued stays valid until it
+expires, which is why its validity should be short.

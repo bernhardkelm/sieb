@@ -14,7 +14,7 @@ export interface BearerVerifiers {
  * verifier, JWTs to the OAuth verifier when configured, anything else is an invalid token.
  * @param {BearerVerifiers} verifiers - Personal token and optional OAuth verifier
  * @param {URL} resource - MCP endpoint URL reported as the token's resource
- * @returns {OAuthTokenVerifier} - Verifier for requireBearerAuth
+ * @returns {OAuthTokenVerifier} - Verifier for the /mcp bearer gate
  */
 export const createBearerVerifier = (
   { personal, jwt }: BearerVerifiers,

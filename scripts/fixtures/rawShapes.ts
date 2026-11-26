@@ -1,4 +1,5 @@
 import type { FixtureImage, FixtureWorkload, ImageCve } from '#scripts/fixtures/fixtureModel.ts'
+import { packageOriginFields } from '#scripts/fixtures/packageOrigins.ts'
 import { DEFAULT_SOURCE_QUERIES } from '#server/sources/sourceQueries.ts'
 
 export const SCAN_TIME = '2026-11-20T05:27:47Z'
@@ -12,7 +13,8 @@ export const SAMPLE_TIME = 1795645763.331
 export const imageRefOf = (image: FixtureImage): string => `${image.server}/${image.repository}`
 
 /**
- * Builds one VulnerabilityReport in the shape trivy-operator writes.
+ * Builds one VulnerabilityReport in the shape trivy-operator writes, with the additional fields
+ * target, class, packageType and pkgPath plus packagePURL for most images.
  * @param {FixtureWorkload} workload - Workload
  * @param {string} container - Container name
  * @param {FixtureImage} image - Image of the container
@@ -26,21 +28,22 @@ export const vulnerabilityReport = (
   cves: readonly ImageCve[],
 ): Record<string, unknown> => {
   const vulnerabilities = cves.flatMap(({ cve, packages }) =>
-    packages.map((pkg) => ({
-      fixedVersion: pkg.fixed,
-      installedVersion: pkg.installed,
-      lastModifiedDate: SCAN_TIME,
-      links: [],
-      packagePURL: `pkg:generic/${pkg.name}@${pkg.installed}`,
-      primaryLink: `https://avd.aquasec.com/nvd/${cve.id.toLowerCase()}`,
-      publishedDate: cve.publishedDate,
-      resource: pkg.name,
-      ...(cve.score === null ? {} : { score: cve.score }),
-      severity: cve.trivySeverity,
-      target: '',
-      title: cve.title,
-      vulnerabilityID: cve.id,
-    })),
+    packages.flatMap((pkg) =>
+      packageOriginFields(image, pkg).map((origin) => ({
+        fixedVersion: pkg.fixed,
+        installedVersion: pkg.installed,
+        lastModifiedDate: SCAN_TIME,
+        links: [],
+        primaryLink: `https://avd.aquasec.com/nvd/${cve.id.toLowerCase()}`,
+        publishedDate: cve.publishedDate,
+        resource: pkg.name,
+        ...(cve.score === null ? {} : { score: cve.score }),
+        severity: cve.trivySeverity,
+        title: cve.title,
+        vulnerabilityID: cve.id,
+        ...origin,
+      })),
+    ),
   )
   /**
    * Counts the vulnerabilities of one Trivy severity.

@@ -33,3 +33,18 @@ export const asNumber = (value: unknown): number | null => {
 
   return typeof parsed === 'number' && Number.isFinite(parsed) ? parsed : null
 }
+
+const CONTROL_OR_FORMAT = /[\p{Cc}\p{Cf}]/u
+
+/**
+ * Returns a value as a non-empty plain string of bounded length, for scanner values that are
+ * shown and stored as is.
+ * @param {unknown} value - Parsed JSON
+ * @param {number} maxLength - Longest accepted length
+ * @returns {string | null} - String, null when missing, too long or with control characters
+ */
+export const asPlainText = (value: unknown, maxLength: number): string | null => {
+  const text = asText(value)
+
+  return text !== null && text.length <= maxLength && !CONTROL_OR_FORMAT.test(text) ? text : null
+}

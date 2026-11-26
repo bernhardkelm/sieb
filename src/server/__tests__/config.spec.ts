@@ -246,7 +246,7 @@ describe('readConfig', () => {
       clientId: 'sieb-mcp',
       jwksUrl: null,
       requiredGroup: null,
-      clientLabel: 'claude.ai',
+      clientLabel: 'Claude',
     })
     expect(
       readConfig(
@@ -254,14 +254,14 @@ describe('readConfig', () => {
           ...env,
           SIEB_OAUTH_JWKS_URL: 'https://auth.example.com/application/o/sieb-mcp/jwks/',
           SIEB_OAUTH_REQUIRED_GROUP: 'sieb-users',
-          SIEB_OAUTH_CLIENT_LABEL: 'Claude',
+          SIEB_OAUTH_CLIENT_LABEL: 'sieb connector',
         },
         CWD,
       ).oauth,
     ).toMatchObject({
       jwksUrl: 'https://auth.example.com/application/o/sieb-mcp/jwks/',
       requiredGroup: 'sieb-users',
-      clientLabel: 'Claude',
+      clientLabel: 'sieb connector',
     })
   })
 

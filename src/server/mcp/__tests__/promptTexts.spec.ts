@@ -18,7 +18,7 @@ const SKELETON = [
 const BLOCK_RULES =
   'The first line contains the word "confidence". Why has at most 25 words. Checked and Not' +
   ' checked hold only comma-separated keywords: advisory, upstream_source, image, own_source,' +
-  ' runtime.'
+  ' runtime; sieb data counts as advisory.'
 
 const TABLE = 'Several triaged findings: a table | Finding | Verdict | Conf. | Proposal |'
 
@@ -86,13 +86,45 @@ describe('serverInstructions', () => {
     expect(text).toContain(MIXED)
   })
 
-  it('fits both variants into the instruction limit of Claude Code', () => {
-    expect(serverInstructions(true).length).toBeLessThanOrEqual(CLAUDE_CODE_INSTRUCTIONS_LIMIT)
-    expect(serverInstructions(false).length).toBeLessThanOrEqual(CLAUDE_CODE_INSTRUCTIONS_LIMIT)
+  it.each([
+    [true, false],
+    [true, true],
+    [false, false],
+    [false, true],
+  ])(
+    'fits the variant with propose %s and Claude Code %s into the instruction limit',
+    (canPropose, claudeCode) => {
+      expect(serverInstructions(canPropose, claudeCode).length).toBeLessThanOrEqual(
+        CLAUDE_CODE_INSTRUCTIONS_LIMIT,
+      )
+    },
+  )
+
+  it('tells only Claude Code to look for the repository of an own image', () => {
+    for (const canPropose of [true, false]) {
+      const code = serverInstructions(canPropose, true)
+      const other = serverInstructions(canPropose, false)
+
+      expect(code).toContain(
+        'private: an own image (owner self), its repository is probably on this machine: if the' +
+          ' working directory is not it (git remote, Dockerfile or build config naming the' +
+          ' image), ask the user for its path before concluding.',
+      )
+      expect(code).not.toContain('unless you run in its repository')
+      expect(other).toContain(
+        "private: an own image (owner self), advisory and sieb's data only unless you run in" +
+          ' its repository.',
+      )
+      expect(other).not.toContain('working directory')
+    }
   })
 
   it('explains the KEV source and the unknown source access in both variants', () => {
-    for (const text of [serverInstructions(true), serverInstructions(false)]) {
+    for (const text of [
+      serverInstructions(true),
+      serverInstructions(false),
+      serverInstructions(true, true),
+    ]) {
       expect(text).toContain('kevCatalog is null by design')
       expect(text).toContain('that is not a contradiction')
       expect(text).toContain('may or may not be inspectable, try pulling it')
@@ -114,6 +146,11 @@ describe('triageWorkflow', () => {
     expect(text).toContain('File your verdict with propose_decision without asking first')
     expectReplyFormat(text, 'Proposal: <url propose_decision returns>')
     expect(text).toContain("sieb's data and the public advisory suffice")
+    expect(text).toContain(
+      'its repository is often on this machine, so if you can read files, check whether the' +
+        ' working directory is it',
+    )
+    expect(text).toContain('say so and ask for its local path')
     expect(text).not.toContain(PLAIN)
     expect(text).not.toContain(MIXED)
   })
