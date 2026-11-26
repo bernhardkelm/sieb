@@ -91,6 +91,12 @@ describe('createDecision', () => {
       { imageRef: NGINX, severity: 'High', recordedAt: LATER.toISOString() },
       { imageRef: REDIS, severity: 'Medium', recordedAt: NOW.toISOString() },
     ])
+    expect(listDecisionEvents(db, [2]).at(-1)).toMatchObject({
+      type: 'updated',
+      actor: 'sieb',
+      at: LATER.toISOString(),
+      payload: { coveredImage: NGINX },
+    })
   })
 
   it('refuses a second current decision and unknown findings', () => {

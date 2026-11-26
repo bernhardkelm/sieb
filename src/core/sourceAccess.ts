@@ -9,12 +9,15 @@ export type SourceAccess = (typeof SOURCE_ACCESS_LEVELS)[number]
 export const DEFAULT_PUBLIC_REGISTRIES: readonly string[] = [
   'docker.io',
   'index.docker.io',
+  'registry-1.docker.io',
+  'mirror.gcr.io',
   'ghcr.io',
   'quay.io',
   'registry.k8s.io',
   'gcr.io',
   'public.ecr.aws',
   'mcr.microsoft.com',
+  'cgr.dev',
 ]
 
 const IMPLICIT_REGISTRY = 'docker.io'
@@ -44,8 +47,8 @@ export const registryOf = (imageRef: string): string | null => {
 
 /**
  * Classifies whether the source of an image is readable from outside: private for own images
- * (owner self) and images of a registry outside the public list, public for images of a public
- * registry with another owner, unknown when the registry cannot be told from the ref.
+ * (owner self), public for images of a public registry with another owner, unknown for every
+ * other registry and for a ref that names none, since such an image may or may not be pullable.
  * @param {string} imageRef - Image ref, registry/repository without tag
  * @param {string | null} owner - Owner label, null without one
  * @param {readonly string[]} publicRegistries - Lower-case public registry hosts
@@ -66,5 +69,5 @@ export const sourceAccess = (
     return 'unknown'
   }
 
-  return publicRegistries.includes(registry) ? 'public' : 'private'
+  return publicRegistries.includes(registry) ? 'public' : 'unknown'
 }

@@ -41,7 +41,7 @@ const workloadNoun = computed(() => pluralize(props.image.workloadCount, 'worklo
     @click="$emit('select', $event)"
   >
     <ExpandChevron :expanded="expanded" />
-    <span class="name"><ImageName :image-ref="image.imageRef" /></span>
+    <span class="name" data-panel-clip><ImageName :image-ref="image.imageRef" /></span>
     <OwnerBadge v-if="labels.showOwner" class="optional" :owner="image.owner" />
     <span v-if="labels.showExposure" class="exposure">
       <ExposureChip v-if="image.maxExposure" :exposure="image.maxExposure" />

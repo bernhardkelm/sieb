@@ -30,9 +30,14 @@ let mounted: RoutedMount | null = null
  * Opens the panel of finding 1 with the given owner.
  * @param {string | null} owner - Owner label of the image
  * @param {boolean} enabled - Whether the Claude integration is on
+ * @param {boolean} connected - Whether Claude reaches sieb for the user
  * @returns {Promise<HTMLElement>} - Panel element
  */
-const openPanel = async (owner: string | null, enabled = true): Promise<HTMLElement> => {
+const openPanel = async (
+  owner: string | null,
+  enabled = true,
+  connected = true,
+): Promise<HTMLElement> => {
   vi.mocked(fetchFindingDetail).mockResolvedValue({
     finding: buildFindingView({ id: 1, owner }),
     instances: [],
@@ -43,8 +48,13 @@ const openPanel = async (owner: string | null, enabled = true): Promise<HTMLElem
   })
   mounted = await mountWithRouter(FindingPanel, '/inbox?finding=1')
   useMcpStore().info = enabled
-    ? { enabled: true, mcpUrl: 'https://sieb.example.com/mcp', oauth: false }
-    : { enabled: false, mcpUrl: null, oauth: false }
+    ? {
+        enabled: true,
+        mcpUrl: 'https://sieb.example.com/mcp',
+        oauth: true,
+        claude: { connected, activeTokens: connected ? 1 : 0, oauthLastSeenAt: null },
+      }
+    : { enabled: false, mcpUrl: null, oauth: false, claude: null }
   await flushPromises()
 
   return mounted.wrapper.get<HTMLElement>('.finding-panel').element
@@ -197,6 +207,34 @@ describe('FindingPanel hand-off keys', () => {
 
     expect(pressed.defaultPrevented).toBe(false)
     expect(writeText).not.toHaveBeenCalled()
+    expect(assign).not.toHaveBeenCalled()
+  })
+
+  it('blocks Shift+H with a deep link and y until Claude is connected, h still copies', async () => {
+    const panel = await openPanel('self', true, false)
+    const hints = useHintActionsStore()
+    const reason =
+      'Connect Claude first: create an API token (your name in the top bar, API tokens) or add the sieb connector in Claude.'
+
+    await press(panel, 'y')
+    await press(panel, 'H', { shiftKey: true })
+
+    expect(writeText).not.toHaveBeenCalled()
+    expect(assign).not.toHaveBeenCalled()
+    expect(hints.reasonOf('handoffCommand')).toBe(reason)
+    expect(hints.reasonOf('handoffOpen')).toBe(reason)
+    expect(hints.reasonOf('handoff')).toBeNull()
+
+    await press(panel, 'h')
+
+    expect(writeText).toHaveBeenCalledOnce()
+    expect(writeText.mock.calls[0]![0]).toMatch(/^Triage sieb finding #1: /)
+
+    useHandoffTargetStore().setPreferred('copy')
+    await press(panel, 'H', { shiftKey: true })
+
+    expect(hints.reasonOf('handoffOpen')).toBeNull()
+    expect(writeText).toHaveBeenCalledTimes(2)
     expect(assign).not.toHaveBeenCalled()
   })
 

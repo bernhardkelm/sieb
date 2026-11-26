@@ -1,5 +1,6 @@
 import type { RecordedStats } from '#core/overviewStats.ts'
 import type { DeltaPolarity } from '@/components/overview/statDelta'
+import { findingFilterQuery } from '@/router/findingFilterQuery'
 import { DECISION_TAB_QUERY, ROUTE_NAMES, type RouteName } from '@/router/routeNames'
 import type { FindingFilters } from '@/stores/findingFilters'
 
@@ -12,7 +13,7 @@ export type StatPanelKey =
   | 'notAffected'
   | 'accepted'
 
-/** View a panel opens; finding filters are reset first, then the given ones applied */
+/** View a panel opens; finding filters are reset, then the given ones set, also in the query */
 export interface StatTarget {
   route: RouteName
   query?: Record<string, string>
@@ -31,6 +32,20 @@ export interface StatPanelSpec {
   needsKev?: true // shown only with a KEV source
 }
 
+/**
+ * Builds the target of a panel opening Triage with only the given finding filters set, in the
+ * filter query params of its link.
+ * @param {Partial<FindingFilters>} filters - Filters to set
+ * @param {string} hint - Tooltip of the panel
+ * @returns {StatTarget} - Triage target
+ */
+const triageTarget = (filters: Partial<FindingFilters>, hint: string): StatTarget => ({
+  route: ROUTE_NAMES.TRIAGE,
+  query: findingFilterQuery(filters),
+  filters,
+  hint,
+})
+
 export const STAT_PANEL_SPECS: StatPanelSpec[] = [
   {
     key: 'open',
@@ -45,7 +60,7 @@ export const STAT_PANEL_SPECS: StatPanelSpec[] = [
     label: 'Triage',
     value: (stats) => stats.inbox,
     polarity: 'fewer-is-better',
-    target: { route: ROUTE_NAMES.TRIAGE, filters: {}, hint: 'Undecided findings in Triage' },
+    target: triageTarget({}, 'Undecided findings in Triage'),
     primary: true,
   },
   {
@@ -53,11 +68,7 @@ export const STAT_PANEL_SPECS: StatPanelSpec[] = [
     label: 'KEV',
     value: (stats) => stats.kev,
     polarity: 'fewer-is-better',
-    target: {
-      route: ROUTE_NAMES.TRIAGE,
-      filters: { kev: true },
-      hint: 'Triage filtered to KEV listed findings',
-    },
+    target: triageTarget({ kev: true }, 'Triage filtered to KEV listed findings'),
     primary: true,
     needsKev: true,
   },
@@ -66,11 +77,10 @@ export const STAT_PANEL_SPECS: StatPanelSpec[] = [
     label: 'Crit + High',
     value: (stats) => stats.bySeverity.critical + stats.bySeverity.high,
     polarity: 'fewer-is-better',
-    target: {
-      route: ROUTE_NAMES.TRIAGE,
-      filters: { severity: ['Critical', 'High'] },
-      hint: 'Triage filtered to critical and high',
-    },
+    target: triageTarget(
+      { severity: ['Critical', 'High'] },
+      'Triage filtered to critical and high',
+    ),
     primary: true,
   },
   {
@@ -78,11 +88,7 @@ export const STAT_PANEL_SPECS: StatPanelSpec[] = [
     label: 'Public',
     value: (stats) => stats.public,
     polarity: 'fewer-is-better',
-    target: {
-      route: ROUTE_NAMES.TRIAGE,
-      filters: { exposure: ['public'] },
-      hint: 'Triage filtered to public exposure',
-    },
+    target: triageTarget({ exposure: ['public'] }, 'Triage filtered to public exposure'),
     primary: false,
     needsExposure: true,
   },

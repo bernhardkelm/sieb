@@ -38,6 +38,7 @@ const cve = (vulnId: string, overrides: Partial<CveAggregate> = {}): CveAggregat
     revoked: 0,
   },
   allScopeDecision: null,
+  allScopeEffective: null,
   ...overrides,
 })
 

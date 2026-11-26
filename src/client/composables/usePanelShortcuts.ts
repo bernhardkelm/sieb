@@ -20,7 +20,8 @@ export interface PanelShortcuts {
 /**
  * Handles the keys of the finding panel: a, n and f inside the panel open the decision form,
  * Shift+H runs the default hand-off action, h copies the hand-off prompt for Claude, y the
- * claude command of an own image (all three only with the Claude integration on), Escape in a
+ * claude command of an own image (all three only with the Claude integration on, a deep link
+ * and the command also only while Claude reaches sieb), Escape in a
  * text entry leaves it, Escape elsewhere closes the panel unless a dialog or popover is open or
  * the decision form holds an unsaved draft.
  * @param {() => void} focusPanel - Moves focus to the panel element

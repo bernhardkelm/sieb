@@ -239,6 +239,7 @@ describe('inbox routes', () => {
       title: null,
       url: `http://localhost/inbox/proposals/${open}`,
       refs: { proposalId: open },
+      imageRefs: [NGINX],
       verdict: 'not_affected',
       confidence: 'medium',
       imageCount: 1,

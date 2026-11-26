@@ -2,6 +2,7 @@ import { McpServer, type AuthInfo } from '@modelcontextprotocol/server'
 
 import { baseUrlFromAuthInfo } from '#server/mcp/baseUrlFromAuthInfo.ts'
 import { callerFromAuthInfo } from '#server/mcp/callerFromAuthInfo.ts'
+import { canPropose } from '#server/mcp/mcpCaller.ts'
 import type { McpToolDeps } from '#server/mcp/mcpToolDeps.ts'
 import { serverInstructions } from '#server/mcp/serverInstructions.ts'
 import { registerProposeDecisionTool } from '#server/mcp/tools/proposeDecisionTool.ts'
@@ -23,10 +24,10 @@ export const createMcpServer = (
   version: string,
 ): McpServer => {
   const caller = callerFromAuthInfo(authInfo)
-  const canPropose = caller.scopes.includes('sieb:propose')
+  const proposing = canPropose(caller)
   const server = new McpServer(
     { name: 'sieb', version },
-    { instructions: serverInstructions(canPropose) },
+    { instructions: serverInstructions(proposing) },
   )
   const toolDeps: McpToolDeps = {
     db: deps.db,
@@ -39,11 +40,11 @@ export const createMcpServer = (
   }
 
   registerQueryTools(server, toolDeps, caller)
-  if (canPropose) {
+  if (proposing) {
     registerProposeDecisionTool(server, toolDeps, caller)
   }
 
-  registerTriagePrompt(server, toolDeps, canPropose)
+  registerTriagePrompt(server, toolDeps, proposing)
 
   return server
 }

@@ -4,8 +4,8 @@ sieb serves a [Model Context Protocol](https://modelcontextprotocol.io) endpoint
 Claude can read and query sieb's data while you investigate findings: "does CVE-X affect us",
 "which public images still have critical openssl findings", "what is open in namespace Y". Claude
 Code connects with a personal token you create in the UI, claude.ai through a custom connector
-that signs in with authentik (OAuth). In 0.1.0 Claude only reads: it investigates and reports back
-with links into sieb, you decide in sieb.
+that signs in with authentik (OAuth). Claude reads, and with `sieb:propose` files its verdict as a
+proposal that you accept or reject in sieb; nothing changes before you decide.
 
 The integration is off by default. While it is off, sieb serves no `/mcp` and no OAuth metadata,
 the token routes answer 404 `mcp_disabled`, and the UI hides the token dialog, the hand-off button
@@ -35,8 +35,9 @@ request reached it at (`Host` and `X-Forwarded-Proto`). See the
 ## Claude Code
 
 1. In sieb, open the user menu (your username in the top bar) and choose **API tokens…**.
-2. Create a token: a name such as the machine it is for, access **Read**, and an expiry of 30
-   days, 90 days (default) or 1 year. Every token expires, after at most a year. "Read and propose" arrives with decision proposals.
+2. Create a token: a name such as the machine it is for, access **Read**, or **Read and propose**
+   so Claude can file its verdicts as [proposals](#proposals), and an expiry of 30 days, 90 days
+   (default) or 1 year. Every token expires, after at most a year.
 3. sieb shows the secret once, together with the command to register sieb in Claude Code. The
    dialog stays open until you click **Done**, Esc and clicks outside do not close it. Copy the
    command and run it in a terminal:
@@ -122,7 +123,7 @@ else on the origin the request reached sieb at.
 
 | Tool | Answers |
 | --- | --- |
-| `get_overview` | "How are we doing?": open, inbox, KEV, public, by severity, not affected, accepted, fix planned, re-opened, the Inbox counts of the connected user (`inboxItems`: proposals, re-opened, expiring, new KEV), the last successful sync, the KEV source and catalog health, and who is connected |
+| `get_overview` | "How are we doing?": open, inbox, KEV, public, by severity, not affected, accepted, fix planned, re-opened, the Inbox counts of the connected user (`inboxItems`: proposals, re-opened, expiring, new KEV), the last successful sync, the KEV source and catalog health, and who is connected (`connectedAs`: actor, via, client, `scopes` and `canPropose`) |
 | `check_vulnerability` | "Does CVE-X affect us?": every scanned image and workload carrying it with package, installed and fixed version, exposure, owner and governing decision, KEV details, images it was found in before; when absent, says so with the time of the last sync |
 | `search_findings` | Questions across findings, with the [finding filters](api.md#finding-filters) plus `groupBy` (`none`, `cve`, `image`, `namespace`, `package`) for counts per group, `limit` (at most 50, default 20) and `offset`, and the `total` |
 | `get_finding` | One finding by `findingId`, or by `vulnId` and `imageRef`: instances per workload and container, every decision covering it with history, KEV details |
@@ -148,11 +149,23 @@ scanned image as of the last successful sync", never "safe", and the server inst
 Claude to say so with the sync time.
 
 `check_vulnerability`, `get_finding`, `get_image` and `search_findings` rows carry `sourceAccess`
-per image: `public` for images of a public registry (`SIEB_PUBLIC_REGISTRIES`) that are not your
-own, `private` for own images (owner `self`) and other registries, `unknown` when the ref names no
-registry. The server instructions tell Claude that for `private` images only advisory-level
-checks are possible unless it runs inside the repository that builds the image, for example
-through the hand-off `claude` command, and that it should say so and lower its confidence.
+per image: `private` only for own images (owner `self`), `public` for images of a registry in
+`SIEB_PUBLIC_REGISTRIES` with another owner, `unknown` for every other registry and for a ref
+without one. The server instructions tell Claude that for `private` images only advisory-level
+checks are possible unless it runs inside the repository that builds the image (the triage prompt
+points to the hand-off `claude` command), and that an `unknown` image may or may not be
+inspectable, so it tries to pull it.
+
+`get_finding` and `check_vulnerability` name the configured KEV source as `kevSource` (`cisa`,
+`prometheus` or `none`). Only `cisa` fills `kevCatalog` with the CISA dates and text. For a KEV
+flagged vulnerability under another source, `kevCatalog` is `null` and `kevNote` explains why:
+"KEV flag comes from the configured Prometheus KEV query; CISA catalog details are only available
+with the cisa KEV source." The server instructions tell Claude this is no contradiction.
+
+Every MCP handshake (`initialize`, or `server/discover` of the 2026-07-28 revision) writes one log
+line with the actor, how it authenticated, the client and the granted sieb scopes, never a token,
+for example `[sieb] MCP initialize by alice via oauth (claude.ai), scopes sieb:read`. It shows
+which scopes a connector really got.
 
 ## Proposals
 
@@ -186,7 +199,8 @@ accepting, or rejects with a reason (see [api.md](api.md#proposals)). `list_my_p
 the outcome, so Claude sees the reject reason and does not file the same proposal again.
 
 Every review is opened deliberately. After an accept or reject the review panel closes and focus
-returns to the next Inbox row; Enter or a click opens the next review. Cmd+Enter (Ctrl+Enter)
+returns to the next Inbox row; Enter or a click opens the next review. j and k only move the
+cursor: they close an open review and return focus to the list. Cmd+Enter (Ctrl+Enter)
 accepts only on a fresh key press, never on a key repeat, and only once the proposal has been on
 screen for 700 ms and the reviewer interacted with it since it appeared: a pointer press inside
 the review or a key that is no part of the chord, such as an arrow key scrolling it. Enter, the
@@ -200,13 +214,57 @@ the reviewer chooses Review again.
 The MCP prompt `triage_finding` takes a `findingId` or a `vulnId` and walks Claude through an
 investigation: facts from sieb and earlier decisions, source access, presence, reachability,
 exposure, evidence and its basis, fix path, review date, unknowns and confidence. With
-`sieb:propose` it ends in `propose_decision` (after checking `list_my_proposals`) and the review
-URL; without it, in a report with a verdict (`not_affected` with an OpenVEX justification,
-`accepted`, `fix_planned` or `needs_patch`) or "undecided". In Claude Code it appears as
+`sieb:propose` it ends in `propose_decision` (after checking `list_my_proposals`), filed without
+asking first, since a proposal changes nothing until a human accepts it. The detail goes into the
+proposal fields, the chat answer stays in the reply format below. A vulnerability that is present
+but practically unreachable, with an upgrade as the fix, is `needs_patch` or `fix_planned`, not
+`not_affected`. Without `sieb:propose` the prompt ends in the same short reply, which says that no
+proposal was filed because the connection is read-only. In Claude Code it appears as
 `/mcp__sieb__triage_finding`.
 
+### Reply format
+
+The server instructions and the triage prompt ask Claude for a fixed reply. The server
+instructions stay below 4,096 characters per variant, since Claude Code cuts them off there. For
+one finding, at most five lines and nothing else unless asked:
+
+```text
+**CVE-2025-1234 · ghcr.io/example/app** → needs_patch · confidence high
+Why: libexample 1.2.0 is installed and its vulnerable parser handles every request body.
+Checked: advisory, image · Not checked: runtime
+Fix: upgrade libexample to 1.2.1 in the base image
+Proposal: https://sieb.example.com/inbox/proposals/42
+```
+
+The first line always contains the word "confidence" and carries the OpenVEX justification in
+parentheses for `not_affected`. Why is one sentence of at most 25 words, Checked and Not checked
+are comma-separated `evidenceBasis` keywords, Fix is one line or "none needed". Without
+`sieb:propose` the last line is copied verbatim: "No proposal filed: this connection is read-only
+(token or connector needs sieb:propose)." Several triaged findings become a table with the
+columns Finding, Verdict, Conf. and Proposal, one row per finding, followed by one summary line
+such as "3 proposals filed, 1 skipped (no verdict): …".
+
+A plain question that is no triage, "does CVE-X affect us" across many images included, gets the
+answer in the first line, at most three bullets with counts and names, then the sieb link, with no
+table or verdict block; Claude offers a proposal only when a decision is actually pending. A mixed
+question ("find X, then triage one") gets the answer in the first line, at most three bullets,
+then the five-line block of the triaged finding. When a filtered search returns nothing, the first
+line says so before Claude widens it and names the widened filter. "public" in a question means
+exposure `public` unless the user says registry or source, which is `sourceAccess`. For a
+third-party image sieb's tools and the public advisory are enough; when a tool outside sieb is
+refused, Claude does not retry with another one and names the check under Not checked.
+
+When a connection lacks `sieb:propose`, `propose_decision` is not in Claude's tool list, and the
+server instructions tell Claude to say so plainly when asked to triage: the connection only reads,
+and filing a proposal needs a "Read and propose" token or reconnecting the connector with
+`sieb:propose`. `get_overview` shows the granted scopes under `connectedAs`.
+
 The finding panel has a hand-off split button that passes the open finding to Claude: the CVE,
-image, packages with installed and fixed versions, the sieb link and what to investigate. The main
+image, packages with installed and fixed versions, the sieb link and a short instruction to call
+`get_finding`, check presence, reachability and exposure, file the verdict with
+`propose_decision` without asking when it is available, and reply in the five-line reply format
+(or end with the read-only line without it). The prompt is one line of roughly 800 to 1,100
+characters, far below the link limits. The main
 button runs your default action, the chevron menu lists the rest:
 
 | Target | Link | Needs |
@@ -227,6 +285,11 @@ The menu also copies the prompt, and for your own images (owner `self`) a ready
 **Default action** you pick what the main button does; the choice is stored in the browser and
 defaults to Claude Code desktop, or to copying on touch devices. With the panel open, `Shift+H`
 runs the default action, `h` copies the prompt and `y` the command.
+
+The deep links and the command only help once Claude can reach sieb, so they stay disabled, with
+a note on how to connect, until you hold a live API token (your name in the top bar, **API
+tokens**) or sieb saw an MCP request of yours through the OAuth connector within the last 30
+days. Copying the prompt always works.
 
 ## What Claude can and cannot do
 
@@ -251,8 +314,9 @@ effect when you accept it in sieb.
   short prefix to recognise them, shows the secret once with `Cache-Control: no-store`, never logs
   it, and compares hashes in constant time. Each user holds at most 20 live tokens and only sees
   and revokes their own; every create and revoke is logged with owner, name, id and scope.
-  Revoked and expired tokens stop working at once and stay listed for 90 days, then the periodic
-  cleanup deletes them.
+  Revoked and expired tokens stop working at once; their owner can delete them from the token
+  list (one by one or with "Clear inactive"), otherwise the periodic cleanup deletes them after 90
+  days. Proposals keep their attribution after a token is deleted, and token ids are never reused.
 - OAuth tokens must be signed with RS256 or ES256 by a key of the issuer's key set, with the exact
   issuer, the client id as the only audience (a string, or an array holding only it), an `exp`
   that has not passed on sieb's clock (the MCP SDK refuses a token at `exp`, without tolerance),

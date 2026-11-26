@@ -3,6 +3,8 @@ import { describe, expect, it } from 'vitest'
 import {
   compareExposure,
   isExposure,
+  isExposureFilter,
+  matchesExposureFilter,
   maxExposure,
   parseExposure,
   type Exposure,
@@ -34,5 +36,21 @@ describe('exposure ordering', () => {
     expect(parseExposure('external')).toBeNull()
     expect(parseExposure('')).toBeNull()
     expect(parseExposure(undefined)).toBeNull()
+  })
+})
+
+describe('exposure filter', () => {
+  it('takes the labels and unknown', () => {
+    expect(isExposureFilter('unknown')).toBe(true)
+    expect(isExposureFilter('internal')).toBe(true)
+    expect(isExposureFilter('external')).toBe(false)
+  })
+
+  it('matches everything when empty and the missing label through unknown', () => {
+    expect(matchesExposureFilter([], null)).toBe(true)
+    expect(matchesExposureFilter(['public'], null)).toBe(false)
+    expect(matchesExposureFilter(['public', 'unknown'], null)).toBe(true)
+    expect(matchesExposureFilter(['unknown'], 'public')).toBe(false)
+    expect(matchesExposureFilter(['public'], 'public')).toBe(true)
   })
 })

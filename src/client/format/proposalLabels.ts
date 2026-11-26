@@ -62,7 +62,7 @@ export const SOURCE_ACCESS_HINTS: Record<SourceAccess, string> = {
   public:
     'Public image: Claude can read the upstream source and pull the published image to check the claim.',
   private:
-    'Private image: Claude only sees the advisory, unless it runs in the repository that builds this image.',
+    'Own image: Claude only sees the advisory, unless it runs in the repository that builds this image.',
   unknown:
-    'sieb cannot tell where this image comes from, Claude may not be able to read its source.',
+    'Registry not listed as public: Claude can try to pull the image, its source may or may not be readable.',
 }

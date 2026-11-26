@@ -2,7 +2,7 @@ import { MAX_LIVE_TOKENS, type ApiTokenScope } from '#core/apiToken.ts'
 import type { DecisionJustification, DecisionScope, DecisionStatus } from '#core/decision.ts'
 import type { DecisionEventType } from '#core/decisionEvent.ts'
 import type { DecisionState, ReopenReason } from '#core/effectiveDecision.ts'
-import type { Exposure } from '#core/exposure.ts'
+import type { Exposure, ExposureFilter } from '#core/exposure.ts'
 import { SELF_OWNER } from '#core/owner.ts'
 
 export const TOKEN_SCOPE_LABELS: Record<ApiTokenScope, string> = {
@@ -41,6 +41,11 @@ export const EXPOSURE_LABELS: Record<Exposure, string> = {
   public: 'Public',
   gated: 'Gated',
   internal: 'Internal',
+}
+
+export const EXPOSURE_FILTER_LABELS: Record<ExposureFilter, string> = {
+  ...EXPOSURE_LABELS,
+  unknown: 'Unknown',
 }
 
 /**
@@ -83,6 +88,7 @@ const ERROR_MESSAGES: Record<string, string> = {
   payload_too_large: 'The request is too large.',
   mcp_disabled: 'Claude access is switched off on this server.',
   too_many_tokens: `At most ${MAX_LIVE_TOKENS} active tokens, revoke one first.`,
+  token_live: 'This token is still active, revoke it first.',
   proposal_conflict: 'The decisions changed since Claude proposed this. Review again.',
   proposal_closed: 'This proposal was already accepted, rejected or replaced.',
 }

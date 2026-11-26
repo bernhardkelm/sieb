@@ -5,8 +5,10 @@ import InboxList from '@/components/inbox/InboxList.vue'
 import InboxSummary from '@/components/inbox/InboxSummary.vue'
 import { useInboxController } from '@/composables/useInboxController'
 import { useInboxStore } from '@/stores/inboxStore'
+import { useLabelsStore } from '@/stores/labelsStore'
 
 const store = useInboxStore()
+const labels = useLabelsStore()
 const inbox = useInboxController()
 const { items, currentKey, checkedKeys, seenTargets } = inbox
 </script>
@@ -14,7 +16,7 @@ const { items, currentKey, checkedKeys, seenTargets } = inbox
 <template>
   <div class="inbox-view">
     <LoadState
-      v-if="!store.loaded"
+      v-if="!store.loaded || labels.pending"
       subject="the Inbox"
       :error="store.error"
       @retry="store.refresh()"

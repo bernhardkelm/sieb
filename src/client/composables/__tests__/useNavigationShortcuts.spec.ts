@@ -22,10 +22,10 @@ afterEach(() => {
 })
 
 describe('useNavigationShortcuts', () => {
-  it('orders the views Inbox, Triage, By image, By CVE, Decisions on the keys 1 to 5', () => {
+  it('orders the views Triage, Inbox, By image, By CVE, Decisions on the keys 1 to 5', () => {
     expect(NAV_ITEMS.map((item) => [item.shortcut, item.label])).toEqual([
-      ['1', 'Inbox'],
-      ['2', 'Triage'],
+      ['1', 'Triage'],
+      ['2', 'Inbox'],
       ['3', 'By image'],
       ['4', 'By CVE'],
       ['5', 'Decisions'],
@@ -33,8 +33,8 @@ describe('useNavigationShortcuts', () => {
   })
 
   it.each([
-    ['1', ROUTE_NAMES.INBOX],
-    ['2', ROUTE_NAMES.TRIAGE],
+    ['1', ROUTE_NAMES.TRIAGE],
+    ['2', ROUTE_NAMES.INBOX],
     ['3', ROUTE_NAMES.IMAGES],
     ['4', ROUTE_NAMES.CVES],
     ['5', ROUTE_NAMES.DECISIONS],

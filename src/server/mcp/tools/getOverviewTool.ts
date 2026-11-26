@@ -5,9 +5,10 @@ import { inboxUrl, linkBase } from '#core/siebLinks.ts'
 import { readKevFeedStatus } from '#server/db/kevFeedRepository.ts'
 import { readInbox } from '#server/db/readInbox.ts'
 import { readOverviewStats } from '#server/db/readOverviewStats.ts'
-import type { McpCaller } from '#server/mcp/mcpCaller.ts'
+import { canPropose, MCP_SCOPES, type McpCaller } from '#server/mcp/mcpCaller.ts'
 import type { McpToolDeps } from '#server/mcp/mcpToolDeps.ts'
 import { READ_ONLY_TOOL, toolResult } from '#server/mcp/toolResult.ts'
+import { kevSourceSchema } from '#server/mcp/views/advisoryFacts.ts'
 import { lastSyncSchema, readLastSync } from '#server/mcp/views/lastSync.ts'
 
 const count = z.number().int()
@@ -35,12 +36,20 @@ const outputSchema = z.object({
     })
     .describe('live counts'),
   lastSync: lastSyncSchema,
-  kevSource: z.enum(['cisa', 'prometheus', 'none']),
+  kevSource: kevSourceSchema,
   kevCatalog: z
     .object({ lastSuccessAt: z.string().nullable(), entryCount: count, stale: z.boolean() })
     .nullable()
     .describe('health of the CISA catalog, null for other KEV sources'),
-  connectedAs: z.object({ actor: z.string(), via: z.enum(['token', 'oauth']), client: z.string() }),
+  connectedAs: z.object({
+    actor: z.string(),
+    via: z.enum(['token', 'oauth']),
+    client: z.string(),
+    scopes: z.array(z.enum(MCP_SCOPES)).describe('sieb scopes the token of this connection holds'),
+    canPropose: z
+      .boolean()
+      .describe('whether this connection may call propose_decision, needs sieb:propose'),
+  }),
   inboxItems: z
     .object({
       proposal: count.describe('open proposals awaiting review'),
@@ -70,7 +79,7 @@ export const registerGetOverviewTool = (
     {
       title: 'Overview',
       description:
-        'Reads the live overview counts (open, inbox, KEV, public, by severity, not affected, accepted, fix planned, re-opened), the Inbox item counts of the connected user (proposals, re-opened, expiring, new KEV), the time of the last successful sync and the KEV source.',
+        'Reads the live overview counts (open, inbox, KEV, public, by severity, not affected, accepted, fix planned, re-opened), the Inbox item counts of the connected user (proposals, re-opened, expiring, new KEV), the time of the last successful sync, the KEV source, and who is connected with which scopes and whether propose_decision is available.',
       outputSchema,
       annotations: READ_ONLY_TOOL,
     },
@@ -85,7 +94,13 @@ export const registerGetOverviewTool = (
         kevCatalog: feed
           ? { lastSuccessAt: feed.lastSuccessAt, entryCount: feed.entryCount, stale: feed.stale }
           : null,
-        connectedAs: { actor: caller.actor, via: caller.via, client: caller.clientLabel },
+        connectedAs: {
+          actor: caller.actor,
+          via: caller.via,
+          client: caller.clientLabel,
+          scopes: caller.scopes,
+          canPropose: canPropose(caller),
+        },
         inboxItems: readInbox(deps.db, caller.actor, now, deps.baseUrl).counts,
         inboxUrl: inboxUrl(linkBase(deps.baseUrl)),
       })

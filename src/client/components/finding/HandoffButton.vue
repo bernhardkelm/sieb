@@ -7,6 +7,7 @@ import { useClipboardCopy } from '@/composables/useClipboardCopy'
 import { useHandoffOpen } from '@/composables/useHandoffOpen'
 import { HANDOFF_OPTIONS } from '@/format/handoffTargets'
 import { useHandoffTargetStore } from '@/stores/handoffTargetStore'
+import { useMcpStore } from '@/stores/mcpStore'
 
 const props = defineProps<{
   /** Prompt that hands the finding over to Claude */
@@ -16,17 +17,24 @@ const props = defineProps<{
 }>()
 
 const targets = useHandoffTargetStore()
+const mcp = useMcpStore()
 const { copied, copy } = useClipboardCopy()
 const { open } = useHandoffOpen()
 
 const label = computed(() => HANDOFF_OPTIONS[targets.preferred].action)
 
+const primaryBlockedBy = computed(() => (targets.preferred === 'copy' ? null : mcp.connectReason))
+
 /**
  * Runs the default action: copies the prompt with the check icon as feedback, or opens the
- * default client.
+ * default client unless Claude cannot reach sieb yet.
  * @returns {void}
  */
 const runPrimary = (): void => {
+  if (primaryBlockedBy.value !== null) {
+    return
+  }
+
   if (targets.preferred === 'copy') {
     void copy(props.prompt)
     return
@@ -65,7 +73,9 @@ const copyText = (kind: 'prompt' | 'command'): void => {
       type="button"
       class="primary"
       :class="{ copied }"
-      :title="`${label} (Shift+H)`"
+      :aria-disabled="primaryBlockedBy !== null || undefined"
+      :tabindex="primaryBlockedBy !== null ? -1 : undefined"
+      :title="primaryBlockedBy ?? `${label} (Shift+H)`"
       aria-keyshortcuts="Shift+H"
       @click="runPrimary"
     >
@@ -106,9 +116,14 @@ const copyText = (kind: 'prompt' | 'command'): void => {
   white-space: nowrap;
 }
 
-.primary:hover {
+.primary:hover:not([aria-disabled='true']) {
   background: var(--color-hover);
   color: var(--color-text);
+}
+
+.primary[aria-disabled='true'] {
+  cursor: default;
+  opacity: 0.55;
 }
 
 .primary.copied {

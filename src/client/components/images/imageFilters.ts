@@ -1,3 +1,4 @@
+import { matchesExposureFilter } from '#core/exposure.ts'
 import { isOnlyNotAffected, withNotAffected, type ImageAggregate } from '#core/imageAggregation.ts'
 import {
   containsSearch,
@@ -24,7 +25,7 @@ export const filterImages = (
   ).filter(
     (image) =>
       passesSelection(filters.owner, image.owner) &&
-      passesSelection(filters.exposure, image.maxExposure) &&
+      matchesExposureFilter(filters.exposure, image.maxExposure) &&
       passesSelection(filters.severity, image.maxSeverity) &&
       containsSearch([image.imageRef, ...image.workloads], filters.q),
   )

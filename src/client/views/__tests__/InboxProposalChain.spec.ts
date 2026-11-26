@@ -231,11 +231,12 @@ describe('Inbox proposal accept chain', () => {
     expect(router.currentRoute.value.params.proposalId).toBe('2')
   })
 
-  it('accepts nothing after j into a proposal with Meta held, until armed again', async () => {
+  it('accepts nothing after j with Meta held, j closes the review until Enter opens one', async () => {
     const router = await mountChain()
 
     await press('j')
-    expect(router.currentRoute.value.params.proposalId).toBe('2')
+    expect(router.currentRoute.value.name).toBe(ROUTE_NAMES.INBOX)
+    expect(document.activeElement?.getAttribute('data-inbox-key')).toBe('proposal:2')
 
     await press('Meta', { metaKey: true })
     await press('j', { metaKey: true })
@@ -243,8 +244,11 @@ describe('Inbox proposal accept chain', () => {
     wait(CHORD_ARM_DWELL_MS)
     await chord()
     expect(acceptedIds()).toEqual([])
+    expect(document.querySelector('.proposal-review')).toBeNull()
 
-    await press('ArrowDown')
+    await press('Enter')
+    expect(router.currentRoute.value.params.proposalId).toBe('2')
+    await arm()
     await chord()
     expect(acceptedIds()).toEqual([2])
   })

@@ -6,9 +6,9 @@ import { fetchProposals } from '@/api/proposalsApi'
 import { useDataVersionStore } from '@/stores/dataVersionStore'
 
 /**
- * Holds the open proposals for the markers on Triage rows and in the finding panel: one
- * request on first use, refetched whenever the data version moves. The newest request wins, a
- * failed refetch keeps the last answer.
+ * Holds the open proposals for the proposal notice in the finding panel: one request on first
+ * use, refetched whenever the data version moves. The newest request wins, a failed refetch
+ * keeps the last answer.
  */
 export const useProposalsStore = defineStore('proposals', () => {
   const dataVersion = useDataVersionStore()

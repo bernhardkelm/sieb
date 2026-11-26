@@ -6,6 +6,7 @@ import { findingIdOfRowKey, findingRowKey, groupOfRowKey, groupRowKey } from '@/
 describe('listActionFor', () => {
   it('maps list keys on the page', () => {
     expect(listActionFor({ key: 'Enter' }, 'page')).toBe('activate')
+    expect(listActionFor({ key: ' ' }, 'page')).toBe('activate')
     expect(listActionFor({ key: 'Escape' }, 'page')).toBe('close')
     expect(listActionFor({ key: 'ArrowRight' }, 'page')).toBe('expand')
     expect(listActionFor({ key: 'ArrowLeft' }, 'page')).toBe('collapse')
@@ -16,6 +17,7 @@ describe('listActionFor', () => {
   it('keeps only / inside the panel and nothing in overlays', () => {
     expect(listActionFor({ key: '/' }, 'panel')).toBe('search')
     expect(listActionFor({ key: 'Enter' }, 'panel')).toBeNull()
+    expect(listActionFor({ key: ' ' }, 'panel')).toBeNull()
     expect(listActionFor({ key: 'ArrowLeft' }, 'panel')).toBeNull()
     expect(listActionFor({ key: '/' }, 'overlay')).toBeNull()
   })

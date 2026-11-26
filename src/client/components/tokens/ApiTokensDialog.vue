@@ -14,7 +14,18 @@ import { useMcpStore } from '@/stores/mcpStore'
 
 const open = defineModel<boolean>('open', { required: true })
 
-const { tokens, loading, loadError, created, load, create, revoke, clearSecret } = useApiTokens()
+const {
+  tokens,
+  loading,
+  loadError,
+  created,
+  load,
+  create,
+  revoke,
+  remove,
+  clearInactive,
+  clearSecret,
+} = useApiTokens()
 const mcp = useMcpStore()
 
 const form = ref<InstanceType<typeof CreateTokenForm> | null>(null)
@@ -94,7 +105,13 @@ watch(
         <p>Could not load the tokens: {{ loadError }}</p>
         <BaseButton @click="load()">Retry</BaseButton>
       </div>
-      <TokenList v-else-if="!loading || tokens.length > 0" :tokens="tokens" :revoke="revoke" />
+      <TokenList
+        v-else-if="!loading || tokens.length > 0"
+        :tokens="tokens"
+        :revoke="revoke"
+        :remove="remove"
+        :clear-inactive="clearInactive"
+      />
     </section>
   </BaseDialog>
 </template>

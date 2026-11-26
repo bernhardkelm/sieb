@@ -45,7 +45,7 @@ describe('hand-off links', () => {
 
       expect([...link.searchParams.keys()]).toEqual([target === 'vscode' ? 'prompt' : 'q'])
       expect([...link.searchParams.values()]).toEqual([prompt])
-      expect(prompt).not.toMatch(/token|secret|bearer/i)
+      expect(prompt).not.toMatch(/sieb_[a-z0-9]|secret|bearer/i)
     }
   })
 

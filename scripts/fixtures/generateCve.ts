@@ -11,9 +11,12 @@ const VENDOR_SEVERITIES: readonly Severity[] = [
   'Low',
 ]
 
+export const SYNTHETIC_CVE_YEAR = 2099
+
 /**
- * Generates a CVE with a plausible id, score and severity. A fifth has no score, half of those
- * stay Unknown; of the scored ones most are re-rated from the score.
+ * Generates a CVE with a score and severity and an id in the CVE format whose year
+ * SYNTHETIC_CVE_YEAR no real CVE uses, so NVD links never point at a real advisory. A fifth has
+ * no score, half of those stay Unknown; of the scored ones most are re-rated from the score.
  * @param {Random} random - Generator
  * @param {string} family - CVE family id
  * @param {string} title - Title
@@ -29,7 +32,7 @@ export const generateCve = (
   let id = ''
 
   while (id === '' || used.has(id)) {
-    id = `CVE-${random.pick([2023, 2024, 2024, 2025, 2025, 2026])}-${random.int(1000, 59999)}`
+    id = `CVE-${SYNTHETIC_CVE_YEAR}-${random.int(10000, 99999)}`
   }
 
   used.add(id)

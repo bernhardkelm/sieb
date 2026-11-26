@@ -3,6 +3,7 @@ import type { GetPromptResult } from '@modelcontextprotocol/server'
 import { describe, expect, it } from 'vitest'
 
 import { NGINX } from '#server/db/__tests__/dbFixtures.ts'
+import { KEV_QUERY_NOTE } from '#server/mcp/views/advisoryFacts.ts'
 
 import { AUTHENTIK, BASE_URL, connectSeededServer, INJECTION, KEV_CVE } from './mcpFixtures.ts'
 import { matchesAdvertisedSchema, type McpTestClient } from './mcpTestClient.ts'
@@ -94,6 +95,29 @@ describe('get_finding', () => {
     ])
   })
 
+  it('names the KEV source and explains a null catalog with the Prometheus source', async () => {
+    const cisa = await call(await connectSeededServer(), 'get_finding', {
+      vulnId: KEV_CVE,
+      imageRef: AUTHENTIK,
+    })
+    const prometheus = await call(
+      await connectSeededServer({ kevSource: 'prometheus' }),
+      'get_finding',
+      {
+        vulnId: KEV_CVE,
+        imageRef: AUTHENTIK,
+      },
+    )
+
+    expect(cisa).toMatchObject({ kevSource: 'cisa', kevNote: null })
+    expect(prometheus).toMatchObject({
+      finding: { kev: true },
+      kevSource: 'prometheus',
+      kevCatalog: null,
+      kevNote: KEV_QUERY_NOTE,
+    })
+  })
+
   it('answers an unknown finding or missing arguments with an error result', async () => {
     const client = await connectSeededServer()
 
@@ -162,7 +186,7 @@ const promptText = (prompt: GetPromptResult): string => {
 }
 
 describe('triage_finding prompt', () => {
-  it('names the finding and ends with the report structure', async () => {
+  it('names the finding and ends with the short answer of a read-only connection', async () => {
     const client = await connectSeededServer()
     const { finding } = await call(client, 'get_finding', { vulnId: KEV_CVE, imageRef: AUTHENTIK })
     const prompt = await client.getPrompt('triage_finding', { findingId: String(finding.id) })
@@ -170,7 +194,7 @@ describe('triage_finding prompt', () => {
 
     expect(text).toContain(`${KEV_CVE} in the image ${AUTHENTIK}`)
     expect(text).toContain('vulnerable_code_not_in_execute_path')
-    expect(text).toContain('Report your findings in this structure')
+    expect(text).toContain('Reply in the sieb format below')
   })
 
   it('takes a vulnerability id instead', async () => {

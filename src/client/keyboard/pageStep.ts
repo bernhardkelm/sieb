@@ -1,4 +1,27 @@
+import { stickyInsets } from '@/components/layout/stickyInsets'
+
 const FALLBACK_STEP = 10
+
+export interface VisibleArea {
+  /** Top of the visible area in px, in the coordinates of the window scroll position */
+  top: number
+  /** Bottom of the visible area in px, in the same coordinates */
+  bottom: number
+}
+
+/**
+ * Returns the part of the window the list rows show in: the viewport between the bars stuck to
+ * its top and bottom, such as the top bar, the view toolbar and the bottom navigation.
+ * @returns {VisibleArea} - Visible area in window scroll coordinates
+ */
+export const visibleArea = (): VisibleArea => {
+  const insets = stickyInsets()
+
+  return {
+    top: window.scrollY + insets.top,
+    bottom: window.scrollY + window.innerHeight - insets.bottom,
+  }
+}
 
 /**
  * Returns how many rows PageUp and PageDown move: one viewport of rows, less one so the row at
@@ -13,12 +36,16 @@ export const pageStepFor = (viewportHeight: number, rowHeight: number): number =
     : FALLBACK_STEP
 
 /**
- * Measures the page step of a list from one of its rows and the window, which scrolls the lists.
+ * Measures the page step of a list from one of its rows and the visible area of the window,
+ * which scrolls the lists.
  * @param {HTMLElement | null} row - Rendered row, null falls back to a fixed step
  * @returns {number} - Rows per page
  */
-export const pageStepOf = (row: HTMLElement | null): number =>
-  pageStepFor(window.innerHeight, row?.getBoundingClientRect().height ?? 0)
+export const pageStepOf = (row: HTMLElement | null): number => {
+  const { top, bottom } = visibleArea()
+
+  return pageStepFor(bottom - top, row?.getBoundingClientRect().height ?? 0)
+}
 
 export interface MeasuredRow {
   /** Offset of the row top in px, in the coordinates of the window scroll position */

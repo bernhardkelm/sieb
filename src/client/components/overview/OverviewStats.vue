@@ -3,6 +3,7 @@ import { computed, onMounted, useId } from 'vue'
 
 import BaseButton from '@/components/common/BaseButton.vue'
 import RangeSwitcher from '@/components/overview/RangeSwitcher.vue'
+import { panelSpans } from '@/components/overview/panelSpans'
 import SeverityMixBar from '@/components/overview/SeverityMixBar.vue'
 import StatPanel from '@/components/overview/StatPanel.vue'
 import { buildStatPanels, type StatPanelModel } from '@/components/overview/statPanels'
@@ -33,6 +34,7 @@ const panels = computed(() =>
       })
     : [],
 )
+const spans = computed(() => panelSpans(panels.value))
 const hasHistory = computed(() => (stats.data?.series.length ?? 0) > 0)
 const rangeSuffix = computed(() => (props.variant === 'sheet' ? stats.range : ''))
 
@@ -66,7 +68,9 @@ onMounted(() => {
         <slot name="actions" />
       </div>
     </header>
-    <p v-if="!stats.data && !stats.error" class="state" role="status">Loading stats…</p>
+    <p v-if="(!stats.data && !stats.error) || labels.pending" class="state" role="status">
+      Loading stats…
+    </p>
     <div v-else-if="!stats.data" class="state" role="alert">
       <span>Stats unavailable</span>
       <BaseButton variant="ghost" @click="stats.refresh()">Retry</BaseButton>
@@ -74,8 +78,9 @@ onMounted(() => {
     <template v-else>
       <div class="grid">
         <StatPanel
-          v-for="panel in panels"
+          v-for="(panel, index) in panels"
           :key="panel.key"
+          :class="{ wide: spans[index]?.wide, 'wide-when-short': spans[index]?.wideWhenShort }"
           :panel="panel"
           :range-suffix="rangeSuffix"
           @open="onOpen"
@@ -129,6 +134,10 @@ onMounted(() => {
   gap: var(--stat-gap);
 }
 
+.grid > .wide {
+  grid-column: 1 / -1;
+}
+
 .state {
   display: flex;
   flex-wrap: wrap;
@@ -175,6 +184,10 @@ onMounted(() => {
 @media (max-height: 759px) {
   .variant-sidebar .grid > .secondary {
     display: none;
+  }
+
+  .variant-sidebar .grid > .wide-when-short {
+    grid-column: 1 / -1;
   }
 }
 </style>

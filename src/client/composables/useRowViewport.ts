@@ -2,7 +2,7 @@ import type { Virtualizer } from '@tanstack/vue-virtual'
 import { nextTick, type ComputedRef, type Ref } from 'vue'
 
 import { registerListViewport, type ListViewport } from '@/composables/useListViewport'
-import { pageStepOfRows } from '@/keyboard/pageStep'
+import { pageStepOfRows, visibleArea } from '@/keyboard/pageStep'
 
 export interface RowViewportOptions<T, K> {
   list: Readonly<Ref<HTMLElement | null>>
@@ -18,7 +18,8 @@ export interface RowViewportOptions<T, K> {
 
 /**
  * Builds the viewport of a virtualized list and hands it to the view: scrolling a row into view
- * through the virtualizer, which renders it, and the page step from the measured rows.
+ * through the virtualizer, which renders it, and the page step from the measured rows inside the
+ * visible area between the sticky bars.
  * @param {RowViewportOptions<T, K>} options - List element, virtualizer and rows
  * @returns {ListViewport<K>} - Registered viewport
  */
@@ -59,7 +60,9 @@ export const useRowViewport = <T, K>(options: RowViewportOptions<T, K>): ListVie
         return item !== undefined && options.cursorRow(item)
       })
 
-      return pageStepOfRows(measured, window.scrollY, window.scrollY + window.innerHeight)
+      const { top, bottom } = visibleArea()
+
+      return pageStepOfRows(measured, top, bottom)
     },
   }
 

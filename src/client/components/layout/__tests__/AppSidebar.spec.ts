@@ -12,6 +12,7 @@ import { NOT_AVAILABLE_REASON } from '@/keyboard/hintActions'
 import { ROUTE_NAMES } from '@/router/routeNames'
 import { useHintActionsStore } from '@/stores/hintActionsStore'
 import { useMcpStore } from '@/stores/mcpStore'
+import { useMeStore } from '@/stores/meStore'
 
 vi.mock('@/api/inboxApi', () => ({
   fetchInbox: vi.fn<() => Promise<InboxResponse>>(() => new Promise(() => {})),
@@ -77,7 +78,12 @@ describe('AppSidebar hints', () => {
 
     expect(labels()).not.toContain('Copy for Claude')
 
-    useMcpStore().info = { enabled: true, mcpUrl: 'https://sieb.example.com/mcp', oauth: false }
+    useMcpStore().info = {
+      enabled: true,
+      mcpUrl: 'https://sieb.example.com/mcp',
+      oauth: false,
+      claude: null,
+    }
     await sidebar.vm.$nextTick()
 
     expect(labels().slice(-3)).toEqual(['Open in Claude', 'Copy for Claude', 'Copy claude command'])
@@ -127,6 +133,7 @@ describe('AppSidebar hints', () => {
     const button = hintOf(sidebar, 'Re-confirm') as HTMLButtonElement
 
     expect(button.getAttribute('aria-disabled')).toBe('true')
+    expect(button.tabIndex).toBe(-1)
     expect(button.title).toBe('Not re-opened')
 
     button.click()
@@ -137,6 +144,7 @@ describe('AppSidebar hints', () => {
     await sidebar.vm.$nextTick()
 
     expect(button.hasAttribute('aria-disabled')).toBe(false)
+    expect(button.hasAttribute('tabindex')).toBe(false)
     expect(button.title).toBe('')
   })
 
@@ -162,8 +170,8 @@ describe('AppSidebar navigation', () => {
     const links = sidebar.findAll('.nav .link')
 
     expect(links.map((link) => link.find('.label').text())).toEqual([
-      'Inbox',
       'Triage',
+      'Inbox',
       'By image',
       'By CVE',
       'Decisions',
@@ -175,8 +183,20 @@ describe('AppSidebar navigation', () => {
       '4',
       '5',
     ])
-    expect(links[0]!.get('.badge').text()).toBe('2\u00a0open')
+    expect(links[1]!.get('.badge').text()).toBe('2\u00a0open')
     expect(sidebar.findAll('.badge')).toHaveLength(1)
+  })
+
+  it('ends with the running version and the link to its source code', async () => {
+    const sidebar = await mountSidebar('/inbox')
+    const me = useMeStore()
+
+    me.version = '0.2.1'
+    me.sourceCodeUrl = 'https://github.com/bernhardkelm/sieb/tree/0.2.1'
+    await flushPromises()
+
+    expect(sidebar.get('.foot > .source-code').text()).toContain('sieb 0.2.1')
+    expect(sidebar.get('.foot a').attributes('href')).toBe(me.sourceCodeUrl)
   })
 
   it('shows no badge while the Inbox is empty', async () => {

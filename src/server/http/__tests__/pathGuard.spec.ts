@@ -83,7 +83,7 @@ describe('pathGuard over a real listener', () => {
     const me = await raw('/api/me?return=../x', { 'X-authentik-username': 'alice' })
 
     expect(me.status).toBe(200)
-    expect(JSON.parse(me.body)).toEqual({ username: 'alice', authMode: 'header' })
+    expect(JSON.parse(me.body)).toMatchObject({ username: 'alice', authMode: 'header' })
     expect((await raw('/api/findings/a..b')).status).toBe(404)
     expect((await raw('/api/health')).status).toBe(200)
   })

@@ -65,6 +65,16 @@ describe('parseFindingQuery', () => {
     expect(parsed.ok && parsed.value.owner).toEqual(['self', 'platform team', 'third-party'])
   })
 
+  it('takes unknown next to the exposure labels and rejects other entries', () => {
+    const parsed = parseFindingQuery({ exposure: 'gated,unknown' })
+
+    expect(parsed.ok && parsed.value.exposure).toEqual(['gated', 'unknown'])
+    expect(parseFindingQuery({ exposure: 'public,external' })).toEqual({
+      ok: false,
+      errors: [{ field: 'exposure', code: 'invalid' }],
+    })
+  })
+
   it('collects invalid parameters', () => {
     expect(parseFindingQuery({ owner: `self,${'x'.repeat(65)}`, newSince: 'soon' })).toEqual({
       ok: false,
@@ -107,6 +117,8 @@ describe('filterFindings', () => {
     expect(ids({ severity: ['Low'] })).toEqual([2, 5])
     expect(ids({ owner: ['self'] })).toEqual([4])
     expect(ids({ exposure: ['internal'] })).toEqual([1, 2, 4])
+    expect(ids({ exposure: ['unknown'] })).toEqual([5])
+    expect(ids({ exposure: ['internal', 'unknown'] })).toEqual([1, 2, 4, 5])
     expect(ids({ newSince: '2026-05-25T00:00:00.000Z' })).toEqual([4])
     expect(ids({ kev: true })).toEqual([5])
     expect(ids({ q: 'ZLIB' })).toEqual([4])

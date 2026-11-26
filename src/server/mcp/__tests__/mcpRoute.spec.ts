@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest'
 
 import { createLocalJWKSet, exportJWK, generateKeyPair, SignJWT, type JWTPayload } from 'jose'
 
-import type { ApiTokenCreateResponse } from '#core/apiTypes.ts'
+import type { ApiTokenCreateResponse, McpInfoResponse } from '#core/apiTypes.ts'
 import { testAppDeps } from '#server/http/__tests__/appFixtures.ts'
 import { createApp, type AppDeps } from '#server/http/createApp.ts'
 import { isClientRoute } from '#server/http/spaRoutes.ts'
@@ -176,6 +176,23 @@ describe('/mcp authentication', () => {
     expect(noScope.headers.get('WWW-Authenticate')).toContain('insufficient_scope')
   })
 
+  it('logs each initialize with actor, via and scopes, never the token', async () => {
+    const lines: string[] = []
+    const app = mcpApp({ publicUrl: PUBLIC_URL, oauth: OAUTH, log: (line) => lines.push(line) })
+    const token = await accessToken({ scope: 'openid sieb:read sieb:propose' })
+    const auth = { Authorization: `Bearer ${token}` }
+
+    expect((await post(app, INITIALIZE, auth)).status).toBe(200)
+    expect((await post(app, TOOLS_LIST, auth)).status).toBe(200)
+
+    const handshakes = lines.filter((line) => line.includes('MCP initialize'))
+
+    expect(handshakes).toEqual([
+      '[sieb] MCP initialize by alice via oauth (claude.ai), scopes sieb:read sieb:propose',
+    ])
+    expect(lines.join('\n')).not.toContain(token)
+  })
+
   it('never takes a bearer token as identity on /api', async () => {
     const app = mcpApp()
     const auth = {
@@ -185,8 +202,29 @@ describe('/mcp authentication', () => {
     const me = await app.request('/api/me', { headers: auth })
     const write = await app.request('/api/decisions', { method: 'POST', headers: auth, body: '{}' })
 
-    expect(await me.json()).toEqual({ username: null, authMode: 'header' })
+    expect(await me.json()).toMatchObject({ username: null, authMode: 'header' })
     expect(write.status).toBe(401)
+  })
+
+  it('records an OAuth caller, so /api/mcp-info reports that user connected without a token', async () => {
+    const app = mcpApp({ publicUrl: PUBLIC_URL, oauth: OAUTH })
+    const claudeOf = async (user: string): Promise<unknown> =>
+      (
+        (await (
+          await app.request('/api/mcp-info', { headers: { 'X-authentik-username': user } })
+        ).json()) as McpInfoResponse
+      ).claude
+
+    expect(await claudeOf('alice')).toMatchObject({ connected: false, oauthLastSeenAt: null })
+    expect(
+      (await post(app, TOOLS_LIST, { Authorization: `Bearer ${await accessToken()}` })).status,
+    ).toBe(200)
+    expect(await claudeOf('alice')).toMatchObject({
+      connected: true,
+      activeTokens: 0,
+      oauthLastSeenAt: expect.any(String),
+    })
+    expect(await claudeOf('bob')).toMatchObject({ connected: false, oauthLastSeenAt: null })
   })
 })
 

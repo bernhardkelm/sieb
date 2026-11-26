@@ -36,7 +36,13 @@ export interface ErrorBody {
 /** How the UI user is authenticated: forward-auth header or sieb's own OIDC login */
 export type AuthMode = 'header' | 'oidc'
 
-export interface MeResponse {
+/** Running sieb build, the source code link offered to every user under the AGPL */
+export interface BuildInfo {
+  version: string
+  sourceCodeUrl: string // SIEB_SOURCE_URL, otherwise the upstream tree of the version tag
+}
+
+export interface MeResponse extends BuildInfo {
   username: string | null // null when neither the auth header nor a dev user is present
   authMode: AuthMode
 }
@@ -120,11 +126,24 @@ export interface ApiTokenCreateResponse {
   secret: string
 }
 
+/** Answer of POST /api/tokens/cleanup */
+export interface ApiTokenCleanupResponse {
+  deleted: number // revoked and expired tokens removed
+}
+
 /** Answer of GET /api/mcp-info, also while MCP is disabled so the UI can hide it */
 export interface McpInfoResponse {
   enabled: boolean // SIEB_MCP_ENABLED
   mcpUrl: string | null // absolute URL of the MCP endpoint, null while disabled
   oauth: boolean // whether claude.ai connectors can sign in through OAuth, false while disabled
+  claude: ClaudeConnection | null // acting user's connection, null while disabled or anonymous
+}
+
+/** Whether Claude can reach sieb for the acting user */
+export interface ClaudeConnection {
+  connected: boolean // a live token, or an OAuth MCP request within the last 30 days
+  activeTokens: number // personal tokens neither revoked nor expired
+  oauthLastSeenAt: string | null // last OAuth authenticated MCP request, any age
 }
 
 /** Answer of GET /api/inbox: what waits for the acting user, in Inbox order */

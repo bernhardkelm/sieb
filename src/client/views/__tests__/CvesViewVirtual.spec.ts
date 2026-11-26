@@ -54,6 +54,7 @@ const cve = (vulnId: string, openCount: number): CveAggregate => ({
     revoked: 0,
   },
   allScopeDecision: null,
+  allScopeEffective: null,
 })
 
 /**

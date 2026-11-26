@@ -17,8 +17,43 @@ export const readStoredTheme = (): ThemeChoice => {
   }
 }
 
+const FAVICONS: Record<ThemeChoice, string> = {
+  auto: '/favicon.svg',
+  light: '/favicon-light.svg',
+  dark: '/favicon-dark.svg',
+}
+
 /**
- * Applies a theme choice to the html element; auto removes data-theme so the system decides.
+ * Points the theme-color metas and the SVG favicon at the chosen theme. Each meta keeps its
+ * media query and remembers the colour of its own scheme in data-scheme-color, so auto
+ * restores the colour per scheme and a manual choice puts the colour of that scheme on all.
+ * @param {ThemeChoice} choice - Theme choice
+ * @returns {void}
+ */
+export const applyThemeHead = (choice: ThemeChoice): void => {
+  const metas = [...document.querySelectorAll<HTMLMetaElement>('meta[name="theme-color"]')]
+
+  for (const meta of metas) {
+    meta.dataset.schemeColor ??= meta.content
+  }
+
+  const chosen = metas.find((meta) => meta.getAttribute('media')?.includes(choice))?.dataset
+    .schemeColor
+
+  for (const meta of metas) {
+    meta.content = (choice !== 'auto' && chosen) || meta.dataset.schemeColor || meta.content
+  }
+
+  const icon = document.querySelector<HTMLLinkElement>('link[rel="icon"][type="image/svg+xml"]')
+
+  if (icon) {
+    icon.setAttribute('href', FAVICONS[choice])
+  }
+}
+
+/**
+ * Applies a theme choice to the html element and the document head; auto removes data-theme
+ * so the system decides.
  * @param {ThemeChoice} choice - Theme choice
  * @returns {void}
  */
@@ -28,6 +63,8 @@ export const applyTheme = (choice: ThemeChoice): void => {
   } else {
     document.documentElement.setAttribute('data-theme', choice)
   }
+
+  applyThemeHead(choice)
 }
 
 const theme = ref<ThemeChoice>(readStoredTheme())

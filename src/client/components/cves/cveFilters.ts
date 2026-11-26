@@ -1,4 +1,5 @@
 import { isFullyDecided, type CveAggregate } from '#core/cveAggregation.ts'
+import { matchesExposureFilter } from '#core/exposure.ts'
 import {
   containsSearch,
   passesSelection,
@@ -21,7 +22,7 @@ export const filterCves = (
     (cve) =>
       (filters.showDecided || !isFullyDecided(cve)) &&
       passesSelection(filters.severity, cve.maxSeverity) &&
-      passesSelection(filters.exposure, cve.maxExposure) &&
+      matchesExposureFilter(filters.exposure, cve.maxExposure) &&
       containsSearch([cve.vulnId, cve.title ?? '', ...cve.imageRefs], filters.q),
   )
 

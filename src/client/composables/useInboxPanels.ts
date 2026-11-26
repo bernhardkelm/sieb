@@ -1,4 +1,4 @@
-import { computed, watch, type ComputedRef, type Ref } from 'vue'
+import { computed, nextTick, watch, type ComputedRef, type Ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 
 import type { InboxItem } from '#core/inbox/inboxItem.ts'
@@ -19,13 +19,9 @@ export interface InboxPanels {
 /**
  * Opens Inbox items in their panels: a proposal in the review panel at
  * `/inbox/proposals/<id>`, an item with a finding in the finding panel over the Inbox, a
- * decision without open findings on the decisions view. While a panel shows the cursor row and
- * the cursor moves on by key, a proposal row opens in the review panel and a finding row
- * replaces the review panel; the finding panel follows the cursor through the shared list
- * cursor. A cursor that moved because the shown row left the list, such as after an accept,
- * never opens a proposal, so every review is opened deliberately. A proposal opened by link
- * puts the cursor on its row once listed. Closing the review panel returns focus to the cursor
- * row.
+ * decision without open findings on the decisions view. A proposal opened by link puts the
+ * cursor on its row once listed. Closing the review panel returns focus to the cursor row.
+ * How the panels react to cursor moves lives in useInboxCursorPanels.
  * @param {Ref<string | null>} currentKey - Cursor row
  * @param {Readonly<Ref<readonly InboxItem[]>>} items - Listed items
  * @param {() => Promise<void>} refocus - Focuses the cursor row
@@ -39,7 +35,6 @@ export const useInboxPanels = (
   const route = useRoute()
   const router = useRouter()
   const { findingId, closeFinding } = useFindingPanel()
-  const known = new Map<string, InboxItem>()
 
   const proposalId = computed(() =>
     route.name === ROUTE_NAMES.INBOX_PROPOSAL ? Number(route.params[PROPOSAL_PARAM]) : null,
@@ -79,12 +74,17 @@ export const useInboxPanels = (
   }
 
   /**
-   * Closes the review panel, keeping the query, and focuses the cursor row.
+   * Closes the review panel, keeping the query, and focuses the cursor row once focus left
+   * with the panel. Focus a press outside the panel put elsewhere stays there.
    * @returns {Promise<void>} - Resolves once focused
    */
   const closeProposal = async (): Promise<void> => {
     await router.replace({ name: ROUTE_NAMES.INBOX, query: route.query })
-    await refocus()
+    await nextTick()
+
+    if (document.activeElement === null || document.activeElement === document.body) {
+      await refocus()
+    }
   }
 
   /**
@@ -104,50 +104,6 @@ export const useInboxPanels = (
 
     return false
   }
-
-  /**
-   * Returns whether a panel shows a row.
-   * @param {string | null} key - Row key
-   * @returns {boolean} - True while the review or the finding panel shows it
-   */
-  const shown = (key: string | null): boolean => {
-    if (key === null) {
-      return false
-    }
-
-    if (proposalId.value !== null && key === proposalItemKey(proposalId.value)) {
-      return true
-    }
-
-    const item = known.get(key)
-
-    return (
-      findingId.value !== null &&
-      item !== undefined &&
-      findingIdOfItem(item) === Number(findingId.value)
-    )
-  }
-
-  watch(
-    items,
-    (next) => {
-      next.forEach((item) => known.set(item.key, item))
-    },
-    { immediate: true },
-  )
-
-  watch(currentKey, (key, previous) => {
-    const item = key === null ? undefined : known.get(key)
-    const stillListed = items.value.some((listed) => listed.key === previous)
-
-    if (item === undefined || !shown(previous) || !stillListed) {
-      return
-    }
-
-    if (item.kind === 'proposal' || (proposalId.value !== null && findingIdOfItem(item) !== null)) {
-      void openItem(item)
-    }
-  })
 
   watch(
     () => {

@@ -1,4 +1,5 @@
 import { matchesDecisionStates } from '#core/decisionStateFilter.ts'
+import { matchesExposureFilter } from '#core/exposure.ts'
 import type { FindingQuery } from '#core/findingQuery.ts'
 import type { FindingView } from '#core/findingView.ts'
 import { matchesAnyName, withoutImageTag, workloadNames } from '#core/nameMatch.ts'
@@ -103,7 +104,7 @@ const matchesFacts = (
 /**
  * Returns whether a finding passes all filters of a query. The inbox view keeps inbox findings
  * only, the all view drops resolved findings unless includeResolved is set. An exposure or owner
- * filter drops findings without that label.
+ * filter drops findings without that label, unless the exposure filter selects unknown.
  * @param {FilterableFinding} finding - Finding
  * @param {FindingQuery} query - Parsed query
  * @param {FindingFilterContext} context - KEV catalog dates, kevAddedSince is ignored without
@@ -122,10 +123,7 @@ export const matchesFindingQuery = (
     return false
   }
 
-  if (
-    query.exposure.length > 0 &&
-    (finding.exposure === null || !query.exposure.includes(finding.exposure))
-  ) {
+  if (!matchesExposureFilter(query.exposure, finding.exposure)) {
     return false
   }
 

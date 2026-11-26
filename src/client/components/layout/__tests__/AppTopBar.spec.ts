@@ -49,7 +49,12 @@ afterEach(() => {
 
 describe('AppTopBar user', () => {
   it('shows the username as plain text while the Claude integration is off', async () => {
-    vi.mocked(fetchMcpInfo).mockResolvedValue({ enabled: false, mcpUrl: null, oauth: false })
+    vi.mocked(fetchMcpInfo).mockResolvedValue({
+      enabled: false,
+      mcpUrl: null,
+      oauth: false,
+      claude: null,
+    })
     const { wrapper } = await mountTopBar()
 
     expect(wrapper.get('.user').element.tagName).toBe('SPAN')
@@ -62,6 +67,7 @@ describe('AppTopBar user', () => {
       enabled: true,
       mcpUrl: 'https://sieb.example.com/mcp',
       oauth: false,
+      claude: null,
     })
     const { wrapper } = await mountTopBar()
     const trigger = wrapper.get('.trigger')

@@ -11,6 +11,8 @@ import type { McpToolDeps } from '#server/mcp/mcpToolDeps.ts'
 import { READ_ONLY_TOOL, toolError, toolResult } from '#server/mcp/toolResult.ts'
 import {
   kevFactsSchema,
+  kevNoteSchema,
+  kevSourceSchema,
   referenceLinksSchema,
   toAdvisoryFacts,
   untrustedAdvisorySchema,
@@ -46,11 +48,15 @@ const outputSchema = z.object({
         untrusted: z.object({
           payload: z
             .record(z.string(), z.unknown())
-            .describe('user-written values; updated: field -> [before, after]'),
+            .describe(
+              'user-written values; updated: field -> [before, after], or coveredImage when sieb extended an all-images decision to a newly seen image',
+            ),
         }),
       }),
     )
     .describe('history of those decisions, oldest first'),
+  kevSource: kevSourceSchema,
+  kevNote: kevNoteSchema,
   kevCatalog: kevFactsSchema,
   references: referenceLinksSchema,
   cveUrl: z.string(),
@@ -96,7 +102,7 @@ export const registerGetFindingTool = (server: McpServer, deps: McpToolDeps): vo
     {
       title: 'Get a finding',
       description:
-        'Reads one finding (a CVE in one image) by findingId, or by vulnId plus imageRef: its instances per workload and container with package versions, every decision covering it with reasons and history, CISA KEV details and links.',
+        'Reads one finding (a CVE in one image) by findingId, or by vulnId plus imageRef: its instances per workload and container with package versions, every decision covering it with reasons and history, the KEV source with CISA KEV details when it is cisa, and links.',
       inputSchema,
       outputSchema,
       annotations: READ_ONLY_TOOL,
@@ -149,7 +155,7 @@ export const registerGetFindingTool = (server: McpServer, deps: McpToolDeps): vo
           at: event.at,
           untrusted: { payload: event.payload },
         })),
-        ...toAdvisoryFacts(finding, detail.kev),
+        ...toAdvisoryFacts(finding, detail.kev, deps.kevSource),
         cveUrl: cveUrl(base, finding.vulnId),
         imageUrl: imageUrl(base, finding.imageRef),
       })

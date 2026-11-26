@@ -1,4 +1,4 @@
-import { computed, onMounted, ref, type ComputedRef, type Ref } from 'vue'
+import { computed, onMounted, ref, type ComputedRef, type Ref, type WritableComputedRef } from 'vue'
 
 import type { DecisionStatus } from '#core/decision.ts'
 import type { FindingView } from '#core/findingView.ts'
@@ -9,6 +9,7 @@ import {
   type TriageSortColumn,
 } from '@/components/triage/triageSort'
 import { useCursorRefocus } from '@/composables/useCursorRefocus'
+import { useFindingFilterQuery } from '@/composables/useFindingFilterQuery'
 import { useFindingPanel } from '@/composables/useFindingPanel'
 import { useTriageHintActions } from '@/composables/useTriageHintActions'
 import { useListCursor } from '@/composables/useListCursor'
@@ -16,11 +17,14 @@ import { useListSort, type ListSort } from '@/composables/useListSort'
 import { useNow } from '@/composables/useNow'
 import { triageActionFor, type TriageAction } from '@/keyboard/triageKeymap'
 import { rowClickIntent } from '@/keyboard/rowClick'
-import { isNewFinding } from '@/stores/findingFilters'
+import { isNewFinding, type FindingFilters } from '@/stores/findingFilters'
 import { useFindingDetailStore } from '@/stores/findingDetailStore'
 import { useFindingsStore } from '@/stores/findingsStore'
 
 export interface TriageController {
+  /** Filter bar state, kept in the query */
+  filters: WritableComputedRef<FindingFilters>
+  resetFilters: () => Promise<void>
   findings: ComputedRef<FindingView[]>
   sort: ListSort<TriageSortColumn>
   resetSort: () => Promise<void>
@@ -44,8 +48,8 @@ const ACTION_STATUS: Partial<Record<TriageAction, DecisionStatus>> = {
 
 /**
  * Drives the triage list on the shared list cursor with multiple selection: cursor and checked rows
- * over the filtered triage list in the sort of the `sort` and `dir` query params, triage order by
- * default, the triage keymap, the side panel following the cursor and the bulk dialog, which a,
+ * over the triage list filtered by the filter query params (see useFindingFilterQuery) in the
+ * sort of the `sort` and `dir` query params, triage order by default, the triage keymap, the side panel following the cursor and the bulk dialog, which a,
  * n and f open for the checked rows. A panel
  * opened by link on a finding outside the list stays until a cursor key moves the cursor.
  * @param {() => void} focusSearch - Focuses the search input of the filter bar
@@ -56,6 +60,7 @@ export const useTriageController = (focusSearch: () => void): TriageController =
   const detail = useFindingDetailStore()
   const { findingId, openFinding, closeFinding } = useFindingPanel()
   const now = useNow()
+  const filterQuery = useFindingFilterQuery()
 
   const sort = useListSort(TRIAGE_SORT_COLUMNS)
 
@@ -210,6 +215,8 @@ export const useTriageController = (focusSearch: () => void): TriageController =
   })
 
   return {
+    filters: filterQuery.filters,
+    resetFilters: filterQuery.reset,
     findings,
     sort,
     resetSort,

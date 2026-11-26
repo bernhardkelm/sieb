@@ -14,16 +14,32 @@ describe('registryOf', () => {
 })
 
 describe('sourceAccess', () => {
-  it('is public for public registries and private for own images and other registries', () => {
+  it('is private only for own images, also on a public registry', () => {
+    expect(sourceAccess('ghcr.io/acme/api', 'self', DEFAULT_PUBLIC_REGISTRIES)).toBe('private')
+    expect(sourceAccess('registry.example.com/acme/api', 'self', [])).toBe('private')
+  })
+
+  it('is public for images of a listed registry with another owner', () => {
     expect(sourceAccess('index.docker.io/library/nginx', null, DEFAULT_PUBLIC_REGISTRIES)).toBe(
       'public',
     )
-    expect(sourceAccess('ghcr.io/acme/api', 'self', DEFAULT_PUBLIC_REGISTRIES)).toBe('private')
+    expect(sourceAccess('nginx', 'third-party', DEFAULT_PUBLIC_REGISTRIES)).toBe('public')
+    expect(
+      sourceAccess('mirror.gcr.io/aquasec/trivy', 'third-party', DEFAULT_PUBLIC_REGISTRIES),
+    ).toBe('public')
+    expect(sourceAccess('cgr.dev/chainguard/static', null, DEFAULT_PUBLIC_REGISTRIES)).toBe(
+      'public',
+    )
+  })
+
+  it('is unknown for other registries and refs without a registry', () => {
     expect(
       sourceAccess('registry.example.com/acme/api', 'platform', DEFAULT_PUBLIC_REGISTRIES),
-    ).toBe('private')
-    expect(sourceAccess('nginx', 'third-party', DEFAULT_PUBLIC_REGISTRIES)).toBe('public')
-    expect(sourceAccess('nginx', null, ['quay.io'])).toBe('private')
+    ).toBe('unknown')
+    expect(sourceAccess('registry.gitlab.com/acme/api', null, DEFAULT_PUBLIC_REGISTRIES)).toBe(
+      'unknown',
+    )
+    expect(sourceAccess('nginx', null, ['quay.io'])).toBe('unknown')
     expect(sourceAccess('', null, DEFAULT_PUBLIC_REGISTRIES)).toBe('unknown')
   })
 })

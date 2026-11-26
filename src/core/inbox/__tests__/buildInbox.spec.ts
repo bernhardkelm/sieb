@@ -41,6 +41,7 @@ describe('buildInbox proposals', () => {
         title: 'libssl overflow',
         url: 'https://sieb.example.com/inbox/proposals/7',
         refs: { proposalId: 7 },
+        imageRefs: [NGINX],
         verdict: 'not_affected',
         confidence: 'high',
         imageCount: 1,
@@ -48,6 +49,7 @@ describe('buildInbox proposals', () => {
       expect.objectContaining({
         key: 'proposal:8',
         imageRef: null,
+        imageRefs: null,
         severity: 'Critical',
         kev: true,
         title: 'libssl overflow',

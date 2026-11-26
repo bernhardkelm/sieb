@@ -214,6 +214,45 @@ describe('decision transitions during sync', () => {
 
     await sync.syncNow()
     expect(observe(db, all, now).state).toBe('reopened')
+    expect(
+      listDecisionEvents(db, [all]).map(({ type, actor, payload }) => [type, actor, payload]),
+    ).toEqual([
+      ['created', 'dev', expect.any(Object)],
+      ['updated', 'sieb', { coveredImage: REDIS }],
+      ['reopened', 'sieb', expect.any(Object)],
+    ])
+  })
+
+  it('writes no coverage event for an image-scope decision and no extra expiry for coverage', async () => {
+    const { db, sync, at } = setup([
+      buildSnapshot(rows({})),
+      buildSnapshot(rows({})),
+      buildSnapshot(rows({}, {})),
+      buildSnapshot(rows({}, {})),
+    ])
+    const start = at('2026-06-01T00:00:00.000Z')
+
+    await sync.syncNow()
+    const all = decide(
+      db,
+      { scope: 'all', imageRef: null, expiresAt: '2026-06-02T00:00:00.000Z' },
+      start,
+    )
+    const own = decide(db, {}, start)
+
+    at('2026-06-03T00:00:00.000Z')
+    await sync.syncNow()
+    await sync.syncNow()
+    await sync.syncNow()
+
+    expect(eventTypes(db, own)).toEqual(['created'])
+    expect(
+      listDecisionEvents(db, [all]).map(({ type, payload }) => [type, payload.coveredImage]),
+    ).toEqual([
+      ['created', undefined],
+      ['expired', undefined],
+      ['updated', REDIS],
+    ])
   })
 
   it('re-arms a re-opened decision only on an explicit re-confirm', async () => {
@@ -256,6 +295,28 @@ describe('decision transitions during sync', () => {
         reopenedAt: [now.toISOString(), null],
       },
     ])
+  })
+
+  it('keeps a decision re-confirmed during a pending re-open in effect on the next sync', async () => {
+    const { db, sync, at } = setup([
+      buildSnapshot(rows({ severity: 'Medium' })),
+      buildSnapshot(rows({ severity: 'Critical' })),
+    ])
+    const now = at('2026-06-01T00:00:00.000Z')
+
+    await sync.syncNow()
+    const id = decide(db, {}, now)
+    db.prepare("UPDATE findings SET severity = 'Critical' WHERE image_ref = ?").run(NGINX)
+    expect(listDecisionViews(db, now)[0]?.effective).toMatchObject({
+      state: 'reopened',
+      reopenedAt: null,
+    })
+
+    expect(updateDecision(db, id, { reconfirm: true }, 'alex', now).ok).toBe(true)
+    await sync.syncNow()
+
+    expect(observe(db, id, now)).toEqual({ state: 'active', suppressed: [NGINX] })
+    expect(eventTypes(db, id)).toEqual(['created', 'updated'])
   })
 
   it('writes one expired event per expiry across repeated syncs', async () => {

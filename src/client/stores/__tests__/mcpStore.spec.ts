@@ -28,7 +28,7 @@ describe('mcpStore', () => {
 
     expect(store.enabled).toBe(false)
 
-    resolve({ enabled: true, mcpUrl: 'https://sieb.example.com/mcp', oauth: true })
+    resolve({ enabled: true, mcpUrl: 'https://sieb.example.com/mcp', oauth: true, claude: null })
     await loading
 
     expect(store.enabled).toBe(true)
@@ -36,7 +36,12 @@ describe('mcpStore', () => {
   })
 
   it('stays disabled when the server switched it off or the request fails', async () => {
-    vi.mocked(fetchMcpInfo).mockResolvedValueOnce({ enabled: false, mcpUrl: null, oauth: false })
+    vi.mocked(fetchMcpInfo).mockResolvedValueOnce({
+      enabled: false,
+      mcpUrl: null,
+      oauth: false,
+      claude: null,
+    })
 
     const store = useMcpStore()
 
@@ -54,7 +59,12 @@ describe('mcpStore', () => {
   })
 
   it('loads only once per page view', async () => {
-    vi.mocked(fetchMcpInfo).mockResolvedValue({ enabled: true, mcpUrl: null, oauth: false })
+    vi.mocked(fetchMcpInfo).mockResolvedValue({
+      enabled: true,
+      mcpUrl: null,
+      oauth: false,
+      claude: null,
+    })
 
     const store = useMcpStore()
 
@@ -62,5 +72,36 @@ describe('mcpStore', () => {
     await store.load()
 
     expect(fetchMcpInfo).toHaveBeenCalledOnce()
+  })
+
+  it('refreshes the connection state and keeps it when the refresh fails', async () => {
+    const base = { enabled: true, mcpUrl: null, oauth: true }
+
+    vi.mocked(fetchMcpInfo).mockResolvedValueOnce({
+      ...base,
+      claude: { connected: false, activeTokens: 0, oauthLastSeenAt: null },
+    })
+
+    const store = useMcpStore()
+
+    await store.load()
+    expect(store.connected).toBe(false)
+    expect(store.connectReason).toBe(
+      'Connect Claude first: create an API token (your name in the top bar, API tokens) or add the sieb connector in Claude.',
+    )
+
+    vi.mocked(fetchMcpInfo).mockResolvedValueOnce({
+      ...base,
+      claude: { connected: true, activeTokens: 0, oauthLastSeenAt: '2026-11-20T10:00:00.000Z' },
+    })
+    await store.refresh()
+
+    expect(store.connected).toBe(true)
+    expect(store.connectReason).toBeNull()
+
+    vi.mocked(fetchMcpInfo).mockRejectedValueOnce(new Error('offline'))
+    await store.refresh()
+
+    expect(store.connected).toBe(true)
   })
 })

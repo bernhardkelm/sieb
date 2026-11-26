@@ -18,8 +18,10 @@ import { useCvesController } from '@/composables/useCvesController'
 import { useLabelColumns } from '@/composables/useLabelColumns'
 import { useCvesStore } from '@/stores/cvesStore'
 import { useFindingsStore } from '@/stores/findingsStore'
+import { useLabelsStore } from '@/stores/labelsStore'
 
 const store = useCvesStore()
+const labels = useLabelsStore()
 const findings = useFindingsStore()
 const filterBar = ref<InstanceType<typeof AggregateFilterBar> | null>(null)
 
@@ -49,7 +51,12 @@ const { hidden } = useLabelColumns()
         />
       </AggregateFilterBar>
     </ViewToolbar>
-    <LoadState v-if="!store.loaded" subject="CVEs" :error="store.error" @retry="store.refresh()" />
+    <LoadState
+      v-if="!store.loaded || labels.pending"
+      subject="CVEs"
+      :error="store.error"
+      @retry="store.refresh()"
+    />
     <EmptyState v-else-if="store.items.length === 0" title="No CVEs">
       No open findings. CVEs show up here after the next sync.
     </EmptyState>

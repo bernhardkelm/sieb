@@ -56,7 +56,7 @@ const scope = computed(() => inboxScopeText(props.item))
       <span class="scope" :class="{ several: item.imageRef === null }">{{ scope }}</span>
     </HintTooltip>
     <InboxItemDetail class="detail" :item="item" />
-    <span class="title">{{ item.title ?? '' }}</span>
+    <span class="title" data-panel-clip>{{ item.title ?? '' }}</span>
     <span class="at"><RelativeTime :value="item.at" /></span>
     <span class="action">
       <button

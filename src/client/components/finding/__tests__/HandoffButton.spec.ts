@@ -4,6 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { mountWithProviders } from '@/__tests__/mountWithProviders'
 import HandoffButton from '@/components/finding/HandoffButton.vue'
 import { HANDOFF_TARGET_STORAGE_KEY, useHandoffTargetStore } from '@/stores/handoffTargetStore'
+import { useMcpStore } from '@/stores/mcpStore'
 import { notifyWithAction } from '@/toast/toastManager'
 
 vi.mock('@/toast/toastManager', () => ({
@@ -12,6 +13,9 @@ vi.mock('@/toast/toastManager', () => ({
   notifyWithAction:
     vi.fn<(id: string, title: string, description: string, action: unknown) => void>(),
 }))
+
+const REASON =
+  'Connect Claude first: create an API token (your name in the top bar, API tokens) or add the sieb connector in Claude.'
 
 const writeText = vi.fn<(text: string) => Promise<void>>()
 const assign = vi.fn<(url: string) => void>()
@@ -57,12 +61,34 @@ const menuItem = (label: string): HTMLElement => {
 }
 
 /**
+ * Mounts the button with the given Claude connection state.
+ * @param {string | null} command - claude command, null for images of others
+ * @param {boolean} connected - Whether Claude reaches sieb for the user
+ * @returns {VueWrapper} - Wrapper
+ */
+const mountButton = (command: string | null, connected = true): VueWrapper => {
+  const wrapper = mountWithProviders(HandoffButton, { prompt: 'Triage it', command })
+
+  useMcpStore().info = {
+    enabled: true,
+    mcpUrl: 'https://sieb.example.com/mcp',
+    oauth: true,
+    claude: { connected, activeTokens: connected ? 1 : 0, oauthLastSeenAt: null },
+  }
+
+  return wrapper
+}
+
+/**
  * Mounts the button and opens its chevron menu.
  * @param {string | null} command - claude command, null for images of others
+ * @param {boolean} connected - Whether Claude reaches sieb for the user
  * @returns {Promise<VueWrapper>} - Wrapper
  */
-const openMenu = async (command: string | null): Promise<VueWrapper> => {
-  const wrapper = mountWithProviders(HandoffButton, { prompt: 'Triage it', command })
+const openMenu = async (command: string | null, connected = true): Promise<VueWrapper> => {
+  const wrapper = mountButton(command, connected)
+
+  await flushPromises()
 
   await wrapper.get('[aria-haspopup="menu"]').trigger('keydown', { key: 'Enter' })
   await flushPromises()
@@ -86,7 +112,8 @@ afterEach(() => {
 
 describe('HandoffButton', () => {
   it('opens Claude Code desktop by default and offers copying in a toast', async () => {
-    const wrapper = mountWithProviders(HandoffButton, { prompt: 'Triage it', command: null })
+    const wrapper = mountButton(null)
+    await flushPromises()
     const primary = wrapper.get('button.primary')
 
     expect(primary.text()).toBe('Open in Claude Code')
@@ -109,7 +136,7 @@ describe('HandoffButton', () => {
     ['vscode', 'Open in VS Code', 'vscode://anthropic.claude-code/open?prompt=Triage%20it'],
   ])('follows the stored default %s', async (target, label, link) => {
     localStorage.setItem(HANDOFF_TARGET_STORAGE_KEY, target)
-    const wrapper = mountWithProviders(HandoffButton, { prompt: 'Triage it', command: null })
+    const wrapper = mountButton(null)
 
     expect(wrapper.get('button.primary').text()).toBe(label)
 
@@ -121,7 +148,8 @@ describe('HandoffButton', () => {
 
   it('copies with the check icon when copy is the default', async () => {
     localStorage.setItem(HANDOFF_TARGET_STORAGE_KEY, 'copy')
-    const wrapper = mountWithProviders(HandoffButton, { prompt: 'Triage it', command: null })
+    const wrapper = mountButton(null)
+    await flushPromises()
     const primary = wrapper.get('button.primary')
 
     expect(primary.text()).toBe('Copy for Claude')
@@ -198,6 +226,88 @@ describe('HandoffButton', () => {
     expect(useHandoffTargetStore().preferred).toBe('vscode')
     expect(localStorage.getItem(HANDOFF_TARGET_STORAGE_KEY)).toBe('vscode')
     expect(wrapper.get('button.primary').text()).toBe('Open in VS Code')
+    wrapper.unmount()
+  })
+
+  it('disables the deep links and the command with the reason until Claude is connected', async () => {
+    const wrapper = await openMenu("claude 'Triage it'", false)
+    const primary = wrapper.get('button.primary')
+    const note = document.body.querySelector<HTMLElement>('.note')
+    const content = document.body.querySelector<HTMLElement>('[role="menu"]')
+
+    expect(primary.attributes('aria-disabled')).toBe('true')
+    expect(primary.attributes('tabindex')).toBe('-1')
+    expect(primary.attributes('title')).toBe(REASON)
+    expect(note?.textContent?.trim()).toBe(REASON)
+    expect(content?.getAttribute('aria-describedby')).toBe(note?.id)
+
+    for (const label of ['Claude Code (desktop)', 'VS Code', 'Copy claude command']) {
+      const item = menuItem(label)
+
+      expect(item.getAttribute('aria-disabled')).toBe('true')
+      expect(item.getAttribute('title')).toBe(REASON)
+      expect(item.getAttribute('aria-describedby')?.split(' ')[0]).toBe(note?.id)
+    }
+
+    menuItem('VS Code').click()
+    menuItem('Copy claude command').click()
+    await primary.trigger('click')
+    await flushPromises()
+
+    expect(assign).not.toHaveBeenCalled()
+    expect(writeText).not.toHaveBeenCalled()
+
+    const copyPrompt = menuItem('Copy prompt')
+
+    expect(copyPrompt.getAttribute('aria-disabled')).toBeNull()
+    expect(copyPrompt.getAttribute('title')).toBeNull()
+
+    copyPrompt.click()
+    await flushPromises()
+
+    expect(writeText).toHaveBeenCalledWith('Triage it')
+    wrapper.unmount()
+  })
+
+  it('names only the token without OAuth and keeps a copy default enabled', async () => {
+    localStorage.setItem(HANDOFF_TARGET_STORAGE_KEY, 'copy')
+    const wrapper = mountButton(null, false)
+
+    useMcpStore().info = { ...useMcpStore().info!, oauth: false }
+    await flushPromises()
+
+    const primary = wrapper.get('button.primary')
+
+    expect(primary.attributes('aria-disabled')).toBeUndefined()
+    expect(primary.attributes('title')).toBe('Copy for Claude (Shift+H)')
+    expect(useMcpStore().connectReason).toBe(
+      'Connect Claude first: create an API token (your name in the top bar, API tokens).',
+    )
+
+    await primary.trigger('click')
+    await flushPromises()
+
+    expect(writeText).toHaveBeenCalledWith('Triage it')
+    wrapper.unmount()
+  })
+
+  it('enables the deep links once Claude is connected', async () => {
+    const wrapper = mountButton(null, false)
+
+    await flushPromises()
+    expect(wrapper.get('button.primary').attributes('aria-disabled')).toBe('true')
+
+    useMcpStore().info = {
+      ...useMcpStore().info!,
+      claude: { connected: true, activeTokens: 1, oauthLastSeenAt: null },
+    }
+    await flushPromises()
+
+    expect(wrapper.get('button.primary').attributes('aria-disabled')).toBeUndefined()
+
+    await wrapper.get('button.primary').trigger('click')
+
+    expect(assign).toHaveBeenCalledWith('claude://code/new?q=Triage%20it')
     wrapper.unmount()
   })
 })

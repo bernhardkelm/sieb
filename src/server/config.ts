@@ -27,6 +27,7 @@ import {
   readOidcConfig,
   type OidcConfig,
 } from '#server/oidcConfigValues.ts'
+import { parseSourceCodeUrl } from '#server/sourceCodeUrl.ts'
 import { DEFAULT_SOURCE_QUERIES, type SourceQueries } from '#server/sources/sourceQueries.ts'
 
 export const LIVE_DB_PATH = 'data/sieb.db'
@@ -62,6 +63,7 @@ export interface ServerConfig {
   mcpAllowedOrigins: string[] // browser origins /mcp accepts besides the requested host
   oauth: OAuthConfig | null // null accepts personal tokens only on /mcp, always null while MCP is off
   publicRegistries: string[] // registry hosts whose images count as public for source access
+  sourceCodeUrl: string | null // source code link of a fork, null links the upstream release tag
 }
 
 /**
@@ -174,5 +176,6 @@ export const readConfig = (env: Record<string, string | undefined>, cwd: string)
     mcpAllowedOrigins: parseOriginList(env.SIEB_MCP_ALLOWED_ORIGINS),
     oauth,
     publicRegistries: parseRegistryList(env.SIEB_PUBLIC_REGISTRIES),
+    sourceCodeUrl: parseSourceCodeUrl(env.SIEB_SOURCE_URL),
   }
 }

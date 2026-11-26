@@ -1,11 +1,19 @@
 // @vitest-environment node
 import { describe, expect, it } from 'vitest'
 
-import { MAX_LIVE_TOKENS } from '#core/apiToken.ts'
-import type { ApiTokenCreateResponse, ApiTokenView, McpInfoResponse } from '#core/apiTypes.ts'
+import { buildProposalInput, PROPOSER } from '#core/__tests__/proposalBuilders.ts'
+import { MAX_LIVE_TOKENS, type ApiTokenScope } from '#core/apiToken.ts'
+import type {
+  ApiTokenCleanupResponse,
+  ApiTokenCreateResponse,
+  ApiTokenView,
+  McpInfoResponse,
+} from '#core/apiTypes.ts'
+import { insertToken } from '#server/db/apiTokenRepository.ts'
+import { getProposal, insertProposal } from '#server/db/proposalRepository.ts'
 import { createApp, type AppDeps } from '#server/http/createApp.ts'
 
-import { requestJson, testAppDeps } from '#server/http/__tests__/appFixtures.ts'
+import { requestJson, TEST_NOW, testAppDeps } from '#server/http/__tests__/appFixtures.ts'
 
 const ALICE = { 'X-authentik-username': 'alice' }
 const BOB = { 'X-authentik-username': 'bob' }
@@ -170,6 +178,201 @@ describe('token routes', () => {
   })
 })
 
+/**
+ * Sends DELETE /api/tokens/:id.
+ * @param {ReturnType<typeof createApp>} app - App
+ * @param {Record<string, string>} user - Identity header
+ * @param {number | string} id - Token id
+ * @returns {Promise<{ status: number; body: unknown }>} - Status and parsed body, null for 204
+ */
+const deleteToken = async (
+  app: ReturnType<typeof createApp>,
+  user: Record<string, string>,
+  id: number | string,
+): Promise<{ status: number; body: unknown }> => {
+  const response = await app.request(`/api/tokens/${id}`, {
+    method: 'DELETE',
+    headers: { 'Content-Type': 'application/json', ...user },
+  })
+
+  return { status: response.status, body: response.status === 204 ? null : await response.json() }
+}
+
+/**
+ * Stores a token that expired a day before the test time.
+ * @param {AppDeps} deps - App dependencies with the database
+ * @param {string} owner - Owner
+ * @param {string} name - Token name, also its hash seed
+ * @param {ApiTokenScope} scope - Token scope
+ * @returns {number} - Token id
+ */
+const addExpiredToken = (
+  deps: AppDeps,
+  owner: string,
+  name: string,
+  scope: ApiTokenScope = 'read',
+): number => {
+  const result = insertToken(
+    deps.db,
+    {
+      owner,
+      input: { name, scope, expiresAt: new Date(TEST_NOW.getTime() - 86_400_000).toISOString() },
+      prefix: 'sieb_abcd',
+      hash: name.padEnd(64, '0').slice(0, 64),
+    },
+    new Date(TEST_NOW.getTime() - 30 * 86_400_000),
+  )
+
+  if (!result.ok) {
+    throw new Error(result.error)
+  }
+
+  return result.token.id
+}
+
+/**
+ * Lists the token names of a user through the API.
+ * @param {ReturnType<typeof createApp>} app - App
+ * @param {Record<string, string>} user - Identity header
+ * @returns {Promise<string[]>} - Names, newest first
+ */
+const tokenNames = async (
+  app: ReturnType<typeof createApp>,
+  user: Record<string, string>,
+): Promise<string[]> =>
+  (await requestJson<ApiTokenView[]>(app, '/api/tokens', 'GET', undefined, user)).body.map(
+    (token) => token.name,
+  )
+
+describe('token deletion', () => {
+  it('deletes a revoked or expired own token with 204 and logs it', async () => {
+    const { app, logs, deps } = tokenApp()
+    const revoked = (
+      await create(app, ALICE, { name: 'old', scope: 'read', expiresAt: '2026-07-01' })
+    ).body.token
+    const expired = addExpiredToken(deps, 'alice', 'gone')
+
+    await requestJson(app, `/api/tokens/${revoked.id}/revoke`, 'POST', {}, ALICE)
+
+    const response = await app.request(`/api/tokens/${revoked.id}`, {
+      method: 'DELETE',
+      headers: { 'Content-Type': 'application/json', ...ALICE },
+    })
+
+    expect(response.status).toBe(204)
+    expect(response.headers.get('Cache-Control')).toBe('no-store')
+    expect(await response.text()).toBe('')
+    expect(logs.at(-1)).toBe('[sieb] api token deleted: owner="alice" name="old" id=1 scope=read')
+    expect(await deleteToken(app, ALICE, expired)).toEqual({ status: 204, body: null })
+    expect(await tokenNames(app, ALICE)).toEqual([])
+    expect(await deleteToken(app, ALICE, revoked.id)).toEqual({
+      status: 404,
+      body: { error: 'not_found' },
+    })
+  })
+
+  it('refuses a live token with 409 token_live and keeps it', async () => {
+    const { app, logs } = tokenApp()
+    const live = (await create(app, ALICE)).body.token
+
+    expect(await deleteToken(app, ALICE, live.id)).toEqual({
+      status: 409,
+      body: { error: 'token_live' },
+    })
+    expect(await tokenNames(app, ALICE)).toEqual(['laptop'])
+    expect(logs.some((line) => line.includes('deleted'))).toBe(false)
+  })
+
+  it('answers 404 for foreign, unknown and malformed ids', async () => {
+    const { app } = tokenApp()
+    const bob = (await create(app, BOB, { name: 'bob-ci', scope: 'read', expiresAt: '2026-07-01' }))
+      .body.token
+
+    await requestJson(app, `/api/tokens/${bob.id}/revoke`, 'POST', {}, BOB)
+
+    expect((await deleteToken(app, ALICE, bob.id)).status).toBe(404)
+    expect((await deleteToken(app, ALICE, 99)).status).toBe(404)
+    expect((await deleteToken(app, ALICE, 'x')).status).toBe(404)
+    expect(await tokenNames(app, BOB)).toEqual(['bob-ci'])
+  })
+
+  it('goes through the write guard and the identity', async () => {
+    const { app } = tokenApp()
+    const id = (await create(app, ALICE)).body.token.id
+
+    await requestJson(app, `/api/tokens/${id}/revoke`, 'POST', {}, ALICE)
+
+    expect(
+      (await app.request(`/api/tokens/${id}`, { method: 'DELETE', headers: ALICE })).status,
+    ).toBe(415)
+    expect(
+      (
+        await app.request(`/api/tokens/${id}`, {
+          method: 'DELETE',
+          headers: { 'Content-Type': 'application/json', Origin: 'https://evil.example', ...ALICE },
+        })
+      ).status,
+    ).toBe(403)
+    expect((await deleteToken(app, {}, id)).status).toBe(401)
+    expect(await tokenNames(app, ALICE)).toEqual(['laptop'])
+  })
+
+  it('keeps the attribution of proposals filed with a deleted token and never reuses its id', async () => {
+    const { app, deps } = tokenApp()
+    const token = (
+      await create(app, ALICE, { name: 'mac', scope: 'propose', expiresAt: '2026-07-01' })
+    ).body.token
+    const proposalId = insertProposal(deps.db, {
+      ...buildProposalInput(),
+      ...PROPOSER,
+      proposedBy: 'alice',
+      tokenId: token.id,
+      clientLabel: 'mac',
+      sourceAccess: [],
+      basisDecisions: [],
+      createdAt: TEST_NOW.toISOString(),
+    })
+
+    await requestJson(app, `/api/tokens/${token.id}/revoke`, 'POST', {}, ALICE)
+
+    expect((await deleteToken(app, ALICE, token.id)).status).toBe(204)
+    expect(getProposal(deps.db, proposalId)).toMatchObject({
+      proposedBy: 'alice',
+      proposedVia: 'token',
+      clientLabel: 'mac',
+      tokenId: token.id,
+      state: 'open',
+    })
+    expect((await create(app, BOB)).body.token.id).toBe(token.id + 1)
+  })
+
+  it('deletes all inactive own tokens on POST /cleanup and answers the count', async () => {
+    const { app, logs, deps } = tokenApp()
+    const revoked = (
+      await create(app, ALICE, { name: 'old', scope: 'read', expiresAt: '2026-07-01' })
+    ).body.token
+
+    await create(app, ALICE, { name: 'live', scope: 'read', expiresAt: '2026-07-01' })
+    await requestJson(app, `/api/tokens/${revoked.id}/revoke`, 'POST', {}, ALICE)
+    addExpiredToken(deps, 'alice', 'gone')
+    addExpiredToken(deps, 'bob', 'bob-old')
+
+    expect(
+      await requestJson<ApiTokenCleanupResponse>(app, '/api/tokens/cleanup', 'POST', {}, ALICE),
+    ).toEqual({ status: 200, body: { deleted: 2 } })
+    expect(logs.filter((line) => line.includes('api token deleted'))).toEqual([
+      '[sieb] api token deleted: owner="alice" name="old" id=1 scope=read',
+      '[sieb] api token deleted: owner="alice" name="gone" id=3 scope=read',
+    ])
+    expect(await tokenNames(app, ALICE)).toEqual(['live'])
+    expect(await tokenNames(app, BOB)).toEqual(['bob-old'])
+    expect(
+      (await requestJson<ApiTokenCleanupResponse>(app, '/api/tokens/cleanup', 'POST', {}, ALICE))
+        .body,
+    ).toEqual({ deleted: 0 })
+  })
+})
+
 describe('mcp-info route', () => {
   it('answers the endpoint from the public URL or the request origin', async () => {
     const configured = tokenApp({ publicUrl: 'https://sieb.example.com' }).app
@@ -177,7 +380,7 @@ describe('mcp-info route', () => {
 
     expect(await requestJson<McpInfoResponse>(configured, '/api/mcp-info')).toEqual({
       status: 200,
-      body: { enabled: true, mcpUrl: 'https://sieb.example.com/mcp', oauth: false },
+      body: { enabled: true, mcpUrl: 'https://sieb.example.com/mcp', oauth: false, claude: null },
     })
     expect(
       (
@@ -191,7 +394,7 @@ describe('mcp-info route', () => {
           },
         )
       ).body,
-    ).toEqual({ enabled: true, mcpUrl: 'https://localhost:5173/mcp', oauth: false })
+    ).toEqual({ enabled: true, mcpUrl: 'https://localhost:5173/mcp', oauth: false, claude: null })
   })
 
   it('reports OAuth when configured and nothing while disabled', async () => {
@@ -208,10 +411,11 @@ describe('mcp-info route', () => {
       enabled: true,
       mcpUrl: 'https://sieb.example.com/mcp',
       oauth: true,
+      claude: null,
     })
     expect(
       (await requestJson(tokenApp({ publicUrl, oauth, mcpEnabled: false }).app, '/api/mcp-info'))
         .body,
-    ).toEqual({ enabled: false, mcpUrl: null, oauth: false })
+    ).toEqual({ enabled: false, mcpUrl: null, oauth: false, claude: null })
   })
 })

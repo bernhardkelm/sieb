@@ -3,12 +3,17 @@ import { computed, onMounted, ref, type ComputedRef, type Ref } from 'vue'
 import { isNotAffectedFinding } from '#core/findingDecisionState.ts'
 import type { FindingView } from '#core/findingView.ts'
 import type { ImageAggregate } from '#core/imageAggregation.ts'
-import { emptyAggregateFilters, type AggregateFilters } from '@/components/filters/aggregateFilters'
+import {
+  emptyAggregateFilters,
+  withoutHiddenAggregateColumns,
+  type AggregateFilters,
+} from '@/components/filters/aggregateFilters'
 import { countHiddenImages, filterImages } from '@/components/images/imageFilters'
 import { IMAGE_SORT_COLUMNS, sortImages, type ImageSortColumn } from '@/components/images/imageSort'
 import { useCursorList } from '@/composables/useCursorList'
 import { useExpandedGroup } from '@/composables/useExpandedGroup'
 import { useHintActions } from '@/composables/useHintActions'
+import { useLabelColumns } from '@/composables/useLabelColumns'
 import { useListSort, type ListSort } from '@/composables/useListSort'
 import { findingRowKey, groupRowKey } from '@/keyboard/rowKey'
 import { IMAGE_QUERY } from '@/router/routeNames'
@@ -30,7 +35,8 @@ export interface ImagesController {
 /**
  * Drives the by-image view: filtered images in the sort of the `sort` and `dir` query params, the image expanded through the `image` query param
  * with its open findings, and the keyboard cursor over both. Not affected findings stay out of the
- * counts and the expanded findings until the showNotAffected filter brings them back.
+ * counts and the expanded findings until the showNotAffected filter brings them back; filters on
+ * hidden label columns are ignored.
  * @param {() => void} focusSearch - Focuses the search input
  * @returns {ImagesController} - State and actions for the view
  */
@@ -38,13 +44,15 @@ export const useImagesController = (focusSearch: () => void): ImagesController =
   const store = useImagesStore()
   const findings = useFindingsStore()
   const filters = ref(emptyAggregateFilters())
+  const { hidden } = useLabelColumns()
+  const applied = computed(() => withoutHiddenAggregateColumns(filters.value, hidden.value))
 
   const sort = useListSort(IMAGE_SORT_COLUMNS)
 
   const images = computed(() =>
-    sortImages(filterImages(store.items, filters.value), sort.sort.value),
+    sortImages(filterImages(store.items, applied.value), sort.sort.value),
   )
-  const hiddenCount = computed(() => countHiddenImages(store.items, filters.value))
+  const hiddenCount = computed(() => countHiddenImages(store.items, applied.value))
   const expanded = useExpandedGroup(IMAGE_QUERY)
   const expandedFindings = computed(() =>
     findings.items.filter(

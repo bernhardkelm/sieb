@@ -5,6 +5,7 @@ import { useRoute } from 'vue-router'
 import FindingPanel from '@/components/finding/FindingPanel.vue'
 import AppSidebar from '@/components/layout/AppSidebar.vue'
 import AppTopBar from '@/components/layout/AppTopBar.vue'
+import { useDocumentTitle } from '@/composables/useDocumentTitle'
 import { useNavigationShortcuts } from '@/composables/useNavigationShortcuts'
 import { useLabelsStore } from '@/stores/labelsStore'
 
@@ -13,6 +14,7 @@ const labels = useLabelsStore()
 const main = ref<HTMLElement | null>(null)
 
 useNavigationShortcuts()
+useDocumentTitle()
 
 onMounted(() => {
   void labels.ensureLoaded()

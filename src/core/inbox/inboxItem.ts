@@ -47,6 +47,7 @@ interface InboxItemBase {
 export interface ProposalInboxItem extends InboxItemBase {
   kind: 'proposal'
   refs: { proposalId: number }
+  imageRefs: string[] | null // target images, null targets every affected image
   verdict: ProposalVerdict
   confidence: ProposalConfidence
   imageCount: number // open findings the proposal covers

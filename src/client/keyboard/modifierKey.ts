@@ -8,6 +8,7 @@ const isApplePlatform = (): boolean =>
 const APPLE = isApplePlatform()
 
 export const MODIFIER_KEY = APPLE ? '⌘' : 'Ctrl'
+export const MODIFIER_SHORTCUT = APPLE ? 'Meta' : 'Control' // modifier name in aria-keyshortcuts
 
 /**
  * Returns whether the platform command modifier is held: Cmd on Apple platforms, Ctrl elsewhere.

@@ -30,7 +30,7 @@ describe('identity middleware', () => {
     const { app } = await syncedTestApp({ devUser: null })
     const metrics = await app.request('/metrics')
 
-    expect(await requestJson(app, '/api/me')).toEqual({
+    expect(await requestJson(app, '/api/me')).toMatchObject({
       status: 200,
       body: { username: null, authMode: 'header' },
     })
@@ -57,7 +57,7 @@ describe('identity middleware', () => {
     )
 
     expect(created.body.decision.createdBy).toBe('alice')
-    expect((await requestJson(app, '/api/me', 'GET', undefined, headers)).body).toEqual({
+    expect((await requestJson(app, '/api/me', 'GET', undefined, headers)).body).toMatchObject({
       username: 'alice',
       authMode: 'header',
     })

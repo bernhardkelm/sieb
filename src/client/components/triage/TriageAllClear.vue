@@ -1,17 +1,24 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, onMounted } from 'vue'
 import { RouterLink } from 'vue-router'
 
-import { EXPIRING_WITHIN_DAYS } from '#core/decisionFilter.ts'
+import { EXPIRING_WITHIN_DAYS, isExpiring } from '#core/decisionFilter.ts'
 
 import AllClear from '@/components/common/AllClear.vue'
-import { countExpiringDecisions } from '@/components/triage/expiringDecisions'
+import { useNow } from '@/composables/useNow'
 import { DECISION_TAB_QUERY, ROUTE_NAMES } from '@/router/routeNames'
-import { useFindingsStore } from '@/stores/findingsStore'
+import { useDecisionsStore } from '@/stores/decisionsStore'
 
-const store = useFindingsStore()
+const decisions = useDecisionsStore()
+const now = useNow()
 
-const expiring = computed(() => countExpiringDecisions(store.items, store.now))
+const expiring = computed(
+  () => decisions.items.filter((view) => isExpiring(view, now.value)).length,
+)
+
+onMounted(() => {
+  void decisions.ensureLoaded()
+})
 </script>
 
 <template>

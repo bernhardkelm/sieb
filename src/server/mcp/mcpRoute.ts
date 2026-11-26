@@ -13,7 +13,9 @@ import { createPersonalTokenVerifier } from '#server/auth/personalTokenVerifier.
 import type { AppEnv } from '#server/http/AppEnv.ts'
 import type { RouteDeps } from '#server/http/RouteDeps.ts'
 import { callerFromAuthInfo } from '#server/mcp/callerFromAuthInfo.ts'
+import { createConnectionRecorder } from '#server/mcp/connectionRecorder.ts'
 import { createMcpServer } from '#server/mcp/createMcpServer.ts'
+import { handshakeLogLine, handshakeMethod } from '#server/mcp/handshakeLog.ts'
 import { MCP_PATH, mcpEndpointUrl } from '#server/mcp/mcpEndpointUrl.ts'
 import { createMcpEndpoint, type McpEndpoint } from '#server/mcp/mcpEndpoint.ts'
 import {
@@ -64,8 +66,9 @@ const verifiersOf = (deps: McpRouteDeps): BearerVerifiers => ({
  * Creates the /mcp handler, mounted after the Host, Origin and body guards. Identity comes only
  * from the bearer token, the forward-auth header is never read here. A request needs the
  * sieb:read scope, at most MCP_RATE_LIMIT requests per minute and caller pass, and a fresh MCP
- * server answers it statelessly. The propose_decision limit of PROPOSE_RATE_LIMIT per hour and
- * sieb user is shared by those servers.
+ * server answers it statelessly. Each handshake logs the caller with its scopes. The propose_decision limit of PROPOSE_RATE_LIMIT per hour and
+ * sieb user is shared by those servers. Each admitted request records the caller's connection,
+ * throttled, for the hand-off state in /api/mcp-info.
  * @param {McpRouteDeps} deps - Tool dependencies, OAuth settings, version and logger
  * @returns {Handler<AppEnv>} - Handler for app.all('/mcp')
  */
@@ -74,6 +77,7 @@ export const createMcpRoute = (deps: McpRouteDeps): Handler<AppEnv> => {
   const resourceMetadataUrl = metadataUrlOf(deps)
   const limiter = createRateLimiter()
   const proposalLimiter = createRateLimiter(PROPOSE_RATE_LIMIT, PROPOSE_RATE_WINDOW_MS)
+  const recordConnection = createConnectionRecorder(deps)
   let endpoint: McpEndpoint | null = null
 
   return async (c) => {
@@ -99,6 +103,14 @@ export const createMcpRoute = (deps: McpRouteDeps): Handler<AppEnv> => {
     if (retryAfter !== null) {
       c.header('Retry-After', String(retryAfter))
       return c.json<ErrorBody>({ error: 'rate_limited' }, 429)
+    }
+
+    recordConnection(caller)
+
+    const handshake = await handshakeMethod(c.req.raw)
+
+    if (handshake !== null) {
+      deps.log(handshakeLogLine(caller, handshake))
     }
 
     endpoint ??= createMcpEndpoint(

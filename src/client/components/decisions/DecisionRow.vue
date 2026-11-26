@@ -48,7 +48,7 @@ const lapsed = computed(() => props.view.effective.state === 'reopened')
     </span>
     <span v-else class="scope all">All images</span>
     <HintTooltip :text="view.decision.reason">
-      <span class="reason">
+      <span class="reason" data-panel-clip>
         <span v-if="why" class="why" :class="{ lapsed }">{{ why }} · </span
         >{{ view.decision.reason }}
       </span>

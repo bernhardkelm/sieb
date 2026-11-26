@@ -3,6 +3,7 @@ import { computed, onBeforeUnmount, onMounted } from 'vue'
 import { RouterLink, useRoute } from 'vue-router'
 
 import KeyHint from '@/components/common/KeyHint.vue'
+import SourceCodeLink from '@/components/layout/SourceCodeLink.vue'
 import OverviewStats from '@/components/overview/OverviewStats.vue'
 import { formatCount } from '@/format/count'
 import { hintsForRoute } from '@/keyboard/keyboardHints'
@@ -38,31 +39,35 @@ onBeforeUnmount(() => {
             <span v-if="item.badge === 'inbox' && inbox.counts.total > 0" class="badge">
               {{ formatCount(inbox.counts.total) }}<span class="visually-hidden">&nbsp;open</span>
             </span>
-            <KeyHint class="shortcut" :keys="[item.shortcut]" />
+            <KeyHint class="shortcut" decorative :keys="[item.shortcut]" />
           </RouterLink>
         </li>
       </ul>
     </nav>
     <OverviewStats class="overview" />
-    <ul class="hints" aria-label="Keyboard shortcuts">
-      <li v-for="hint in hints" :key="hint.label">
-        <button
-          v-if="hint.action"
-          type="button"
-          class="hint action"
-          :aria-disabled="actions.reasonOf(hint.action) !== null || undefined"
-          :title="actions.reasonOf(hint.action) ?? undefined"
-          @click="actions.run(hint.action)"
-        >
-          <KeyHint :keys="hint.keys" />
-          <span>{{ hint.label }}</span>
-        </button>
-        <span v-else class="hint">
-          <KeyHint :keys="hint.keys" />
-          <span>{{ hint.label }}</span>
-        </span>
-      </li>
-    </ul>
+    <div class="foot">
+      <ul class="hints" aria-label="Keyboard shortcuts">
+        <li v-for="hint in hints" :key="hint.label">
+          <button
+            v-if="hint.action"
+            type="button"
+            class="hint action"
+            :aria-disabled="actions.reasonOf(hint.action) !== null || undefined"
+            :tabindex="actions.reasonOf(hint.action) !== null ? -1 : undefined"
+            :title="actions.reasonOf(hint.action) ?? undefined"
+            @click="actions.run(hint.action)"
+          >
+            <KeyHint :keys="hint.keys" />
+            <span>{{ hint.label }}</span>
+          </button>
+          <span v-else class="hint">
+            <KeyHint :keys="hint.keys" />
+            <span>{{ hint.label }}</span>
+          </span>
+        </li>
+      </ul>
+      <SourceCodeLink class="source-code" />
+    </div>
   </div>
 </template>
 
@@ -134,11 +139,18 @@ onBeforeUnmount(() => {
   color: var(--color-text);
 }
 
+.foot {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  margin-top: auto;
+}
+
 .hints {
   display: flex;
   flex-direction: column;
   gap: var(--space-0-5);
-  margin: auto 0 0;
+  margin: 0;
   padding: 0;
   color: var(--color-text-subtle);
   font-size: var(--font-size-sm);
@@ -170,6 +182,10 @@ onBeforeUnmount(() => {
   color: var(--color-text);
 }
 
+.source-code {
+  padding: 0 var(--space-2);
+}
+
 .action[aria-disabled='true'] {
   cursor: default;
   opacity: 0.55;
@@ -198,7 +214,7 @@ onBeforeUnmount(() => {
 
   .wordmark,
   .overview,
-  .hints,
+  .foot,
   .shortcut {
     display: none;
   }

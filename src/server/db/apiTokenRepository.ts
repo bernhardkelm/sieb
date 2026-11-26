@@ -65,7 +65,7 @@ const withoutHash = ({ hash: _hash, ...token }: StoredApiToken): ApiToken => tok
  * @param {number} id - Token id
  * @returns {ApiToken | null} - Token, null when missing or owned by someone else
  */
-const getOwnToken = (db: DatabaseSync, owner: string, id: number): ApiToken | null => {
+export const getOwnToken = (db: DatabaseSync, owner: string, id: number): ApiToken | null => {
   const row = db.prepare('SELECT * FROM api_tokens WHERE id = ? AND owner = ?').get(id, owner) as
     | ApiTokenRow
     | undefined
@@ -74,7 +74,9 @@ const getOwnToken = (db: DatabaseSync, owner: string, id: number): ApiToken | nu
 }
 
 /**
- * Stores a new token unless its owner already holds MAX_LIVE_TOKENS live tokens.
+ * Stores a new token unless its owner already holds MAX_LIVE_TOKENS live tokens. Its id lies
+ * above every token id and every proposal's token_id, so the id of a deleted token that proposals
+ * still name is never handed out again.
  * @param {DatabaseSync} db - Open database
  * @param {{ owner: string; input: ApiTokenInput; prefix: string; hash: string }} token - Owner, validated input, display prefix and secret hash
  * @param {Date} now - Creation time
@@ -105,8 +107,12 @@ export const insertToken = (
 
     const { lastInsertRowid } = db
       .prepare(
-        `INSERT INTO api_tokens (owner, name, scope, token_prefix, token_hash, created_at, expires_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?)`,
+        `INSERT INTO api_tokens
+           (id, owner, name, scope, token_prefix, token_hash, created_at, expires_at)
+         VALUES ((SELECT COALESCE(MAX(id), 0) + 1 FROM (
+           SELECT MAX(id) AS id FROM api_tokens
+           UNION ALL SELECT MAX(token_id) FROM decision_proposals
+         )), ?, ?, ?, ?, ?, ?, ?)`,
       )
       .run(owner, input.name, input.scope, prefix, hash, at, input.expiresAt)
     const token = getOwnToken(db, owner, Number(lastInsertRowid))

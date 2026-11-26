@@ -28,7 +28,12 @@ let wrapper: VueWrapper | null = null
 const mountMenu = async (authMode: 'header' | 'oidc', mcpEnabled: boolean): Promise<VueWrapper> => {
   const pinia = createPinia()
   setActivePinia(pinia)
-  vi.mocked(fetchMcpInfo).mockResolvedValue({ enabled: mcpEnabled, mcpUrl: null, oauth: false })
+  vi.mocked(fetchMcpInfo).mockResolvedValue({
+    enabled: mcpEnabled,
+    mcpUrl: null,
+    oauth: false,
+    claude: null,
+  })
   const me = useMeStore()
   me.username = 'alice'
   me.authMode = authMode

@@ -4,6 +4,7 @@ import {
   emptyFilters,
   hasActiveFilters,
   toFindingQuery,
+  withoutHiddenColumns,
   type FindingFilters,
 } from '@/stores/findingFilters'
 
@@ -23,7 +24,30 @@ describe('KEV filter', () => {
   })
 
   it('is ignored without a KEV source', () => {
-    expect(toFindingQuery(KEV_ON, 'inbox', NOW, false).kev).toBe(false)
-    expect(hasActiveFilters(KEV_ON, false)).toBe(false)
+    expect(toFindingQuery(KEV_ON, 'inbox', NOW, ['kev']).kev).toBe(false)
+    expect(hasActiveFilters(KEV_ON, ['kev'])).toBe(false)
+  })
+})
+
+describe('filters on hidden label columns', () => {
+  const labelled: FindingFilters = {
+    ...emptyFilters(),
+    exposure: ['public', 'unknown'],
+    owner: ['self'],
+  }
+
+  it('narrows the query while the columns show', () => {
+    const query = toFindingQuery(labelled, 'inbox', NOW)
+
+    expect([query.exposure, query.owner]).toEqual([['public', 'unknown'], ['self']])
+    expect(hasActiveFilters(labelled)).toBe(true)
+  })
+
+  it('stays set but is ignored and not active while the columns are hidden', () => {
+    const query = toFindingQuery(labelled, 'inbox', NOW, ['exposure', 'owner'])
+
+    expect([query.exposure, query.owner]).toEqual([[], []])
+    expect(hasActiveFilters(labelled, ['exposure', 'owner'])).toBe(false)
+    expect(withoutHiddenColumns(labelled, ['owner'])).toEqual({ ...labelled, owner: [] })
   })
 })

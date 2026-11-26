@@ -68,17 +68,29 @@ describe('labelsStore', () => {
     expect(labels.owners).toEqual(['self'])
   })
 
-  it('shows KEV until the server answers the KEV source none', async () => {
+  it('hides KEV while the first request is pending and for the KEV source none', async () => {
     vi.mocked(fetchLabels)
       .mockResolvedValueOnce({ exposure: false, owners: [], kev: 'prometheus' })
       .mockResolvedValueOnce({ exposure: false, owners: [], kev: 'none' })
     const labels = useLabelsStore()
 
-    expect([labels.kevSource, labels.showKev]).toEqual([null, true])
-    await labels.ensureLoaded()
-    expect([labels.kevSource, labels.showKev]).toEqual(['prometheus', true])
+    expect([labels.pending, labels.showKev]).toEqual([false, true])
+
+    const loading = labels.ensureLoaded()
+
+    expect([labels.pending, labels.kevSource, labels.showKev]).toEqual([true, null, false])
+    await loading
+    expect([labels.pending, labels.kevSource, labels.showKev]).toEqual([false, 'prometheus', true])
 
     await labels.refresh()
     expect([labels.kevSource, labels.showKev]).toEqual(['none', false])
+  })
+
+  it('shows KEV after a failed first request, a KEV source being the default', async () => {
+    vi.mocked(fetchLabels).mockRejectedValueOnce(new Error('offline'))
+    const labels = useLabelsStore()
+
+    await labels.ensureLoaded()
+    expect([labels.pending, labels.showKev]).toEqual([false, true])
   })
 })

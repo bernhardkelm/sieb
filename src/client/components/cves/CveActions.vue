@@ -17,16 +17,16 @@ defineEmits<{ bulk: []; decideAll: [] }>()
       {{ cve.openCount }} open in {{ countOf(cve.imageCount, 'image') }}, {{ cve.inboxCount }}
       undecided
     </span>
-    <BaseButton :disabled="cve.inboxCount === 0" @click="$emit('bulk')">
-      Decide open images <KeyHint :keys="['⇧', 'A']" />
+    <BaseButton :disabled="cve.inboxCount === 0" aria-keyshortcuts="Shift+A" @click="$emit('bulk')">
+      Decide open images <KeyHint decorative :keys="['⇧', 'A']" />
     </BaseButton>
-    <BaseButton @click="$emit('decideAll')">
+    <BaseButton aria-keyshortcuts="Shift+D" @click="$emit('decideAll')">
       {{
         cve.allScopeDecision
           ? 'Edit decision for all images'
           : 'Decide for all images (incl. future)'
       }}
-      <KeyHint :keys="['⇧', 'D']" />
+      <KeyHint decorative :keys="['⇧', 'D']" />
     </BaseButton>
   </div>
 </template>

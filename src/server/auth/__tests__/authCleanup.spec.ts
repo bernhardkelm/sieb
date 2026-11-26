@@ -1,6 +1,7 @@
 // @vitest-environment node
 import { describe, expect, it, vi } from 'vitest'
 
+import { buildProposalInput, PROPOSER } from '#core/__tests__/proposalBuilders.ts'
 import { startAuthCleanup } from '#server/auth/authCleanup.ts'
 import { insertToken, listOwnTokens } from '#server/db/apiTokenRepository.ts'
 import {
@@ -9,6 +10,7 @@ import {
   TOKEN_RETENTION_MS,
 } from '#server/db/apiTokenCleanup.ts'
 import { MEMORY_DB, openDatabase } from '#server/db/openDatabase.ts'
+import { getProposal, insertProposal } from '#server/db/proposalRepository.ts'
 import { createSession } from '#server/db/sessionRepository.ts'
 
 const NOW = new Date('2026-06-01T12:00:00.000Z')
@@ -87,6 +89,33 @@ describe('api token cleanup', () => {
         .sort(),
     ).toEqual(['bbbb', 'cccc', 'legacy-new'])
     expect(listOwnTokens(db, 'bob')).toEqual([])
+  })
+})
+
+describe('api token cleanup with proposals', () => {
+  it('deletes an old token that proposals name and keeps their attribution', () => {
+    const db = openDatabase(MEMORY_DB)
+    const old = new Date(NOW.getTime() - TOKEN_RETENTION_MS - 1).toISOString()
+    const tokenId = addToken(db, 'alice', 'aaaa', old)
+    const proposalId = insertProposal(db, {
+      ...buildProposalInput(),
+      ...PROPOSER,
+      proposedBy: 'alice',
+      tokenId,
+      sourceAccess: [],
+      basisDecisions: [],
+      createdAt: old,
+    })
+
+    expect(deleteStaleTokens(db, NOW)).toBe(1)
+    expect(listOwnTokens(db, 'alice')).toEqual([])
+    expect(getProposal(db, proposalId)).toMatchObject({
+      proposedBy: 'alice',
+      proposedVia: 'token',
+      clientLabel: PROPOSER.clientLabel,
+      tokenId,
+    })
+    expect(addToken(db, 'bob', 'bbbb', '2026-07-01T00:00:00.000Z')).toBe(tokenId + 1)
   })
 })
 

@@ -15,6 +15,7 @@ import KeyHint from '@/components/common/KeyHint.vue'
 import HandoffDefaultMenu from '@/components/finding/HandoffDefaultMenu.vue'
 import { HANDOFF_OPTIONS } from '@/format/handoffTargets'
 import { useHandoffTargetStore } from '@/stores/handoffTargetStore'
+import { useMcpStore } from '@/stores/mcpStore'
 
 defineProps<{
   /** claude command for own images, null leaves its entry out */
@@ -24,7 +25,18 @@ defineProps<{
 const emit = defineEmits<{ open: [target: HandoffTarget]; copy: [kind: 'prompt' | 'command'] }>()
 
 const targets = useHandoffTargetStore()
+const mcp = useMcpStore()
 const helpId = useId()
+const noteId = `${helpId}-connect`
+
+/**
+ * Returns the description ids of an item, the connect note first while Claude cannot reach sieb.
+ * @param {string | null} help - Id of the item's own help line
+ * @returns {string | undefined} - Space separated ids, undefined without any
+ */
+const describedBy = (help: string | null): string | undefined =>
+  [mcp.connectReason === null ? null : noteId, help].filter((id) => id !== null).join(' ') ||
+  undefined
 </script>
 
 <template>
@@ -38,13 +50,19 @@ const helpId = useId()
       <!-- as-child renders the surface from this template, Reka moves class attrs off its scoped root -->
       <DropdownMenuContent as-child align="end" :side-offset="4" :collision-padding="8">
         <!-- overlay scope keeps Escape and list keys away from the panel and the page -->
-        <div class="content" data-shortcut-scope="overlay">
+        <div class="content" data-shortcut-scope="overlay" :aria-describedby="describedBy(null)">
+          <p v-if="mcp.connectReason !== null" :id="noteId" class="note">
+            {{ mcp.connectReason }}
+          </p>
           <DropdownMenuLabel class="heading">Open in, prompt prefilled</DropdownMenuLabel>
           <DropdownMenuItem
             v-for="target in HANDOFF_TARGETS"
             :key="target"
             class="item"
-            :aria-describedby="`${helpId}-${target}`"
+            :disabled="mcp.connectReason !== null"
+            :title="mcp.connectReason ?? undefined"
+            :aria-describedby="describedBy(`${helpId}-${target}`)"
+            :aria-keyshortcuts="targets.preferred === target ? 'Shift+H' : undefined"
             @select="emit('open', target)"
           >
             <span class="text">
@@ -53,17 +71,25 @@ const helpId = useId()
                 HANDOFF_OPTIONS[target].help
               }}</span>
             </span>
-            <KeyHint v-if="targets.preferred === target" :keys="['⇧', 'H']" />
+            <KeyHint v-if="targets.preferred === target" decorative :keys="['⇧', 'H']" />
           </DropdownMenuItem>
           <DropdownMenuSeparator class="separator" />
           <DropdownMenuLabel class="heading">Copy</DropdownMenuLabel>
-          <DropdownMenuItem class="item" @select="emit('copy', 'prompt')">
+          <DropdownMenuItem class="item" aria-keyshortcuts="h" @select="emit('copy', 'prompt')">
             <span class="text">Copy prompt</span>
-            <KeyHint :keys="['h']" />
+            <KeyHint decorative :keys="['h']" />
           </DropdownMenuItem>
-          <DropdownMenuItem v-if="command !== null" class="item" @select="emit('copy', 'command')">
+          <DropdownMenuItem
+            v-if="command !== null"
+            class="item"
+            :disabled="mcp.connectReason !== null"
+            :title="mcp.connectReason ?? undefined"
+            :aria-describedby="describedBy(null)"
+            aria-keyshortcuts="y"
+            @select="emit('copy', 'command')"
+          >
             <span class="text">Copy claude command</span>
-            <KeyHint :keys="['y']" />
+            <KeyHint decorative :keys="['y']" />
           </DropdownMenuItem>
           <DropdownMenuSeparator class="separator" />
           <HandoffDefaultMenu />

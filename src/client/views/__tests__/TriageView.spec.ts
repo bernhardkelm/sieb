@@ -2,7 +2,8 @@ import { flushPromises } from '@vue/test-utils'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { buildDecision, buildFindingView } from '#core/__tests__/coreBuilders.ts'
-import type { FindingView } from '#core/findingView.ts'
+import type { DecisionView, FindingView } from '#core/findingView.ts'
+import { fetchDecisions } from '@/api/decisionsApi'
 import { fetchFindings } from '@/api/findingsApi'
 import { mountWithRouter, type RoutedMount } from '@/__tests__/mountWithRouter'
 import { useFindingsStore } from '@/stores/findingsStore'
@@ -11,6 +12,9 @@ import TriageView from '@/views/TriageView.vue'
 vi.mock('@/api/findingsApi', () => ({
   fetchFindings: vi.fn<typeof fetchFindings>(),
   fetchFindingDetail: vi.fn<() => Promise<never>>(() => new Promise(() => {})),
+}))
+vi.mock('@/api/decisionsApi', () => ({
+  fetchDecisions: vi.fn<typeof fetchDecisions>(),
 }))
 vi.mock('@/api/labelsApi', () => ({
   fetchLabels: vi.fn<() => Promise<never>>(() => new Promise(() => {})),
@@ -23,10 +27,15 @@ let mounted: RoutedMount | null = null
 /**
  * Mounts the triage view with loaded findings.
  * @param {FindingView[]} findings - Findings the API returns
+ * @param {DecisionView[]} decisions - Decisions the API returns
  * @returns {Promise<RoutedMount>} - Mounted view once the findings are loaded
  */
-const mountTriage = async (findings: FindingView[]): Promise<RoutedMount> => {
+const mountTriage = async (
+  findings: FindingView[],
+  decisions: DecisionView[] = [],
+): Promise<RoutedMount> => {
   vi.mocked(fetchFindings).mockResolvedValue(findings)
+  vi.mocked(fetchDecisions).mockResolvedValue(decisions)
   mounted = await mountWithRouter(TriageView, '/triage')
   await useFindingsStore().refresh()
   await flushPromises()
@@ -61,9 +70,14 @@ afterEach(() => {
 })
 
 describe('TriageView empty states', () => {
-  it('shows the all clear state with its next steps when every finding is decided', async () => {
+  it('shows the all clear state with the expiring count of the decisions list', async () => {
     const soon = new Date(Date.now() + 3 * DAY_MS).toISOString()
-    const { wrapper } = await mountTriage([decided(1, soon), decided(2, soon), decided(3)])
+    const decisions = [soon, soon, null].map((expiresAt, index) => ({
+      decision: buildDecision({ id: index + 1, status: 'accepted', expiresAt }),
+      effective: { state: 'active' as const },
+      openFindings: 1,
+    }))
+    const { wrapper } = await mountTriage([decided(1, soon)], decisions)
 
     expect(wrapper.get('h2').text()).toBe('All clear')
 

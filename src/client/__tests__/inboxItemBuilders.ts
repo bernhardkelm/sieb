@@ -38,6 +38,7 @@ export const proposalItem = (
   title: 'Heap overflow in a parser',
   url: `${BASE}/inbox/proposals/${id}`,
   refs: { proposalId: id },
+  imageRefs: null,
   verdict: 'not_affected',
   confidence: 'high',
   imageCount: 3,

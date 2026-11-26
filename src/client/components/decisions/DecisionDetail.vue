@@ -53,17 +53,23 @@ const reopened = computed(() => props.view.effective.state === 'reopened')
       </template>
     </p>
     <div class="actions">
-      <BaseButton v-if="reopened" variant="primary" :disabled="busy" @click="$emit('reconfirm')">
-        Re-confirm <KeyHint :keys="['c']" />
+      <BaseButton
+        v-if="reopened"
+        variant="primary"
+        :disabled="busy"
+        aria-keyshortcuts="c"
+        @click="$emit('reconfirm')"
+      >
+        Re-confirm <KeyHint decorative :keys="['c']" />
       </BaseButton>
-      <BaseButton v-if="!revoked" @click="$emit('edit')">
-        Edit <KeyHint :keys="['e']" />
+      <BaseButton v-if="!revoked" aria-keyshortcuts="e" @click="$emit('edit')">
+        Edit <KeyHint decorative :keys="['e']" />
       </BaseButton>
-      <BaseButton v-if="!revoked" @click="$emit('revoke')">
-        Revoke <KeyHint :keys="['⌫']" />
+      <BaseButton v-if="!revoked" aria-keyshortcuts="Backspace Delete" @click="$emit('revoke')">
+        Revoke <KeyHint decorative :keys="['⌫']" />
       </BaseButton>
-      <BaseButton v-if="findingCount > 0" @click="$emit('openFinding')">
-        Open finding <KeyHint :keys="['o']" />
+      <BaseButton v-if="findingCount > 0" aria-keyshortcuts="o" @click="$emit('openFinding')">
+        Open finding <KeyHint decorative :keys="['o']" />
       </BaseButton>
     </div>
   </div>

@@ -1,5 +1,5 @@
 import type { DecisionJustification, DecisionStatus } from '#core/decision.ts'
-import type { DecisionEvent } from '#core/decisionEvent.ts'
+import { coveredImageOf, type DecisionEvent } from '#core/decisionEvent.ts'
 import { describeProvenance } from '@/components/decision/decisionProvenance'
 import { EVENT_LABELS, JUSTIFICATION_LABELS, REOPEN_LABELS, STATUS_LABELS } from '@/format/labels'
 import { formatDate } from '@/format/relativeTime'
@@ -116,6 +116,11 @@ const describeReopen = (payload: Payload): string => {
  */
 const summarize = (event: DecisionEvent): EventSummary => {
   const payload = event.payload
+  const coveredImage = coveredImageOf(event)
+
+  if (coveredImage !== null) {
+    return { title: `Now covers ${coveredImage}`, lines: [] }
+  }
 
   switch (event.type) {
     case 'created':

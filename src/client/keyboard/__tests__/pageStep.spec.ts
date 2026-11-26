@@ -1,6 +1,15 @@
-import { describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 
-import { pageStepFor, pageStepOfRows } from '@/keyboard/pageStep'
+import { stickyInsets } from '@/components/layout/stickyInsets'
+import { pageStepFor, pageStepOf, pageStepOfRows, visibleArea } from '@/keyboard/pageStep'
+
+vi.mock('@/components/layout/stickyInsets', () => ({
+  stickyInsets: vi.fn<typeof stickyInsets>(() => ({ top: 0, bottom: 0 })),
+}))
+
+afterEach(() => {
+  vi.mocked(stickyInsets).mockReturnValue({ top: 0, bottom: 0 })
+})
 
 /**
  * Builds measured rows of one height from the top of the page.
@@ -42,5 +51,21 @@ describe('pageStepOfRows', () => {
   it('moves at least one row and falls back to a fixed step without visible rows', () => {
     expect(pageStepOfRows(rows(1, 32), 0, 768)).toBe(1)
     expect(pageStepOfRows([], 0, 768)).toBe(10)
+  })
+})
+
+describe('visibleArea', () => {
+  it('leaves out the rows the stuck bars cover', () => {
+    vi.mocked(stickyInsets).mockReturnValue({ top: 96, bottom: 56 })
+    window.scrollY = 400
+    window.innerHeight = 768
+
+    expect(visibleArea()).toEqual({ top: 496, bottom: 1112 })
+
+    const row = document.createElement('li')
+
+    row.getBoundingClientRect = () => ({ height: 32 }) as DOMRect
+    expect(pageStepOf(row)).toBe(18)
+    window.scrollY = 0
   })
 })

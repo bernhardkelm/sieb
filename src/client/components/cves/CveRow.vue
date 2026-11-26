@@ -37,8 +37,8 @@ const images = computed(() => props.cve.imageRefs.join('\n'))
     <ExpandChevron :expanded="expanded" />
     <SeverityChip :severity="cve.maxSeverity" :score="cve.maxScore" />
     <span v-if="labels.showKev" class="kev"><KevChip v-if="cve.kev" /></span>
-    <span class="vuln-id">{{ cve.vulnId }}</span>
-    <span class="title">{{ cve.title ?? '' }}</span>
+    <span class="vuln-id" data-panel-clip>{{ cve.vulnId }}</span>
+    <span class="title" data-panel-clip>{{ cve.title ?? '' }}</span>
     <HintTooltip :text="images">
       <CountValue :value="cve.imageCount" :label="pluralize(cve.imageCount, 'image')" />
     </HintTooltip>

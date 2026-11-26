@@ -68,19 +68,24 @@ export interface EventMarks {
 }
 
 /**
- * Reads the event marks of every decision with history.
+ * Reads the event marks of every decision with history. Coverage events (updated with a
+ * coveredImage) are no decision change and are left out.
  * @param {DatabaseSync} db - Open database
  * @returns {Map<number, EventMarks>} - Marks per decision id
  */
 export const readEventMarks = (db: DatabaseSync): Map<number, EventMarks> => {
   const rows = db
     .prepare(
-      `SELECT decision_id,
-         (SELECT type FROM decision_events latest WHERE latest.decision_id = e.decision_id
+      `WITH transitions AS (
+         SELECT * FROM decision_events
+         WHERE NOT (type = 'updated' AND json_extract(payload, '$.coveredImage') IS NOT NULL)
+       )
+       SELECT decision_id,
+         (SELECT type FROM transitions latest WHERE latest.decision_id = e.decision_id
           ORDER BY id DESC LIMIT 1) AS latest_type,
          ifnull(MAX(CASE WHEN type IN ('created', 'updated') THEN id END), 0) AS last_change_id,
          MAX(CASE WHEN type = 'expired' THEN id END) AS last_expired_id
-       FROM decision_events e GROUP BY decision_id`,
+       FROM transitions e GROUP BY decision_id`,
     )
     .all() as unknown as {
     decision_id: number

@@ -2,6 +2,12 @@ export const EXPOSURES = ['public', 'gated', 'internal'] as const
 
 export type Exposure = (typeof EXPOSURES)[number]
 
+export const UNKNOWN_EXPOSURE = 'unknown'
+
+export const EXPOSURE_FILTERS = [...EXPOSURES, UNKNOWN_EXPOSURE] as const
+
+export type ExposureFilter = (typeof EXPOSURE_FILTERS)[number] // unknown matches findings without exposure label
+
 // unknown (null) ranks below gated and above internal: it may be reachable, but less surely than public
 const EXPOSURE_RANKS: Record<Exposure, number> = { public: 3, gated: 2, internal: 0 }
 const UNKNOWN_EXPOSURE_RANK = 1
@@ -61,3 +67,22 @@ export const parseExposure = (value: unknown): Exposure | null => {
 
   return isExposure(normalized) ? normalized : null
 }
+
+/**
+ * Returns whether a value is an exposure filter entry: an exposure label or unknown.
+ * @param {unknown} value - Value to test
+ * @returns {boolean} - True for public, gated, internal and unknown
+ */
+export const isExposureFilter = (value: unknown): value is ExposureFilter =>
+  (EXPOSURE_FILTERS as readonly unknown[]).includes(value)
+
+/**
+ * Returns whether an exposure passes an exposure filter, unknown selecting the missing label.
+ * @param {readonly ExposureFilter[]} selected - Selected entries, empty matches everything
+ * @param {Exposure | null} exposure - Exposure, null when unknown
+ * @returns {boolean} - True when nothing or the exposure is selected
+ */
+export const matchesExposureFilter = (
+  selected: readonly ExposureFilter[],
+  exposure: Exposure | null,
+): boolean => selected.length === 0 || selected.includes(exposure ?? UNKNOWN_EXPOSURE)

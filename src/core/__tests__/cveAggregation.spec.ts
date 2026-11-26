@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 
 import { aggregateCves, isFullyDecided } from '#core/cveAggregation.ts'
 
-import { buildDecision, buildFindingView } from './coreBuilders.ts'
+import { buildBaseline, buildDecision, buildFindingView, NOW } from './coreBuilders.ts'
 
 const NGINX = 'index.docker.io/library/nginx'
 const REDIS = 'index.docker.io/library/redis'
@@ -26,6 +26,7 @@ describe('aggregateCves', () => {
         }),
       ],
       [all, buildDecision({ id: 11, vulnId: 'CVE-2', scope: 'all', imageRef: null })],
+      NOW,
     )
 
     expect(cve).toEqual({
@@ -49,15 +50,91 @@ describe('aggregateCves', () => {
         revoked: 0,
       },
       allScopeDecision: all,
+      allScopeEffective: { state: 'active' },
     })
   })
 
+  it('carries a pending re-open of the all-scope decision before a sync latched it', () => {
+    const all = buildDecision({
+      id: 10,
+      scope: 'all',
+      imageRef: null,
+      baselines: [buildBaseline({ imageRef: NGINX, severity: 'Low' })],
+    })
+    const pending = {
+      state: 'reopened',
+      reopenedAt: null,
+      reason: 'severity_rose',
+      imageRef: NGINX,
+      severity: 'Critical',
+      kev: false,
+      baselineSeverity: 'Low',
+      baselineKev: false,
+    } as const
+    const [cve] = aggregateCves(
+      [
+        buildFindingView({
+          imageRef: NGINX,
+          severity: 'Critical',
+          decision: all,
+          effective: pending,
+        }),
+      ],
+      [all],
+      NOW,
+    )
+
+    expect(cve?.allScopeDecision?.reopenedAt).toBeNull()
+    expect(cve?.allScopeEffective).toEqual(pending)
+  })
+
+  it('evaluates an all-scope decision that governs no listed finding', () => {
+    const own = buildDecision({ id: 1, imageRef: NGINX })
+    const latched = buildDecision({
+      id: 2,
+      scope: 'all',
+      imageRef: null,
+      reopenedAt: '2026-05-31T00:00:00.000Z',
+      reopenTrigger: {
+        reason: 'kev_listed',
+        imageRef: REDIS,
+        severity: 'High',
+        kev: true,
+        baselineSeverity: 'High',
+        baselineKev: false,
+      },
+    })
+    const expired = buildDecision({
+      id: 3,
+      vulnId: 'CVE-2',
+      scope: 'all',
+      imageRef: null,
+      expiresAt: '2026-05-31T00:00:00.000Z',
+    })
+    const cves = aggregateCves(
+      [
+        buildFindingView({ id: 1, imageRef: NGINX, decision: own, effective: { state: 'active' } }),
+        buildFindingView({ id: 2, vulnId: 'CVE-2' }),
+      ],
+      [own, latched, expired],
+      NOW,
+    )
+
+    expect(
+      Object.fromEntries(cves.map((cve) => [cve.vulnId, cve.allScopeEffective?.state])),
+    ).toEqual({ 'CVE-2025-1000': 'reopened', 'CVE-2': 'expired' })
+  })
+
   it('sorts KEV listed CVEs first, then by exposure and severity', () => {
-    const cves = aggregateCves([
-      buildFindingView({ id: 1, vulnId: 'CVE-A', severity: 'Critical' }),
-      buildFindingView({ id: 2, vulnId: 'CVE-B', kev: true, severity: 'Low', score: null }),
-      buildFindingView({ id: 3, vulnId: 'CVE-C', exposure: 'public', severity: 'Low' }),
-    ])
+    const cves = aggregateCves(
+      [
+        buildFindingView({ id: 1, vulnId: 'CVE-A', severity: 'Critical' }),
+        buildFindingView({ id: 2, vulnId: 'CVE-B', kev: true, severity: 'Low', score: null }),
+        buildFindingView({ id: 3, vulnId: 'CVE-C', exposure: 'public', severity: 'Low' }),
+      ],
+      [],
+      NOW,
+    )
 
     expect(cves.map((cve) => [cve.vulnId, cve.allScopeDecision])).toEqual([
       ['CVE-B', null],
@@ -70,23 +147,27 @@ describe('aggregateCves', () => {
 
 describe('isFullyDecided', () => {
   it('holds when every open finding has a decision in effect, fix_planned included', () => {
-    const [cve] = aggregateCves([
-      buildFindingView({
-        id: 1,
-        imageRef: NGINX,
-        decision: buildDecision(),
-        effective: { state: 'active' },
-        inInbox: false,
-      }),
-      buildFindingView({
-        id: 2,
-        imageRef: REDIS,
-        decision: buildDecision({ id: 2, imageRef: REDIS, status: 'fix_planned' }),
-        effective: { state: 'fix_planned' },
-        inInbox: false,
-      }),
-      buildFindingView({ id: 3, imageRef: 'c', resolvedAt: '2026-05-30T00:00:00.000Z' }),
-    ])
+    const [cve] = aggregateCves(
+      [
+        buildFindingView({
+          id: 1,
+          imageRef: NGINX,
+          decision: buildDecision(),
+          effective: { state: 'active' },
+          inInbox: false,
+        }),
+        buildFindingView({
+          id: 2,
+          imageRef: REDIS,
+          decision: buildDecision({ id: 2, imageRef: REDIS, status: 'fix_planned' }),
+          effective: { state: 'fix_planned' },
+          inInbox: false,
+        }),
+        buildFindingView({ id: 3, imageRef: 'c', resolvedAt: '2026-05-30T00:00:00.000Z' }),
+      ],
+      [],
+      NOW,
+    )
 
     expect(cve && isFullyDecided(cve)).toBe(true)
   })
@@ -118,17 +199,30 @@ describe('isFullyDecided', () => {
     ] as const
 
     for (const other of others) {
-      const [cve] = aggregateCves([
-        decided,
-        buildFindingView({ id: 2, imageRef: REDIS, decision: buildDecision({ id: 2 }), ...other }),
-      ])
+      const [cve] = aggregateCves(
+        [
+          decided,
+          buildFindingView({
+            id: 2,
+            imageRef: REDIS,
+            decision: buildDecision({ id: 2 }),
+            ...other,
+          }),
+        ],
+        [],
+        NOW,
+      )
 
       expect(cve && isFullyDecided(cve)).toBe(false)
     }
   })
 
   it('does not hold for a CVE without open findings', () => {
-    const [cve] = aggregateCves([buildFindingView({ resolvedAt: '2026-05-30T00:00:00.000Z' })])
+    const [cve] = aggregateCves(
+      [buildFindingView({ resolvedAt: '2026-05-30T00:00:00.000Z' })],
+      [],
+      NOW,
+    )
 
     expect(cve && isFullyDecided(cve)).toBe(false)
   })

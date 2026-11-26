@@ -12,7 +12,7 @@ declare module 'vue-router' {
 export const routes: RouteRecordRaw[] = [
   {
     path: '/',
-    redirect: { name: ROUTE_NAMES.INBOX },
+    redirect: { name: ROUTE_NAMES.TRIAGE },
   },
   {
     path: '/inbox',
@@ -26,6 +26,10 @@ export const routes: RouteRecordRaw[] = [
         name: ROUTE_NAMES.INBOX_PROPOSAL,
         component: () => import('@/components/proposals/ProposalReview.vue'),
         props: (route) => ({ proposalId: Number(route.params[PROPOSAL_PARAM]) }),
+      },
+      {
+        path: 'proposals/:pathMatch(.*)*',
+        redirect: { name: ROUTE_NAMES.INBOX, params: {} },
       },
     ],
   },
@@ -55,6 +59,6 @@ export const routes: RouteRecordRaw[] = [
   },
   {
     path: '/:pathMatch(.*)*',
-    redirect: { name: ROUTE_NAMES.INBOX, params: {} },
+    redirect: { name: ROUTE_NAMES.TRIAGE, params: {} },
   },
 ]

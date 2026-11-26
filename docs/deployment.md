@@ -436,7 +436,8 @@ record the same username as before.
 - Every response sends `X-Content-Type-Options: nosniff` and `Content-Security-Policy:
   frame-ancestors 'none'`.
 - Personal tokens expire after at most a year (30 days, 90 days or 1 year), and revoked or
-  expired token rows are deleted 90 days later. To revoke every live token of a user at once:
+  expired token rows are deleted 90 days later, or earlier by their owner in the token dialog.
+  To revoke every live token of a user at once:
 
   ```sh
   kubectl -n sieb exec deploy/sieb -- node -e "

@@ -6,15 +6,17 @@ import { fetchHealth } from '@/api/healthApi'
 import { fetchMe } from '@/api/meApi'
 import { type AuthMode, setAuthMode } from '@/api/session'
 
-/** Acting user and the source the server reads from, loaded once per page view */
+/** Acting user, the source the server reads from and the running build, loaded once per page view */
 export const useMeStore = defineStore('me', () => {
   const username = ref<string | null>(null)
   const authMode = ref<AuthMode>('header')
   const source = ref<SourceKind | null>(null)
+  const version = ref<string | null>(null)
+  const sourceCodeUrl = ref<string | null>(null)
   const loaded = ref(false)
 
   /**
-   * Loads user and source; failures leave them unknown, the header simply shows less.
+   * Loads user, build and source; failures leave them unknown, the header simply shows less.
    * @returns {Promise<void>} - Resolves when both requests settled
    */
   const load = async (): Promise<void> => {
@@ -23,9 +25,11 @@ export const useMeStore = defineStore('me', () => {
     username.value = me.status === 'fulfilled' ? me.value.username : null
     authMode.value = me.status === 'fulfilled' ? (me.value.authMode ?? 'header') : 'header'
     setAuthMode(me.status === 'fulfilled' ? authMode.value : null)
+    version.value = me.status === 'fulfilled' ? (me.value.version ?? null) : null
+    sourceCodeUrl.value = me.status === 'fulfilled' ? (me.value.sourceCodeUrl ?? null) : null
     source.value = health.status === 'fulfilled' ? health.value.source : null
     loaded.value = true
   }
 
-  return { username, authMode, source, loaded, load }
+  return { username, authMode, source, version, sourceCodeUrl, loaded, load }
 })

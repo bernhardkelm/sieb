@@ -1,8 +1,11 @@
+import type { RouteLocationRaw } from 'vue-router'
+
 import {
   SEEABLE_INBOX_KINDS,
   type InboxItem,
   type SeeableInboxKind,
 } from '#core/inbox/inboxItem.ts'
+import { INBOX_ITEM_QUERY, PROPOSAL_PARAM, ROUTE_NAMES } from '@/router/routeNames'
 
 const SEEABLE: readonly string[] = SEEABLE_INBOX_KINDS
 
@@ -37,3 +40,17 @@ export const proposalIdOfItem = (item: InboxItem): number | null =>
  * @returns {string} - Item key
  */
 export const proposalItemKey = (proposalId: number): string => `proposal:${proposalId}`
+
+/**
+ * Returns where a link to an item leads: a proposal to its review, the other kinds to the Inbox
+ * with the cursor on the item.
+ * @param {InboxItem} item - Item
+ * @returns {RouteLocationRaw} - Route location
+ */
+export const inboxItemRoute = (item: InboxItem): RouteLocationRaw =>
+  item.kind === 'proposal'
+    ? {
+        name: ROUTE_NAMES.INBOX_PROPOSAL,
+        params: { [PROPOSAL_PARAM]: String(item.refs.proposalId) },
+      }
+    : { name: ROUTE_NAMES.INBOX, query: { [INBOX_ITEM_QUERY]: item.key } }

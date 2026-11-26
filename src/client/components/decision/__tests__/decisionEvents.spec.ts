@@ -134,4 +134,13 @@ describe('describeEvent provenance', () => {
     ).toBe('Proposed by alice via laptop, accepted by dev')
     expect(describeEvent(event('updated', { reconfirm: true })).provenance).toBeUndefined()
   })
+
+  it('names the image an all-images decision starts covering', () => {
+    expect(
+      describeEvent(event('updated', { coveredImage: 'docker.io/library/redis:7.2' })),
+    ).toEqual({ title: 'Now covers docker.io/library/redis:7.2', lines: [] })
+    expect(describeEvent(event('created', { coveredImage: 'x', status: 'accepted' })).title).toBe(
+      'Decided Accepted',
+    )
+  })
 })

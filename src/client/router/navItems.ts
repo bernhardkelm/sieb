@@ -8,8 +8,8 @@ export interface NavItem {
 }
 
 export const NAV_ITEMS: NavItem[] = [
-  { name: ROUTE_NAMES.INBOX, label: 'Inbox', shortcut: '1', badge: 'inbox' },
-  { name: ROUTE_NAMES.TRIAGE, label: 'Triage', shortcut: '2' },
+  { name: ROUTE_NAMES.TRIAGE, label: 'Triage', shortcut: '1' },
+  { name: ROUTE_NAMES.INBOX, label: 'Inbox', shortcut: '2', badge: 'inbox' },
   { name: ROUTE_NAMES.IMAGES, label: 'By image', shortcut: '3' },
   { name: ROUTE_NAMES.CVES, label: 'By CVE', shortcut: '4' },
   { name: ROUTE_NAMES.DECISIONS, label: 'Decisions', shortcut: '5' },

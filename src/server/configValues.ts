@@ -60,7 +60,7 @@ export const parsePrometheusService = (value: string | undefined): string => {
  * @returns {string} - URL
  * @throws {Error} - When the value is not an http or https URL
  */
-const parseHttpUrl = (value: string | undefined, name: string, fallback: string): string => {
+export const parseHttpUrl = (value: string | undefined, name: string, fallback: string): string => {
   const url = value?.trim() || fallback
 
   if (!URL.canParse(url) || !['http:', 'https:'].includes(new URL(url).protocol)) {

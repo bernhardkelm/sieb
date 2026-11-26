@@ -24,8 +24,17 @@ const labels = useLabelsStore()
 const filterBar = ref<InstanceType<typeof FilterBar> | null>(null)
 
 const triage = useTriageController(() => filterBar.value?.focusSearch())
-const { findings, sort, newCount, currentId, checkedIds, bulkOpen, bulkTargets, bulkStatus } =
-  triage
+const {
+  filters,
+  findings,
+  sort,
+  newCount,
+  currentId,
+  checkedIds,
+  bulkOpen,
+  bulkTargets,
+  bulkStatus,
+} = triage
 
 const { hidden } = useLabelColumns()
 </script>
@@ -33,7 +42,7 @@ const { hidden } = useLabelColumns()
 <template>
   <div class="triage-view">
     <ViewToolbar>
-      <FilterBar ref="filterBar" v-model:filters="store.filters" :resolved-toggle="false">
+      <FilterBar ref="filterBar" v-model:filters="filters" :resolved-toggle="false">
         <SortMenu
           :columns="TRIAGE_SORT_COLUMNS"
           :hidden="hidden"
@@ -43,14 +52,12 @@ const { hidden } = useLabelColumns()
       </FilterBar>
     </ViewToolbar>
     <LoadState
-      v-if="!store.loaded"
+      v-if="!store.loaded || labels.pending"
       subject="findings"
       :error="store.error"
       @retry="store.refresh()"
     />
-    <TriageAllClear
-      v-else-if="store.inboxTotal === 0 && !hasActiveFilters(store.filters, labels.showKev)"
-    />
+    <TriageAllClear v-else-if="store.inboxTotal === 0 && !hasActiveFilters(filters, hidden)" />
     <template v-else>
       <TriageSummary
         :shown="findings.length"
@@ -63,7 +70,7 @@ const { hidden } = useLabelColumns()
       />
       <EmptyState v-if="findings.length === 0" title="No matches">
         No findings to triage match these filters.
-        <BaseButton variant="ghost" @click="store.resetFilters()">Reset filters</BaseButton>
+        <BaseButton variant="ghost" @click="triage.resetFilters()">Reset filters</BaseButton>
       </EmptyState>
       <TriageList
         v-else

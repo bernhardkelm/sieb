@@ -11,9 +11,11 @@ import FindingHeader from '@/components/finding/FindingHeader.vue'
 import HandoffButton from '@/components/finding/HandoffButton.vue'
 import InstanceTable from '@/components/finding/InstanceTable.vue'
 import KevDetails from '@/components/finding/KevDetails.vue'
+import FindingInboxLine from '@/components/inbox/FindingInboxLine.vue'
 import { useFindingPanel } from '@/composables/useFindingPanel'
 import { useHandoff } from '@/composables/useHandoff'
 import { useHandoffHintActions } from '@/composables/useHandoffHintActions'
+import { usePanelDismiss } from '@/composables/usePanelDismiss'
 import { usePanelShortcuts } from '@/composables/usePanelShortcuts'
 import { useFindingDetailStore } from '@/stores/findingDetailStore'
 import { useMcpStore } from '@/stores/mcpStore'
@@ -29,11 +31,17 @@ const panel = ref<HTMLElement | null>(null)
 let opener: Element | null = null
 
 /**
- * Moves focus back to the row of a finding, or to the element focused before the panel opened.
+ * Moves focus back to the row of a finding, or to the element focused before the panel opened,
+ * once focus left with the panel. Focus a press outside the panel put elsewhere stays there.
  * @param {string} id - Finding id of the closed panel
  * @returns {void}
  */
 const restoreFocus = (id: string): void => {
+  if (document.activeElement !== null && document.activeElement !== document.body) {
+    opener = null
+    return
+  }
+
   const row = document.querySelector<HTMLElement>(`[data-finding-id="${CSS.escape(id)}"]`)
   const target = row ?? (opener instanceof HTMLElement && opener.isConnected ? opener : null)
 
@@ -50,6 +58,10 @@ const focusPanel = (): void => {
 }
 
 const { onPanelKeydown, onWindowKeydown } = usePanelShortcuts(focusPanel)
+
+usePanelDismiss(panel, () => {
+  void closeFinding()
+})
 
 watch(
   findingId,
@@ -112,6 +124,7 @@ onBeforeUnmount(() => {
         :finding="store.detail.finding"
         :source-access="mcp.enabled ? store.detail.sourceAccess : null"
       />
+      <FindingInboxLine :finding="store.detail.finding" />
       <section v-if="store.detail.kev" class="section" aria-labelledby="panel-kev">
         <h3 id="panel-kev" class="section-title">Known exploited</h3>
         <KevDetails :details="store.detail.kev" />

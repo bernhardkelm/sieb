@@ -100,7 +100,7 @@ watch(open, (value) => {
       :error="error"
       :submitting="submitting"
       :submit-label="existing ? 'Save changes' : 'Decide'"
-      :reconfirmable="existing !== null && existing.reopenedAt !== null"
+      :reconfirmable="cve.allScopeEffective?.state === 'reopened'"
       @submit="onSubmit"
       @cancel="open = false"
     />

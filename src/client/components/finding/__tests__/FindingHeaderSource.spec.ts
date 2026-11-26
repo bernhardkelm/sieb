@@ -51,7 +51,12 @@ describe('FindingHeader source access', () => {
     await flushPromises()
     expect(wrapper.find('[data-access]').exists()).toBe(false)
 
-    useMcpStore().info = { enabled: true, mcpUrl: 'https://sieb.example.com/mcp', oauth: false }
+    useMcpStore().info = {
+      enabled: true,
+      mcpUrl: 'https://sieb.example.com/mcp',
+      oauth: false,
+      claude: null,
+    }
     await flushPromises()
     expect(wrapper.get('[data-access="private"]').text()).toBe('Private source')
     wrapper.unmount()

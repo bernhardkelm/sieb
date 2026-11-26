@@ -4,6 +4,7 @@ export type ListAction = 'activate' | 'close' | 'expand' | 'collapse' | 'search'
 
 const KEYS: Record<string, ListAction> = {
   Enter: 'activate',
+  ' ': 'activate',
   o: 'activate',
   Escape: 'close',
   ArrowRight: 'expand',
@@ -11,12 +12,13 @@ const KEYS: Record<string, ListAction> = {
   '/': 'search',
 }
 
-const PAGE_ONLY = new Set(['Enter', 'o', 'Escape', 'ArrowRight', 'ArrowLeft'])
+const PAGE_ONLY = new Set(['Enter', ' ', 'o', 'Escape', 'ArrowRight', 'ArrowLeft'])
 
 /**
  * Maps a key press in a grouped list view to its action, on top of the cursor keys every list
- * shares. Inside popovers and dialogs nothing applies; inside the side panel only / applies, so
- * arrows keep scrolling the panel.
+ * shares. Space activates as Enter does: it expands or collapses a group row and opens a nested
+ * finding row, so it never scrolls the page under the list. Inside popovers and dialogs nothing
+ * applies; inside the side panel only / applies, so arrows and Space keep scrolling the panel.
  * @param {Pick<KeyboardEvent, 'key'>} event - Key press
  * @param {ShortcutScope} scope - Where the key was pressed
  * @returns {ListAction | null} - Action, null for keys without one

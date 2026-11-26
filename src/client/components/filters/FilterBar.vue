@@ -6,6 +6,7 @@ import { EXPOSURE_OPTIONS, ownerOptions, SEVERITY_OPTIONS } from '@/components/f
 import MultiSelectFilter from '@/components/filters/MultiSelectFilter.vue'
 import SearchInput from '@/components/filters/SearchInput.vue'
 import ToggleFilter from '@/components/filters/ToggleFilter.vue'
+import { useLabelColumns } from '@/composables/useLabelColumns'
 import { emptyFilters, hasActiveFilters, type FindingFilters } from '@/stores/findingFilters'
 import { useLabelsStore } from '@/stores/labelsStore'
 
@@ -21,6 +22,7 @@ const filters = defineModel<FindingFilters>('filters', { required: true })
 
 const labels = useLabelsStore()
 const owners = computed(() => ownerOptions(labels.owners))
+const { hidden } = useLabelColumns()
 
 const search = ref<InstanceType<typeof SearchInput> | null>(null)
 
@@ -95,7 +97,7 @@ defineExpose({ focusSearch })
         @update:model-value="set('includeResolved', $event)"
       />
       <FilterResetButton
-        v-if="hasActiveFilters(filters, labels.showKev)"
+        v-if="hasActiveFilters(filters, hidden)"
         @click="filters = emptyFilters()"
       />
     </div>

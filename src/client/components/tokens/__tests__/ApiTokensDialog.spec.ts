@@ -5,14 +5,31 @@ import { defineComponent, h, nextTick, ref } from 'vue'
 import type { ApiTokenView, McpInfoResponse } from '#core/apiTypes.ts'
 import { mountWithProviders } from '@/__tests__/mountWithProviders'
 import { ApiError } from '@/api/ApiError'
-import { createToken, fetchTokens, revokeToken } from '@/api/tokensApi'
+import {
+  cleanupTokens,
+  createToken,
+  deleteToken,
+  fetchMcpInfo,
+  fetchTokens,
+  revokeToken,
+} from '@/api/tokensApi'
 import ApiTokensDialog from '@/components/tokens/ApiTokensDialog.vue'
 import { useMcpStore } from '@/stores/mcpStore'
+import { notifyError, notifySuccess } from '@/toast/toastManager'
 
 vi.mock('@/api/tokensApi', () => ({
   fetchTokens: vi.fn<typeof fetchTokens>(),
   createToken: vi.fn<typeof createToken>(),
   revokeToken: vi.fn<typeof revokeToken>(),
+  deleteToken: vi.fn<typeof deleteToken>(),
+  cleanupTokens: vi.fn<typeof cleanupTokens>(),
+  fetchMcpInfo: vi.fn<typeof fetchMcpInfo>(),
+}))
+
+vi.mock('@/toast/toastManager', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/toast/toastManager')>()),
+  notifySuccess: vi.fn<typeof notifySuccess>(),
+  notifyError: vi.fn<typeof notifyError>(),
 }))
 
 const SECRET = 'sieb_c2VjcmV0LXNlY3JldC1zZWNyZXQtc2VjcmV0LXNlY3I'
@@ -36,7 +53,7 @@ const token = (overrides: Partial<ApiTokenView> = {}): ApiTokenView => ({
 })
 
 const open = ref(false)
-let mcpInfo: McpInfoResponse = { enabled: true, mcpUrl: MCP_URL, oauth: true }
+let mcpInfo: McpInfoResponse = { enabled: true, mcpUrl: MCP_URL, oauth: true, claude: null }
 let wrapper: VueWrapper | null = null
 
 const Host = defineComponent({
@@ -93,9 +110,16 @@ const submitName = async (name: string): Promise<void> => {
 
 beforeEach(() => {
   vi.mocked(fetchTokens).mockReset().mockResolvedValue([])
-  mcpInfo = { enabled: true, mcpUrl: MCP_URL, oauth: true }
+  mcpInfo = { enabled: true, mcpUrl: MCP_URL, oauth: true, claude: null }
   vi.mocked(createToken).mockReset()
   vi.mocked(revokeToken).mockReset()
+  vi.mocked(deleteToken).mockReset().mockResolvedValue(undefined)
+  vi.mocked(cleanupTokens).mockReset()
+  vi.mocked(fetchMcpInfo)
+    .mockReset()
+    .mockImplementation(() => Promise.resolve(mcpInfo))
+  vi.mocked(notifySuccess).mockClear()
+  vi.mocked(notifyError).mockClear()
 })
 
 afterEach(() => {
@@ -188,6 +212,41 @@ describe('ApiTokensDialog', () => {
     expect(createToken).toHaveBeenCalledWith(expect.objectContaining({ scope: 'propose' }))
   })
 
+  it('refreshes the Claude connection after revoking and creating a token', async () => {
+    vi.mocked(fetchTokens).mockResolvedValue([token({ id: 2, name: 'ci' })])
+    vi.mocked(revokeToken).mockResolvedValue(
+      token({ id: 2, name: 'ci', revokedAt: '2026-11-26T10:00:00.000Z' }),
+    )
+    vi.mocked(createToken).mockResolvedValue({ token: token({ id: 5 }), secret: SECRET })
+    mcpInfo = { ...mcpInfo, claude: { connected: true, activeTokens: 1, oauthLastSeenAt: null } }
+    await openDialog()
+    const mcp = useMcpStore()
+
+    expect(mcp.connected).toBe(true)
+
+    mcpInfo = { ...mcpInfo, claude: { connected: false, activeTokens: 0, oauthLastSeenAt: null } }
+    button('Revoke ci')!.click()
+    await flushPromises()
+    ;[
+      ...document.body
+        .querySelector<HTMLElement>('[role="alertdialog"]')!
+        .querySelectorAll('button'),
+    ]
+      .find((candidate) => candidate.textContent?.trim() === 'Revoke')!
+      .click()
+    await flushPromises()
+
+    expect(fetchMcpInfo).toHaveBeenCalledOnce()
+    expect(mcp.connected).toBe(false)
+
+    mcpInfo = { ...mcpInfo, claude: { connected: true, activeTokens: 1, oauthLastSeenAt: null } }
+    await submitName('laptop')
+
+    expect(fetchMcpInfo).toHaveBeenCalledTimes(2)
+    expect(mcp.connected).toBe(true)
+    expect(mcp.connectReason).toBeNull()
+  })
+
   it('offers only expiring tokens of 30, 90 or 365 days', async () => {
     await openDialog()
 
@@ -198,7 +257,7 @@ describe('ApiTokensDialog', () => {
   })
 
   it('returns to the form when the secret is dismissed and hides the connector without OAuth', async () => {
-    mcpInfo = { enabled: true, mcpUrl: MCP_URL, oauth: false }
+    mcpInfo = { enabled: true, mcpUrl: MCP_URL, oauth: false, claude: null }
     vi.mocked(createToken).mockResolvedValue({ token: token(), secret: SECRET })
     await openDialog()
     await submitName('laptop')
@@ -318,5 +377,126 @@ describe('ApiTokensDialog', () => {
 
     expect(fetchTokens).toHaveBeenCalledTimes(2)
     expect(dialog().textContent).toContain('No tokens yet.')
+  })
+})
+
+describe('ApiTokensDialog token deletion', () => {
+  const LIVE = { id: 2, name: 'ci' }
+  const REVOKED = { id: 3, name: 'old', revokedAt: '2026-11-20T10:00:00.000Z' }
+  const EXPIRED = { id: 4, name: 'stale', expiresAt: '2026-11-01T00:00:00.000Z' }
+
+  /**
+   * Returns the rendered token ids in list order.
+   * @returns {string[]} - Ids
+   */
+  const rowIds = (): string[] =>
+    [...dialog().querySelectorAll<HTMLElement>('[data-token-id]')].map(
+      (row) => row.dataset.tokenId ?? '',
+    )
+
+  beforeEach(() => {
+    vi.mocked(fetchTokens).mockResolvedValue([token(EXPIRED), token(REVOKED), token(LIVE)])
+  })
+
+  it('offers delete only on revoked and expired rows, plus clear inactive with the count', async () => {
+    await openDialog()
+
+    expect(rowIds()).toEqual(['2', '4', '3'])
+    expect(button('Delete ci')).toBeUndefined()
+    expect(button('Delete old')).toBeDefined()
+    expect(button('Delete stale')).toBeDefined()
+    expect(button('Revoke old')).toBeUndefined()
+    expect(button('Clear inactive (2)')).toBeDefined()
+  })
+
+  it('hides clear inactive while every token is live', async () => {
+    vi.mocked(fetchTokens).mockResolvedValue([token(LIVE)])
+    await openDialog()
+
+    expect(button('Clear inactive (1)')).toBeUndefined()
+    expect(dialog().textContent).not.toContain('Clear inactive')
+  })
+
+  it('deletes a row without confirmation, toasts and focuses the next delete button', async () => {
+    await openDialog()
+
+    button('Delete stale')!.click()
+    await flushPromises()
+
+    expect(deleteToken).toHaveBeenCalledWith(4)
+    expect(document.body.querySelector('[role="alertdialog"]')).toBeNull()
+    expect(rowIds()).toEqual(['2', '3'])
+    expect(notifySuccess).toHaveBeenCalledWith('Deleted: stale')
+    expect(button('Clear inactive (1)')).toBeDefined()
+    await vi.waitFor(() => expect(document.activeElement).toBe(button('Delete old')))
+
+    button('Delete old')!.click()
+    await flushPromises()
+
+    expect(rowIds()).toEqual(['2'])
+    expect(dialog().textContent).not.toContain('Clear inactive')
+    await vi.waitFor(() =>
+      expect(document.activeElement).toBe(dialog().querySelector('[data-token-id="2"]')),
+    )
+  })
+
+  it('focuses the list once the last token is deleted', async () => {
+    vi.mocked(fetchTokens).mockResolvedValue([token(REVOKED)])
+    await openDialog()
+
+    button('Delete old')!.click()
+    await flushPromises()
+
+    expect(dialog().textContent).toContain('No tokens yet.')
+    await vi.waitFor(() =>
+      expect(document.activeElement).toBe(dialog().querySelector('.token-list')),
+    )
+  })
+
+  it('keeps the row and shows an error toast when the server refuses', async () => {
+    const failure = new ApiError(409, { error: 'token_live' }, '/api/tokens/3')
+
+    vi.mocked(deleteToken).mockRejectedValueOnce(failure)
+    await openDialog()
+
+    button('Delete old')!.click()
+    await flushPromises()
+
+    expect(notifyError).toHaveBeenCalledWith('Could not delete the token', failure)
+    expect(notifySuccess).not.toHaveBeenCalled()
+    expect(rowIds()).toEqual(['2', '4', '3'])
+    expect(button('Delete old')!.disabled).toBe(false)
+  })
+
+  it('drops a row the server no longer knows', async () => {
+    vi.mocked(deleteToken).mockRejectedValueOnce(
+      new ApiError(404, { error: 'not_found' }, '/api/tokens/3'),
+    )
+    await openDialog()
+
+    button('Delete old')!.click()
+    await flushPromises()
+
+    expect(notifyError).not.toHaveBeenCalled()
+    expect(rowIds()).toEqual(['2', '4'])
+  })
+
+  it('clears all inactive tokens, reloads the list, toasts the count and focuses the last row', async () => {
+    vi.mocked(cleanupTokens).mockResolvedValue({ deleted: 2 })
+    await openDialog()
+    vi.mocked(fetchTokens).mockResolvedValue([token(LIVE)])
+
+    button('Clear inactive (2)')!.click()
+    await flushPromises()
+
+    expect(cleanupTokens).toHaveBeenCalledTimes(1)
+    expect(deleteToken).not.toHaveBeenCalled()
+    expect(fetchTokens).toHaveBeenCalledTimes(2)
+    expect(rowIds()).toEqual(['2'])
+    expect(notifySuccess).toHaveBeenCalledWith('Deleted 2 inactive tokens')
+    expect(dialog().textContent).not.toContain('Clear inactive')
+    await vi.waitFor(() =>
+      expect(document.activeElement).toBe(dialog().querySelector('[data-token-id="2"]')),
+    )
   })
 })

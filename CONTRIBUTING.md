@@ -85,7 +85,8 @@ scripts/     project scripts such as the fixture generator
 The mock fixtures are generated from `scripts/fixtures/` in the raw source shapes and go through the
 same mapper as the live sources; the KEV catalog of each state is written in the shape of the CISA
 feed and goes through the same feed validation. They use public image names, invented namespaces and the fake own
-registry `registry.example.com/acme`.
+registry `registry.example.com/acme`. CVE ids are in the year 2099 (`CVE-2099-NNNNN`), so no mock id
+collides with a real CVE, and the KEV entry of a mock CVE is described from its finding title.
 
 ## Code
 

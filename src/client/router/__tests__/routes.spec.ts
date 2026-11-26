@@ -22,9 +22,9 @@ const loadAt = async (path: string): Promise<Router> => {
 }
 
 describe('routes', () => {
-  it('opens the Inbox at the root and for unknown paths', async () => {
-    expect((await loadAt('/')).currentRoute.value.name).toBe(ROUTE_NAMES.INBOX)
-    expect((await loadAt('/nowhere')).currentRoute.value.name).toBe(ROUTE_NAMES.INBOX)
+  it('opens Triage at the root and for unknown paths, the Inbox on its own path', async () => {
+    expect((await loadAt('/')).currentRoute.value.name).toBe(ROUTE_NAMES.TRIAGE)
+    expect((await loadAt('/nowhere')).currentRoute.value.name).toBe(ROUTE_NAMES.TRIAGE)
     expect((await loadAt('/inbox')).currentRoute.value.name).toBe(ROUTE_NAMES.INBOX)
   })
 
@@ -57,7 +57,12 @@ describe('routes', () => {
     })
   })
 
-  it('leaves a proposal path without a numeric id to the Inbox', async () => {
-    expect((await loadAt('/inbox/proposals/abc')).currentRoute.value.name).toBe(ROUTE_NAMES.INBOX)
+  it('sends a proposal path without a numeric id to the Inbox', async () => {
+    for (const path of ['/inbox/proposals/abc', '/inbox/proposals', '/inbox/proposals/12/x']) {
+      const route = (await loadAt(path)).currentRoute.value
+
+      expect(route.name).toBe(ROUTE_NAMES.INBOX)
+      expect(route.fullPath).toBe('/inbox')
+    }
   })
 })

@@ -151,7 +151,12 @@ describe('oidc access with a session', () => {
     })
 
     expect(findings.status).toBe(200)
-    expect(await me.json()).toEqual<MeResponse>({ username: 'alice', authMode: 'oidc' })
+    expect(await me.json()).toEqual<MeResponse>({
+      username: 'alice',
+      authMode: 'oidc',
+      version: '0.0.0',
+      sourceCodeUrl: 'https://github.com/bernhardkelm/sieb/tree/0.0.0',
+    })
     expect((await send(test.app, '/inbox', { headers: cookie })).status).toBe(200)
     expect((await send(test.app, '/assets/index-abc.js', { headers: cookie })).status).toBe(200)
     expect((await send(test.app, '/metrics', { headers: cookie })).status).toBe(404)

@@ -13,6 +13,7 @@ import { EXPOSURE_OPTIONS, ownerOptions, SEVERITY_OPTIONS } from '@/components/f
 import MultiSelectFilter from '@/components/filters/MultiSelectFilter.vue'
 import SearchInput from '@/components/filters/SearchInput.vue'
 import ToggleFilter from '@/components/filters/ToggleFilter.vue'
+import { useLabelColumns } from '@/composables/useLabelColumns'
 import { useLabelsStore } from '@/stores/labelsStore'
 
 type SelectField = 'severity' | 'exposure' | 'owner'
@@ -31,6 +32,7 @@ const props = withDefaults(
 const filters = defineModel<AggregateFilters>('filters', { required: true })
 
 const labels = useLabelsStore()
+const { hidden } = useLabelColumns()
 
 const options = computed<Record<SelectField, { label: string; options: FilterOption<string>[] }>>(
   () => ({
@@ -99,7 +101,7 @@ defineExpose({ focusSearch })
         @update:model-value="set(toggle, $event)"
       />
       <FilterResetButton
-        v-if="hasAggregateFilters(filters)"
+        v-if="hasAggregateFilters(filters, hidden)"
         @click="filters = emptyAggregateFilters()"
       />
     </div>

@@ -47,6 +47,7 @@ const main = (): void => {
     oidc: config.oidc,
     metricsOnMainPort: config.metricsPort === null,
     publicRegistries: config.publicRegistries,
+    sourceCodeUrl: config.sourceCodeUrl,
   })
 
   const server = serve({ fetch: app.fetch, hostname: config.host, port: config.port }, (info) => {

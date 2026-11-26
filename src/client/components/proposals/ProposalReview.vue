@@ -11,8 +11,9 @@ import ProposalEditForm from '@/components/proposals/ProposalEditForm.vue'
 import ProposalSections from '@/components/proposals/ProposalSections.vue'
 import RejectDialog from '@/components/proposals/RejectDialog.vue'
 import { useChordArming } from '@/composables/useChordArming'
+import { usePanelDismiss } from '@/composables/usePanelDismiss'
 import { useProposalReviewActions } from '@/composables/useProposalReviewActions'
-import { isEditableTarget } from '@/keyboard/keyboardTarget'
+import { useProposalReviewKeys } from '@/composables/useProposalReviewKeys'
 import { useProposalReviewStore } from '@/stores/proposalReviewStore'
 
 const props = defineProps<{
@@ -35,11 +36,12 @@ const readyId = computed(() =>
   store.detail?.proposal.id === props.proposalId ? props.proposalId : null,
 )
 const acceptArmed = useChordArming(readyId, panel)
-const chordRefused = ref(false)
 
-watch(readyId, () => {
-  chordRefused.value = false
-})
+usePanelDismiss(
+  panel,
+  () => emit('close'),
+  () => !busy.value && !(editing.value && actions.editDirty.value),
+)
 
 /**
  * Focuses the panel itself.
@@ -67,52 +69,14 @@ const onCancelEdit = (): void => {
   focusPanel()
 }
 
-/**
- * Handles keys inside the panel: Cmd+Enter or Ctrl+Enter accepts while no form is open, once
- * armed for this proposal and never on a key repeat, a refused press shows how to arm it; Escape leaves a text entry, cancels an
- * untouched edit, or closes the panel. No single key accepts.
- * @param {KeyboardEvent} event - Keydown event
- * @returns {void}
- */
-const onKeydown = (event: KeyboardEvent): void => {
-  if (event.defaultPrevented) {
-    return
-  }
-
-  if (event.key === 'Enter' && (event.metaKey || event.ctrlKey)) {
-    if (!editing.value && store.detail?.proposal.state === 'open') {
-      event.preventDefault()
-
-      if (event.repeat) {
-        return
-      }
-
-      if (acceptArmed()) {
-        void actions.accept()
-      } else {
-        chordRefused.value = true
-      }
-    }
-
-    return
-  }
-
-  if (event.key !== 'Escape') {
-    return
-  }
-
-  event.preventDefault()
-
-  if (isEditableTarget(event.target)) {
-    focusPanel()
-  } else if (editing.value) {
-    if (!actions.editDirty.value) {
-      onCancelEdit()
-    }
-  } else {
-    emit('close')
-  }
-}
+const { chordRefused, onKeydown } = useProposalReviewKeys({
+  actions,
+  readyId,
+  acceptArmed,
+  focusPanel,
+  cancelEdit: onCancelEdit,
+  close: () => emit('close'),
+})
 
 watch(
   () => props.proposalId,

@@ -2,10 +2,9 @@ import type { OAuthProtectedResourceMetadata } from '@modelcontextprotocol/serve
 import { Hono } from 'hono'
 
 import type { AppEnv } from '#server/http/AppEnv.ts'
+import { MCP_SCOPES } from '#server/mcp/mcpCaller.ts'
 import { MCP_PATH } from '#server/mcp/mcpEndpointUrl.ts'
 import type { OAuthConfig } from '#server/mcpConfigValues.ts'
-
-export const MCP_SCOPES = ['sieb:read', 'sieb:propose']
 
 /**
  * Builds the RFC 9728 metadata of the MCP endpoint, naming the OAuth issuer as its only
@@ -20,7 +19,7 @@ export const protectedResourceMetadata = (
 ): OAuthProtectedResourceMetadata => ({
   resource: new URL(MCP_PATH, publicUrl).href,
   authorization_servers: [oauth.issuer],
-  scopes_supported: MCP_SCOPES,
+  scopes_supported: [...MCP_SCOPES],
   bearer_methods_supported: ['header'],
   resource_name: 'sieb',
 })

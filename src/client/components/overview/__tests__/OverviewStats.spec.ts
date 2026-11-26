@@ -69,6 +69,15 @@ describe('OverviewStats', () => {
       'Not affected',
       'Accepted',
     ])
+    expect(panels.map((panel) => panel.classes('wide'))).toEqual([
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      true,
+    ])
     expect(open.get('.value').text()).toBe('120')
     expect(open.get('.delta').text()).toBe('−30')
     expect(open.get('.delta').classes()).toContain('good')
@@ -154,6 +163,7 @@ describe('OverviewStats', () => {
       'Not affected',
       'Accepted',
     ])
+    expect(wrapper.findAll('.stat-panel.wide')).toHaveLength(0)
     wrapper.unmount()
   })
 

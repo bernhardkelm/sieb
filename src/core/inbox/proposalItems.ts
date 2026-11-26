@@ -52,6 +52,7 @@ export const proposalItems = (
       title: facts.title,
       url: proposalReviewUrl(base, proposal.id),
       refs: { proposalId: proposal.id },
+      imageRefs: proposal.imageRefs,
       verdict: proposal.verdict,
       confidence: proposal.confidence,
       imageCount: covered.length,

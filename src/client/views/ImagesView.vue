@@ -15,8 +15,10 @@ import { useImagesController } from '@/composables/useImagesController'
 import { useLabelColumns } from '@/composables/useLabelColumns'
 import { useFindingsStore } from '@/stores/findingsStore'
 import { useImagesStore } from '@/stores/imagesStore'
+import { useLabelsStore } from '@/stores/labelsStore'
 
 const store = useImagesStore()
+const labels = useLabelsStore()
 const findings = useFindingsStore()
 const filterBar = ref<InstanceType<typeof AggregateFilterBar> | null>(null)
 
@@ -45,7 +47,7 @@ const { hidden } = useLabelColumns()
       </AggregateFilterBar>
     </ViewToolbar>
     <LoadState
-      v-if="!store.loaded"
+      v-if="!store.loaded || labels.pending"
       subject="images"
       :error="store.error"
       @retry="store.refresh()"

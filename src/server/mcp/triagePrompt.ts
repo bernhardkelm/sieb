@@ -39,8 +39,8 @@ const describeTarget = (
 
 /**
  * Registers the triage_finding prompt: the investigation workflow for one finding or one
- * vulnerability, ending in propose_decision for a caller with sieb:propose, else in a structured
- * report back to the user.
+ * vulnerability, ending in propose_decision and a short answer for a caller with sieb:propose,
+ * else in the same short answer without a proposal.
  * @param {McpServer} server - MCP server
  * @param {McpToolDeps} deps - Database and link base
  * @param {boolean} canPropose - Whether the caller can call propose_decision
@@ -56,7 +56,7 @@ export const registerTriagePrompt = (
     {
       title: 'Triage a finding',
       description:
-        'Investigates whether a sieb finding (findingId) or a vulnerability in every image (vulnId) affects us and reports the evidence in a fixed structure, or files it as a decision proposal when the connection may propose.',
+        'Investigates whether a sieb finding (findingId) or a vulnerability in every image (vulnId) affects us, files the verdict as a decision proposal when the connection may propose, and answers in a few lines.',
       argsSchema,
     },
     (args): GetPromptResult => ({

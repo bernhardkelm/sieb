@@ -3,7 +3,8 @@
  * or more images (scope image) or every image (scope all), carries the structured claims as text
  * and JSON columns and stays without effect on suppression until a human accepts it. target_key
  * is the sorted JSON list of image_refs, '*' for scope all, so one proposer holds at most one
- * open proposal per target. token_id has no foreign key, the token cleanup deletes old tokens.
+ * open proposal per target. token_id has no foreign key, the token cleanup and the owner delete
+ * inactive tokens, a new token never takes over a token_id still stored here.
  */
 export const MIGRATION_9 = `
   CREATE TABLE decision_proposals (

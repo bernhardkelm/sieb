@@ -39,6 +39,7 @@ const decidedCve = (vulnId: string): CveAggregate => ({
   inboxCount: 0,
   decisionStates: { undecided: 0, active: 1, fix_planned: 0, expired: 0, reopened: 0, revoked: 0 },
   allScopeDecision: null,
+  allScopeEffective: null,
 })
 
 /**

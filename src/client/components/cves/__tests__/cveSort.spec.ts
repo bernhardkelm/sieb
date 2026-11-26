@@ -23,6 +23,7 @@ const cve = (vulnId: string, overrides: Partial<CveAggregate> = {}): CveAggregat
   inboxCount: 1,
   decisionStates: { undecided: 1, active: 0, fix_planned: 0, expired: 0, reopened: 0, revoked: 0 },
   allScopeDecision: null,
+  allScopeEffective: null,
   ...overrides,
 })
 

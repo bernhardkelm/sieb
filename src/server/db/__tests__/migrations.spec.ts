@@ -33,6 +33,7 @@ describe('openDatabase', () => {
       'inbox_seen',
       'kev_catalog',
       'kev_feed',
+      'mcp_connections',
       'sessions',
       'stats_snapshots',
       'sync_runs',

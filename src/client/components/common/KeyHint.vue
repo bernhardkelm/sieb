@@ -1,11 +1,13 @@
 <script setup lang="ts">
 defineProps<{
   keys: string[]
+  /** Hides the keys from assistive technology where the element names the shortcut itself */
+  decorative?: boolean
 }>()
 </script>
 
 <template>
-  <span class="key-hint">
+  <span class="key-hint" :aria-hidden="decorative || undefined">
     <kbd v-for="key in keys" :key="key">{{ key }}</kbd>
   </span>
 </template>

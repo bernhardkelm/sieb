@@ -38,6 +38,19 @@
   background: var(--color-hover);
 }
 
+.item[data-disabled] {
+  cursor: default;
+  opacity: 0.55;
+}
+
+.note {
+  contain: inline-size;
+  margin: 0;
+  padding: var(--space-1-5) var(--space-2);
+  color: var(--color-text-muted);
+  font-size: var(--font-size-xs);
+}
+
 .text {
   display: flex;
   flex: 1;

@@ -9,6 +9,7 @@ import ConfirmDialog from '@/components/common/ConfirmDialog.vue'
 import RelativeTime from '@/components/common/RelativeTime.vue'
 import FieldErrors from '@/components/decision/FieldErrors.vue'
 import { useNow } from '@/composables/useNow'
+import { useTokenDeletion } from '@/composables/useTokenDeletion'
 import { tokenErrorMessage } from '@/components/tokens/tokenErrorMessage'
 import { TOKEN_SCOPE_LABELS } from '@/format/labels'
 
@@ -17,10 +18,27 @@ const props = defineProps<{
   tokens: ApiTokenView[]
   /** Revokes a token, rejects with the server error */
   revoke: (id: number) => Promise<void>
+  /** Deletes a revoked or expired token, rejects with the server error */
+  remove: (id: number) => Promise<void>
+  /** Deletes every revoked or expired token, resolves the count */
+  clearInactive: () => Promise<number>
 }>()
 
 const now = useNow()
+const root = ref<HTMLElement | null>(null)
 const list = ref<HTMLElement | null>(null)
+const {
+  inactive,
+  busy: deleting,
+  deleteOne,
+  deleteAll,
+} = useTokenDeletion({
+  tokens: () => props.tokens,
+  now,
+  root,
+  remove: (id) => props.remove(id),
+  clearInactive: () => props.clearInactive(),
+})
 const pending = ref<ApiTokenView | null>(null)
 const confirmOpen = ref(false)
 const busy = ref(false)
@@ -83,7 +101,7 @@ const onConfirmClosed = async (event: Event): Promise<void> => {
 </script>
 
 <template>
-  <div class="token-list">
+  <div ref="root" class="token-list" tabindex="-1">
     <p v-if="tokens.length === 0" class="empty">No tokens yet.</p>
     <ul v-else ref="list" class="tokens" aria-label="Your tokens">
       <li
@@ -128,8 +146,23 @@ const onConfirmClosed = async (event: Event): Promise<void> => {
         >
           Revoke
         </BaseButton>
+        <BaseButton
+          v-else
+          class="delete"
+          variant="ghost"
+          :aria-label="`Delete ${token.name}`"
+          :disabled="deleting === token.id || deleting === 'all'"
+          @click="deleteOne(token)"
+        >
+          Delete
+        </BaseButton>
       </li>
     </ul>
+    <div v-if="inactive.length > 0" class="footer">
+      <BaseButton variant="ghost" :disabled="deleting !== null" @click="deleteAll">
+        Clear inactive ({{ inactive.length }})
+      </BaseButton>
+    </div>
     <ConfirmDialog
       v-model:open="confirmOpen"
       title="Revoke token?"
@@ -145,6 +178,11 @@ const onConfirmClosed = async (event: Event): Promise<void> => {
 </template>
 
 <style scoped>
+.token-list:focus-visible {
+  outline: var(--border-width-strong) solid var(--color-focus);
+  outline-offset: var(--border-width-strong);
+}
+
 .empty {
   color: var(--color-text-muted);
 }
@@ -222,9 +260,17 @@ const onConfirmClosed = async (event: Event): Promise<void> => {
   margin: 0;
 }
 
-.revoke {
+.revoke,
+.delete {
   grid-row: 1;
   grid-column: 2;
   align-self: start;
+}
+
+.footer {
+  display: flex;
+  justify-content: flex-end;
+  padding-top: var(--space-2);
+  border-top: var(--border-width) solid var(--color-border);
 }
 </style>

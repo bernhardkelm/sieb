@@ -45,10 +45,10 @@ as `sieb_suppressed{vuln_id, image_ref}`. Your Prometheus alert rules drop the s
 - Login through your forward-auth proxy (default) or sieb's own OpenID Connect login with
   sessions and logout, see [authentication](docs/deployment.md#authentication)
 - Optional Claude integration over MCP, off by default: Claude Code (personal API tokens from the
-  user menu) and claude.ai (custom connector with OAuth) query findings, images and decisions
-  read-only, and a hand-off button (`Shift+H`, `h`, `y`) opens a finding in Claude Code (desktop,
-  terminal or VS Code) or Claude chat with the prompt prefilled, never sent, or copies it, see
-  [docs/mcp.md](docs/mcp.md)
+  user menu) and claude.ai (custom connector with OAuth) query findings, images and decisions and,
+  with `sieb:propose`, file verdicts as proposals you accept or reject, and a hand-off button
+  (`Shift+H`, `h`, `y`) opens a finding in Claude Code (desktop, terminal or VS Code) or Claude
+  chat with the prompt prefilled, never sent, or copies it, see [docs/mcp.md](docs/mcp.md)
 - Single Node process with an embedded SQLite file, no external database
 - Fully keyboard driven: shortcuts per view, clickable in the sidebar, and `a`, `n` or `f` decide
   all checked rows in one dialog. The Inbox, Triage and tree lists are virtualized, phones get a bottom tab bar
@@ -129,7 +129,8 @@ variables inline as above.
 | `SIEB_OAUTH_JWKS_URL` | discovered | Key set URL of the issuer, unset reads `jwks_uri` from its OpenID configuration |
 | `SIEB_OAUTH_REQUIRED_GROUP` | empty | Entry of the `groups` claim an OAuth caller must have, empty admits every user of the issuer |
 | `SIEB_OAUTH_CLIENT_LABEL` | `claude.ai` | Client name of OAuth callers in logs and tool results |
-| `SIEB_PUBLIC_REGISTRIES` | `docker.io`, `index.docker.io`, `ghcr.io`, `quay.io`, `registry.k8s.io`, `gcr.io`, `public.ecr.aws`, `mcr.microsoft.com` | Comma list of registry hosts whose images count as public for the source access Claude sees; own images (owner `self`) are always private, see [source access](docs/api.md#source-access) |
+| `SIEB_PUBLIC_REGISTRIES` | `docker.io`, `index.docker.io`, `registry-1.docker.io`, `mirror.gcr.io`, `ghcr.io`, `quay.io`, `registry.k8s.io`, `gcr.io`, `public.ecr.aws`, `mcr.microsoft.com`, `cgr.dev` | Comma list of registry hosts whose images count as public for the source access Claude sees; own images (owner `self`) are always private, images of other registries unknown, see [source access](docs/api.md#source-access) |
+| `SIEB_SOURCE_URL` | upstream tag | http(s) URL of the source code the UI links next to the version (AGPL), for forks; unset links `https://github.com/bernhardkelm/sieb/tree/<version>` |
 
 `NODE_ENV=production` and the `incluster` source refuse the mock source and disable the dev user.
 `SIEB_AUTH=oidc` needs `SIEB_OIDC_ISSUER`, `SIEB_OIDC_CLIENT_ID`, `SIEB_OIDC_CLIENT_SECRET`,

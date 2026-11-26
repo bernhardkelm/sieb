@@ -20,6 +20,22 @@ describe('AllClear', () => {
     expect(wrapper.get('.actions a').text()).toBe('Review decisions')
   })
 
+  it('renders a slotted illustration in place of the smiley', () => {
+    const wrapper = mount(AllClear, {
+      props: { title: 'Inbox zero' },
+      slots: { illustration: () => h('svg', { class: 'custom', 'aria-hidden': 'true' }) },
+    })
+
+    expect(wrapper.find('.custom').exists()).toBe(true)
+    expect(wrapper.find('.smile').exists()).toBe(false)
+  })
+
+  it('renders the smiley by default', () => {
+    const wrapper = mount(AllClear, { props: { title: 'All clear' } })
+
+    expect(wrapper.find('.smile').exists()).toBe(true)
+  })
+
   it('leaves out the actions row without actions', () => {
     const wrapper = mount(AllClear, { props: { title: 'All clear' } })
 

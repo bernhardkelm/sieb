@@ -12,6 +12,7 @@ import {
 import { ref } from 'vue'
 
 import CloseButton from '@/components/common/CloseButton.vue'
+import SourceCodeLink from '@/components/layout/SourceCodeLink.vue'
 import OverviewStats from '@/components/overview/OverviewStats.vue'
 
 const open = ref(false)
@@ -38,6 +39,7 @@ const open = ref(false)
             </DialogClose>
           </template>
         </OverviewStats>
+        <SourceCodeLink class="source-code" />
       </DialogContent>
     </DialogPortal>
   </DialogRoot>
@@ -90,6 +92,10 @@ const open = ref(false)
   background: var(--color-surface-raised);
   box-shadow: var(--shadow-md);
   transform: translateX(-50%);
+}
+
+.source-code {
+  margin-top: var(--space-4);
 }
 
 .sheet:focus-visible {

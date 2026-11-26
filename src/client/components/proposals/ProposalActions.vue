@@ -2,7 +2,7 @@
 import BaseButton from '@/components/common/BaseButton.vue'
 import KeyHint from '@/components/common/KeyHint.vue'
 import ConflictNotice from '@/components/proposals/ConflictNotice.vue'
-import { MODIFIER_KEY } from '@/keyboard/modifierKey'
+import { MODIFIER_KEY, MODIFIER_SHORTCUT } from '@/keyboard/modifierKey'
 
 defineProps<{
   /** Disables the actions while a command runs */
@@ -24,12 +24,17 @@ defineEmits<{ accept: []; edit: []; reject: []; acknowledge: [] }>()
       with the arrow keys, then press it again.
     </p>
     <div class="buttons">
-      <KeyHint class="hint" :keys="[MODIFIER_KEY, 'Enter']" />
+      <KeyHint class="hint" decorative :keys="[MODIFIER_KEY, 'Enter']" />
       <BaseButton variant="ghost" :disabled="busy" @click="$emit('reject')">Reject</BaseButton>
       <BaseButton :disabled="busy || conflict" @click="$emit('edit')">
         Edit &amp; accept
       </BaseButton>
-      <BaseButton variant="primary" :disabled="busy || conflict" @click="$emit('accept')">
+      <BaseButton
+        variant="primary"
+        :disabled="busy || conflict"
+        :aria-keyshortcuts="`${MODIFIER_SHORTCUT}+Enter`"
+        @click="$emit('accept')"
+      >
         Accept
       </BaseButton>
     </div>

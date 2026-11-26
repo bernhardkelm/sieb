@@ -1,16 +1,16 @@
-import { EXPOSURES, type Exposure } from '#core/exposure.ts'
+import { EXPOSURE_FILTERS, type ExposureFilter } from '#core/exposure.ts'
 import { SEVERITIES, type Severity } from '#core/severity.ts'
 import type { FilterOption } from '@/components/filters/filterOption'
-import { EXPOSURE_LABELS, ownerLabel } from '@/format/labels'
+import { EXPOSURE_FILTER_LABELS, ownerLabel } from '@/format/labels'
 
 export const SEVERITY_OPTIONS: FilterOption<Severity>[] = SEVERITIES.map((value) => ({
   value,
   label: value,
 }))
 
-export const EXPOSURE_OPTIONS: FilterOption<Exposure>[] = EXPOSURES.map((value) => ({
+export const EXPOSURE_OPTIONS: FilterOption<ExposureFilter>[] = EXPOSURE_FILTERS.map((value) => ({
   value,
-  label: EXPOSURE_LABELS[value],
+  label: EXPOSURE_FILTER_LABELS[value],
 }))
 
 /**

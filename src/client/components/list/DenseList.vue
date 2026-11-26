@@ -3,6 +3,7 @@ import { computed, provide, useSlots, useTemplateRef } from 'vue'
 
 import { LIST_KIND, type ListKind } from '@/components/list/listKind'
 import { rowAria } from '@/components/list/virtualRows'
+import { usePanelClip } from '@/composables/usePanelClip'
 import { useWindowRows } from '@/composables/useWindowRows'
 
 const props = withDefaults(
@@ -72,6 +73,8 @@ const rendered = computed(() => {
   attrsCache = next
   return result
 })
+
+usePanelClip(list, () => rendered.value)
 </script>
 
 <template>

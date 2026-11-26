@@ -4,6 +4,8 @@ import { isClientRoute } from '#server/http/spaRoutes.ts'
 export const PUBLIC_STATIC_FILES = [
   '/favicon.ico',
   '/favicon.svg',
+  '/favicon-light.svg',
+  '/favicon-dark.svg',
   '/apple-touch-icon.png',
   '/icon-192.png',
   '/icon-512.png',

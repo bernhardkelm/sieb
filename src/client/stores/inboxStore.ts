@@ -5,6 +5,7 @@ import { compareInboxItems, countInboxItems } from '#core/inbox/buildInbox.ts'
 import type { InboxItem } from '#core/inbox/inboxItem.ts'
 import { errorMessage } from '@/api/apiRequest'
 import { fetchInbox, markInboxSeen } from '@/api/inboxApi'
+import { inboxItemsForFinding, type InboxFindingTarget } from '@/components/inbox/findingInboxItems'
 import { isSeeable } from '@/components/inbox/inboxItems'
 import { useDataVersionStore } from '@/stores/dataVersionStore'
 import { createVisiblePoll } from '@/stores/visiblePoll'
@@ -14,7 +15,8 @@ export const INBOX_POLL_MS = 30 * 1000
 
 /**
  * Holds the Inbox of the acting user: open proposals, re-opened and expiring decisions and new
- * KEV listings, in Inbox order, with their counts. Polls every 30 seconds while the page is
+ * KEV listings, in Inbox order, with their counts, and the items per finding for the markers in
+ * the list views and the finding panel. Polls every 30 seconds while the page is
  * visible and refetches when the data version moves. The newest request wins, a failed refetch
  * keeps the last answer. Marking items as seen removes them at once and puts them back when the
  * server refuses.
@@ -29,6 +31,23 @@ export const useInboxStore = defineStore('inbox', () => {
   let request = 0
 
   const counts = computed(() => countInboxItems(items.value))
+  const byVuln = computed(() => {
+    const map = new Map<string, InboxItem[]>()
+
+    for (const item of items.value) {
+      map.set(item.vulnId, [...(map.get(item.vulnId) ?? []), item])
+    }
+
+    return map
+  })
+
+  /**
+   * Returns the Inbox items that concern a finding, most relevant first.
+   * @param {InboxFindingTarget} finding - Finding with its governing decision
+   * @returns {InboxItem[]} - Proposals, re-opened decisions, new KEV listings, expiring decisions
+   */
+  const itemsFor = (finding: InboxFindingTarget): InboxItem[] =>
+    inboxItemsForFinding(byVuln.value.get(finding.vulnId) ?? [], finding)
 
   /**
    * Fetches the Inbox, leaving out items a mark in flight already removed.
@@ -115,6 +134,7 @@ export const useInboxStore = defineStore('inbox', () => {
   return {
     items,
     counts,
+    itemsFor,
     loaded,
     error,
     refresh,

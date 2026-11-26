@@ -1,6 +1,6 @@
 import type { ValidationIssue } from '#core/apiTypes.ts'
 import { isDecisionStateFilter, type DecisionStateFilter } from '#core/decisionStateFilter.ts'
-import { isExposure, type Exposure } from '#core/exposure.ts'
+import { isExposureFilter, type ExposureFilter } from '#core/exposure.ts'
 import { isOwner } from '#core/owner.ts'
 import {
   readList,
@@ -24,7 +24,7 @@ export interface FindingQuery {
   includeResolved: boolean // view all only, the inbox never holds resolved findings
   q: string | null
   severity: Severity[]
-  exposure: Exposure[]
+  exposure: ExposureFilter[] // unknown matches findings without exposure label
   owner: string[]
   newSince: string | null // ISO timestamp, first_seen at or after it
   kev: boolean // only findings listed in the KEV catalog
@@ -55,7 +55,8 @@ const isSeverity = (value: unknown): value is Severity =>
 
 /**
  * Parses the query parameters of the finding list. Lists are comma separated, owner entries are
- * free-form owner labels (no commas, at most OWNER_MAX_LENGTH characters), booleans accept true
+ * free-form owner labels (no commas, at most OWNER_MAX_LENGTH characters), exposure takes the
+ * exposure labels and unknown for findings without one, booleans accept true
  * and 1 (includeResolved, kev; fixable also false and 0), newSince and kevAddedSince take any
  * parseable timestamp, minScore a number from 0 to 10.
  * @param {RawQuery} raw - Query parameters
@@ -75,7 +76,7 @@ export const parseFindingQuery = (raw: RawQuery): FindingQueryResult => {
     includeResolved: raw.includeResolved === 'true' || raw.includeResolved === '1',
     q: raw.q?.trim() || null,
     severity: readList(raw.severity, isSeverity, 'severity', errors),
-    exposure: readList(raw.exposure, isExposure, 'exposure', errors),
+    exposure: readList(raw.exposure, isExposureFilter, 'exposure', errors),
     owner: readList(raw.owner, isOwner, 'owner', errors),
     kev: raw.kev === 'true' || raw.kev === '1',
     newSince,

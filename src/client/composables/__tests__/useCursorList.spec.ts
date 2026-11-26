@@ -66,6 +66,24 @@ describe('useCursorList', () => {
     expect(activateGroup).toHaveBeenCalledWith('a')
   })
 
+  it('toggles the cursor group and opens a nested finding on Space, as Enter does', async () => {
+    const { router } = await mountList('/images')
+
+    await press(' ', document.getElementById('tab')!)
+    expect(activateGroup).not.toHaveBeenCalled()
+
+    const event = new KeyboardEvent('keydown', { key: ' ', bubbles: true, cancelable: true })
+
+    document.body.dispatchEvent(event)
+    await flushPromises()
+    expect(activateGroup).toHaveBeenCalledWith('a')
+    expect(event.defaultPrevented).toBe(true)
+
+    await press('j')
+    await press(' ')
+    expect(router.currentRoute.value.query.finding).toBe('1')
+  })
+
   it('puts the cursor on a finding opened by link and follows it with the panel', async () => {
     const { router } = await mountList('/images?finding=1')
 

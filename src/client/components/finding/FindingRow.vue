@@ -7,8 +7,8 @@ import OwnerBadge from '@/components/chips/OwnerBadge.vue'
 import SeverityChip from '@/components/chips/SeverityChip.vue'
 import ImageName from '@/components/common/ImageName.vue'
 import RelativeTime from '@/components/common/RelativeTime.vue'
+import InboxMarker from '@/components/inbox/InboxMarker.vue'
 import ListRow from '@/components/list/ListRow.vue'
-import ProposalChip from '@/components/proposals/ProposalChip.vue'
 import RowCheckbox from '@/components/list/RowCheckbox.vue'
 import { useLabelColumns } from '@/composables/useLabelColumns'
 import { countOf } from '@/format/count'
@@ -46,16 +46,16 @@ const { hidden, classes } = useLabelColumns()
     <span v-else class="no-check" aria-hidden="true" />
     <SeverityChip :severity="finding.severity" :score="finding.score" :source="null" />
     <span v-if="!hidden.includes('kev')" class="kev"><KevChip v-if="finding.kev" /></span>
-    <span class="vuln-id">
+    <span class="vuln-id" data-panel-clip>
       {{ finding.vulnId }}
-      <ProposalChip class="mid-only" :vuln-id="finding.vulnId" :image-ref="finding.imageRef" />
+      <InboxMarker class="mid-only" :finding="finding" />
     </span>
-    <span class="title wide-only">
+    <span class="title wide-only" data-panel-clip>
       <span v-if="isNew" class="new">new</span>
-      <ProposalChip class="proposal" :vuln-id="finding.vulnId" :image-ref="finding.imageRef" />
+      <InboxMarker class="marker" :finding="finding" />
       {{ finding.title ?? '' }}
     </span>
-    <span class="image"><ImageName :image-ref="finding.imageRef" /></span>
+    <span class="image" data-panel-clip><ImageName :image-ref="finding.imageRef" /></span>
     <span v-if="!hidden.includes('exposure')" class="exposure">
       <ExposureChip v-if="finding.exposure" :exposure="finding.exposure" />
     </span>
@@ -98,7 +98,7 @@ const { hidden, classes } = useLabelColumns()
   white-space: nowrap;
 }
 
-.proposal {
+.marker {
   margin-right: var(--space-1-5);
 }
 

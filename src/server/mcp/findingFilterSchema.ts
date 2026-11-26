@@ -1,7 +1,7 @@
 import { z } from 'zod'
 
 import { DECISION_STATE_FILTERS } from '#core/decisionStateFilter.ts'
-import { EXPOSURES } from '#core/exposure.ts'
+import { EXPOSURE_FILTERS } from '#core/exposure.ts'
 import type { FindingQuery } from '#core/findingQuery.ts'
 import { OWNER_MAX_LENGTH } from '#core/owner.ts'
 import { NAME_PATTERN_MAX_LENGTH } from '#core/queryParamReaders.ts'
@@ -41,9 +41,11 @@ export const findingFilterShape = {
   minScore: z.number().min(0).max(10).optional().describe('CVSS score at or above it'),
   kev: z.boolean().optional().describe('true keeps KEV listed findings only'),
   exposure: z
-    .array(z.enum(EXPOSURES))
+    .array(z.enum(EXPOSURE_FILTERS))
     .optional()
-    .describe('public, gated (behind auth) or internal; drops findings without exposure label'),
+    .describe(
+      'public, gated (behind auth), internal, or unknown for findings without exposure label',
+    ),
   owner: z
     .array(z.string().trim().min(1).max(OWNER_MAX_LENGTH))
     .optional()

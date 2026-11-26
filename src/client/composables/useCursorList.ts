@@ -33,7 +33,7 @@ export interface CursorList {
 
 /**
  * Drives a keyboard list of group rows with expandable finding rows on the shared list cursor:
- * the shared cursor keys move, Enter or o expands a group or opens a finding in the side panel,
+ * the shared cursor keys move, Enter, Space or o expands a group or opens a finding in the side panel,
  * ArrowRight and ArrowLeft expand and collapse as in a tree view, Escape collapses, / searches.
  * @param {CursorListOptions} options - Rows and view callbacks
  * @returns {CursorList} - Cursor and its actions

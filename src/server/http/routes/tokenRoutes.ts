@@ -2,8 +2,14 @@ import { Hono } from 'hono'
 
 import type { ApiToken } from '#core/apiToken.ts'
 import { validateTokenInput } from '#core/apiToken.ts'
-import type { ApiTokenCreateResponse, ApiTokenView, ErrorBody } from '#core/apiTypes.ts'
+import type {
+  ApiTokenCleanupResponse,
+  ApiTokenCreateResponse,
+  ApiTokenView,
+  ErrorBody,
+} from '#core/apiTypes.ts'
 import { displayPrefixOf, generateTokenSecret, hashTokenSecret } from '#server/auth/tokenSecrets.ts'
+import { deleteInactiveTokensOf, deleteOwnInactiveToken } from '#server/db/apiTokenCleanup.ts'
 import { insertToken, listOwnTokens, revokeOwnToken } from '#server/db/apiTokenRepository.ts'
 import type { AppEnv } from '#server/http/AppEnv.ts'
 import { requireActor } from '#server/http/identity.ts'
@@ -42,8 +48,9 @@ const tokenLogLine = (change: string, token: ApiToken): string =>
 
 /**
  * Creates the personal token routes of the acting user: GET / lists them, POST / creates one
- * and answers its secret once, POST /:id/revoke revokes one. Every route needs the forward-auth
- * identity, a user only ever sees and revokes their own tokens.
+ * and answers its secret once, POST /:id/revoke revokes one, DELETE /:id deletes a revoked or
+ * expired one and POST /cleanup deletes all of those. Every route needs the forward-auth
+ * identity, a user only ever sees, revokes and deletes their own tokens.
  * @param {TokenRouteDeps} deps - Database, clock and logger
  * @returns {Hono<AppEnv>} - Routes, mounted at /api/tokens
  */
@@ -102,6 +109,32 @@ export const createTokenRoutes = ({ db, clock, log }: TokenRouteDeps): Hono<AppE
 
     log(tokenLogLine('revoked', token))
     return c.json<ApiTokenView>(toTokenView(token))
+  })
+
+  routes.delete('/:id', (c) => {
+    const id = parseId(c.req.param('id'))
+    const result = id === null ? null : deleteOwnInactiveToken(db, requireActor(c), id, clock())
+
+    if (result === null || (!result.ok && result.error === 'not_found')) {
+      return notFound(c)
+    }
+
+    if (!result.ok) {
+      return c.json<ErrorBody>({ error: result.error }, 409)
+    }
+
+    log(tokenLogLine('deleted', result.token))
+    return c.body(null, 204)
+  })
+
+  routes.post('/cleanup', (c) => {
+    const deleted = deleteInactiveTokensOf(db, requireActor(c), clock())
+
+    for (const token of deleted) {
+      log(tokenLogLine('deleted', token))
+    }
+
+    return c.json<ApiTokenCleanupResponse>({ deleted: deleted.length })
   })
 
   return routes

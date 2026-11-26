@@ -3,7 +3,9 @@ import { computed, onMounted, type ComputedRef, type Ref } from 'vue'
 import type { InboxItem } from '#core/inbox/inboxItem.ts'
 import { findingIdOfItem } from '@/components/inbox/inboxItems'
 import { useCursorRefocus } from '@/composables/useCursorRefocus'
+import { useInboxCursorPanels } from '@/composables/useInboxCursorPanels'
 import { useInboxHintActions } from '@/composables/useInboxHintActions'
+import { useInboxItemLink } from '@/composables/useInboxItemLink'
 import { useInboxPanels } from '@/composables/useInboxPanels'
 import { useInboxSeen } from '@/composables/useInboxSeen'
 import { useListCursor } from '@/composables/useListCursor'
@@ -30,8 +32,9 @@ export interface InboxController {
  * Drives the Inbox on the shared list cursor: j and k move, Enter or o opens the cursor item in
  * its panel, Escape closes the topmost panel, Space, x and the Shift and modifier clicks check
  * the items that can be marked as seen, and s marks the checked items, or the cursor item, as
- * seen. A resolved proposal closes the review panel and refetches the Inbox, focus lands on the
- * next row and the next review opens only on Enter or a click.
+ * seen. A key move closes an open review and never opens one; a resolved proposal closes the
+ * review panel and refetches the Inbox, focus lands on the next row and the next review opens
+ * only on Enter or a click. A link with `?item=<key>` starts the cursor on that item.
  * @returns {InboxController} - State and actions for the Inbox view
  */
 export const useInboxController = (): InboxController => {
@@ -68,6 +71,7 @@ export const useInboxController = (): InboxController => {
 
   const { currentKey, selection } = cursor
   const panels = useInboxPanels(currentKey, items, cursor.refocus)
+  const { openAt } = useInboxCursorPanels(currentKey, items, panels, cursor.refocus)
   const refocusCursor = useCursorRefocus(currentKey, rowOf)
 
   const { seenTargets, markSeen } = useInboxSeen(selection, byKey)
@@ -110,8 +114,7 @@ export const useInboxController = (): InboxController => {
       return
     }
 
-    currentKey.value = key
-    void panels.openItem(item)
+    void openAt(key, item)
   }
 
   /**
@@ -141,6 +144,11 @@ export const useInboxController = (): InboxController => {
   }
 
   useInboxHintActions({ cursor, items: byKey, seenTargets, markSeen })
+  useInboxItemLink(
+    keys,
+    computed(() => store.loaded),
+    cursor.focusKey,
+  )
 
   onMounted(() => {
     void store.ensureLoaded()

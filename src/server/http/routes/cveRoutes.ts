@@ -18,8 +18,10 @@ export const createCveRoutes = ({ db, clock }: RouteDeps): Hono<AppEnv> => {
   routes.get('/', (c) => {
     const includeResolved = c.req.query('includeResolved') === 'true'
 
+    const now = clock()
+
     return c.json<CveAggregate[]>(
-      aggregateCves(listFindingViews(db, clock(), { includeResolved }), listDecisions(db)),
+      aggregateCves(listFindingViews(db, now, { includeResolved }), listDecisions(db), now),
     )
   })
 

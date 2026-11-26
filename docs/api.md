@@ -43,7 +43,7 @@ Checked before identity:
 | Route                              | Purpose                                                                                                                                                                                                                   |
 | ---------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `GET /api/health`                  | `{ status, source }`, no Host check                                                                                                                                                                                       |
-| `GET /api/me`                      | `{ username, authMode }`: the acting user and `header` or `oidc`, so the client knows whether a 401 means log in again                                                                                                    |
+| `GET /api/me`                      | `{ username, authMode, version, sourceCodeUrl }`: the acting user, `header` or `oidc` so the client knows whether a 401 means log in again, and the running version with the link to its source code (`SIEB_SOURCE_URL`, otherwise the upstream tag) |
 | `GET /api/findings`                | Findings in triage order, more parameters under [Finding filters](#finding-filters); `view=inbox\|all` (default `all`), `includeResolved`, `q`, `severity`, `exposure`, `owner` (comma lists, `owner` takes free-form owner labels), `newSince`, `kev` (`true` or `1` keeps KEV listed findings only) |
 | `GET /api/findings/:id`            | Finding detail: instances, decisions, history, `kev`, the CISA catalog entry, see [KEV source](#kev-source), and `sourceAccess` of the image, see [Source access](#source-access)                                                                                                            |
 | `GET /api/images`, `GET /api/cves` | Open findings aggregated per image or per CVE, `includeResolved=true` adds resolved ones                                                                                                                                  |
@@ -64,7 +64,9 @@ Checked before identity:
 | `GET /api/tokens`                  | Own personal tokens, newest first, see [Tokens](#tokens)                                                                                                                                                                  |
 | `POST /api/tokens`                 | Create a token, `{ name, scope, expiresAt }`, answers its secret once                                                                                                                                                     |
 | `POST /api/tokens/:id/revoke`      | Revoke an own token                                                                                                                                                                                                       |
-| `GET /api/mcp-info`                | `{ enabled, mcpUrl, oauth }`: whether MCP is on, the endpoint URL and whether OAuth is configured                                                                                                                         |
+| `DELETE /api/tokens/:id`           | Delete an own revoked or expired token, answers 204                                                                                                                                                                       |
+| `POST /api/tokens/cleanup`         | Delete all own revoked and expired tokens, answers `{ deleted }`                                                                                                                                                          |
+| `GET /api/mcp-info`                | `{ enabled, mcpUrl, oauth, claude }`: whether MCP is on, the endpoint URL, whether OAuth is configured and whether Claude reaches sieb for the acting user                                                               |
 
 ## Login (oidc mode)
 
@@ -135,8 +137,8 @@ A finding's `exposure` is `public`, `gated`, `internal` or `null` (no or an unre
 `exposure` label in the findings query, shown as unknown). `owner` is a free-form string or `null` (no or an invalid
 `owner` label); only `self` has a meaning, own images first. Triage order and the `maxExposure` of
 `GET /api/images` and `GET /api/cves` rank exposure public > gated > unknown > internal; owners
-sort `self` first, the others alphabetically, `null` last. An `exposure` or `owner` filter never
-matches `null`. `owner` filter entries are trimmed and must be at most 64 characters, an entry
+sort `self` first, the others alphabetically, `null` last. An `owner` filter never matches `null`;
+the `exposure` filter takes `unknown` next to the three labels to match `null`. `owner` filter entries are trimmed and must be at most 64 characters, an entry
 longer than that answers 400 `invalid`; owners never contain commas or control characters, so
 the comma list stays unambiguous. See [prometheus-rules.md](prometheus-rules.md) for the labels.
 
@@ -161,6 +163,9 @@ are all not affected has `openCount` 0. The default order uses the risk counts.
 `GET /api/cves` answers one entry per CVE, `decisionStates` counts its open findings by the state
 of their governing decision. The client treats a CVE as fully decided when every open finding has
 the state `active` or `fix_planned`, and hides it in the by-CVE view until "Show decided" is on.
+`allScopeDecision` is the non-revoked all-scope decision of the CVE or `null`, and
+`allScopeEffective` its state as in `DecisionView.effective`, a re-open no sync has latched yet
+included.
 
 ## Stats
 
@@ -227,13 +232,16 @@ details and `kevFeed` its health. `none` works as in live mode.
 A decision records a baseline (severity and KEV listing) for every image it governs: an
 image-scoped decision for its image, an all-scope decision for every image without its own
 decision. An image the CVE newly appears in, or one that falls back to the all-scope decision when
-its own decision is revoked, gets its baseline at first sight. A decision re-opens as soon as any
-governed open finding ranks above its own baseline or is KEV listed while its baseline was not;
-the whole decision re-opens then. The sync that sees this latches it (`reopenedAt`,
-`reopenTrigger`, one `reopened` event), so the decision stays re-opened when the severity or KEV
-listing falls back. Only `PATCH` with `reconfirm: true` clears the latch and records new
-baselines; edits of reason, status or expiry without it keep the decision re-opened. Expired and
-re-opened events are written once per transition.
+its own decision is revoked, gets its baseline at first sight; under an all-scope decision this
+also writes an `updated` event by `sieb` with the payload `{ coveredImage }`. A decision re-opens
+as soon as any governed open finding ranks above its own baseline or is KEV listed while its
+baseline was not; the whole decision re-opens then. The sync that sees this latches it
+(`reopenedAt`, `reopenTrigger`, one `reopened` event), so the decision stays re-opened when the
+severity or KEV listing falls back. Between the change and that sync the re-open is pending:
+`effective` already says `reopened`, with `reopenedAt` `null`. Only `PATCH` with `reconfirm: true`
+clears the latch and records new baselines at the current findings, which also settles a pending
+re-open, so the next sync finds nothing to re-open; edits of reason, status or expiry without it
+keep the decision re-opened. Expired and re-opened events are written once per transition.
 
 ## Metrics
 
@@ -262,12 +270,12 @@ KEV listing of the open findings it covers), `title` (advisory title of a covere
 `null`), `url` (absolute link into sieb on `SIEB_PUBLIC_URL`, else on the origin of the request)
 and `refs`:
 
-| Kind       | Key                                  | `at`         | In the Inbox while                                                                                | Extra fields                                                                          |
-| ---------- | ------------------------------------ | ------------ | ------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------- |
-| `proposal` | `proposal:<id>`                      | `createdAt`  | the proposal is open                                                                              | `refs: { proposalId }`, `verdict`, `confidence`, `imageCount` (covered open findings) |
-| `reopened` | `reopened:<decisionId>:<reopenedAt>` | `reopenedAt` | the decision is re-opened, until re-confirmed (`reconfirm: true`, also within an edit) or revoked | `refs: { decisionId, findingId }`, `decisionStatus`, `reopenReason`                   |
-| `expiring` | `expiring:<decisionId>:<expiresAt>`  | `expiresAt`  | the decision is active and expires within 14 days, until extended or marked seen                  | `refs: { decisionId, findingId }`, `decisionStatus`                                   |
-| `kev`      | `kev:<findingId>`                    | `kevSince`   | the open finding became KEV listed within the last 14 days, also when decided, until marked seen  | `refs: { findingId, decisionId }`, `decisionStatus` (governing decision or `null`)    |
+| Kind       | Key                                  | `at`         | In the Inbox while                                                                                | Extra fields                                                                                                                         |
+| ---------- | ------------------------------------ | ------------ | ------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------ |
+| `proposal` | `proposal:<id>`                      | `createdAt`  | the proposal is open                                                                              | `refs: { proposalId }`, `imageRefs` (targets, `null` for every image), `verdict`, `confidence`, `imageCount` (covered open findings) |
+| `reopened` | `reopened:<decisionId>:<reopenedAt>` | `reopenedAt` | the decision is re-opened, until re-confirmed (`reconfirm: true`, also within an edit) or revoked | `refs: { decisionId, findingId }`, `decisionStatus`, `reopenReason`                                                                  |
+| `expiring` | `expiring:<decisionId>:<expiresAt>`  | `expiresAt`  | the decision is active and expires within 14 days, until extended or marked seen                  | `refs: { decisionId, findingId }`, `decisionStatus`                                                                                  |
+| `kev`      | `kev:<findingId>`                    | `kevSince`   | the open finding became KEV listed within the last 14 days, also when decided, until marked seen  | `refs: { findingId, decisionId }`, `decisionStatus` (governing decision or `null`)                                                   |
 
 A re-open the current data shows but no sync has latched yet uses `pending` instead of
 `<reopenedAt>` and the current time as `at`. An extension gives an expiring decision a new key, so
@@ -278,7 +286,8 @@ findings links to the decisions view. Items are ordered as events first, newest 
 (proposals, re-opened decisions and new KEV listings interleaved by `at`), then expiring decisions
 soonest first, ties by `key`. MCP tools link findings to `/triage?finding=<id>` as well; the
 client still opens a 0.1.0 link of the form `/inbox?finding=<id>` on Triage when a page loads
-with it.
+with it. Within the client, the Inbox markers of finding rows and the finding panel link the
+other kinds to `/inbox?item=<key>`, which starts the Inbox cursor on that item.
 
 `POST /api/inbox/seen` takes `{ "keys": [...] }`, at most 200 keys (`required`, `invalid`,
 `too_many` on `keys`), and marks them seen for the acting user; a bad key is reported as
@@ -377,9 +386,10 @@ unparsable one, or with an `updatedAt` but no `decisionId` is `invalid`).
 
 ### Source access
 
-`sourceAccess` tells whether the source behind an image can be checked from outside: `private` for
-own images (owner `self`) and images of a registry outside `SIEB_PUBLIC_REGISTRIES`, `public` for
-images of a listed registry, `unknown` when the ref names no registry. An image without a registry
+`sourceAccess` tells whether the source behind an image can be checked from outside: `private` only
+for own images (owner `self`), `public` for images of a registry in `SIEB_PUBLIC_REGISTRIES` with
+another owner, `unknown` for every other registry and for a ref without one, since such an image
+may or may not be pullable. An image without a registry
 host counts as Docker Hub. It appears in the finding detail, the proposal detail and the MCP
 finding rows.
 
@@ -388,7 +398,7 @@ finding rows.
 Personal tokens authenticate Claude Code on [`/mcp`](#mcp-endpoint), see
 [mcp.md](mcp.md#claude-code). The routes need the acting user of the UI login (401
 `{ "error": "unauthorized" }` without one), never a token, answer `Cache-Control: no-store`, and
-a user only ever sees and revokes their own tokens. While `SIEB_MCP_ENABLED` is off every
+a user only ever sees, revokes and deletes their own tokens. While `SIEB_MCP_ENABLED` is off every
 `/api/tokens` request answers 404 `{ "error": "mcp_disabled" }` and stored tokens stay untouched.
 
 A token is answered as
@@ -411,17 +421,39 @@ longer accepted.
   `{ "error": "too_many_tokens" }`.
 - `POST /api/tokens/:id/revoke` revokes the token and answers it; revoking it again keeps the
   first revocation. An unknown id or a token of another user answers 404. A revoked token is
-  refused on the next request and stays in the list until the cleanup deletes revoked and
-  expired tokens 90 days later.
+  refused on the next request and stays in the list until its owner deletes it or the cleanup
+  deletes revoked and expired tokens 90 days later.
+- `DELETE /api/tokens/:id` deletes a revoked or expired token of the user and answers 204 without
+  a body. A live token answers 409 `{ "error": "token_live" }`, revoke it first; an unknown id or
+  a token of another user answers 404. Like every write it needs `Content-Type: application/json`.
+- `POST /api/tokens/cleanup` takes `{}`, deletes every revoked and expired token of the user in
+  one transaction and answers `{ "deleted": n }`; live tokens stay.
+
+Proposals filed with a deleted token keep `proposedBy`, `proposedVia` and `clientLabel`, and the
+stored token id stays as it was: it has no foreign key, and a new token always gets an id above
+every token id and every token id a proposal stores, so it never takes over a deleted one.
 
 The secret is `sieb_` and 32 random bytes in base64url; sieb stores only its sha-256 hash. Every
-create and revoke writes a log line with owner, name, id and scope, never the secret.
+create, revoke and delete writes a log line with owner, name, id and scope, never the secret;
+`POST /api/tokens/cleanup` writes one line per deleted token.
 
-`GET /api/mcp-info` answers `{ "enabled": boolean, "mcpUrl": string | null, "oauth": boolean }`
+`GET /api/mcp-info` answers `{ "enabled": boolean, "mcpUrl": string | null, "oauth": boolean, "claude": … }`
 whether MCP is on or off: `mcpUrl` is the absolute endpoint URL (on `SIEB_PUBLIC_URL`, else on the
 origin of the request), `null` while disabled, and `oauth` is true when MCP is on and OAuth is
 configured. The client hides the token dialog, the hand-off button and its keys while `enabled`
-is false.
+is false. The answer carries `Cache-Control: no-store`.
+
+`claude` is `null` while MCP is off or the request has no user, else
+`{ "connected": boolean, "activeTokens": number, "oauthLastSeenAt": string | null }` for the acting
+user: `activeTokens` counts the personal tokens that are neither revoked nor expired,
+`oauthLastSeenAt` is the last MCP request authenticated through OAuth, of any age, and `connected`
+is true with at least one active token or an OAuth request within the last 30 days. The client
+disables the deep-link hand-off and the `claude` command while `connected` is false.
+
+Schema step 11 adds the table `mcp_connections` (`username`, `via` of `token` or `oauth`,
+`last_seen_at`), one row per user and kind. Every authenticated `/mcp` request past the rate limit
+updates it, at most once per user and kind every five minutes through an in-memory throttle; a
+failed write is logged and does not fail the request.
 
 ## MCP endpoint
 

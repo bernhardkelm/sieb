@@ -59,7 +59,7 @@ defineExpose({ focus })
       aria-keyshortcuts="/"
       @keydown.escape="onEscape"
     />
-    <KeyHint v-if="model === ''" class="hint" :keys="['/']" />
+    <KeyHint v-if="model === ''" class="hint" decorative :keys="['/']" />
   </label>
 </template>
 

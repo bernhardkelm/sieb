@@ -44,7 +44,7 @@ const empty = computed(() => decisionTabEmpty(tab.value, labels.showKev))
       <SortMenu :columns="DECISION_SORT_COLUMNS" :sort="sort.sort.value" @change="sort.set" />
     </ViewToolbar>
     <LoadState
-      v-if="!store.loaded"
+      v-if="!store.loaded || labels.pending"
       subject="decisions"
       :error="store.error"
       @retry="store.refresh()"

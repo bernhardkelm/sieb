@@ -3,6 +3,7 @@ import { afterEach, describe, expect, it } from 'vitest'
 import { buildDecision } from '#core/__tests__/coreBuilders.ts'
 import type { DecisionView } from '#core/findingView.ts'
 import { mountWithProviders } from '@/__tests__/mountWithProviders'
+import { reopenedEffective } from '@/__tests__/reopenedEffective'
 import DecisionStateChip from '@/components/chips/DecisionStateChip.vue'
 import HintTooltip from '@/components/common/HintTooltip.vue'
 import DecisionCard from '@/components/decision/DecisionCard.vue'
@@ -43,5 +44,19 @@ describe('DecisionCard', () => {
     expect(wrapper.getComponent(DecisionStateChip).getComponent(HintTooltip).props('text')).toBe(
       'Not affected, alerts muted',
     )
+  })
+
+  it('offers re-confirm for a re-open no sync has latched yet', async () => {
+    const wrapper = mountWithProviders(DecisionCard, {
+      view: {
+        ...activeView({ reopenedAt: null }),
+        effective: reopenedEffective({ reopenedAt: null }),
+      },
+    })
+    const button = wrapper.findAll('button').find((candidate) => candidate.text() === 'Re-confirm')
+
+    await button!.trigger('click')
+
+    expect(wrapper.getComponent(DecisionCard).emitted('reconfirm')).toHaveLength(1)
   })
 })

@@ -8,7 +8,7 @@ import BaseDialog from '@/components/common/BaseDialog.vue'
 import KeyHint from '@/components/common/KeyHint.vue'
 import FieldErrors from '@/components/decision/FieldErrors.vue'
 import { errorCodeMessage } from '@/format/labels'
-import { MODIFIER_KEY } from '@/keyboard/modifierKey'
+import { MODIFIER_KEY, MODIFIER_SHORTCUT } from '@/keyboard/modifierKey'
 
 const props = defineProps<{
   vulnId: string
@@ -90,9 +90,16 @@ const onKeydown = (event: KeyboardEvent): void => {
       />
       <FieldErrors :id="`${id}-error`" :messages="messages" />
       <div class="actions">
-        <KeyHint class="hint" :keys="[MODIFIER_KEY, 'Enter']" />
+        <KeyHint class="hint" decorative :keys="[MODIFIER_KEY, 'Enter']" />
         <BaseButton :disabled="busy" @click="open = false">Cancel</BaseButton>
-        <BaseButton type="submit" variant="danger" :disabled="busy">Reject</BaseButton>
+        <BaseButton
+          type="submit"
+          variant="danger"
+          :disabled="busy"
+          :aria-keyshortcuts="`${MODIFIER_SHORTCUT}+Enter`"
+        >
+          Reject
+        </BaseButton>
       </div>
     </form>
   </BaseDialog>

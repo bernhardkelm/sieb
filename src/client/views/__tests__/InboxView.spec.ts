@@ -120,6 +120,9 @@ describe('InboxView', () => {
     expect(document.querySelector('.all-clear p')?.textContent?.trim()).toBe(
       'Nothing waits for you.',
     )
+    expect(document.querySelector('.all-clear .tray')).not.toBeNull()
+    expect(document.querySelector('.all-clear .smile')).toBeNull()
+    expect(document.querySelector('.all-clear svg')?.getAttribute('aria-hidden')).toBe('true')
     expect(
       [...document.querySelectorAll('.all-clear a')].map((link) => link.getAttribute('href')),
     ).toEqual(['/triage', '/decisions'])
@@ -180,14 +183,46 @@ describe('InboxView', () => {
     expect(document.activeElement?.getAttribute('data-inbox-key')).toBe('reopened:2:pending')
   })
 
-  it('still lets the review panel follow a cursor moved by key', async () => {
+  it('closes the review on a key move and opens the next review only on Enter', async () => {
     const router = await mountInbox('/inbox/proposals/1')
 
     await press('j')
+    expect(router.currentRoute.value.name).toBe(ROUTE_NAMES.INBOX)
+    expect(document.querySelector('.review')).toBeNull()
+    expect(document.activeElement?.getAttribute('data-inbox-key')).toBe('reopened:2:pending')
+
     await press('j')
+    await press('j')
+    expect(document.activeElement?.getAttribute('data-inbox-key')).toBe('proposal:5')
+    expect(document.querySelector('.review')).toBeNull()
+
+    await press('Enter')
+    expect(router.currentRoute.value.params.proposalId).toBe('5')
+  })
+
+  it('closes the finding panel instead of opening a review when a key move lands on a proposal', async () => {
+    const router = await mountInbox('/inbox')
+
+    document.querySelector<HTMLElement>(`[data-inbox-key="${KEV.key}"]`)!.click()
+    await flushPromises()
+    expect(router.currentRoute.value.query.finding).toBe('4')
+
     await press('j')
 
+    expect(router.currentRoute.value.name).toBe(ROUTE_NAMES.INBOX)
+    expect(router.currentRoute.value.query.finding).toBeUndefined()
+    expect(document.querySelector('.review')).toBeNull()
+    expect(document.activeElement?.getAttribute('data-inbox-key')).toBe('proposal:5')
+  })
+
+  it('lets the review follow a click on another proposal row', async () => {
+    const router = await mountInbox('/inbox/proposals/1')
+
+    document.querySelector<HTMLElement>('[data-inbox-key="proposal:5"]')!.click()
+    await flushPromises()
+
     expect(router.currentRoute.value.params.proposalId).toBe('5')
+    expect(document.querySelector('.review')?.getAttribute('data-id')).toBe('5')
   })
 
   it('marks the cursor item as seen with s and from its button', async () => {
@@ -227,5 +262,24 @@ describe('InboxView', () => {
 
     expect(markInboxSeen).toHaveBeenCalledExactlyOnceWith([KEV.key, EXPIRING.key])
     expect(rowKeys()).toEqual(['proposal:1', 'reopened:2:pending', 'proposal:5'])
+  })
+
+  it('starts the cursor on the item of an ?item= link and drops the param once applied', async () => {
+    const router = await mountInbox(`/inbox?item=${encodeURIComponent(EXPIRING.key)}`)
+    const current = document.querySelector(`[data-inbox-key="${EXPIRING.key}"]`)
+
+    expect(current?.classList.contains('current')).toBe(true)
+    expect(document.activeElement).toBe(current)
+    expect(router.currentRoute.value.query.item).toBeUndefined()
+
+    await press('k')
+    expect(document.activeElement?.getAttribute('data-inbox-key')).toBe('proposal:5')
+  })
+
+  it('drops an ?item= link to an item that left the Inbox and starts on the first row', async () => {
+    const router = await mountInbox('/inbox?item=kev:99')
+
+    expect(document.querySelector('.current')?.getAttribute('data-inbox-key')).toBe('proposal:1')
+    expect(router.currentRoute.value.query.item).toBeUndefined()
   })
 })

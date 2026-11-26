@@ -1,8 +1,13 @@
 import type { AuthInfo } from '@modelcontextprotocol/server'
 
-import type { McpAuthVia, McpCaller, McpScope } from '#server/mcp/mcpCaller.ts'
+import {
+  MCP_SCOPES,
+  type McpAuthVia,
+  type McpCaller,
+  type McpScope,
+} from '#server/mcp/mcpCaller.ts'
 
-const SCOPES: readonly string[] = ['sieb:read', 'sieb:propose'] satisfies McpScope[]
+const SCOPES: readonly string[] = MCP_SCOPES
 const VIAS: readonly string[] = ['token', 'oauth'] satisfies McpAuthVia[]
 
 /**
