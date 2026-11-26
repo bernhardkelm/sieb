@@ -28,6 +28,7 @@ interface SummaryRow extends FindingRow {
   namespaces: string | null
   workloads: string | null
   packages: string | null
+  fixable: number | null
 }
 
 // current instances: open ones, or the last sighting of a resolved finding
@@ -37,7 +38,8 @@ const SUMMARY_SELECT = `
     COUNT(DISTINCT i.namespace || '/' || i.resource_kind || '/' || i.resource_name) AS workload_count,
     GROUP_CONCAT(DISTINCT i.namespace) AS namespaces,
     GROUP_CONCAT(DISTINCT i.namespace || '/' || i.resource_kind || '/' || i.resource_name) AS workloads,
-    GROUP_CONCAT(DISTINCT i.package) AS packages
+    GROUP_CONCAT(DISTINCT i.package) AS packages,
+    MAX(i.fixed_version IS NOT NULL AND i.fixed_version <> '') AS fixable
   FROM findings f
   LEFT JOIN finding_instances i ON i.finding_id = f.id
     AND (i.resolved_at IS NULL OR i.resolved_at = f.resolved_at)
@@ -84,6 +86,7 @@ const toSummary = (row: SummaryRow): FindingSummary => ({
   namespaces: splitList(row.namespaces),
   workloads: splitList(row.workloads),
   packages: splitList(row.packages),
+  fixable: row.fixable === 1,
 })
 
 /**

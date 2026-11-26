@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { isEditableTarget, isShortcutEvent } from '@/keyboard/keyboardTarget'
+import { isEditableTarget, isShortcutEvent, shortcutScope } from '@/keyboard/keyboardTarget'
 
 /**
  * Dispatches a keydown on an element and returns the event.
@@ -33,5 +33,23 @@ describe('keyboard targets', () => {
     expect(isShortcutEvent(keydownOn(button, { key: '1' }))).toBe(true)
     expect(isShortcutEvent(keydownOn(button, { key: '1', metaKey: true }))).toBe(false)
     expect(isShortcutEvent(keydownOn(input, { key: '1' }))).toBe(false)
+  })
+
+  it('treats dialogs, menus and marked overlays as overlay scope', () => {
+    const page = document.createElement('button')
+    const menu = document.createElement('div')
+    const item = document.createElement('div')
+    const panel = document.createElement('aside')
+    const inPanel = document.createElement('button')
+
+    menu.setAttribute('role', 'menu')
+    menu.append(item)
+    panel.setAttribute('data-shortcut-scope', 'panel')
+    panel.append(inPanel)
+
+    expect(shortcutScope(page)).toBe('page')
+    expect(shortcutScope(item)).toBe('overlay')
+    expect(shortcutScope(inPanel)).toBe('panel')
+    expect(shortcutScope(null)).toBe('page')
   })
 })

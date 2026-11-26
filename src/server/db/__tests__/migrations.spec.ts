@@ -9,6 +9,8 @@ import { MIGRATION_1 } from '#server/db/migrations/migration1.ts'
 import { MIGRATION_4 } from '#server/db/migrations/migration4.ts'
 import { MIGRATION_5 } from '#server/db/migrations/migration5.ts'
 import { MIGRATION_6 } from '#server/db/migrations/migration6.ts'
+import { MIGRATION_7 } from '#server/db/migrations/migration7.ts'
+import { MIGRATION_8 } from '#server/db/migrations/migration8.ts'
 import { MEMORY_DB, openDatabase } from '#server/db/openDatabase.ts'
 
 describe('openDatabase', () => {
@@ -21,6 +23,7 @@ describe('openDatabase', () => {
 
     expect(schemaVersion(db)).toBe(MIGRATIONS.length)
     expect(tables).toEqual([
+      'api_tokens',
       'decision_baselines',
       'decision_events',
       'decisions',
@@ -28,6 +31,7 @@ describe('openDatabase', () => {
       'findings',
       'kev_catalog',
       'kev_feed',
+      'sessions',
       'stats_snapshots',
       'sync_runs',
     ])
@@ -210,5 +214,93 @@ describe('openDatabase', () => {
     expect(
       failure("UPDATE decisions SET status = 'accepted', justification = NULL WHERE id = 1"),
     ).toBeNull()
+  })
+
+  it('adds api_tokens to a version-6 database and keeps its data', () => {
+    const schema6 = MIGRATIONS.slice(0, 6)
+    const db = new DatabaseSync(MEMORY_DB)
+    runMigrations(db, schema6)
+    db.exec(
+      `INSERT INTO findings (vuln_id, image_ref, severity, kev, exposure, owner, first_seen, last_seen)
+       VALUES ('CVE-1', 'img/a', 'High', 1, NULL, NULL, 't', 't')`,
+    )
+    db.exec(
+      `INSERT INTO decisions (vuln_id, scope, image_ref, status, reason, created_by, created_at,
+         updated_at, severity_at_decision, kev_at_decision, justification)
+       VALUES ('CVE-1', 'all', NULL, 'not_affected', 'x', 'u', 't', 't', 'High', 1,
+         'component_not_present')`,
+    )
+    runMigrations(db, [...schema6, MIGRATION_7])
+
+    const hash = 'a'.repeat(64)
+    const insert = db.prepare(
+      `INSERT INTO api_tokens (owner, name, scope, token_prefix, token_hash, created_at,
+         revoked_at, revoked_by)
+       VALUES (?, ?, ?, 'sieb_abcd', ?, 't', ?, ?)`,
+    )
+
+    expect(schemaVersion(db)).toBe(7)
+    expect(db.prepare('SELECT vuln_id FROM findings').all()).toEqual([{ vuln_id: 'CVE-1' }])
+    expect(db.prepare('SELECT status, justification FROM decisions').all()).toEqual([
+      { status: 'not_affected', justification: 'component_not_present' },
+    ])
+    expect(() => insert.run('alice', 'laptop', 'read', hash, null, null)).not.toThrow()
+    expect(() => insert.run('alice', 'ci', 'propose', 'b'.repeat(64), 't', 'alice')).not.toThrow()
+    expect(() => insert.run('bob', 'dup', 'read', hash, null, null)).toThrow(/UNIQUE/)
+    expect(() => insert.run('bob', 'x', 'write', 'c'.repeat(64), null, null)).toThrow(/CHECK/)
+    expect(() => insert.run('bob', '', 'read', 'd'.repeat(64), null, null)).toThrow(/CHECK/)
+    expect(() => insert.run('bob', 'x'.repeat(65), 'read', 'e'.repeat(64), null, null)).toThrow(
+      /CHECK/,
+    )
+    expect(() => insert.run('bob', 'x', 'read', 'short', null, null)).toThrow(/CHECK/)
+    expect(() => insert.run('bob', 'x', 'read', 'f'.repeat(64), 't', null)).toThrow(/CHECK/)
+    expect(
+      db
+        .prepare("SELECT name FROM sqlite_master WHERE type = 'index' AND tbl_name = 'api_tokens'")
+        .all()
+        .map((row) => row.name),
+    ).toContain('api_tokens_owner')
+  })
+
+  it('adds sessions to a version-7 database and keeps its data', () => {
+    const schema7 = MIGRATIONS.slice(0, 7)
+    const db = new DatabaseSync(MEMORY_DB)
+    runMigrations(db, schema7)
+    db.exec(
+      `INSERT INTO findings (vuln_id, image_ref, severity, kev, exposure, owner, first_seen, last_seen)
+       VALUES ('CVE-1', 'img/a', 'High', 1, NULL, NULL, 't', 't')`,
+    )
+    db.exec(
+      `INSERT INTO api_tokens (owner, name, scope, token_prefix, token_hash, created_at)
+       VALUES ('alice', 'laptop', 'read', 'sieb_abcd', '${'a'.repeat(64)}', 't')`,
+    )
+    runMigrations(db, [...schema7, MIGRATION_8])
+
+    const insert = db.prepare(
+      `INSERT INTO sessions (id_hash, username, groups, created_at, last_seen_at, expires_at, id_token)
+       VALUES (?, ?, ?, '2026-01-01T00:00:00.000Z', '2026-01-01T00:00:00.000Z', ?, ?)`,
+    )
+    const later = '2026-01-01T12:00:00.000Z'
+
+    expect(schemaVersion(db)).toBe(8)
+    expect(db.prepare('SELECT vuln_id FROM findings').all()).toEqual([{ vuln_id: 'CVE-1' }])
+    expect(db.prepare('SELECT owner FROM api_tokens').all()).toEqual([{ owner: 'alice' }])
+    expect(() => insert.run('a'.repeat(64), 'alice', '["sieb-users"]', later, 'jwt')).not.toThrow()
+    expect(() => insert.run('a'.repeat(64), 'bob', '[]', later, 'jwt')).toThrow(/UNIQUE|PRIMARY/)
+    expect(() => insert.run('short', 'bob', '[]', later, 'jwt')).toThrow(/CHECK/)
+    expect(() => insert.run('b'.repeat(64), '', '[]', later, 'jwt')).toThrow(/CHECK/)
+    expect(() => insert.run('c'.repeat(64), 'bob', '{}', later, 'jwt')).toThrow(/CHECK/)
+    expect(() => insert.run('d'.repeat(64), 'bob', 'nope', later, 'jwt')).toThrow(/CHECK/)
+    expect(() =>
+      insert.run('e'.repeat(64), 'bob', '[]', '2025-12-31T00:00:00.000Z', 'jwt'),
+    ).toThrow(/CHECK/)
+    expect(() => insert.run('f'.repeat(64), 'bob', '[]', later, '')).toThrow(/CHECK/)
+    expect(() => insert.run('0'.repeat(64), 'bob', '[]', later, null)).toThrow(/NOT NULL/)
+    expect(
+      db
+        .prepare("SELECT name FROM sqlite_master WHERE type = 'index' AND tbl_name = 'sessions'")
+        .all()
+        .map((row) => row.name),
+    ).toContain('sessions_expires_at')
   })
 })

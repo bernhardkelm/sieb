@@ -1,9 +1,5 @@
 <script setup lang="ts">
-import { onBeforeUnmount, ref } from 'vue'
-
-import { notifyError } from '@/toast/toastManager'
-
-const COPIED_MS = 1500
+import { useClipboardCopy } from '@/composables/useClipboardCopy'
 
 const props = defineProps<{
   /** Text written to the clipboard */
@@ -12,36 +8,25 @@ const props = defineProps<{
   label: string
 }>()
 
-const copied = ref(false)
-let timer: ReturnType<typeof setTimeout> | undefined
+const { copied, copy } = useClipboardCopy()
 
 /**
  * Copies the value to the clipboard, shows the check icon briefly, or raises an error toast.
  * @returns {Promise<void>}
  */
-const copy = async (): Promise<void> => {
-  try {
-    await navigator.clipboard.writeText(props.value)
-  } catch (error) {
-    notifyError('Could not copy to the clipboard', error)
-
-    return
-  }
-
-  copied.value = true
-  clearTimeout(timer)
-  timer = setTimeout(() => {
-    copied.value = false
-  }, COPIED_MS)
+const onClick = async (): Promise<void> => {
+  await copy(props.value)
 }
-
-onBeforeUnmount(() => {
-  clearTimeout(timer)
-})
 </script>
 
 <template>
-  <button type="button" class="copy-button" :class="{ copied }" :aria-label="label" @click="copy">
+  <button
+    type="button"
+    class="copy-button"
+    :class="{ copied }"
+    :aria-label="label"
+    @click="onClick"
+  >
     <svg class="icon" viewBox="0 0 16 16" aria-hidden="true" focusable="false">
       <path v-if="copied" d="M3 8.5l3.5 3.5L13 4.5" />
       <template v-else>

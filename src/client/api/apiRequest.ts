@@ -1,4 +1,5 @@
 import { ApiError } from '@/api/ApiError'
+import { handleUnauthorized } from '@/api/session'
 import { knownErrorMessage } from '@/format/labels'
 
 const SAFE_METHODS = ['GET', 'HEAD']
@@ -39,6 +40,10 @@ export const apiRequest = async <T>(url: string, method = 'GET', body?: unknown)
   }
 
   const response = await fetch(url, init)
+
+  if (response.status === 401 && handleUnauthorized(SAFE_METHODS.includes(method))) {
+    return new Promise<T>(() => {})
+  }
 
   if (!response.ok) {
     throw new ApiError(response.status, await errorBody(response), url)

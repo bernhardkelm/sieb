@@ -100,3 +100,16 @@ export const getKevDetails = (db: DatabaseSync, cveId: string): KevDetails | nul
     notes: row.notes,
   }
 }
+
+/**
+ * Lists the CISA date_added of every stored catalog entry.
+ * @param {DatabaseSync} db - Open database
+ * @returns {Map<string, string>} - YYYY-MM-DD per CVE id
+ */
+export const listKevDatesAdded = (db: DatabaseSync): Map<string, string> =>
+  new Map(
+    db
+      .prepare('SELECT cve_id, date_added FROM kev_catalog')
+      .all()
+      .map((row) => [String(row.cve_id), String(row.date_added)]),
+  )

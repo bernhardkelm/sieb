@@ -128,3 +128,33 @@ export const parseHostList = (value: string | undefined): string[] =>
     .split(',')
     .map((host) => host.trim().toLowerCase())
     .filter((host) => host !== '')
+
+/**
+ * Parses a boolean setting.
+ * @param {string | undefined} value - Raw value
+ * @param {string} name - Variable name for the error message
+ * @param {boolean} fallback - Value when unset or blank
+ * @returns {boolean} - True for true or 1, false for false or 0
+ * @throws {Error} - For any other value
+ */
+export const parseBoolean = (
+  value: string | undefined,
+  name: string,
+  fallback: boolean,
+): boolean => {
+  const raw = value?.trim().toLowerCase() ?? ''
+
+  if (raw === '') {
+    return fallback
+  }
+
+  if (raw === 'true' || raw === '1') {
+    return true
+  }
+
+  if (raw === 'false' || raw === '0') {
+    return false
+  }
+
+  throw new Error(`${name} must be true, false, 1 or 0, got "${value}"`)
+}

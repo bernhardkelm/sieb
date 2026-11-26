@@ -5,13 +5,16 @@ import { useRoute } from 'vue-router'
 import SyncControl from '@/components/layout/SyncControl.vue'
 import OverviewSheet from '@/components/overview/OverviewSheet.vue'
 import ThemeToggle from '@/components/layout/ThemeToggle.vue'
+import UserMenu from '@/components/layout/UserMenu.vue'
 import { useSyncShortcut } from '@/composables/useSyncShortcut'
+import { useMcpStore } from '@/stores/mcpStore'
 import { useMeStore } from '@/stores/meStore'
 import { useSyncStore } from '@/stores/syncStore'
 
 const route = useRoute()
 const sync = useSyncStore()
 const me = useMeStore()
+const mcp = useMcpStore()
 
 const title = computed(() => route.meta.title ?? 'sieb')
 
@@ -20,6 +23,7 @@ useSyncShortcut()
 onMounted(() => {
   void sync.startPolling()
   void me.load()
+  void mcp.load()
 })
 
 onBeforeUnmount(() => {
@@ -43,7 +47,7 @@ onBeforeUnmount(() => {
       <span v-if="me.source" class="source" title="Source the server reads findings from">
         {{ me.source }}
       </span>
-      <span v-if="me.username" class="user">{{ me.username }}</span>
+      <UserMenu />
       <OverviewSheet />
       <ThemeToggle />
     </div>
@@ -85,11 +89,6 @@ onBeforeUnmount(() => {
   font-size: var(--font-size-xs);
 }
 
-.user {
-  color: var(--color-text-muted);
-  font-size: var(--font-size-sm);
-}
-
 @media (max-width: 639px) {
   .top-bar {
     gap: var(--space-2);
@@ -107,8 +106,7 @@ onBeforeUnmount(() => {
     gap: var(--space-2);
   }
 
-  .source,
-  .user {
+  .source {
     display: none;
   }
 }

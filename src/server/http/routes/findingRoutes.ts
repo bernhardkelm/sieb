@@ -4,6 +4,7 @@ import type { FindingDetail, FindingView } from '#core/findingView.ts'
 import { filterFindings } from '#core/findingFilter.ts'
 import { parseFindingQuery } from '#core/findingQuery.ts'
 import { getFindingDetail, listFindingViews } from '#server/db/findingViews.ts'
+import { listKevDatesAdded } from '#server/db/kevCatalogRepository.ts'
 import type { AppEnv } from '#server/http/AppEnv.ts'
 import { parseId } from '#server/http/pathParams.ts'
 import { notFound, validationFailed } from '#server/http/responses.ts'
@@ -11,8 +12,9 @@ import type { RouteDeps } from '#server/http/RouteDeps.ts'
 
 /**
  * Creates the finding routes: GET / lists findings in inbox order filtered by the query
- * parameters of parseFindingQuery, GET /:id answers the detail of the side panel, with the
- * CISA catalog entry of a KEV listed finding when the KEV source is cisa.
+ * parameters of parseFindingQuery, kevAddedSince only with the cisa KEV source; GET /:id
+ * answers the detail of the side panel, with the CISA catalog entry of a KEV listed finding
+ * when the KEV source is cisa.
  * @param {RouteDeps} deps - Database, clock and KEV source
  * @returns {Hono<AppEnv>} - Routes, mounted at /api/findings
  */
@@ -26,7 +28,11 @@ export const createFindingRoutes = ({ db, clock, kevSource }: RouteDeps): Hono<A
       return validationFailed(c, query.errors)
     }
 
-    return c.json<FindingView[]>(filterFindings(listFindingViews(db, clock()), query.value))
+    const kevDatesAdded = kevSource === 'cisa' ? listKevDatesAdded(db) : null
+
+    return c.json<FindingView[]>(
+      filterFindings(listFindingViews(db, clock()), query.value, { kevDatesAdded }),
+    )
   })
 
   routes.get('/:id', (c) => {

@@ -30,8 +30,8 @@ export const isShortcutEvent = (event: KeyboardEvent, allowRepeat: boolean = fal
 export const SHORTCUT_SCOPE_ATTRIBUTE = 'data-shortcut-scope'
 
 /**
- * Returns where a key press happened: inside an element marked as overlay (popovers, dialogs) or
- * panel, or on the page.
+ * Returns where a key press happened: inside an overlay (dialogs, menus, elements marked as
+ * overlay) or panel, or on the page.
  * @param {EventTarget | null} target - Event target
  * @returns {'page' | 'panel' | 'overlay'} - Scope of the nearest marked ancestor, page without one
  */
@@ -40,7 +40,7 @@ export const shortcutScope = (target: EventTarget | null): 'page' | 'panel' | 'o
     return 'page'
   }
 
-  if (target.closest('[role="dialog"], [role="alertdialog"]')) {
+  if (target.closest('[role="dialog"], [role="alertdialog"], [role="menu"]')) {
     return 'overlay'
   }
 

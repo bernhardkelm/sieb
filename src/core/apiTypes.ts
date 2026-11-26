@@ -1,3 +1,4 @@
+import type { ApiTokenScope } from '#core/apiToken.ts'
 import type { BulkDecisionInput } from '#core/bulkDecisionValidation.ts'
 import type { DecisionInput, DecisionPatch } from '#core/decision.ts'
 import type { DecisionView } from '#core/findingView.ts'
@@ -23,8 +24,17 @@ export interface ErrorBody {
   decisionId?: number // conflicting or revoked decision for 409 answers
 }
 
+/** How the UI user is authenticated: forward-auth header or sieb's own OIDC login */
+export type AuthMode = 'header' | 'oidc'
+
 export interface MeResponse {
   username: string | null // null when neither the auth header nor a dev user is present
+  authMode: AuthMode
+}
+
+/** Answer of POST /auth/logout: where the browser goes to end the issuer session too */
+export interface LogoutResponse {
+  redirect: string // absolute URL, the issuer end-session endpoint or the public URL
 }
 
 export interface SyncStatusResponse {
@@ -74,4 +84,36 @@ export type DecisionPatchRequest = Omit<DecisionPatch, 'reconfirm'> & { reconfir
 export type BulkDecisionRequest = Omit<BulkDecisionInput, 'expiresAt' | 'justification'> & {
   expiresAt?: string | null
   justification?: BulkDecisionInput['justification']
+}
+
+/** Personal API token as listed in the UI, never with its secret or hash */
+export interface ApiTokenView {
+  id: number
+  name: string
+  scope: ApiTokenScope
+  prefix: string // first characters of the secret, to recognise the token
+  createdAt: string
+  expiresAt: string | null // null never expires
+  lastUsedAt: string | null
+  revokedAt: string | null
+}
+
+/** Body of POST /api/tokens */
+export interface ApiTokenCreateRequest {
+  name: string
+  scope: ApiTokenScope
+  expiresAt: string // ISO date-time or date, at most 365 days ahead
+}
+
+/** Answer of POST /api/tokens, the only time the secret leaves the server */
+export interface ApiTokenCreateResponse {
+  token: ApiTokenView
+  secret: string
+}
+
+/** Answer of GET /api/mcp-info, also while MCP is disabled so the UI can hide it */
+export interface McpInfoResponse {
+  enabled: boolean // SIEB_MCP_ENABLED
+  mcpUrl: string | null // absolute URL of the MCP endpoint, null while disabled
+  oauth: boolean // whether claude.ai connectors can sign in through OAuth, false while disabled
 }

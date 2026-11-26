@@ -7,6 +7,8 @@ import { MIGRATION_3 } from '#server/db/migrations/migration3.ts'
 import { MIGRATION_4 } from '#server/db/migrations/migration4.ts'
 import { MIGRATION_5 } from '#server/db/migrations/migration5.ts'
 import { MIGRATION_6 } from '#server/db/migrations/migration6.ts'
+import { MIGRATION_7 } from '#server/db/migrations/migration7.ts'
+import { MIGRATION_8 } from '#server/db/migrations/migration8.ts'
 
 /** Schema steps, step n brings the database to user_version n */
 export const MIGRATIONS: string[] = [
@@ -16,6 +18,8 @@ export const MIGRATIONS: string[] = [
   MIGRATION_4,
   MIGRATION_5,
   MIGRATION_6,
+  MIGRATION_7,
+  MIGRATION_8,
 ]
 
 /**

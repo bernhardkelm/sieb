@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import {
+  ToastAction,
   ToastClose,
   ToastDescription,
   ToastRoot,
@@ -19,6 +20,7 @@ const { toasts } = useToastManager()
         <ToastTitle class="title" />
         <ToastDescription v-if="item.description" class="description" />
       </div>
+      <ToastAction v-if="item.actionProps" class="action" />
       <ToastClose class="close" aria-label="Dismiss notification">×</ToastClose>
     </li>
   </ToastRoot>
@@ -78,6 +80,21 @@ const { toasts } = useToastManager()
 .description {
   color: var(--color-text-muted);
   font-size: var(--font-size-sm);
+}
+
+.action {
+  align-self: center;
+  height: var(--control-height);
+  padding: 0 var(--space-2);
+  border: var(--border-width) solid var(--color-border-strong);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface);
+  font-size: var(--font-size-sm);
+  white-space: nowrap;
+}
+
+.action:hover {
+  background: var(--color-hover);
 }
 
 .close {

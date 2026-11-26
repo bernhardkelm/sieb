@@ -13,5 +13,19 @@ Fixes land on `main` and ship with the next release. Only the latest release is 
 
 ## Scope
 
-sieb relies on a forward-auth proxy and a NetworkPolicy for authentication, see
-[docs/deployment.md](docs/deployment.md#security). A deployment without them is out of scope.
+What sieb guarantees depends on the auth mode, see
+[docs/deployment.md](docs/deployment.md#security):
+
+- `SIEB_AUTH=header` (default): sieb has no login of its own and trusts the username header of a
+  forward-auth proxy. The proxy must strip client-sent copies of that header, and a NetworkPolicy
+  must keep everything but the ingress controller and Prometheus away from the pod. A header mode
+  deployment without both is out of scope.
+- `SIEB_AUTH=oidc`: sieb runs its own OpenID Connect login with sessions and needs neither a
+  forward-auth proxy nor the header. Weaknesses in that login, its sessions and cookies are in
+  scope.
+
+The MCP endpoint for Claude (`SIEB_MCP_ENABLED`, off by default) authenticates only bearer tokens,
+in both modes, see [docs/mcp.md](docs/mcp.md#security-model). Token handling, the OAuth
+verification and ways to make a read-only tool change data are in scope. Claude acting on
+advisory text it reads through the tools is a known limit of the model, not a vulnerability of
+sieb, unless sieb fails to mark that text as untrusted.

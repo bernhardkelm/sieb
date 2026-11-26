@@ -1,16 +1,18 @@
 import type { Decision } from '#core/decision.ts'
 import type { FindingKey } from '#core/finding.ts'
 
-type ApplicabilityFields = Pick<Decision, 'vulnId' | 'scope' | 'imageRef' | 'revokedAt'>
+type CoverageFields = Pick<Decision, 'vulnId' | 'scope' | 'imageRef'>
+
+type ApplicabilityFields = CoverageFields & Pick<Decision, 'revokedAt'>
 
 /**
  * Returns whether a decision covers a finding: same vuln_id and either scope all or the same
  * image_ref. Ignores revocation, see selectApplicableDecision.
- * @param {ApplicabilityFields} decision - Decision
+ * @param {CoverageFields} decision - Decision or decision target
  * @param {FindingKey} finding - Finding key
  * @returns {boolean} - True when the decision covers the finding
  */
-export const decisionCovers = (decision: ApplicabilityFields, finding: FindingKey): boolean =>
+export const decisionCovers = (decision: CoverageFields, finding: FindingKey): boolean =>
   decision.vulnId === finding.vulnId &&
   (decision.scope === 'all' || decision.imageRef === finding.imageRef)
 

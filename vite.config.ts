@@ -5,7 +5,7 @@ import vue from '@vitejs/plugin-vue'
 import vueDevTools from 'vite-plugin-vue-devtools'
 
 /**
- * Returns the API server the dev server proxies /api and /metrics to.
+ * Returns the API server the dev server proxies /api, /auth, /metrics, /mcp and /.well-known to.
  * @returns {string} - Base URL from SIEB_API_URL, the local API server on SIEB_PORT or 3100 by default
  */
 const apiTarget = (): string =>
@@ -22,7 +22,10 @@ export default defineConfig(() => ({
     // keep the browser Host, the API compares Origin with Host on writes
     proxy: {
       '/api': { target: apiTarget(), changeOrigin: false },
+      '/auth': { target: apiTarget(), changeOrigin: false },
       '/metrics': { target: apiTarget(), changeOrigin: false },
+      '/mcp': { target: apiTarget(), changeOrigin: false },
+      '/.well-known': { target: apiTarget(), changeOrigin: false },
     },
   },
 }))

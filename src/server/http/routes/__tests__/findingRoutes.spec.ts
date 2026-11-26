@@ -103,6 +103,45 @@ describe('finding routes', () => {
     })
   })
 
+  it('filters by namespace, score, decision state and KEV date added', async () => {
+    const { app, deps } = await syncedTestApp()
+
+    await createKevRefresher({
+      db: deps.db,
+      clock: () => TEST_NOW,
+      log: quiet,
+      loadFeed: () => readMockKevFeed(),
+    }).refresh()
+
+    const all = (await requestJson<FindingView[]>(app, '/api/findings')).body
+    const namespace =
+      all.find((finding) => (finding.score ?? 0) >= 7 && finding.decision === null)
+        ?.namespaces[0] ?? ''
+    const scoped = (
+      await requestJson<FindingView[]>(
+        app,
+        `/api/findings?namespaces=${encodeURIComponent(namespace.toUpperCase())}&minScore=7&decisionState=undecided`,
+      )
+    ).body
+    const kev = (await requestJson<FindingView[]>(app, '/api/findings?kevAddedSince=2000-01-01'))
+      .body
+
+    expect(scoped.length).toBeGreaterThan(0)
+    expect(
+      scoped.every(
+        (finding) =>
+          finding.namespaces.includes(namespace) &&
+          (finding.score ?? 0) >= 7 &&
+          finding.decision === null,
+      ),
+    ).toBe(true)
+    expect(kev.length).toBeGreaterThan(0)
+    expect(kev.map((finding) => finding.id)).toEqual(
+      all.filter((finding) => finding.kev).map((finding) => finding.id),
+    )
+    expect((await requestJson(app, '/api/findings?minScore=11')).status).toBe(400)
+  })
+
   it('answers the detail of a finding and 404 for unknown ids', async () => {
     const { app } = await syncedTestApp()
     const [first] = (await requestJson<FindingView[]>(app, '/api/findings')).body

@@ -115,6 +115,7 @@ export const buildFindingView = (overrides: Partial<FindingView> = {}): FindingV
   namespaces: ['shop'],
   workloads: ['shop/ReplicaSet/web-6d4f'],
   packages: ['libssl3'],
+  fixable: true,
   decision: null,
   effective: null,
   inInbox: true,

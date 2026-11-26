@@ -7,11 +7,13 @@ import OverviewStats from '@/components/overview/OverviewStats.vue'
 import { hintsForRoute } from '@/keyboard/keyboardHints'
 import { NAV_ITEMS } from '@/router/navItems'
 import { useHintActionsStore } from '@/stores/hintActionsStore'
+import { useMcpStore } from '@/stores/mcpStore'
 
 const route = useRoute()
 const actions = useHintActionsStore()
+const mcp = useMcpStore()
 
-const hints = computed(() => hintsForRoute(route.name))
+const hints = computed(() => hintsForRoute(route.name, mcp.enabled))
 </script>
 
 <template>

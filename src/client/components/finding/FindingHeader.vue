@@ -8,7 +8,7 @@ import KevChip from '@/components/chips/KevChip.vue'
 import OwnerBadge from '@/components/chips/OwnerBadge.vue'
 import SeverityChip from '@/components/chips/SeverityChip.vue'
 import RelativeTime from '@/components/common/RelativeTime.vue'
-import { vulnLinks } from '@/format/vulnLinks'
+import { vulnLinks } from '#core/vulnLinks.ts'
 import { useLabelsStore } from '@/stores/labelsStore'
 
 const props = defineProps<{

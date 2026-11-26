@@ -13,7 +13,10 @@ npm install
 npm run dev:mock
 ```
 
-Work against mock mode unless the change needs live data. Never commit real cluster inventory,
+Work against mock mode unless the change needs live data. Mock mode ignores `.env.local`, pass
+variables inline, for example `SIEB_MCP_ENABLED=true npm run dev:mock` for the Claude
+integration (see the [quick start](README.md#quick-start)). For the oidc mode you need an
+identity provider of your own, see [docs/deployment.md](docs/deployment.md#oidc-mode). Never commit real cluster inventory,
 report dumps or database files. Live mode stays read-only: no kubectl write verbs, no Secrets.
 
 ## Before opening a pull request
@@ -33,7 +36,7 @@ CI runs the same checks, without `--fix`. If you change the fixture generator, r
 | Script | Purpose |
 | --- | --- |
 | `dev` | API server (reads `.env.local`, watch mode) and Vite dev server |
-| `dev:mock` | Same with `SIEB_SOURCE=mock` and the separate database `data/sieb-mock.db` |
+| `dev:mock` | Same with `SIEB_SOURCE=mock` and the separate database `data/sieb-mock.db`, ignores `.env.local` |
 | `dev:server`, `dev:server:mock` | API server only |
 | `dev:client` | Vite dev server only, `SIEB_API_URL` overrides the proxy target |
 | `build` | Type check and production build of the client into `dist/` |
@@ -53,20 +56,28 @@ src/
   core/      shared types and pure logic, no IO, used by server and client (#core/*)
   server/    Hono API, sync, SQLite, sources, /metrics (#server/*)
     main.ts        reads the config and starts listening
-    config.ts      environment parsing, configValues.ts holds the value parsers
-    http/          app factory (createApp), identity, static client serving, routes/ per resource
+    config.ts      environment parsing, configValues.ts, mcpConfigValues.ts and oidcConfigValues.ts
+                   hold the value parsers
+    auth/          bearer token verification: personal token secrets and OAuth JWTs
+      oidc/        UI login of SIEB_AUTH=oidc: discovery, pending logins, cookies, /auth routes, session cleanup
+    http/          app factory (createApp), identity, oidc session guard, static client serving,
+                   metrics listener app, routes/ per resource
     db/            SQLite open, migrations, repositories and decision commands
     sources/       FindingSource implementations (mock, kubectl, incluster) and the raw-shape mapper
     kev/           CISA KEV feed download, validation and daily refresh
     sync/          snapshot upsert, sync service and scheduler
     metrics/       reads the values /metrics renders
+    mcp/           /mcp endpoint, its guards, OAuth metadata, server instructions, triage prompt, tools/
   client/    Vue 3 SPA (@/*)
     assets/        main.css composes tokens.css and base.css
     api/           typed fetch helpers, one module per API resource
     components/    reusable components grouped by domain
     composables/   shared composition functions
+    format/        display labels and formatting helpers
     keyboard/      shortcut helpers and hints
     router/        route definitions, route names, sidebar items
+    stores/        Pinia stores: findings, images, CVEs, decisions, filters, user, MCP info
+    toast/         toast notifications
     views/         one route-level component per view
 scripts/     project scripts such as the fixture generator
 ```

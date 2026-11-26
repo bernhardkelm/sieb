@@ -8,6 +8,7 @@ import AppSidebar from '@/components/layout/AppSidebar.vue'
 import { NOT_AVAILABLE_REASON } from '@/keyboard/hintActions'
 import { ROUTE_NAMES } from '@/router/routeNames'
 import { useHintActionsStore } from '@/stores/hintActionsStore'
+import { useMcpStore } from '@/stores/mcpStore'
 
 let wrapper: VueWrapper | null = null
 
@@ -62,6 +63,26 @@ const hintOf = (sidebar: VueWrapper, label: string): Element => {
 }
 
 describe('AppSidebar hints', () => {
+  it('lists the Claude hints at the end of the inbox only with the integration on', async () => {
+    const sidebar = await mountSidebar('/inbox')
+    const labels = (): string[] =>
+      sidebar.findAll('.hints li > *').map((item) => item.findAll('span').at(-1)?.text() ?? '')
+
+    expect(labels()).not.toContain('Copy for Claude')
+
+    useMcpStore().info = { enabled: true, mcpUrl: 'https://sieb.example.com/mcp', oauth: false }
+    await sidebar.vm.$nextTick()
+
+    expect(labels().slice(-3)).toEqual(['Open in Claude', 'Copy for Claude', 'Copy claude command'])
+    expect((hintOf(sidebar, 'Copy for Claude') as HTMLButtonElement).title).toBe(
+      NOT_AVAILABLE_REASON,
+    )
+
+    await sidebar.vm.$router.push('/cves')
+
+    expect(labels()).not.toContain('Copy for Claude')
+  })
+
   it('renders actions as buttons and range and tree hints as text', async () => {
     const sidebar = await mountSidebar('/inbox')
 

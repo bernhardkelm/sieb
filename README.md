@@ -25,19 +25,30 @@ as `sieb_suppressed{vuln_id, image_ref}`. Your Prometheus alert rules drop the s
   image, per CVE and per decision; optional free-form owner labels put your own images first
 - KEV listing from the CISA Known Exploited Vulnerabilities catalog, fetched daily with date
   added, due date, ransomware use and required action in the finding panel; alternatively from a
-  Prometheus query, or switched off
+  Prometheus query, or switched off. A KEV toggle in the filter bar keeps only KEV listed findings
 - By image as a risk view: findings decided not affected leave the counts, accepted risk stays
   in; by CVE as a triage view that hides CVEs whose open findings are all decided. A filter toggle
-  brings either back
+  brings either back, and an all clear state shows when nothing is left to decide
 - Decisions per image or for all images of a CVE (not affected, accepted or fix planned), with
   reason, optional expiry and bulk actions; not affected takes an optional OpenVEX justification
-  such as component not present (false positive)
+  such as component not present (false positive). Unsaved decision drafts are guarded against
+  row clicks, navigation and closing the tab
 - Decisions re-open on their own when a governed finding gets more severe or becomes KEV listed
 - History of every decision, and overview stats with a 7, 30 or 90 day trend that count not
   affected and accepted findings apart
-- `/metrics` for Prometheus: alert silencing without hiding findings
+- `/metrics` for Prometheus: alert silencing without hiding findings, optionally on a separate
+  port
+- Login through your forward-auth proxy (default) or sieb's own OpenID Connect login with
+  sessions and logout, see [authentication](docs/deployment.md#authentication)
+- Optional Claude integration over MCP, off by default: Claude Code (personal API tokens from the
+  user menu) and claude.ai (custom connector with OAuth) query findings, images and decisions
+  read-only, and a hand-off button (`Shift+H`, `h`, `y`) opens a finding in Claude Code (desktop,
+  terminal or VS Code) or Claude chat with the prompt prefilled, never sent, or copies it, see
+  [docs/mcp.md](docs/mcp.md)
 - Single Node process with an embedded SQLite file, no external database
-- Fully keyboard driven, light and dark theme
+- Fully keyboard driven: shortcuts per view, clickable in the sidebar, and `a`, `n` or `f` decide
+  all checked rows in one dialog. The inbox and tree lists are virtualized, phones get a bottom tab bar
+  and a selection bar. Light and dark theme
 
 ## Quick start
 
@@ -48,9 +59,20 @@ npm install
 npm run dev:mock
 ```
 
-Open http://localhost:5173. The Vite dev server proxies `/api` and `/metrics` to the API server on
-port 3100. Every sync in mock mode flips between two fixture states, so new, resolved and re-rated
-findings show up without a cluster.
+Open http://localhost:5173. The Vite dev server proxies `/api`, `/auth`, `/metrics`, `/mcp` and
+`/.well-known` to the API server on port 3100. Every sync in mock mode flips between two fixture
+states, so new, resolved and re-rated findings show up without a cluster.
+
+To try the Claude integration against the fixtures, turn it on for the run:
+
+```sh
+SIEB_MCP_ENABLED=true npm run dev:mock
+```
+
+Open the user menu (`dev` in the top bar), choose **API tokens…**, create a token and run the
+`claude mcp add` command sieb shows, which points Claude Code at `http://localhost:5173/mcp`. Then
+ask Claude Code "how are we doing?". claude.ai needs a public https URL and an OAuth provider, see
+[docs/mcp.md](docs/mcp.md).
 
 Live mode reads your cluster through read-only `kubectl` (current context, or `SIEB_KUBE_CONTEXT`):
 
@@ -66,8 +88,9 @@ running sieb in the cluster, see [docs/deployment.md](docs/deployment.md).
 
 ## Configuration
 
-All variables are optional. `npm run dev:server` reads them from `.env.local`, copy
-[.env.example](.env.example) as a starting point.
+All variables are optional. `npm run dev` and `npm run dev:server` read them from `.env.local`,
+copy [.env.example](.env.example) as a starting point; the mock scripts ignore that file, pass
+variables inline as above.
 
 | Variable | Default | Meaning |
 | --- | --- | --- |
@@ -83,12 +106,31 @@ All variables are optional. `npm run dev:server` reads them from `.env.local`, c
 | `SIEB_PROMETHEUS_SERVICE` | `monitoring/kube-prometheus-stack-prometheus:9090` | Prometheus service as `namespace/name:port`, reached through the API server proxy by the `kubectl` source |
 | `SIEB_PROMETHEUS_URL` | `http://kube-prometheus-stack-prometheus.monitoring.svc:9090` | Prometheus base URL for the `incluster` source |
 | `SIEB_SYNC_INTERVAL_MINUTES` | `15` | Minutes between automatic syncs |
-| `SIEB_USER_HEADER` | `X-authentik-username` | Header with the username set by your forward-auth proxy |
-| `SIEB_DEV_USER` | `dev` | Acting user without that header, ignored in production |
+| `SIEB_USER_HEADER` | `X-authentik-username` | header mode: username header set by your forward-auth proxy |
+| `SIEB_DEV_USER` | `dev` | header mode: acting user without that header, ignored in production |
+| `SIEB_AUTH` | `header` | `header` trusts the forward-auth username header, `oidc` runs sieb's own OpenID Connect login with sessions and ignores the header, see [authentication](docs/deployment.md#authentication) |
+| `SIEB_OIDC_ISSUER` | empty | oidc: issuer URL exactly as the provider shows it, base of OpenID discovery, https in production |
+| `SIEB_OIDC_CLIENT_ID` | empty | oidc: client id of the confidential UI login client |
+| `SIEB_OIDC_CLIENT_SECRET` | empty | oidc: client secret, never logged |
+| `SIEB_OIDC_REQUIRED_GROUP` | empty | oidc: entry of the `groups` claim a user must have, empty admits every user of the issuer |
+| `SIEB_SESSION_HOURS` | `12` | oidc: absolute session lifetime in hours, 1 to 168 |
+| `SIEB_METRICS_PORT` | empty | Serves `/metrics` on this separate port only, the main port then answers 404; required in oidc mode |
 | `SIEB_ALLOWED_HOSTS` | empty | Comma list of `Host` values accepted besides loopback, e.g. your public hostname |
+| `SIEB_MCP_ENABLED` | `false` | `true` or `1` serves `/mcp`, the personal token routes and, with OAuth, its metadata, see [docs/mcp.md](docs/mcp.md) |
+| `SIEB_PUBLIC_URL` | derived per request | Origin sieb is reached at (`https://sieb.example.com`, no path or trailing slash, https in production), for absolute links in MCP results, the MCP resource URL and the OIDC redirect URI; required for OAuth and in oidc mode |
+| `SIEB_MCP_ALLOWED_ORIGINS` | empty | Comma list of browser origins `/mcp` accepts besides its own host; requests without `Origin` always pass |
+| `SIEB_OAUTH_ISSUER` | empty | OAuth issuer for claude.ai, the exact `iss` claim and the base of OpenID discovery; set together with `SIEB_OAUTH_CLIENT_ID`, empty accepts personal tokens only |
+| `SIEB_OAUTH_CLIENT_ID` | empty | Client id of the OAuth provider, the exact `aud` claim |
+| `SIEB_OAUTH_JWKS_URL` | discovered | Key set URL of the issuer, unset reads `jwks_uri` from its OpenID configuration |
+| `SIEB_OAUTH_REQUIRED_GROUP` | empty | Entry of the `groups` claim an OAuth caller must have, empty admits every user of the issuer |
+| `SIEB_OAUTH_CLIENT_LABEL` | `claude.ai` | Client name of OAuth callers in logs and tool results |
 
 `NODE_ENV=production` and the `incluster` source refuse the mock source and disable the dev user.
-The built client in `dist/` is served whenever `dist/index.html` exists.
+`SIEB_AUTH=oidc` needs `SIEB_OIDC_ISSUER`, `SIEB_OIDC_CLIENT_ID`, `SIEB_OIDC_CLIENT_SECRET`,
+`SIEB_PUBLIC_URL` and `SIEB_METRICS_PORT`, never uses the dev user, and its client must differ
+from `SIEB_OAUTH_CLIENT_ID`.
+The built client in `dist/` is served whenever `dist/index.html` exists. The `SIEB_OAUTH_*`
+variables are ignored while `SIEB_MCP_ENABLED` is off.
 
 ## How silencing works
 
@@ -107,10 +149,11 @@ up to 6h. Rules, timing and a `SiebDown` alert: [docs/prometheus-rules.md](docs/
 ## Documentation
 
 - [docs/prometheus-rules.md](docs/prometheus-rules.md): required labels, example recording rules, silencing rules
-- [docs/deployment.md](docs/deployment.md): container image, Kubernetes manifests, security notes
-- [docs/api.md](docs/api.md): HTTP API, decision re-opening, metrics
+- [docs/deployment.md](docs/deployment.md): container image, authentication modes, metrics port, Kubernetes manifests, security notes
+- [docs/api.md](docs/api.md): HTTP API, finding filters, login routes, decision re-opening, metrics, tokens and the MCP endpoint
+- [docs/mcp.md](docs/mcp.md): Claude Code and claude.ai setup, MCP tools, hand-off, security model
 - [CONTRIBUTING.md](CONTRIBUTING.md): development setup, scripts, code layout, releasing
-- [SECURITY.md](SECURITY.md): reporting a vulnerability
+- [SECURITY.md](SECURITY.md): reporting a vulnerability, scope
 
 ## License
 

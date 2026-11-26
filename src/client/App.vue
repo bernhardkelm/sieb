@@ -4,7 +4,12 @@ import { RouterView } from 'vue-router'
 
 import AppToaster from '@/components/common/AppToaster.vue'
 import AppShell from '@/components/layout/AppShell.vue'
-import { toast } from '@/toast/toastManager'
+import { onWriteSessionExpired, startLogin } from '@/api/session'
+import { notifySessionExpired, toast } from '@/toast/toastManager'
+
+onWriteSessionExpired(() => {
+  notifySessionExpired(startLogin)
+})
 </script>
 
 <template>

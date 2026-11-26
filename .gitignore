@@ -33,3 +33,6 @@ __screenshots__/
 
 # Vite
 *.timestamp-*-*.mjs
+
+# Claude Code MCP config, may hold a personal sieb token
+.mcp.json

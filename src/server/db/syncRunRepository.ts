@@ -119,14 +119,18 @@ export const failInterruptedSyncRuns = (db: DatabaseSync, now: Date): number =>
 /**
  * Reads the latest sync run.
  * @param {DatabaseSync} db - Open database
- * @param {{ finished?: boolean }} filter - Only finished runs when finished is true
+ * @param {{ finished?: boolean; succeeded?: boolean }} filter - Only finished or only successful runs
  * @returns {SyncRun | null} - Latest run, null before the first one
  */
 export const latestSyncRun = (
   db: DatabaseSync,
-  filter: { finished?: boolean } = {},
+  filter: { finished?: boolean; succeeded?: boolean } = {},
 ): SyncRun | null => {
-  const where = filter.finished ? "WHERE status <> 'running'" : ''
+  const where = filter.succeeded
+    ? "WHERE status = 'success'"
+    : filter.finished
+      ? "WHERE status <> 'running'"
+      : ''
   const row = db.prepare(`SELECT * FROM sync_runs ${where} ORDER BY id DESC LIMIT 1`).get() as
     | SyncRunRow
     | undefined

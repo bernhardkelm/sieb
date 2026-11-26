@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { isWebUrl, vulnLinks } from '@/format/vulnLinks'
+import { isWebUrl, vulnLinks } from '#core/vulnLinks.ts'
 
 describe('vulnLinks', () => {
   it('adds a web primary link next to NVD and the KEV catalog', () => {

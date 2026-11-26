@@ -14,6 +14,15 @@ const ALL: FindingQuery = {
   owner: [],
   newSince: null,
   kev: false,
+  vulnIds: [],
+  packages: [],
+  images: [],
+  namespaces: [],
+  workloads: [],
+  minScore: null,
+  decisionState: [],
+  kevAddedSince: null,
+  fixable: null,
 }
 
 describe('parseFindingQuery', () => {
@@ -32,6 +41,7 @@ describe('parseFindingQuery', () => {
     ).toEqual({
       ok: true,
       value: {
+        ...ALL,
         view: 'inbox',
         includeResolved: true,
         q: 'libssl',
@@ -41,6 +51,10 @@ describe('parseFindingQuery', () => {
         newSince: '2026-05-25T00:00:00.000Z',
         kev: true,
       },
+    })
+    expect(parseFindingQuery({ view: 'inbox' })).toEqual({
+      ok: true,
+      value: { ...ALL, view: 'inbox' },
     })
     expect(parseFindingQuery({})).toEqual({ ok: true, value: ALL })
   })

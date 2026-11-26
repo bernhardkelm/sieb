@@ -8,14 +8,22 @@ import LoadingSpinner from '@/components/common/LoadingSpinner.vue'
 import DecisionHistory from '@/components/decision/DecisionHistory.vue'
 import FindingDecisions from '@/components/finding/FindingDecisions.vue'
 import FindingHeader from '@/components/finding/FindingHeader.vue'
+import HandoffButton from '@/components/finding/HandoffButton.vue'
 import InstanceTable from '@/components/finding/InstanceTable.vue'
 import KevDetails from '@/components/finding/KevDetails.vue'
 import { useFindingPanel } from '@/composables/useFindingPanel'
+import { useHandoff } from '@/composables/useHandoff'
+import { useHandoffHintActions } from '@/composables/useHandoffHintActions'
 import { usePanelShortcuts } from '@/composables/usePanelShortcuts'
 import { useFindingDetailStore } from '@/stores/findingDetailStore'
+import { useMcpStore } from '@/stores/mcpStore'
 
 const { findingId, closeFinding } = useFindingPanel()
 const store = useFindingDetailStore()
+const mcp = useMcpStore()
+const { prompt: handoffPrompt, command: handoffCommand } = useHandoff()
+
+useHandoffHintActions()
 
 const panel = ref<HTMLElement | null>(null)
 let opener: Element | null = null
@@ -91,6 +99,11 @@ onBeforeUnmount(() => {
     <header class="header">
       <h2 class="vuln-id">{{ store.detail?.finding.vulnId ?? `Finding ${findingId}` }}</h2>
       <CopyButton v-if="store.detail" :value="store.detail.finding.vulnId" label="Copy CVE ID" />
+      <HandoffButton
+        v-if="mcp.enabled && handoffPrompt !== null"
+        :prompt="handoffPrompt"
+        :command="handoffCommand"
+      />
       <LoadingSpinner v-if="store.loading" />
       <CloseButton label="Close panel" @click="closeFinding" />
     </header>

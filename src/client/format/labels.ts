@@ -1,8 +1,14 @@
+import { MAX_LIVE_TOKENS, type ApiTokenScope } from '#core/apiToken.ts'
 import type { DecisionJustification, DecisionScope, DecisionStatus } from '#core/decision.ts'
 import type { DecisionEventType } from '#core/decisionEvent.ts'
 import type { DecisionState, ReopenReason } from '#core/effectiveDecision.ts'
 import type { Exposure } from '#core/exposure.ts'
 import { SELF_OWNER } from '#core/owner.ts'
+
+export const TOKEN_SCOPE_LABELS: Record<ApiTokenScope, string> = {
+  read: 'Read',
+  propose: 'Read and propose',
+}
 
 export const STATUS_LABELS: Record<DecisionStatus, string> = {
   not_affected: 'Not affected',
@@ -75,6 +81,8 @@ const ERROR_MESSAGES: Record<string, string> = {
   cross_site_request: 'The server refused a request from another site.',
   forbidden_host: 'The server does not accept requests for this host name.',
   payload_too_large: 'The request is too large.',
+  mcp_disabled: 'Claude access is switched off on this server.',
+  too_many_tokens: `At most ${MAX_LIVE_TOKENS} active tokens, revoke one first.`,
 }
 
 /**

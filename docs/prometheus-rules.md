@@ -176,7 +176,10 @@ Contract for the rules below:
   folds duplicates, for example old and new pod during a rollout.
 
 Scrape sieb directly (Service or pod, not through the authenticated ingress) with the job name
-`sieb`, then add two recording rules.
+`sieb`, then add two recording rules. With `SIEB_METRICS_PORT` set, which oidc mode requires,
+`/metrics` is served only on that port and the main port answers 404, so scrape the metrics port;
+see [Metrics port](deployment.md#metrics-port) and the ServiceMonitor in
+[deployment.md](deployment.md#kubernetes).
 
 ### Recording rules
 

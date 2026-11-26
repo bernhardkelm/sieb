@@ -12,6 +12,7 @@ export interface FindingSummary extends Finding {
   namespaces: string[]
   workloads: string[] // "namespace/kind/name"
   packages: string[]
+  fixable: boolean // a current instance has a fixed version
 }
 
 /** Finding with its governing decision as the list views need it */

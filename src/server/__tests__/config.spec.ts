@@ -151,4 +151,152 @@ describe('readConfig', () => {
     )
     expect(() => readConfig({ SIEB_KEV_URL: 'www.cisa.gov/kev.json' }, CWD)).toThrow(/SIEB_KEV_URL/)
   })
+
+  it('leaves the MCP settings off by default', () => {
+    expect(readConfig({}, CWD)).toMatchObject({
+      mcpEnabled: false,
+      publicUrl: null,
+      mcpAllowedOrigins: [],
+      oauth: null,
+    })
+  })
+
+  it.each([
+    ['true', true],
+    [' TRUE ', true],
+    ['1', true],
+    ['false', false],
+    ['0', false],
+    ['', false],
+  ])('reads SIEB_MCP_ENABLED=%j as %s', (value, expected) => {
+    expect(readConfig({ SIEB_MCP_ENABLED: value }, CWD).mcpEnabled).toBe(expected)
+  })
+
+  it('rejects other SIEB_MCP_ENABLED values', () => {
+    expect(() => readConfig({ SIEB_MCP_ENABLED: 'yes' }, CWD)).toThrow(
+      'SIEB_MCP_ENABLED must be true, false, 1 or 0, got "yes"',
+    )
+  })
+
+  it('ignores OAuth settings, even incomplete ones, while MCP is off', () => {
+    expect(
+      readConfig(
+        { SIEB_OAUTH_ISSUER: 'not a url', SIEB_OAUTH_JWKS_URL: 'https://auth.example.com/' },
+        CWD,
+      ).oauth,
+    ).toBeNull()
+    expect(
+      readConfig(
+        {
+          SIEB_PUBLIC_URL: 'https://sieb.example.com',
+          SIEB_OAUTH_ISSUER: 'https://auth.example.com/',
+          SIEB_OAUTH_CLIENT_ID: 'sieb-mcp',
+        },
+        CWD,
+      ).oauth,
+    ).toBeNull()
+  })
+
+  it('reads the public URL as a bare origin, https only in production', () => {
+    expect(readConfig({ SIEB_PUBLIC_URL: ' http://localhost:5173 ' }, CWD).publicUrl).toBe(
+      'http://localhost:5173',
+    )
+    expect(
+      readConfig({ SIEB_SOURCE: 'incluster', SIEB_PUBLIC_URL: 'https://Sieb.example.com' }, CWD)
+        .publicUrl,
+    ).toBe('https://sieb.example.com')
+    expect(() =>
+      readConfig({ SIEB_SOURCE: 'incluster', SIEB_PUBLIC_URL: 'http://sieb.example.com' }, CWD),
+    ).toThrow(/SIEB_PUBLIC_URL must be an https URL/)
+    expect(() => readConfig({ SIEB_PUBLIC_URL: 'https://sieb.example.com/' }, CWD)).toThrow(
+      /without path or trailing slash/,
+    )
+    expect(() => readConfig({ SIEB_PUBLIC_URL: 'https://sieb.example.com/sieb' }, CWD)).toThrow(
+      /SIEB_PUBLIC_URL/,
+    )
+    expect(() => readConfig({ SIEB_PUBLIC_URL: 'sieb.example.com' }, CWD)).toThrow(
+      /SIEB_PUBLIC_URL/,
+    )
+  })
+
+  it('parses the allowed MCP origins', () => {
+    expect(
+      readConfig({ SIEB_MCP_ALLOWED_ORIGINS: ' https://Claude.ai, ,http://localhost:6274' }, CWD)
+        .mcpAllowedOrigins,
+    ).toEqual(['https://claude.ai', 'http://localhost:6274'])
+    expect(() => readConfig({ SIEB_MCP_ALLOWED_ORIGINS: 'claude.ai' }, CWD)).toThrow(
+      /SIEB_MCP_ALLOWED_ORIGINS/,
+    )
+    expect(() => readConfig({ SIEB_MCP_ALLOWED_ORIGINS: 'https://claude.ai/x' }, CWD)).toThrow(
+      /SIEB_MCP_ALLOWED_ORIGINS/,
+    )
+  })
+
+  it('reads the OAuth settings with the default client label', () => {
+    const issuer = 'https://auth.example.com/application/o/sieb-mcp/'
+    const env = {
+      SIEB_MCP_ENABLED: 'true',
+      SIEB_PUBLIC_URL: 'https://sieb.example.com',
+      SIEB_OAUTH_ISSUER: issuer,
+      SIEB_OAUTH_CLIENT_ID: ' sieb-mcp ',
+    }
+
+    expect(readConfig(env, CWD).oauth).toEqual({
+      issuer,
+      clientId: 'sieb-mcp',
+      jwksUrl: null,
+      requiredGroup: null,
+      clientLabel: 'claude.ai',
+    })
+    expect(
+      readConfig(
+        {
+          ...env,
+          SIEB_OAUTH_JWKS_URL: 'https://auth.example.com/application/o/sieb-mcp/jwks/',
+          SIEB_OAUTH_REQUIRED_GROUP: 'sieb-users',
+          SIEB_OAUTH_CLIENT_LABEL: 'Claude',
+        },
+        CWD,
+      ).oauth,
+    ).toMatchObject({
+      jwksUrl: 'https://auth.example.com/application/o/sieb-mcp/jwks/',
+      requiredGroup: 'sieb-users',
+      clientLabel: 'Claude',
+    })
+  })
+
+  it('refuses incomplete or invalid OAuth settings', () => {
+    const publicUrl = { SIEB_MCP_ENABLED: '1', SIEB_PUBLIC_URL: 'https://sieb.example.com' }
+
+    expect(() =>
+      readConfig({ ...publicUrl, SIEB_OAUTH_ISSUER: 'https://auth.example.com/' }, CWD),
+    ).toThrow(/must be set together/)
+    expect(() => readConfig({ ...publicUrl, SIEB_OAUTH_CLIENT_ID: 'sieb-mcp' }, CWD)).toThrow(
+      /must be set together/,
+    )
+    expect(() =>
+      readConfig(
+        {
+          SIEB_MCP_ENABLED: '1',
+          SIEB_OAUTH_ISSUER: 'https://auth.example.com/',
+          SIEB_OAUTH_CLIENT_ID: 'sieb-mcp',
+        },
+        CWD,
+      ),
+    ).toThrow(/needs SIEB_PUBLIC_URL/)
+    expect(() =>
+      readConfig(
+        {
+          SIEB_SOURCE: 'incluster',
+          ...publicUrl,
+          SIEB_OAUTH_ISSUER: 'http://auth.example.com/',
+          SIEB_OAUTH_CLIENT_ID: 'sieb-mcp',
+        },
+        CWD,
+      ),
+    ).toThrow(/SIEB_OAUTH_ISSUER must be an https URL/)
+    expect(() =>
+      readConfig({ ...publicUrl, SIEB_OAUTH_JWKS_URL: 'https://auth.example.com/jwks/' }, CWD),
+    ).toThrow(/SIEB_OAUTH_JWKS_URL needs/)
+  })
 })

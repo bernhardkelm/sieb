@@ -23,3 +23,25 @@ export interface FindingInstance extends InstanceWorkload, InstanceDetails {
   lastSeen: string
   resolvedAt: string | null
 }
+
+/** Package and versions of an instance, as compact listings show them */
+export type PackageVersion = Pick<InstanceDetails, 'package' | 'installedVersion' | 'fixedVersion'>
+
+/**
+ * Returns the distinct package versions of several instances, in input order.
+ * @param {readonly PackageVersion[]} instances - Instances
+ * @returns {PackageVersion[]} - Package, installed and fixed version without duplicates
+ */
+export const distinctPackageVersions = (instances: readonly PackageVersion[]): PackageVersion[] => {
+  const seen = new Map<string, PackageVersion>()
+
+  for (const { package: name, installedVersion, fixedVersion } of instances) {
+    const key = JSON.stringify([name, installedVersion, fixedVersion])
+
+    if (!seen.has(key)) {
+      seen.set(key, { package: name, installedVersion, fixedVersion })
+    }
+  }
+
+  return [...seen.values()]
+}

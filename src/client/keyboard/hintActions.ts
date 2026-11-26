@@ -12,6 +12,9 @@ export type HintActionId =
   | 'edit'
   | 'revoke'
   | 'reconfirm'
+  | 'handoffOpen'
+  | 'handoff'
+  | 'handoffCommand'
 
 export interface HintAction {
   /** Runs what the shortcut key runs */
