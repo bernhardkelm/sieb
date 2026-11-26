@@ -1,0 +1,26 @@
+# Local data and secrets, never part of an image
+data
+**/.env
+**/.env.*
+**/*.local
+**/*.db
+**/*.db-*
+
+# Build output and tooling state, rebuilt inside the image
+node_modules
+dist
+coverage
+.git
+.github
+.eslintcache
+**/*.tsbuildinfo
+**/*.log
+.DS_Store
+.vscode
+.idea
+
+# Docs and tests, not needed at build or runtime
+docs
+*.md
+**/__tests__
+renovate.json

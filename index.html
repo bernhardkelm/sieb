@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>sieb</title>
+    <meta
+      name="description"
+      content="Triage inbox for Trivy Operator findings that silences Prometheus alerts per CVE and image"
+    />
+    <meta name="theme-color" content="#fafbfb" media="(prefers-color-scheme: light)" />
+    <meta name="theme-color" content="#151618" media="(prefers-color-scheme: dark)" />
+    <link rel="icon" href="/favicon.ico" sizes="32x32" />
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <link rel="icon" href="/icon-192.png" type="image/png" sizes="192x192" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <link rel="manifest" href="/site.webmanifest" />
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="sieb" />
+    <meta
+      property="og:description"
+      content="Triage inbox for Trivy Operator findings that silences Prometheus alerts per CVE and image"
+    />
+    <meta name="twitter:card" content="summary" />
+    <script>
+      try {
+        var theme = localStorage.getItem('sieb-theme')
+        if (theme === 'light' || theme === 'dark') {
+          document.documentElement.setAttribute('data-theme', theme)
+        }
+      } catch (error) {}
+    </script>
+  </head>
+  <body>
+    <div id="app"></div>
+    <script type="module" src="/src/client/main.ts"></script>
+  </body>
+</html>

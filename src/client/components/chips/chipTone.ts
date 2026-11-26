@@ -1,0 +1,12 @@
+export type ChipTone =
+  | 'critical'
+  | 'high'
+  | 'medium'
+  | 'low'
+  | 'unknown'
+  | 'kev'
+  | 'neutral'
+  | 'accent'
+  | 'success'
+  | 'warning'
+  | 'danger'

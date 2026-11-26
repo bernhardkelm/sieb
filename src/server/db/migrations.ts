@@ -1,0 +1,50 @@
+import type { DatabaseSync } from 'node:sqlite'
+
+import { inTransaction } from '#server/db/inTransaction.ts'
+import { MIGRATION_1 } from '#server/db/migrations/migration1.ts'
+import { MIGRATION_2 } from '#server/db/migrations/migration2.ts'
+import { MIGRATION_3 } from '#server/db/migrations/migration3.ts'
+import { MIGRATION_4 } from '#server/db/migrations/migration4.ts'
+import { MIGRATION_5 } from '#server/db/migrations/migration5.ts'
+
+/** Schema steps, step n brings the database to user_version n */
+export const MIGRATIONS: string[] = [
+  MIGRATION_1,
+  MIGRATION_2,
+  MIGRATION_3,
+  MIGRATION_4,
+  MIGRATION_5,
+]
+
+/**
+ * Reads the schema version stored in PRAGMA user_version.
+ * @param {DatabaseSync} db - Open database
+ * @returns {number} - Applied migration count
+ */
+export const schemaVersion = (db: DatabaseSync): number =>
+  Number(db.prepare('PRAGMA user_version').get()?.user_version ?? 0)
+
+/**
+ * Applies all pending migrations in order, each step in its own transaction together with the
+ * version bump, so a failed step leaves the previous version intact.
+ * @param {DatabaseSync} db - Open database
+ * @param {string[]} migrations - Ordered schema steps
+ * @returns {void}
+ * @throws {Error} - When the database is newer than the schema steps of this code
+ */
+export const runMigrations = (db: DatabaseSync, migrations: string[] = MIGRATIONS): void => {
+  const current = schemaVersion(db)
+
+  if (current > migrations.length) {
+    throw new Error(
+      `database schema version ${current} is newer than this code (${migrations.length}), update sieb first`,
+    )
+  }
+
+  for (let version = current; version < migrations.length; version += 1) {
+    inTransaction(db, () => {
+      db.exec(migrations[version] ?? '')
+      db.exec(`PRAGMA user_version = ${version + 1}`)
+    })
+  }
+}

@@ -1,0 +1,23 @@
+{
+  "extends": "@tsconfig/node26/tsconfig.json",
+  "include": [
+    "vite.config.*",
+    "vitest.config.*",
+    "eslint.config.*",
+    "scripts/**/*",
+    "src/server/**/*",
+    "src/core/**/*"
+  ],
+  "compilerOptions": {
+    // bundler resolution for tools, .ts extensions stay in imports for Node's type stripping
+    "module": "preserve",
+    "moduleResolution": "bundler",
+    "allowImportingTsExtensions": true,
+    // type stripping only removes erasable syntax and keeps unmarked type imports
+    "erasableSyntaxOnly": true,
+    "verbatimModuleSyntax": true,
+    "types": ["node"],
+    "noEmit": true,
+    "tsBuildInfoFile": "./node_modules/.tmp/tsconfig.node.tsbuildinfo"
+  }
+}

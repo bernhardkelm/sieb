@@ -1,0 +1,35 @@
+# Logs
+logs
+*.log
+npm-debug.log*
+
+node_modules
+.DS_Store
+dist
+coverage
+*.tsbuildinfo
+.eslintcache
+
+# Environment files, .env.example stays tracked
+.env
+.env.local
+.env.*.local
+
+# SQLite databases and the data directory
+/data/
+*.db
+*.db-journal
+*.db-wal
+*.db-shm
+
+# Editor directories and files
+.vscode/*
+!.vscode/extensions.json
+.idea
+*.sw?
+
+# Vitest
+__screenshots__/
+
+# Vite
+*.timestamp-*-*.mjs

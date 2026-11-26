@@ -1,0 +1,50 @@
+[
+  {
+    "vulnId": "CVE-2023-22527",
+    "imageRef": "index.docker.io/library/postgres"
+  },
+  {
+    "vulnId": "CVE-2024-46394",
+    "imageRef": "registry.example.com/acme/demo-app"
+  },
+  {
+    "vulnId": "CVE-2023-57932",
+    "imageRef": "registry.example.com/acme/demo-app"
+  },
+  {
+    "vulnId": "CVE-2023-20356",
+    "imageRef": "registry.example.com/acme/demo-app"
+  },
+  {
+    "vulnId": "CVE-2024-20335",
+    "imageRef": "registry.example.com/acme/demo-app"
+  },
+  {
+    "vulnId": "CVE-2025-52802",
+    "imageRef": "registry.example.com/acme/demo-app"
+  },
+  {
+    "vulnId": "CVE-2026-32344",
+    "imageRef": "registry.example.com/acme/demo-app"
+  },
+  {
+    "vulnId": "CVE-2024-42262",
+    "imageRef": "registry.example.com/acme/demo-worker"
+  },
+  {
+    "vulnId": "CVE-2024-25498",
+    "imageRef": "registry.example.com/acme/demo-worker"
+  },
+  {
+    "vulnId": "CVE-2025-1769",
+    "imageRef": "registry.example.com/acme/demo-worker"
+  },
+  {
+    "vulnId": "CVE-2024-24020",
+    "imageRef": "registry.example.com/acme/demo-worker"
+  },
+  {
+    "vulnId": "CVE-2025-52755",
+    "imageRef": "registry.example.com/acme/demo-worker"
+  }
+]

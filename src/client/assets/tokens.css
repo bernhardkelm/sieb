@@ -1,0 +1,208 @@
+:root {
+  color-scheme: light dark;
+
+  /* neutral */
+  --ink: light-dark(hsl(222 16% 14%), hsl(220 13% 91%));
+  --paper: light-dark(hsl(0 0% 100%), hsl(225 7% 11%));
+  --shade: hsl(225 10% 4%); /* dark page and shadows sit below paper */
+
+  /* surface */
+  --color-page: light-dark(
+    color-mix(in srgb, var(--ink) 2%, var(--paper)),
+    color-mix(in srgb, var(--shade) 30%, var(--paper))
+  );
+  --color-surface: var(--paper);
+  --color-surface-raised: light-dark(var(--paper), color-mix(in srgb, var(--ink) 5%, var(--paper)));
+  --color-sidebar: light-dark(
+    color-mix(in srgb, var(--ink) 4%, var(--paper)),
+    color-mix(in srgb, var(--shade) 40%, var(--paper))
+  );
+  --color-hover: color-mix(in srgb, var(--ink) 5%, transparent);
+  --color-selected: color-mix(in srgb, var(--color-accent) 12%, transparent);
+  --color-checked: color-mix(in srgb, var(--color-accent) 6%, transparent);
+  --color-backdrop: hsl(0 0% 0% / 40%);
+
+  /* text and line */
+  --color-text: var(--ink);
+  --color-text-muted: color-mix(in srgb, var(--ink) 62%, var(--paper));
+  --color-text-subtle: color-mix(in srgb, var(--ink) 45%, var(--paper));
+  --color-border: color-mix(in srgb, var(--ink) 10%, var(--paper));
+  --color-border-strong: color-mix(in srgb, var(--ink) 20%, var(--paper));
+
+  /* interaction */
+  --color-accent: light-dark(hsl(237 60% 56%), hsl(237 80% 72%));
+  --color-on-accent: light-dark(hsl(0 0% 100%), hsl(237 40% 12%));
+  --color-focus: var(--color-accent);
+
+  /* state */
+  --color-success: light-dark(hsl(150 55% 34%), hsl(150 45% 60%));
+  --color-warning: light-dark(hsl(38 90% 38%), hsl(40 85% 62%));
+  --color-danger: light-dark(hsl(352 65% 46%), hsl(352 80% 70%));
+  --color-danger-wash: color-mix(in srgb, var(--color-danger) 10%, var(--paper));
+  --color-warning-wash: color-mix(in srgb, var(--color-warning) 12%, var(--paper));
+  --color-success-wash: color-mix(in srgb, var(--color-success) 11%, var(--paper));
+  --color-accent-wash: color-mix(in srgb, var(--color-accent) 11%, var(--paper));
+
+  /* severity fills step in lightness to stay apart under colour blindness, -text shades keep chip text at 4.5:1 */
+  --color-severity-critical: light-dark(#af2934, #c4344c);
+  --color-severity-high: light-dark(#db6a2b, #df7f44);
+  --color-severity-medium: light-dark(#e7ac2a, #e7bf4a);
+  --color-severity-low: light-dark(#3a75af, #5b97cf);
+  --color-severity-critical-text: light-dark(#af2934, #eb596c);
+  --color-severity-high-text: light-dark(#b24b04, #df7f44);
+  --color-severity-medium-text: light-dark(#785800, #e7bf4a);
+  --color-severity-low-text: light-dark(#316ca5, #5b97cf);
+  --color-severity-unknown: var(--color-text-muted);
+  --color-kev: light-dark(hsl(280 55% 42%), hsl(285 70% 75%));
+  --wash-strength: 11%;
+  --color-severity-critical-wash: color-mix(
+    in srgb,
+    var(--color-severity-critical) var(--wash-strength),
+    var(--paper)
+  );
+  --color-severity-high-wash: color-mix(
+    in srgb,
+    var(--color-severity-high) var(--wash-strength),
+    var(--paper)
+  );
+  --color-severity-medium-wash: color-mix(
+    in srgb,
+    var(--color-severity-medium) var(--wash-strength),
+    var(--paper)
+  );
+  --color-severity-low-wash: color-mix(
+    in srgb,
+    var(--color-severity-low) var(--wash-strength),
+    var(--paper)
+  );
+  --color-severity-unknown-wash: color-mix(in srgb, var(--ink) 6%, var(--paper));
+  --color-kev-wash: color-mix(in srgb, var(--color-kev) var(--wash-strength), var(--paper));
+
+  /* overview stats */
+  --color-stat-surface: color-mix(in srgb, var(--color-surface) 55%, var(--color-sidebar));
+  --color-stat-surface-hover: var(--color-surface);
+  --color-sparkline: var(--color-accent);
+  --color-sparkline-fill: color-mix(in srgb, var(--color-accent) 10%, transparent);
+
+  /* typography */
+  --font-sans:
+    Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto,
+    'Helvetica Neue', Arial, sans-serif;
+  --font-mono: ui-monospace, 'SF Mono', SFMono-Regular, Menlo, Consolas, monospace;
+  --font-weight-regular: 400;
+  --font-weight-medium: 500;
+  --font-weight-semibold: 600;
+  --font-size-xs: 0.6875rem; /* 11px */
+  --font-size-sm: 0.75rem; /* 12px */
+  --font-size-md: 0.8125rem; /* 13px, base */
+  --font-size-lg: 0.9375rem; /* 15px */
+  --font-size-xl: 1.125rem; /* 18px */
+  --line-height-tight: 1.25;
+  --line-height-body: 1.45;
+  --letter-spacing-caps: 0.04em;
+
+  /* spacing */
+  --space-base: 0.25rem;
+  --space-0-5: calc(var(--space-base) * 0.5);
+  --space-1: var(--space-base);
+  --space-1-5: calc(var(--space-base) * 1.5);
+  --space-2: calc(var(--space-base) * 2);
+  --space-3: calc(var(--space-base) * 3);
+  --space-4: calc(var(--space-base) * 4);
+  --space-5: calc(var(--space-base) * 5);
+  --space-6: calc(var(--space-base) * 6);
+  --space-8: calc(var(--space-base) * 8);
+  --space-12: calc(var(--space-base) * 12);
+
+  /* shape */
+  --radius-sm: 3px;
+  --radius: 5px;
+  --radius-lg: 8px;
+  --radius-pill: 999px;
+  --border-width: 1px;
+  --border-width-strong: 2px;
+  --shadow-sm: 0 1px 2px color-mix(in srgb, var(--shade) 8%, transparent);
+  --shadow-md:
+    0 0 0 var(--border-width) var(--color-border),
+    0 4px 12px color-mix(in srgb, var(--shade) 12%, transparent);
+  --shadow-panel: -8px 0 24px color-mix(in srgb, var(--shade) 10%, transparent);
+
+  /* layout */
+  --sidebar-width: calc(var(--space-base) * 52);
+  --topbar-height: calc(var(--space-base) * 11);
+  --panel-width: calc(var(--space-base) * 120);
+  --row-height: calc(var(--space-base) * 8);
+  --control-height: calc(var(--space-base) * 7);
+  --chip-height: calc(var(--space-base) * 5);
+  --icon-size: calc(var(--space-base) * 4);
+  --checkbox-size: calc(var(--space-base) * 3.5);
+  --spinner-size: calc(var(--space-base) * 3);
+  --dot-size: calc(var(--space-base) * 1.5);
+  --search-width: calc(var(--space-base) * 60);
+  --popover-min-width: calc(var(--space-base) * 40);
+  --dialog-width: calc(var(--space-base) * 120);
+  --toast-width: calc(var(--space-base) * 90);
+  --textarea-min-height: calc(var(--space-base) * 18);
+  --label-width: calc(var(--space-base) * 22);
+  --tooltip-max-width: calc(var(--space-base) * 100);
+  --chevron-size: calc(var(--space-base) * 3.5);
+  --sort-indicator-size: calc(var(--space-base) * 2.5);
+  --count-width: calc(var(--space-base) * 10);
+  --nested-indent: calc(var(--space-base) * 6);
+  --touch-target: calc(var(--space-base) * 11);
+  --bottom-nav-height: calc(var(--space-base) * 14);
+  --nav-inset: 0px; /* space the bottom navigation takes, set while it is shown */
+  --stat-gap: var(--space-1);
+  --stat-gap-lg: var(--space-2);
+  --sparkline-height: calc(var(--space-base) * 5);
+  --sparkline-height-lg: calc(var(--space-base) * 10);
+  --sparkline-stroke: 2px;
+  --sparkline-dot-size: calc(var(--space-base) * 1.5);
+  --severity-bar-height: calc(var(--space-base) * 2);
+  --severity-bar-gap: 2px; /* surface gap between segments */
+  --sheet-max-height: 85dvh;
+
+  /* motion */
+  --duration-fast: 120ms;
+  --duration-medium: 220ms;
+  --ease: cubic-bezier(0.22, 1, 0.36, 1);
+
+  /* layering */
+  --z-raised: 1;
+  --z-sticky: 10;
+  --z-panel: 40;
+  --z-menu: 50;
+  --z-dialog: 90;
+  --z-toast: 95;
+  --z-tooltip: 100;
+}
+
+:root[data-theme='light'] {
+  color-scheme: light;
+}
+
+:root[data-theme='dark'] {
+  color-scheme: dark;
+}
+
+/* bottom navigation below this width, matches AppShell */
+@media (max-width: 899px) {
+  :root {
+    --nav-inset: calc(var(--bottom-nav-height) + env(safe-area-inset-bottom, 0px));
+  }
+}
+
+@media (hover: none) and (pointer: coarse) {
+  :root {
+    --control-height: var(--touch-target);
+    --topbar-height: calc(var(--space-base) * 14);
+    --checkbox-size: calc(var(--space-base) * 5);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --duration-fast: 0ms;
+    --duration-medium: 0ms;
+  }
+}
