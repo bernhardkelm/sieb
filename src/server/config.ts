@@ -12,6 +12,7 @@ import {
   parsePositiveInt,
   parsePrometheusService,
   parsePrometheusUrl,
+  parseRegistryList,
   parseUserHeader,
 } from '#server/configValues.ts'
 import {
@@ -60,6 +61,7 @@ export interface ServerConfig {
   publicUrl: string | null // origin sieb is reached at, https in production, null derives it per request
   mcpAllowedOrigins: string[] // browser origins /mcp accepts besides the requested host
   oauth: OAuthConfig | null // null accepts personal tokens only on /mcp, always null while MCP is off
+  publicRegistries: string[] // registry hosts whose images count as public for source access
 }
 
 /**
@@ -171,5 +173,6 @@ export const readConfig = (env: Record<string, string | undefined>, cwd: string)
     publicUrl,
     mcpAllowedOrigins: parseOriginList(env.SIEB_MCP_ALLOWED_ORIGINS),
     oauth,
+    publicRegistries: parseRegistryList(env.SIEB_PUBLIC_REGISTRIES),
   }
 }

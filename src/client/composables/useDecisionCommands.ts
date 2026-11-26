@@ -46,7 +46,7 @@ const fail = (title: string, error: unknown): never => {
 }
 
 /**
- * Writes decisions through the API, applies created and changed ones to the inbox at once, bumps
+ * Writes decisions through the API, applies created and changed ones to the findings at once, bumps
  * the data version so lists and the panel refetch, and confirms with a toast. A revoke waits for
  * the refetch, since another decision may still govern its findings. Validation errors are
  * rethrown for the form, other failures are toasted and rethrown.
@@ -125,7 +125,7 @@ export const useDecisionCommands = (): DecisionCommands => {
   }
 
   /**
-   * Revokes a decision, its findings return to the inbox.
+   * Revokes a decision, its findings return to Triage.
    * @param {number} decisionId - Decision id
    * @param {string} comment - Optional reason, blank for none
    * @returns {Promise<DecisionView>} - Revoked decision
@@ -135,7 +135,7 @@ export const useDecisionCommands = (): DecisionCommands => {
       const view = await revokeDecision(decisionId, comment.trim() || undefined)
 
       settle([view])
-      notifySuccess(`Revoked: ${view.decision.vulnId}`, 'Its findings are back in the inbox')
+      notifySuccess(`Revoked: ${view.decision.vulnId}`, 'Its findings are back in Triage')
       return view
     } catch (error) {
       return fail('Decision not revoked', error)

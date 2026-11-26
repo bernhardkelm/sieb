@@ -11,6 +11,7 @@ const OIDC: OidcConfig = {
   clientSecret: 'secret',
   requiredGroup: null,
   sessionHours: 12,
+  displayName: 'SSO',
 }
 const OAUTH: OAuthConfig = {
   issuer: 'https://auth.example.com/application/o/sieb-mcp/',

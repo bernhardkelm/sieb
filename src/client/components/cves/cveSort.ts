@@ -25,7 +25,7 @@ export const CVE_SORT_COLUMNS: SortColumns<CveAggregate, CveSortColumn> = {
   images: { label: 'Images', first: 'desc', value: (cve) => cve.imageCount },
   exposure: { label: 'Exposure', first: 'desc', value: (cve) => exposureRank(cve.maxExposure) },
   open: { label: 'Open', first: 'desc', value: (cve) => cve.openCount },
-  inbox: { label: 'Inbox', first: 'desc', value: (cve) => cve.inboxCount },
+  inbox: { label: 'Triage', first: 'desc', value: (cve) => cve.inboxCount },
 }
 
 /**

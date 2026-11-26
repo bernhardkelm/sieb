@@ -1,223 +1,162 @@
-import { computed, onMounted, ref, type ComputedRef, type Ref } from 'vue'
+import { computed, onMounted, type ComputedRef, type Ref } from 'vue'
 
-import type { DecisionStatus } from '#core/decision.ts'
-import type { FindingView } from '#core/findingView.ts'
-import { bulkTargetsFor, type BulkTarget } from '@/components/decision/bulkTargets'
-import { INBOX_SORT_COLUMNS, sortInbox, type InboxSortColumn } from '@/components/inbox/inboxSort'
+import type { InboxItem } from '#core/inbox/inboxItem.ts'
+import { findingIdOfItem } from '@/components/inbox/inboxItems'
 import { useCursorRefocus } from '@/composables/useCursorRefocus'
-import { useFindingPanel } from '@/composables/useFindingPanel'
 import { useInboxHintActions } from '@/composables/useInboxHintActions'
+import { useInboxPanels } from '@/composables/useInboxPanels'
+import { useInboxSeen } from '@/composables/useInboxSeen'
 import { useListCursor } from '@/composables/useListCursor'
-import { useListSort, type ListSort } from '@/composables/useListSort'
-import { useNow } from '@/composables/useNow'
 import { inboxActionFor, type InboxAction } from '@/keyboard/inboxKeymap'
 import { rowClickIntent } from '@/keyboard/rowClick'
-import { isNewFinding } from '@/stores/findingFilters'
-import { useFindingDetailStore } from '@/stores/findingDetailStore'
-import { useFindingsStore } from '@/stores/findingsStore'
+import { useInboxStore } from '@/stores/inboxStore'
 
 export interface InboxController {
-  findings: ComputedRef<FindingView[]>
-  sort: ListSort<InboxSortColumn>
-  resetSort: () => Promise<void>
-  newCount: ComputedRef<number>
-  currentId: Ref<number | null>
-  checkedIds: Ref<Set<number>>
-  bulkOpen: Ref<boolean>
-  bulkTargets: Ref<BulkTarget[]>
-  bulkStatus: Ref<DecisionStatus | null>
-  select: (id: number, event?: MouseEvent) => void
-  openBulk: () => void
-  toggleChecked: (id: number, event?: MouseEvent) => void
+  items: ComputedRef<InboxItem[]>
+  currentKey: Ref<string | null>
+  checkedKeys: Ref<Set<string>>
+  proposalId: ComputedRef<number | null>
+  /** Items s marks as seen: the checked ones, else the cursor item when it can be seen */
+  seenTargets: ComputedRef<string[]>
+  select: (key: string, event?: MouseEvent) => void
+  toggleChecked: (key: string, event?: MouseEvent) => void
+  markSeen: (keys?: readonly string[]) => Promise<void>
   clearChecked: () => void
-}
-
-const ACTION_STATUS: Partial<Record<InboxAction, DecisionStatus>> = {
-  accept: 'accepted',
-  notAffected: 'not_affected',
-  fixPlanned: 'fix_planned',
+  closeProposal: () => Promise<void>
+  onResolved: () => Promise<void>
 }
 
 /**
- * Drives the inbox on the shared list cursor with multiple selection: cursor and checked rows
- * over the filtered inbox in the sort of the `sort` and `dir` query params, triage order by
- * default, the inbox keymap, the side panel following the cursor and the bulk dialog, which a,
- * n and f open for the checked rows. A panel
- * opened by link on a finding outside the inbox stays until a cursor key moves the cursor.
- * @param {() => void} focusSearch - Focuses the search input of the filter bar
- * @returns {InboxController} - State and actions for the inbox view
+ * Drives the Inbox on the shared list cursor: j and k move, Enter or o opens the cursor item in
+ * its panel, Escape closes the topmost panel, Space, x and the Shift and modifier clicks check
+ * the items that can be marked as seen, and s marks the checked items, or the cursor item, as
+ * seen. A resolved proposal closes the review panel and refetches the Inbox, focus lands on the
+ * next row and the next review opens only on Enter or a click.
+ * @returns {InboxController} - State and actions for the Inbox view
  */
-export const useInboxController = (focusSearch: () => void): InboxController => {
-  const store = useFindingsStore()
-  const detail = useFindingDetailStore()
-  const { findingId, openFinding, closeFinding } = useFindingPanel()
-  const now = useNow()
+export const useInboxController = (): InboxController => {
+  const store = useInboxStore()
 
-  const sort = useListSort(INBOX_SORT_COLUMNS)
-
-  const findings = computed(() => sortInbox(store.inbox, sort.sort.value))
-  const ids = computed(() => findings.value.map((finding) => finding.id))
-  const newCount = computed(
-    () => findings.value.filter((finding) => isNewFinding(finding.firstSeen, now.value)).length,
-  )
-  const bulkOpen = ref(false)
-  const bulkTargets = ref<BulkTarget[]>([])
-  const bulkStatus = ref<DecisionStatus | null>(null)
+  const items = computed(() => store.items)
+  const keys = computed(() => items.value.map((item) => item.key))
+  const byKey = computed(() => new Map(items.value.map((item) => [item.key, item])))
 
   /**
-   * Opens the bulk dialog for targets, with a status preselected or none.
-   * @param {BulkTarget[]} targets - Targets, the dialog stays closed when empty
-   * @param {DecisionStatus | null} status - Preselected status, null for none
-   * @returns {void}
-   */
-  const showBulk = (targets: BulkTarget[], status: DecisionStatus | null): void => {
-    bulkTargets.value = targets
-    bulkStatus.value = status
-    bulkOpen.value = targets.length > 0
-  }
-
-  /**
-   * Runs an inbox action. A decision key decides the checked rows in the bulk dialog, without
-   * checked rows it opens the decision form of the cursor row in the panel, once the panel
-   * shows that row, so a navigation an unsaved draft kept leaves no request behind.
-   * @param {InboxAction} action - Action
-   * @returns {void}
-   */
-  const run = (action: InboxAction): void => {
-    const { selection } = cursor
-    const id = cursor.currentKey.value
-
-    switch (action) {
-      case 'open':
-        if (id !== null) {
-          void openFinding(String(id))
-        }
-        return
-      case 'close':
-        if (findingId.value !== null) {
-          void closeFinding()
-        }
-        return
-      case 'bulk':
-        showBulk(bulkTargetsFor(findings.value, selection.checkedIds.value, id), null)
-        return
-      case 'search':
-        focusSearch()
-        return
-      default: {
-        const status = ACTION_STATUS[action]
-        const checked = bulkTargetsFor(findings.value, selection.checkedIds.value, null)
-
-        if (status && checked.length > 0) {
-          showBulk(checked, status)
-        } else if (id !== null && status) {
-          void openFinding(String(id)).then((opened) => {
-            if (opened) {
-              detail.requestDecision(id, status)
-            }
-          })
-        }
-      }
-    }
-  }
-
-  /**
-   * Returns the rendered row of a finding.
-   * @param {number} id - Finding id
+   * Returns the rendered row of an item.
+   * @param {string} key - Item key
    * @returns {HTMLElement | null} - Row element, null while not rendered
    */
-  const rowOf = (id: number): HTMLElement | null =>
-    document.querySelector<HTMLElement>(`[data-finding-id="${id}"]`)
+  const rowOf = (key: string): HTMLElement | null =>
+    document.querySelector<HTMLElement>(`[data-inbox-key="${CSS.escape(key)}"]`)
 
-  const cursor = useListCursor<number>({
-    keys: ids,
-    findingIdOf: (id) => id,
-    keyOfFinding: (id) => id,
+  const cursor = useListCursor<string>({
+    keys,
+    findingIdOf: (key) => {
+      const item = byKey.value.get(key)
+
+      return item ? findingIdOfItem(item) : null
+    },
+    keyOfFinding: (id) => items.value.find((item) => findingIdOfItem(item) === id)?.key ?? '',
     rowOf,
     multiselect: true,
-    paused: () => bulkOpen.value,
     handleKey: (event, scope) => {
       const action = inboxActionFor(event, scope)
 
-      if (action !== null) {
-        run(action)
-      }
-
-      return action !== null
+      return action !== null && run(action)
     },
   })
 
-  const refocusCursor = useCursorRefocus(cursor.currentKey, rowOf)
+  const { currentKey, selection } = cursor
+  const panels = useInboxPanels(currentKey, items, cursor.refocus)
+  const refocusCursor = useCursorRefocus(currentKey, rowOf)
 
-  useInboxHintActions({ run, cursor, ids })
+  const { seenTargets, markSeen } = useInboxSeen(selection, byKey)
 
   /**
-   * Handles a click on a row: Shift checks the range from the anchor, Cmd or Ctrl checks or
-   * unchecks the row, a plain click puts the cursor on the row and opens it in the panel.
-   * @param {number} id - Finding id
-   * @param {MouseEvent | undefined} event - Click
-   * @returns {void}
+   * Runs an Inbox key action.
+   * @param {InboxAction} action - Action
+   * @returns {boolean} - Whether the action applied
    */
-  const select = (id: number, event?: MouseEvent): void => {
-    if (cursor.click(id, event)) {
-      return
+  const run = (action: InboxAction): boolean => {
+    const item = currentKey.value === null ? undefined : byKey.value.get(currentKey.value)
+
+    switch (action) {
+      case 'open':
+        if (item) {
+          void panels.openItem(item)
+        }
+        return item !== undefined
+      case 'close':
+        return panels.closeTop()
+      case 'markSeen':
+        void markSeen()
+        return true
     }
 
-    cursor.currentKey.value = id
-    void openFinding(String(id))
+    return false
   }
 
   /**
-   * Handles a click on the checkbox of a row: Shift checks the range from the anchor as a Shift
-   * click on the row does, every other click checks or unchecks the row and anchors there,
-   * leaving cursor and panel where they are and focus on the cursor row.
-   * @param {number} id - Finding id
+   * Handles a click on a row: Shift checks the range from the anchor, Cmd or Ctrl checks or
+   * unchecks the row, a plain click puts the cursor on the row and opens it.
+   * @param {string} key - Item key
    * @param {MouseEvent | undefined} event - Click
    * @returns {void}
    */
-  const toggleChecked = (id: number, event?: MouseEvent): void => {
+  const select = (key: string, event?: MouseEvent): void => {
+    const item = byKey.value.get(key)
+
+    if (cursor.click(key, event) || !item) {
+      return
+    }
+
+    currentKey.value = key
+    void panels.openItem(item)
+  }
+
+  /**
+   * Handles a click on the checkbox of a row, as in Triage.
+   * @param {string} key - Item key
+   * @param {MouseEvent | undefined} event - Click
+   * @returns {void}
+   */
+  const toggleChecked = (key: string, event?: MouseEvent): void => {
     if (rowClickIntent(event, true) === 'range') {
-      cursor.click(id, event)
+      cursor.click(key, event)
     } else {
-      cursor.selection.toggleChecked(id)
+      selection.toggleChecked(key)
       refocusCursor()
     }
   }
 
   /**
-   * Opens the bulk dialog for the checked rows, as shift+A does.
-   * @returns {void}
-   */
-  const openBulk = (): void => {
-    run('bulk')
-  }
-
-  /**
-   * Returns to the default order and focuses the cursor row, as the reset button disappears.
+   * Closes the review panel after a proposal was accepted or rejected, refetches the Inbox and
+   * focuses the cursor row, which moved to the next row once the resolved one left.
    * @returns {Promise<void>} - Resolves once focused
    */
-  const resetSort = async (): Promise<void> => {
-    await sort.set(null)
+  const onResolved = async (): Promise<void> => {
+    await panels.closeProposal()
+    await store.refresh()
     await cursor.refocus()
   }
+
+  useInboxHintActions({ cursor, items: byKey, seenTargets, markSeen })
 
   onMounted(() => {
     void store.ensureLoaded()
   })
 
   return {
-    findings,
-    sort,
-    resetSort,
-    newCount,
-    currentId: cursor.currentKey,
-    checkedIds: cursor.selection.checkedIds,
-    bulkOpen,
-    bulkTargets,
-    bulkStatus,
+    items,
+    currentKey,
+    checkedKeys: selection.checkedIds,
+    proposalId: panels.proposalId,
+    seenTargets,
     select,
-    openBulk,
     toggleChecked,
-    clearChecked: cursor.selection.clearChecked,
+    markSeen,
+    clearChecked: selection.clearChecked,
+    closeProposal: panels.closeProposal,
+    onResolved,
   }
 }

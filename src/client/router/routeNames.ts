@@ -1,5 +1,7 @@
 export const ROUTE_NAMES = {
   INBOX: 'inbox',
+  INBOX_PROPOSAL: 'inboxProposal',
+  TRIAGE: 'triage',
   IMAGES: 'images',
   CVES: 'cves',
   DECISIONS: 'decisions',
@@ -14,3 +16,4 @@ export const DECISION_QUERY = 'decision' // expanded decision on the decisions v
 export const DECISION_TAB_QUERY = 'state' // selected tab on the decisions view
 export const SORT_QUERY = 'sort' // sorted column of a list view, absent for the default order
 export const SORT_DIRECTION_QUERY = 'dir' // direction of the sorted column, asc or desc
+export const PROPOSAL_PARAM = 'proposalId' // path param of the proposal review panel in the Inbox

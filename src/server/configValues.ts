@@ -1,4 +1,5 @@
 import { KEV_SOURCES, type KevSourceKind } from '#core/kev.ts'
+import { DEFAULT_PUBLIC_REGISTRIES } from '#core/sourceAccess.ts'
 import { DEFAULT_USER_HEADER } from '#server/http/identity.ts'
 import { DEFAULT_PROMETHEUS_SERVICE } from '#server/sources/sourceQueries.ts'
 
@@ -9,6 +10,7 @@ export const DEFAULT_KEV_URL =
 const NAME_SEGMENT = '[a-z0-9]([-a-z0-9]*[a-z0-9])?'
 const PROMETHEUS_SERVICE_PATTERN = new RegExp(`^${NAME_SEGMENT}/${NAME_SEGMENT}:${NAME_SEGMENT}$`)
 const HEADER_NAME_PATTERN = /^[A-Za-z0-9!#$%&'*+.^_`|~-]+$/
+const REGISTRY_PATTERN = /^[a-z0-9]([a-z0-9.-]*[a-z0-9])?(:\d{1,5})?$/
 
 /**
  * Parses a positive integer setting.
@@ -157,4 +159,31 @@ export const parseBoolean = (
   }
 
   throw new Error(`${name} must be true, false, 1 or 0, got "${value}"`)
+}
+
+/**
+ * Parses the registries whose images count as public for the source access of a finding.
+ * @param {string | undefined} value - Raw SIEB_PUBLIC_REGISTRIES value, comma separated hosts
+ * @returns {string[]} - Lower-case hosts, DEFAULT_PUBLIC_REGISTRIES when unset or blank
+ * @throws {Error} - For an entry that is not a registry host with an optional port
+ */
+export const parseRegistryList = (value: string | undefined): string[] => {
+  const entries = (value ?? '')
+    .split(',')
+    .map((entry) => entry.trim().toLowerCase())
+    .filter((entry) => entry !== '')
+
+  if (entries.length === 0) {
+    return [...DEFAULT_PUBLIC_REGISTRIES]
+  }
+
+  const invalid = entries.find((entry) => !REGISTRY_PATTERN.test(entry))
+
+  if (invalid !== undefined) {
+    throw new Error(
+      `SIEB_PUBLIC_REGISTRIES must list registry hosts such as ghcr.io, got "${invalid}"`,
+    )
+  }
+
+  return [...new Set(entries)]
 }

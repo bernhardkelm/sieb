@@ -36,6 +36,7 @@ const entries = computed(() => {
         <span v-if="scope" class="scope">{{ scope }}</span>
         <span class="meta"> {{ event.actor }} · <RelativeTime :value="event.at" /> </span>
       </div>
+      <p v-if="summary.provenance" class="provenance">{{ summary.provenance }}</p>
       <p v-for="(line, index) in summary.lines" :key="index" class="line">{{ line }}</p>
     </li>
   </ol>
@@ -83,6 +84,17 @@ const entries = computed(() => {
 .line {
   color: var(--color-text-muted);
   white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.provenance {
+  align-self: flex-start;
+  padding: 0 var(--space-1-5);
+  border: var(--border-width) dashed color-mix(in srgb, var(--color-claim) 60%, transparent);
+  border-radius: var(--radius-sm);
+  background: var(--color-claim-wash);
+  color: var(--color-text-muted);
+  font-size: var(--font-size-sm);
   overflow-wrap: anywhere;
 }
 

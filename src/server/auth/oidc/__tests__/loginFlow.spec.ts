@@ -329,23 +329,39 @@ describe('GET /auth/callback', () => {
   })
 })
 
+const RETURN_CASES = [
+  ['//evil.example', '/'],
+  ['/\\evil.example', '/'],
+  ['https://evil.example', '/'],
+  ['%2F%2Fevil.example', '/'],
+  ['%2F%5Cevil.example', '/'],
+  ['%252F%252Fevil.example', '/'],
+  ['%2F%09%2Fevil.example', '/'],
+  ['javascript:alert(1)', '/'],
+  ['/auth/logout', '/'],
+  ['/auth/signin%3Freturn%3D%2F%2Fevil.example', '/'],
+  ['/inbox%3Fa%3D1', '/inbox?a=1'],
+]
+
 describe('return path', () => {
-  it.each([
-    ['//evil.example', '/'],
-    ['/\\evil.example', '/'],
-    ['https://evil.example', '/'],
-    ['%2F%2Fevil.example', '/'],
-    ['%2F%5Cevil.example', '/'],
-    ['%252F%252Fevil.example', '/'],
-    ['%2F%09%2Fevil.example', '/'],
-    ['javascript:alert(1)', '/'],
-    ['/auth/logout', '/'],
-    ['/inbox%3Fa%3D1', '/inbox?a=1'],
-  ])('sends return=%s to %s after the login', async (value, expected) => {
+  it.each(RETURN_CASES)('sends return=%s to %s after the login', async (value, expected) => {
     const test = await oidcTestApp()
     const { callback: response } = await logIn(test, `?return=${value}`)
 
     expect(response.status).toBe(302)
     expect(response.headers.get('location')).toBe(expected)
   })
+
+  it.each(RETURN_CASES)(
+    'hands return=%s on to the login as %s through the sign-in page',
+    async (value, expected) => {
+      const test = await oidcTestApp()
+      const page = await (await send(test.app, `/auth/signin?return=${value}`)).text()
+      const href = /<a class="button" href="([^"]*)"/.exec(page)?.[1] ?? ''
+      const { callback: response } = await logIn(test, href.replace(/^\/auth\/login/, ''))
+
+      expect(href).toBe(`/auth/login?return=${encodeURIComponent(expected)}`)
+      expect(response.headers.get('location')).toBe(expected)
+    },
+  )
 })

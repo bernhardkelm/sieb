@@ -6,7 +6,7 @@ import { useListSelection, type ListSelection } from '@/composables/useListSelec
 import { provideListViewport } from '@/composables/useListViewport'
 import { usePanelFollow } from '@/composables/usePanelFollow'
 import { useRowFocus } from '@/composables/useRowFocus'
-import type { ShortcutScope } from '@/keyboard/inboxKeymap'
+import type { ShortcutScope } from '@/keyboard/triageKeymap'
 import type { CursorStep } from '@/keyboard/listNavigation'
 import { pageStepOf } from '@/keyboard/pageStep'
 import { rowClickIntent } from '@/keyboard/rowClick'

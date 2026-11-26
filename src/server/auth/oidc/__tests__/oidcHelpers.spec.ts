@@ -71,11 +71,13 @@ describe('authCookiesFor', () => {
       secure: true,
       sessionName: '__Host-sieb_session',
       loginTxName: '__Host-sieb_login',
+      signedOutName: '__Host-sieb_signedout',
     })
     expect(authCookiesFor('http://localhost:5173')).toEqual({
       secure: false,
       sessionName: 'sieb_session',
       loginTxName: 'sieb_login',
+      signedOutName: 'sieb_signedout',
     })
   })
 })

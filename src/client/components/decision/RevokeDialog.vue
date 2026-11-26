@@ -29,7 +29,7 @@ watch(open, (value) => {
   <ConfirmDialog
     v-model:open="open"
     :title="`Revoke the decision on ${vulnId}${target ? ` for ${target}` : ''}?`"
-    description="Its findings return to the inbox and count again within about two minutes; a matching alert fires after the usual 30 minutes."
+    description="Its findings return to Triage and count again within about two minutes; a matching alert fires after the usual 30 minutes."
     confirm-label="Revoke"
     :busy="busy"
     @confirm="emit('confirm', comment)"

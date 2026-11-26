@@ -22,12 +22,11 @@ const props = defineProps<{
 
 const SCOPE_OPTIONS: { value: ApiTokenScope; label: string; hint?: string; disabled?: boolean }[] =
   [
-    { value: 'read', label: TOKEN_SCOPE_LABELS.read },
+    { value: 'read', label: TOKEN_SCOPE_LABELS.read, hint: 'Claude can look up findings' },
     {
       value: 'propose',
       label: TOKEN_SCOPE_LABELS.propose,
-      hint: 'Comes with decision proposals',
-      disabled: true,
+      hint: 'Claude can also file proposals for you to review, never decisions',
     },
   ]
 
@@ -113,6 +112,10 @@ defineExpose({ focus })
     <div class="field">
       <span class="label">Access</span>
       <RadioChoice v-model="scope" label="Access" :options="SCOPE_OPTIONS" />
+      <p class="note">
+        Propose lets Claude create proposals only. A decision exists once you accept a proposal in
+        the Inbox, and nothing is muted before that.
+      </p>
       <FieldErrors :messages="serverErrors.scope" />
     </div>
     <div class="field">
@@ -157,6 +160,11 @@ defineExpose({ focus })
   border: var(--border-width) solid var(--color-border-strong);
   border-radius: var(--radius);
   background: var(--color-surface);
+}
+
+.note {
+  color: var(--color-text-subtle);
+  font-size: var(--font-size-sm);
 }
 
 .name[aria-invalid='true'] {

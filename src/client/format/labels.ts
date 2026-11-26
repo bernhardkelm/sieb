@@ -83,6 +83,8 @@ const ERROR_MESSAGES: Record<string, string> = {
   payload_too_large: 'The request is too large.',
   mcp_disabled: 'Claude access is switched off on this server.',
   too_many_tokens: `At most ${MAX_LIVE_TOKENS} active tokens, revoke one first.`,
+  proposal_conflict: 'The decisions changed since Claude proposed this. Review again.',
+  proposal_closed: 'This proposal was already accepted, rejected or replaced.',
 }
 
 /**

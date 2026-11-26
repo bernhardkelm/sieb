@@ -1,4 +1,4 @@
-import type { ShortcutScope } from '@/keyboard/inboxKeymap'
+import type { ShortcutScope } from '@/keyboard/triageKeymap'
 
 export type ListAction = 'activate' | 'close' | 'expand' | 'collapse' | 'search'
 

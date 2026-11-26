@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import { apiRequest } from '@/api/apiRequest'
-import { onWriteSessionExpired, resetSession, setAuthMode } from '@/api/session'
+import { onWriteSessionExpired, resetSession, setAuthMode, startLogin } from '@/api/session'
 
 const assign = vi.fn<(url: string) => void>()
 
@@ -24,12 +24,12 @@ afterEach(() => {
 })
 
 describe('401 handling', () => {
-  it('navigates to the login once for reads while the mode is unknown or oidc', async () => {
+  it('navigates to the sign-in page once for reads while the mode is unknown or oidc', async () => {
     stub401()
     void apiRequest('/api/findings')
     await vi.waitFor(() => expect(assign).toHaveBeenCalledOnce())
 
-    expect(assign).toHaveBeenCalledExactlyOnceWith('/auth/login?return=%2Finbox%3Fq%3Da%20b')
+    expect(assign).toHaveBeenCalledExactlyOnceWith('/auth/signin?return=%2Finbox%3Fq%3Da%20b')
 
     setAuthMode('oidc')
 
@@ -46,6 +46,13 @@ describe('401 handling', () => {
 
     expect(notify).toHaveBeenCalledOnce()
     expect(assign).not.toHaveBeenCalled()
+  })
+
+  it('starts the login directly when the user asks for it', () => {
+    stub401()
+    startLogin()
+
+    expect(assign).toHaveBeenCalledExactlyOnceWith('/auth/login?return=%2Finbox%3Fq%3Da%20b')
   })
 
   it('keeps the plain error in header mode', async () => {

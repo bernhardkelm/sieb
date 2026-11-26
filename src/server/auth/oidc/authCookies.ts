@@ -7,16 +7,19 @@ export const SECURE_SESSION_COOKIE = '__Host-sieb_session'
 export const PLAIN_SESSION_COOKIE = 'sieb_session'
 export const SECURE_LOGIN_TX_COOKIE = '__Host-sieb_login'
 export const PLAIN_LOGIN_TX_COOKIE = 'sieb_login'
+export const SECURE_SIGNED_OUT_COOKIE = '__Host-sieb_signedout'
+export const PLAIN_SIGNED_OUT_COOKIE = 'sieb_signedout'
 
 /** Names and flags of the auth cookies, derived from the scheme of the public URL */
 export interface AuthCookies {
   secure: boolean // https public URL: Secure flag and __Host- cookies
   sessionName: string
   loginTxName: string
+  signedOutName: string
 }
 
 /**
- * Derives the cookie settings from the public URL. Over https both cookies carry the __Host-
+ * Derives the cookie settings from the public URL. Over https all cookies carry the __Host-
  * prefix with Secure, so they bind to this exact host and a sibling subdomain cannot plant them;
  * over plain http, only allowed outside production, they drop prefix and Secure, which the
  * browser would refuse otherwise.
@@ -30,6 +33,7 @@ export const authCookiesFor = (publicUrl: string): AuthCookies => {
     secure,
     sessionName: secure ? SECURE_SESSION_COOKIE : PLAIN_SESSION_COOKIE,
     loginTxName: secure ? SECURE_LOGIN_TX_COOKIE : PLAIN_LOGIN_TX_COOKIE,
+    signedOutName: secure ? SECURE_SIGNED_OUT_COOKIE : PLAIN_SIGNED_OUT_COOKIE,
   }
 }
 

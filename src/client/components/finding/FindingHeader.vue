@@ -2,18 +2,25 @@
 import { computed } from 'vue'
 
 import type { FindingView } from '#core/findingView.ts'
+import type { SourceAccess } from '#core/sourceAccess.ts'
 import BaseChip from '@/components/chips/BaseChip.vue'
 import ExposureChip from '@/components/chips/ExposureChip.vue'
 import KevChip from '@/components/chips/KevChip.vue'
 import OwnerBadge from '@/components/chips/OwnerBadge.vue'
 import SeverityChip from '@/components/chips/SeverityChip.vue'
+import SourceAccessBadge from '@/components/chips/SourceAccessBadge.vue'
 import RelativeTime from '@/components/common/RelativeTime.vue'
 import { vulnLinks } from '#core/vulnLinks.ts'
 import { useLabelsStore } from '@/stores/labelsStore'
 
-const props = defineProps<{
-  finding: FindingView
-}>()
+const props = withDefaults(
+  defineProps<{
+    finding: FindingView
+    /** What Claude can check of the image source, null hides the badge */
+    sourceAccess?: SourceAccess | null
+  }>(),
+  { sourceAccess: null },
+)
 
 const labels = useLabelsStore()
 const links = computed(() =>
@@ -33,6 +40,7 @@ const links = computed(() =>
       <KevChip v-if="labels.showKev && finding.kev" />
       <ExposureChip v-if="labels.showExposure && finding.exposure" :exposure="finding.exposure" />
       <OwnerBadge v-if="labels.showOwner && finding.owner" :owner="finding.owner" />
+      <SourceAccessBadge v-if="sourceAccess" :access="sourceAccess" />
       <span class="score">{{ finding.score === null ? 'no score' : `CVSS ${finding.score}` }}</span>
       <BaseChip v-if="finding.resolvedAt !== null" outline>resolved</BaseChip>
     </div>

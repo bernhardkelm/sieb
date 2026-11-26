@@ -51,7 +51,7 @@ afterEach(() => {
 describe('OverviewStats', () => {
   it('renders every panel with value, delta and an accessible trend', async () => {
     vi.mocked(fetchStats).mockResolvedValue(HISTORY)
-    const { wrapper } = await mountWithRouter(OverviewStats, '/inbox')
+    const { wrapper } = await mountWithRouter(OverviewStats, '/triage')
 
     useLabelsStore().data = { exposure: true, owners: [], kev: 'cisa' }
     expect(wrapper.get('[role="status"]').text()).toBe('Loading stats…')
@@ -62,7 +62,7 @@ describe('OverviewStats', () => {
 
     expect(panels.map((panel) => panel.get('.label').text())).toEqual([
       'Open',
-      'Inbox',
+      'Triage',
       'KEV',
       'Crit + High',
       'Public',
@@ -83,7 +83,7 @@ describe('OverviewStats', () => {
 
   it('shows values without sparklines while there is no history', async () => {
     vi.mocked(fetchStats).mockResolvedValue(buildStatsResponse({ open: 7 }))
-    const { wrapper } = await mountWithRouter(OverviewStats, '/inbox')
+    const { wrapper } = await mountWithRouter(OverviewStats, '/triage')
 
     await flush()
 
@@ -93,7 +93,7 @@ describe('OverviewStats', () => {
     wrapper.unmount()
   })
 
-  it('opens the inbox filtered to critical and high from its panel', async () => {
+  it('opens Triage filtered to critical and high from its panel', async () => {
     vi.mocked(fetchStats).mockResolvedValue(HISTORY)
     const { wrapper, router } = await mountWithRouter(OverviewStats, '/decisions')
     const findings = useFindingsStore()
@@ -103,14 +103,14 @@ describe('OverviewStats', () => {
     await wrapper.findAll('.stat-panel')[3]!.trigger('click')
     await flush()
 
-    expect(router.currentRoute.value.name).toBe('inbox')
+    expect(router.currentRoute.value.name).toBe('triage')
     expect(findings.filters.severity).toEqual(['Critical', 'High'])
     expect(findings.filters.q).toBe('')
     expect(wrapper.findAll('.stat-panel')[2]!.element.tagName).toBe('A')
     wrapper.unmount()
   })
 
-  it('opens the inbox filtered to KEV from its panel', async () => {
+  it('opens Triage filtered to KEV from its panel', async () => {
     vi.mocked(fetchStats).mockResolvedValue(HISTORY)
     const { wrapper, router } = await mountWithRouter(OverviewStats, '/decisions')
     const findings = useFindingsStore()
@@ -120,7 +120,7 @@ describe('OverviewStats', () => {
     await wrapper.findAll('.stat-panel')[2]!.trigger('click')
     await flush()
 
-    expect(router.currentRoute.value.name).toBe('inbox')
+    expect(router.currentRoute.value.name).toBe('triage')
     expect(findings.filters.kev).toBe(true)
     expect(findings.filters.q).toBe('')
     wrapper.unmount()
@@ -128,7 +128,7 @@ describe('OverviewStats', () => {
 
   it('refetches with the selected range', async () => {
     vi.mocked(fetchStats).mockResolvedValue(HISTORY)
-    const { wrapper } = await mountWithRouter(OverviewStats, '/inbox')
+    const { wrapper } = await mountWithRouter(OverviewStats, '/triage')
 
     await flush()
     await wrapper.get('[aria-label="Last 7 days"]').trigger('click')
@@ -141,14 +141,14 @@ describe('OverviewStats', () => {
 
   it('leaves out the Public panel while no open finding has an exposure label', async () => {
     vi.mocked(fetchStats).mockResolvedValue(HISTORY)
-    const { wrapper } = await mountWithRouter(OverviewStats, '/inbox')
+    const { wrapper } = await mountWithRouter(OverviewStats, '/triage')
 
     useLabelsStore().data = { exposure: false, owners: ['self'], kev: 'cisa' }
     await flush()
 
     expect(wrapper.findAll('.stat-panel .label').map((label) => label.text())).toEqual([
       'Open',
-      'Inbox',
+      'Triage',
       'KEV',
       'Crit + High',
       'Not affected',
@@ -159,7 +159,7 @@ describe('OverviewStats', () => {
 
   it('offers a retry when the first load fails', async () => {
     vi.mocked(fetchStats).mockRejectedValueOnce(new Error('offline')).mockResolvedValueOnce(HISTORY)
-    const { wrapper } = await mountWithRouter(OverviewStats, '/inbox')
+    const { wrapper } = await mountWithRouter(OverviewStats, '/triage')
 
     useLabelsStore().data = { exposure: true, owners: [], kev: 'cisa' }
     await flush()
@@ -174,7 +174,7 @@ describe('OverviewStats', () => {
 
   it('leaves out the KEV panel for the KEV source none', async () => {
     vi.mocked(fetchStats).mockResolvedValue(HISTORY)
-    const { wrapper } = await mountWithRouter(OverviewStats, '/inbox')
+    const { wrapper } = await mountWithRouter(OverviewStats, '/triage')
 
     useLabelsStore().data = { exposure: true, owners: [], kev: 'none' }
     await flush()

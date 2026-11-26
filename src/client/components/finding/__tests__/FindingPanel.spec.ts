@@ -2,7 +2,7 @@ import { flushPromises } from '@vue/test-utils'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { buildFindingView } from '#core/__tests__/coreBuilders.ts'
-import type { FindingDetail } from '#core/findingView.ts'
+import type { FindingDetailResponse } from '#core/apiTypes.ts'
 import type { KevDetails } from '#core/kev.ts'
 import { mountWithRouter } from '@/__tests__/mountWithRouter'
 import { fetchFindingDetail } from '@/api/findingsApi'
@@ -10,7 +10,7 @@ import FindingPanel from '@/components/finding/FindingPanel.vue'
 import { useLabelsStore } from '@/stores/labelsStore'
 
 vi.mock('@/api/findingsApi', () => ({
-  fetchFindingDetail: vi.fn<(id: number) => Promise<FindingDetail>>(),
+  fetchFindingDetail: vi.fn<(id: number) => Promise<FindingDetailResponse>>(),
 }))
 
 const KEV: KevDetails = {
@@ -28,14 +28,15 @@ const KEV: KevDetails = {
 /**
  * Builds the detail of a KEV listed finding.
  * @param {KevDetails | null} kev - Catalog entry
- * @returns {FindingDetail} - Detail
+ * @returns {FindingDetailResponse} - Detail
  */
-const detailWith = (kev: KevDetails | null): FindingDetail => ({
+const detailWith = (kev: KevDetails | null): FindingDetailResponse => ({
   finding: buildFindingView({ id: 1, kev: true }),
   instances: [],
   decisions: [],
   events: [],
   kev,
+  sourceAccess: 'public',
 })
 
 /**

@@ -190,14 +190,17 @@ const submit = (): void => {
 }
 
 /**
- * Submits on Cmd+Enter or Ctrl+Enter from anywhere in the form.
+ * Submits on Cmd+Enter or Ctrl+Enter from anywhere in the form, never on a key repeat.
  * @param {KeyboardEvent} event - Keydown event
  * @returns {void}
  */
 const onKeydown = (event: KeyboardEvent): void => {
   if (event.key === 'Enter' && (event.metaKey || event.ctrlKey)) {
     event.preventDefault()
-    submit()
+
+    if (!event.repeat) {
+      submit()
+    }
   }
 }
 
@@ -278,7 +281,7 @@ defineExpose({ focusReason, setStatus })
     </div>
     <ReconfirmField v-if="reconfirmable" v-model="reconfirm" />
     <p v-if="status === 'fix_planned'" class="note">
-      Fix planned leaves the inbox, but alerts keep firing.
+      Fix planned leaves Triage, but alerts keep firing.
     </p>
     <p v-else-if="status !== null" class="note">
       Alerts stop within about two minutes, including alerts that already fire. Revoking or expiry

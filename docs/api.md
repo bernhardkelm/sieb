@@ -44,8 +44,8 @@ Checked before identity:
 | ---------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `GET /api/health`                  | `{ status, source }`, no Host check                                                                                                                                                                                       |
 | `GET /api/me`                      | `{ username, authMode }`: the acting user and `header` or `oidc`, so the client knows whether a 401 means log in again                                                                                                    |
-| `GET /api/findings`                | Findings in inbox order, more parameters under [Finding filters](#finding-filters); `view=inbox\|all` (default `all`), `includeResolved`, `q`, `severity`, `exposure`, `owner` (comma lists, `owner` takes free-form owner labels), `newSince`, `kev` (`true` or `1` keeps KEV listed findings only) |
-| `GET /api/findings/:id`            | Finding detail: instances, decisions, history and `kev`, the CISA catalog entry, see [KEV source](#kev-source)                                                                                                            |
+| `GET /api/findings`                | Findings in triage order, more parameters under [Finding filters](#finding-filters); `view=inbox\|all` (default `all`), `includeResolved`, `q`, `severity`, `exposure`, `owner` (comma lists, `owner` takes free-form owner labels), `newSince`, `kev` (`true` or `1` keeps KEV listed findings only) |
+| `GET /api/findings/:id`            | Finding detail: instances, decisions, history, `kev`, the CISA catalog entry, see [KEV source](#kev-source), and `sourceAccess` of the image, see [Source access](#source-access)                                                                                                            |
 | `GET /api/images`, `GET /api/cves` | Open findings aggregated per image or per CVE, `includeResolved=true` adds resolved ones                                                                                                                                  |
 | `GET /api/decisions`               | Decisions with their state, `state=active\|expiring\|expired\|revoked\|reopened\|fix_planned`                                                                                                                             |
 | `POST /api/decisions`              | Create an image-scoped or all-scope decision, `{ vulnId, scope, imageRef?, status, justification?, reason, expiresAt? }`                                                                                                  |
@@ -55,6 +55,12 @@ Checked before identity:
 | `GET /api/sync`, `POST /api/sync`  | `{ run, lastFinished, running, kevFeed }`: latest run and the health of the CISA catalog; run a sync and answer the finished run                                                                                          |
 | `GET /api/stats`                   | `{ current, series }`: live overview counts and their history, `range=7d\|30d\|90d` (default `30d`)                                                                                                                       |
 | `GET /api/labels`                  | `{ exposure, owners, kev }`: which optional labels the open findings carry and the KEV source, see [Labels](#labels)                                                                                                      |
+| `GET /api/inbox`                   | `{ items, counts }`: what waits for the acting user, see [Inbox](#inbox)                                                                                                                                                                                                                             |
+| `POST /api/inbox/seen`             | Mark expiring and KEV items as seen, `{ keys: [...] }`, answers `{ counts, ignored }`                                                                                                                                                                                                                |
+| `GET /api/proposals`               | Decision proposals filed through MCP, `state=open\|accepted\|rejected\|superseded\|all` (default `open`), `vulnId`, see [Proposals](#proposals) |
+| `GET /api/proposals/:id`           | One proposal with sieb's facts per image, the current decisions and what accepting writes |
+| `POST /api/proposals/:id/accept`   | Accept, `{ expectedDecisionIds, edits? }`, writes the decisions in one transaction |
+| `POST /api/proposals/:id/reject`   | Reject, `{ reason }` |
 | `GET /api/tokens`                  | Own personal tokens, newest first, see [Tokens](#tokens)                                                                                                                                                                  |
 | `POST /api/tokens`                 | Create a token, `{ name, scope, expiresAt }`, answers its secret once                                                                                                                                                     |
 | `POST /api/tokens/:id/revoke`      | Revoke an own token                                                                                                                                                                                                       |
@@ -67,12 +73,14 @@ Mounted only with `SIEB_AUTH=oidc`, outside `/api` and without a session. Setup 
 
 | Route | Purpose |
 | --- | --- |
+| `GET /auth/signin?return=/path` | Sign-in page, a static HTML page with a "Sign in with SSO" button to `/auth/login` with the same return rule; `signedOut=1` adds "You are signed out of sieb.". Clears the signed-out cookie; with a valid session it redirects (302) to the return path |
 | `GET /auth/login?return=/path` | Starts the login and redirects (302) to the identity provider; `return` must be a relative path (`/` and not `//` or `/\`), anything else returns to `/`. 503 page when the provider cannot be reached |
 | `GET /auth/callback` | Redirect target of the provider: creates the session, sets the session cookie and redirects to the return path. A provider error, an unknown or expired login, a failed code exchange or a missing `preferred_username` answer a 400 page, a missing required group 403, an unreachable provider 503, each with a link to `/auth/login` |
-| `POST /auth/logout` | Same rules as `/api` writes (`Content-Type: application/json`, same origin). Deletes the session, clears the cookie and answers `{ redirect }`: the provider's end-session URL with `id_token_hint` and `post_logout_redirect_uri` = public URL, or the public URL when the provider has no end-session endpoint |
+| `POST /auth/logout` | Same rules as `/api` writes (`Content-Type: application/json`, same origin). Deletes the session, clears the cookie, sets the signed-out cookie for 5 minutes and answers `{ redirect }`: the provider's end-session URL with `id_token_hint` and `post_logout_redirect_uri` = public URL, or the public URL when the provider has no end-session endpoint |
 
 Without a session, page requests (GET or HEAD of a client route) redirect to
-`/auth/login?return=<path and query>`, other files answer 401; the favicon, the icons and
+`/auth/signin?return=<path and query>`, with `&signedOut=1` while the signed-out cookie is
+present, other files answer 401; the favicon, the icons and
 `site.webmanifest` stay public, as do `/api/health`, `/mcp` and `/.well-known/oauth-protected-resource*`
 while MCP is enabled.
 
@@ -125,7 +133,7 @@ the next start like every migration.
 
 A finding's `exposure` is `public`, `gated`, `internal` or `null` (no or an unrecognised
 `exposure` label in the findings query, shown as unknown). `owner` is a free-form string or `null` (no or an invalid
-`owner` label); only `self` has a meaning, own images first. Inbox order and the `maxExposure` of
+`owner` label); only `self` has a meaning, own images first. Triage order and the `maxExposure` of
 `GET /api/images` and `GET /api/cves` rank exposure public > gated > unknown > internal; owners
 sort `self` first, the others alphabetically, `null` last. An `exposure` or `owner` filter never
 matches `null`. `owner` filter entries are trimmed and must be at most 64 characters, an entry
@@ -202,7 +210,7 @@ and its own success in one transaction.
 - `prometheus`: the KEV query `SIEB_KEV_QUERY` (see
   [prometheus-rules.md](prometheus-rules.md#kev-query)), read with every sync. Only the flag is
   known, `kev` of the finding detail and `kevFeed` are null.
-- `none`: no finding is KEV listed, the inbox ranks by exposure, severity and score only and the
+- `none`: no finding is KEV listed, Triage ranks by exposure, severity and score only and the
   client hides every KEV element. `kev` and `kevFeed` are null.
 
 A decision records the KEV listing in its baseline, so switching from `none` to a KEV source
@@ -240,6 +248,141 @@ always the case in oidc mode.
 - `sieb_last_sync_timestamp_seconds`, `sieb_last_sync_success` (0/1), `sieb_findings_open`, and
   `sieb_decisions{state}` per decision state.
 
+## Inbox
+
+The Inbox collects what waits for the acting user. Both routes need an identity (401
+`{ "error": "unauthorized" }` without one, reads included, since seen marks are per user) and
+answer `Cache-Control: no-store`.
+
+`GET /api/inbox` answers `{ items, counts }`, `counts` being
+`{ proposal, reopened, expiring, kev, total }` over the listed items. Every item carries
+`key` (stable identity), `kind`, `at` (the time it sorts by), `vulnId`, `imageRef` (`null` for a
+decision on every image or a proposal on several), `severity` and `kev` (highest severity and any
+KEV listing of the open findings it covers), `title` (advisory title of a covered finding, may be
+`null`), `url` (absolute link into sieb on `SIEB_PUBLIC_URL`, else on the origin of the request)
+and `refs`:
+
+| Kind       | Key                                  | `at`         | In the Inbox while                                                                                | Extra fields                                                                          |
+| ---------- | ------------------------------------ | ------------ | ------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------- |
+| `proposal` | `proposal:<id>`                      | `createdAt`  | the proposal is open                                                                              | `refs: { proposalId }`, `verdict`, `confidence`, `imageCount` (covered open findings) |
+| `reopened` | `reopened:<decisionId>:<reopenedAt>` | `reopenedAt` | the decision is re-opened, until re-confirmed (`reconfirm: true`, also within an edit) or revoked | `refs: { decisionId, findingId }`, `decisionStatus`, `reopenReason`                   |
+| `expiring` | `expiring:<decisionId>:<expiresAt>`  | `expiresAt`  | the decision is active and expires within 14 days, until extended or marked seen                  | `refs: { decisionId, findingId }`, `decisionStatus`                                   |
+| `kev`      | `kev:<findingId>`                    | `kevSince`   | the open finding became KEV listed within the last 14 days, also when decided, until marked seen  | `refs: { findingId, decisionId }`, `decisionStatus` (governing decision or `null`)    |
+
+A re-open the current data shows but no sync has latched yet uses `pending` instead of
+`<reopenedAt>` and the current time as `at`. An extension gives an expiring decision a new key, so
+it shows again when it comes within 14 days of its new expiry. Proposal items link to
+`/inbox/proposals/<id>`; the other kinds link to `/triage?finding=<id>`, the covered finding the
+re-open names or else the most pressing one (`refs.findingId`), and a decision without open
+findings links to the decisions view. Items are ordered as events first, newest first
+(proposals, re-opened decisions and new KEV listings interleaved by `at`), then expiring decisions
+soonest first, ties by `key`. MCP tools link findings to `/triage?finding=<id>` as well; the
+client still opens a 0.1.0 link of the form `/inbox?finding=<id>` on Triage when a page loads
+with it.
+
+`POST /api/inbox/seen` takes `{ "keys": [...] }`, at most 200 keys (`required`, `invalid`,
+`too_many` on `keys`), and marks them seen for the acting user; a bad key is reported as
+`keys.<index>` with `not_seeable` for `proposal` and `reopened` keys, which leave by being handled,
+and `invalid` for anything else that is not a well-formed `expiring` or `kev` key. Only keys
+listed in the acting user's Inbox right now are marked; the others, such as an item that left the
+Inbox or was marked before, are not stored and come back in `ignored`. Marking again changes
+nothing visible, the answer is `{ counts, ignored }` after the marks. At most 5000 marks are kept
+per user, more drop the oldest. A KEV mark holds only for the
+current listing: a CVE that leaves the catalog and returns shows again. Marks older than 30 days
+are deleted by the periodic cleanup, after both 14-day windows have passed.
+
+`findings.kev_since` is written by the sync: the sync time when a finding is first seen KEV listed
+or its flag turns on, cleared when the flag turns off. Findings KEV listed before 0.2.0 keep
+`null` and do not show as new.
+
+## Proposals
+
+Claude files decision proposals through the MCP tool `propose_decision` (scope `sieb:propose`, see
+[mcp.md](mcp.md#proposals)); a human accepts, edits or rejects them here. A proposal never
+changes a decision, `/metrics`, the stats or the triage list until it is accepted. The routes sit
+under `/api` with its identity, write and body rules; accept and reject write a log line with the
+proposal id, the acting user and the target, never the free text.
+
+A proposal (`Proposal` in `src/core/proposal.ts`) carries:
+
+- Target: `vulnId`, `scope` (`image` or `all`) and `imageRefs` (sorted, `null` for scope all).
+  Every target image needs an open finding of the CVE, scope all at least one.
+- Claims: `verdict` (`not_affected`, `accepted`, `fix_planned`, `needs_patch`), `justification`
+  (OpenVEX, required with `not_affected` only), `summary`, `confidence` (`low`, `medium`,
+  `high`), `presence`, `reachability`, `exposure`, `evidence` (`[{ check, method, result }]`),
+  `fix` (`{ fixedVersion, change, effort }`, `change` required for `needs_patch`), `review`
+  (`{ date, why }`, `date` follows the `expiresAt` rules), `unknowns`, `references` (http(s) URLs
+  only) and `evidenceBasis`, at least one of `advisory`, `upstream_source`, `image`,
+  `own_source`, `runtime`. Free text loses control, bidirectional formatting and invisible
+  characters (zero-width characters, the Arabic letter mark, soft hyphens) and is capped (summary
+  1000 characters, presence, reachability and exposure 4000, at most 30 evidence entries, 20
+  unknowns, 20 references). Treat all of it as untrusted plain text.
+- Snapshots: `sourceAccess` (`[{ imageRef, access }]` when proposed) and `basisDecisions`
+  (`[{ imageRef, decisionId, updatedAt }]`, the decisions governing the targets when proposed,
+  `imageRef` `null` for the all-scope target).
+- Proposer: `proposedBy` (the sieb user of the token or OAuth login), `proposedVia` (`token` or
+  `oauth`), `clientLabel`, `agent` and `createdAt`. The id of the proposer's token is stored for
+  the server log but never answered.
+- Outcome: `state` (`open`, `accepted`, `rejected`, `superseded`), `resolution` (`accepted`,
+  `accepted_edited`, `rejected`, `replaced`, `other_accepted`, `finding_resolved`),
+  `resolutionNote` (the reject reason), `decisionIds`, `resolvedAt` and `resolvedBy` (`sieb` for
+  a sync).
+
+Rules: a user holds one open proposal per target (CVE, scope and image set), a new one replaces the
+old (`replaced`), and at most 200 open proposals. Accepting supersedes the other open proposals
+whose target overlaps (`other_accepted`). A sync supersedes a proposal once none of its images has
+an open finding left (`finding_resolved`).
+
+`GET /api/proposals` answers `ProposalListItem[]`, newest first:
+`{ proposal, outdated, severity, kev, imageCount }`. `outdated` is true for an open proposal when
+a decision governing one of its targets was created, changed or revoked since it was filed;
+`severity` and `kev` cover the open target findings, for scope all every open image.
+
+`GET /api/proposals/:id` answers `ProposalDetail`, the list item plus:
+
+- `images`: sieb's own facts per image (the targets, for scope all every image with an open
+  finding): `{ imageRef, findingId, open, severity, score, kev, exposure, owner, sourceAccess,
+  versions: [{ package, installedVersion, fixedVersion }], workloads, decision }`, `decision` being
+  the `DecisionView` governing the image now.
+- `allScopeDecision`: the current all-scope decision of the CVE or `null`.
+- `currentDecisionIds`: `[{ imageRef, decisionId, updatedAt }]`, the governing decision per
+  target now and the version of it (`decisionId` and `updatedAt` both `null` for none); send it
+  back unchanged as `expectedDecisionIds`. The client sends the entries of its first load of the
+  review, not those of a later reload.
+- `decisionValues`: `{ status, justification, reason, expiresAt }` that accepting without edits
+  writes: `needs_patch` becomes `fix_planned`, the reason is generated from verdict, summary, the
+  first three evidence checks, the fix and the confidence (at most 2000 characters), and the
+  expiry is the review date while it lies ahead, else the default of the status.
+- `kevCatalog`: the CISA catalog entry, `null` for other KEV sources.
+
+`POST /api/proposals/:id/accept` takes
+`{ "expectedDecisionIds": [{ "imageRef", "decisionId", "updatedAt" }], "edits"?: { "status", "justification", "reason", "expiresAt" } }`.
+Edits follow the decision rules (`edits.<field>` with `invalid`, `not_allowed`, `too_long`,
+`in_past`, `too_far`); any other field, such as `scope` or `imageRefs`, is `not_allowed`. In one
+transaction it writes per target image the image-scoped decision, updating and re-confirming an
+existing one, or for scope all the all-scope decision, and answers
+`{ proposal, decisions, supersededIds }` with the written decisions as `DecisionView`. The
+`created` or `updated` events of those decisions carry
+`provenance: { proposalId, proposedBy, clientLabel, editedFields }`.
+
+`POST /api/proposals/:id/reject` takes `{ "reason" }`, 1 to 2000 characters (`required`,
+`too_long`), and answers `{ proposal }`. The proposer reads the reason back through
+`list_my_proposals`.
+
+Errors: 404 `{ "error": "not_found" }` for an unknown proposal; 409
+`{ "error": "proposal_conflict", "currentDecisionIds" }` when a governing decision is no longer the
+expected one or was edited since (same `decisionId`, other `updatedAt`), nothing is written; 409 `{ "error": "proposal_closed", "state" }` for a proposal that
+is no longer open; 400 `expectedDecisionIds` `required` or `invalid` (an entry without `updatedAt`, with an
+unparsable one, or with an `updatedAt` but no `decisionId` is `invalid`).
+
+### Source access
+
+`sourceAccess` tells whether the source behind an image can be checked from outside: `private` for
+own images (owner `self`) and images of a registry outside `SIEB_PUBLIC_REGISTRIES`, `public` for
+images of a listed registry, `unknown` when the ref names no registry. An image without a registry
+host counts as Docker Hub. It appears in the finding detail, the proposal detail and the MCP
+finding rows.
+
 ## Tokens
 
 Personal tokens authenticate Claude Code on [`/mcp`](#mcp-endpoint), see
@@ -251,7 +394,7 @@ a user only ever sees and revokes their own tokens. While `SIEB_MCP_ENABLED` is 
 A token is answered as
 `{ id, name, scope, prefix, createdAt, expiresAt, lastUsedAt, revokedAt }`, never with its
 owner, hash or secret. `scope` is `read` (grants `sieb:read`) or `propose` (also `sieb:propose`,
-used from 0.2.0 on; the UI does not offer it yet). `prefix` is `sieb_` and the first 8 characters
+which offers `propose_decision`). `prefix` is `sieb_` and the first 8 characters
 of the secret. `lastUsedAt` is `null` until first use and written at most once a minute;
 `expiresAt` is `null` only for tokens created before expiry became mandatory, which are no
 longer accepted.
@@ -302,6 +445,10 @@ over streamable HTTP, stateless and with JSON answers instead of event streams. 
    fetched the answer is 500 `server_error`.
 5. At most 120 requests per minute per personal token or OAuth user, in fixed one-minute windows
    kept in memory, else 429 `{ "error": "rate_limited" }` with `Retry-After` in seconds.
+
+On top, `propose_decision` accepts at most 30 valid calls per hour and sieb user, shared by all of
+the user's tokens and OAuth clients, beyond that the tool answers an error result and files
+nothing.
 
 Only `POST` carries MCP messages; an authenticated `GET` or `DELETE`, the session operations of
 the transport, answers 405 with `Allow: POST`. While MCP is off `/mcp` answers 404 `{ "error": "not_found" }`.

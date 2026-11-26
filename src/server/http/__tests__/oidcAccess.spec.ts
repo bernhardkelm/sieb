@@ -76,16 +76,27 @@ describe('oidc access without a session', () => {
     expect(await read.json()).toEqual({ error: 'unauthorized' })
   })
 
-  it('redirects page navigations to the login with path and query as return target', async () => {
+  it('redirects page navigations to the sign-in page with path and query as return target', async () => {
     const test = await fullApp()
     const root = await send(test.app, '/')
     const deep = await send(test.app, '/inbox?finding=3&view=all')
+    const head = await send(test.app, '/inbox', { method: 'HEAD' })
 
     expect(root.status).toBe(302)
-    expect(root.headers.get('location')).toBe('/auth/login?return=%2F')
+    expect(root.headers.get('location')).toBe('/auth/signin?return=%2F')
+    expect(root.headers.get('Cache-Control')).toBe('no-store')
     expect(deep.headers.get('location')).toBe(
-      `/auth/login?return=${encodeURIComponent('/inbox?finding=3&view=all')}`,
+      `/auth/signin?return=${encodeURIComponent('/inbox?finding=3&view=all')}`,
     )
+    expect(head.headers.get('location')).toBe('/auth/signin?return=%2Finbox')
+  })
+
+  it('serves the sign-in page itself without a session', async () => {
+    const test = await fullApp()
+    const page = await send(test.app, '/auth/signin?return=%2F')
+
+    expect(page.status).toBe(200)
+    expect(await page.text()).toContain('href="/auth/login?return=%2F"')
   })
 
   it('answers assets 401 and serves the icons and the manifest', async () => {
@@ -179,6 +190,7 @@ describe('oidc access with a session', () => {
 describe('sessionAccessOf', () => {
   it('classifies paths for requests without a session', () => {
     expect(sessionAccessOf('GET', '/auth/login', false)).toBe('public')
+    expect(sessionAccessOf('GET', '/auth/signin', false)).toBe('public')
     expect(sessionAccessOf('GET', '/authx', false)).toBe('page')
     expect(sessionAccessOf('GET', '/api/health', false)).toBe('public')
     expect(sessionAccessOf('GET', '/api/health/x', false)).toBe('api')

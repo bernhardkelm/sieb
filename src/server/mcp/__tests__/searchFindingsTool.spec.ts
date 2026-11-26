@@ -58,7 +58,7 @@ describe('search_findings', () => {
       versions: [{ package: 'liblzma5', installed: '5.6.0', fixed: '5.6.1' }],
       workloads: ['authentik/ReplicaSet/authentik-server-7f9c'],
       decisionState: 'undecided',
-      url: expect.stringMatching(/^http:\/\/localhost:3100\/inbox\?finding=\d+$/),
+      url: expect.stringMatching(/^http:\/\/localhost:3100\/triage\?finding=\d+$/),
       untrusted: { title: 'xz backdoor' },
     })
   })

@@ -1,53 +1,23 @@
-export type InboxAction =
-  | 'open'
-  | 'close'
-  | 'accept'
-  | 'notAffected'
-  | 'fixPlanned'
-  | 'bulk'
-  | 'search'
+import type { ShortcutScope } from '@/keyboard/triageKeymap'
 
-/** Where a key was pressed: the page, the side panel or a popover or dialog */
-export type ShortcutScope = 'page' | 'panel' | 'overlay'
+export type InboxAction = 'open' | 'close' | 'markSeen'
 
 const KEYS: Record<string, InboxAction> = {
   Enter: 'open',
   o: 'open',
   Escape: 'close',
-  a: 'accept',
-  n: 'notAffected',
-  f: 'fixPlanned',
-  A: 'bulk',
-  '/': 'search',
+  s: 'markSeen',
 }
 
-const PAGE_ONLY = new Set(['Enter', 'o', 'Escape', 'a', 'n', 'f'])
-
 /**
- * Maps a key press in the inbox to its action, on top of the cursor keys every list shares.
- * Inside popovers and dialogs nothing applies; inside the side panel only Shift+A and / apply,
- * the panel handles the rest itself.
- * @param {Pick<KeyboardEvent, 'key' | 'shiftKey'>} event - Key press
+ * Maps a key press in the Inbox to its action, on top of the cursor keys every list shares:
+ * Enter or o opens the item, Escape closes its panel, s marks the checked or cursor items as
+ * seen. Only the page scope applies, the panels and dialogs handle their own keys.
+ * @param {Pick<KeyboardEvent, 'key'>} event - Key press
  * @param {ShortcutScope} scope - Where the key was pressed
  * @returns {InboxAction | null} - Action, null for keys without one
  */
 export const inboxActionFor = (
-  event: Pick<KeyboardEvent, 'key' | 'shiftKey'>,
+  event: Pick<KeyboardEvent, 'key'>,
   scope: ShortcutScope,
-): InboxAction | null => {
-  const action = KEYS[event.key]
-
-  if (action === undefined || scope === 'overlay') {
-    return null
-  }
-
-  if (event.key === 'A' && !event.shiftKey) {
-    return null
-  }
-
-  if (scope === 'panel' && PAGE_ONLY.has(event.key)) {
-    return null
-  }
-
-  return action
-}
+): InboxAction | null => (scope === 'page' ? (KEYS[event.key] ?? null) : null)

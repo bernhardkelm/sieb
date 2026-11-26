@@ -1,14 +1,21 @@
-import { mount, type VueWrapper } from '@vue/test-utils'
+import { flushPromises, mount, type VueWrapper } from '@vue/test-utils'
 import { createPinia, setActivePinia } from 'pinia'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { ref } from 'vue'
 import { createMemoryHistory, createRouter } from 'vue-router'
 
+import type { InboxResponse } from '#core/apiTypes.ts'
+import { kevItem, proposalItem } from '@/__tests__/inboxItemBuilders'
+import { fetchInbox } from '@/api/inboxApi'
 import AppSidebar from '@/components/layout/AppSidebar.vue'
 import { NOT_AVAILABLE_REASON } from '@/keyboard/hintActions'
 import { ROUTE_NAMES } from '@/router/routeNames'
 import { useHintActionsStore } from '@/stores/hintActionsStore'
 import { useMcpStore } from '@/stores/mcpStore'
+
+vi.mock('@/api/inboxApi', () => ({
+  fetchInbox: vi.fn<() => Promise<InboxResponse>>(() => new Promise(() => {})),
+}))
 
 let wrapper: VueWrapper | null = null
 
@@ -63,8 +70,8 @@ const hintOf = (sidebar: VueWrapper, label: string): Element => {
 }
 
 describe('AppSidebar hints', () => {
-  it('lists the Claude hints at the end of the inbox only with the integration on', async () => {
-    const sidebar = await mountSidebar('/inbox')
+  it('lists the Claude hints at the end of Triage only with the integration on', async () => {
+    const sidebar = await mountSidebar('/triage')
     const labels = (): string[] =>
       sidebar.findAll('.hints li > *').map((item) => item.findAll('span').at(-1)?.text() ?? '')
 
@@ -84,7 +91,7 @@ describe('AppSidebar hints', () => {
   })
 
   it('renders actions as buttons and range and tree hints as text', async () => {
-    const sidebar = await mountSidebar('/inbox')
+    const sidebar = await mountSidebar('/triage')
 
     expect(hintOf(sidebar, 'Accept').tagName).toBe('BUTTON')
     expect(hintOf(sidebar, 'Select all').tagName).toBe('BUTTON')
@@ -97,7 +104,7 @@ describe('AppSidebar hints', () => {
   })
 
   it('runs the registered action on click', async () => {
-    const sidebar = await mountSidebar('/inbox')
+    const sidebar = await mountSidebar('/triage')
     const run = vi.fn<() => void>()
 
     useHintActionsStore().register({ actions: { accept: { run } } })
@@ -139,5 +146,60 @@ describe('AppSidebar hints', () => {
 
     expect(button.getAttribute('aria-disabled')).toBe('true')
     expect(button.title).toBe(NOT_AVAILABLE_REASON)
+  })
+})
+
+describe('AppSidebar navigation', () => {
+  it('lists the views on the keys 1 to 5 with the open Inbox count as a badge', async () => {
+    vi.mocked(fetchInbox).mockResolvedValueOnce({
+      items: [proposalItem(1), kevItem(2)],
+      counts: { proposal: 1, reopened: 0, expiring: 0, kev: 1, total: 2 },
+    })
+    const sidebar = await mountSidebar('/inbox')
+
+    await flushPromises()
+
+    const links = sidebar.findAll('.nav .link')
+
+    expect(links.map((link) => link.find('.label').text())).toEqual([
+      'Inbox',
+      'Triage',
+      'By image',
+      'By CVE',
+      'Decisions',
+    ])
+    expect(links.map((link) => link.attributes('aria-keyshortcuts'))).toEqual([
+      '1',
+      '2',
+      '3',
+      '4',
+      '5',
+    ])
+    expect(links[0]!.get('.badge').text()).toBe('2\u00a0open')
+    expect(sidebar.findAll('.badge')).toHaveLength(1)
+  })
+
+  it('shows no badge while the Inbox is empty', async () => {
+    vi.mocked(fetchInbox).mockResolvedValueOnce({
+      items: [],
+      counts: { proposal: 0, reopened: 0, expiring: 0, kev: 0, total: 0 },
+    })
+    const sidebar = await mountSidebar('/inbox')
+
+    await flushPromises()
+
+    expect(sidebar.find('.badge').exists()).toBe(false)
+  })
+
+  it('lists the Inbox hints, with the review keys on its proposal panel', async () => {
+    const sidebar = await mountSidebar('/inbox')
+    const labels = (): string[] =>
+      sidebar.findAll('.hints li > *').map((item) => item.findAll('span').at(-1)?.text() ?? '')
+
+    expect(labels()).toEqual(['Mark as seen', 'Select', 'Sync'])
+
+    await sidebar.vm.$router.push('/inboxProposal')
+
+    expect(labels()).toEqual(['Accept', 'Close', 'Sync'])
   })
 })

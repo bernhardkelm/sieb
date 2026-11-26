@@ -32,7 +32,7 @@ const TONES: Record<EffectiveDecision['state'], ChipTone> = {
 const ACTIVE_HINTS: Record<DecisionStatus, string> = {
   not_affected: 'Not affected, alerts muted',
   accepted: 'Risk accepted, alerts muted',
-  fix_planned: 'Out of the inbox, alerts keep firing',
+  fix_planned: 'Out of Triage, alerts keep firing',
 }
 
 const label = computed(() =>
@@ -48,7 +48,7 @@ const stateReason = computed(() => {
     case 'active':
       return props.status ? ACTIVE_HINTS[props.status] : 'Alerts muted'
     case 'fix_planned':
-      return 'Out of the inbox, alerts keep firing'
+      return 'Out of Triage, alerts keep firing'
     case 'expired':
       return `Expired ${formatAbsolute(effective.expiresAt)}`
     case 'revoked':

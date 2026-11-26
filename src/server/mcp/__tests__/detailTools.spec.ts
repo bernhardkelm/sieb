@@ -32,7 +32,7 @@ const call = async (
 }
 
 describe('query tool registration', () => {
-  it('registers six read-only, closed-world tools with output schemas', async () => {
+  it('registers seven read-only, closed-world tools with output schemas', async () => {
     const tools = await (await connectSeededServer()).listTools()
 
     expect(tools.map((tool) => tool.name).sort()).toEqual([
@@ -41,6 +41,7 @@ describe('query tool registration', () => {
       'get_image',
       'get_overview',
       'list_decisions',
+      'list_my_proposals',
       'search_findings',
     ])
 
@@ -65,7 +66,7 @@ describe('get_finding', () => {
       vulnId: 'CVE-2025-1000',
       imageRef: NGINX,
       decisionState: 'not_affected',
-      url: `https://sieb.example.com/inbox?finding=${byPair.finding.id}`,
+      url: `https://sieb.example.com/triage?finding=${byPair.finding.id}`,
     })
     expect(byId.decisions).toEqual([
       expect.objectContaining({ status: 'not_affected', governing: true, createdBy: 'alice' }),

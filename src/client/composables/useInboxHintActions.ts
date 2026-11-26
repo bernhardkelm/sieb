@@ -1,54 +1,53 @@
-import type { Ref } from 'vue'
+import type { ComputedRef } from 'vue'
 
-import type { ListCursor } from '@/composables/useListCursor'
+import type { InboxItem } from '#core/inbox/inboxItem.ts'
+import { isSeeable } from '@/components/inbox/inboxItems'
 import { useHintActions } from '@/composables/useHintActions'
-import type { HintAction } from '@/keyboard/hintActions'
-import type { InboxAction } from '@/keyboard/inboxKeymap'
+import type { ListCursor } from '@/composables/useListCursor'
 
 export interface InboxHintSources {
-  /** Runs an inbox key action, the handler behind a, n, f and / */
-  run: (action: InboxAction) => void
-  cursor: ListCursor<number>
-  ids: Readonly<Ref<readonly number[]>>
+  cursor: ListCursor<string>
+  /** Listed items by key */
+  items: ComputedRef<ReadonlyMap<string, InboxItem>>
+  seenTargets: ComputedRef<string[]>
+  markSeen: () => Promise<void>
 }
 
-const NO_CURSOR = 'No finding under the cursor'
+export const NOTHING_TO_SEE = 'Only expiring decisions and new KEV listings can be marked as seen'
 
 /**
- * Registers the inbox hint actions: Accept, Not affected and Fix planned decide the checked rows
- * or the cursor row as a, n and f do, Select and Select all check rows as x and the select-all
- * chord do, Search focuses the search input as / does.
- * @param {InboxHintSources} sources - Key handler, cursor and listed rows of the inbox
+ * Registers the Inbox hint actions: Mark as seen marks the checked items or the cursor item as
+ * s does, Select checks the cursor item as x does; both only for expiring decisions and new KEV
+ * listings, which leave the Inbox by being seen.
+ * @param {InboxHintSources} sources - Cursor, items and the mark action
  * @returns {void}
  */
-export const useInboxHintActions = ({ run, cursor, ids }: InboxHintSources): void => {
+export const useInboxHintActions = ({
+  cursor,
+  items,
+  seenTargets,
+  markSeen,
+}: InboxHintSources): void => {
   /**
-   * Returns why the cursor row cannot be acted on.
-   * @returns {string | null} - Reason, null with a cursor row
+   * Returns why the cursor item cannot be checked.
+   * @returns {string | null} - Reason, null for an item that can be marked as seen
    */
-  const noCursor = (): string | null => (cursor.currentKey.value === null ? NO_CURSOR : null)
+  const notSelectable = (): string | null => {
+    const key = cursor.currentKey.value
+    const item = key === null ? undefined : items.value.get(key)
 
-  /**
-   * Builds a decision action, available with checked rows or a cursor row.
-   * @param {InboxAction} action - Decision key action
-   * @returns {HintAction} - Hint action
-   */
-  const decide = (action: InboxAction): HintAction => ({
-    run: () => run(action),
-    blockedBy: () => (cursor.selection.checkedIds.value.size > 0 ? null : noCursor()),
-  })
+    return item && isSeeable(item) ? null : NOTHING_TO_SEE
+  }
 
   useHintActions(
     {
-      accept: decide('accept'),
-      notAffected: decide('notAffected'),
-      fixPlanned: decide('fixPlanned'),
-      toggle: { run: cursor.toggleCurrent, blockedBy: noCursor },
-      selectAll: {
-        run: cursor.selection.checkAll,
-        blockedBy: () => (ids.value.length === 0 ? 'No findings listed' : null),
+      markSeen: {
+        run: () => {
+          void markSeen()
+        },
+        blockedBy: () => (seenTargets.value.length > 0 ? null : NOTHING_TO_SEE),
       },
-      search: { run: () => run('search') },
+      toggle: { run: cursor.toggleCurrent, blockedBy: notSelectable },
     },
     cursor.refocus,
   )

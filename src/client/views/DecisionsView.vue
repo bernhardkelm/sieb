@@ -50,7 +50,7 @@ const empty = computed(() => decisionTabEmpty(tab.value, labels.showKev))
       @retry="store.refresh()"
     />
     <EmptyState v-else-if="store.items.length === 0" title="No decisions yet">
-      Decide findings in the inbox; their decisions are listed here.
+      Decide findings in Triage; their decisions are listed here.
     </EmptyState>
     <DecisionTabs v-else v-model:tab="tab" :counts="counts">
       <ListSummary

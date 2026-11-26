@@ -1,19 +1,30 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, onBeforeUnmount, onMounted } from 'vue'
 import { RouterLink, useRoute } from 'vue-router'
 
 import KeyHint from '@/components/common/KeyHint.vue'
 import OverviewStats from '@/components/overview/OverviewStats.vue'
+import { formatCount } from '@/format/count'
 import { hintsForRoute } from '@/keyboard/keyboardHints'
 import { NAV_ITEMS } from '@/router/navItems'
 import { useHintActionsStore } from '@/stores/hintActionsStore'
+import { useInboxStore } from '@/stores/inboxStore'
 import { useMcpStore } from '@/stores/mcpStore'
 
 const route = useRoute()
 const actions = useHintActionsStore()
 const mcp = useMcpStore()
+const inbox = useInboxStore()
 
 const hints = computed(() => hintsForRoute(route.name, mcp.enabled))
+
+onMounted(() => {
+  inbox.startPolling()
+})
+
+onBeforeUnmount(() => {
+  inbox.stopPolling()
+})
 </script>
 
 <template>
@@ -23,7 +34,10 @@ const hints = computed(() => hintsForRoute(route.name, mcp.enabled))
       <ul class="nav">
         <li v-for="item in NAV_ITEMS" :key="item.name">
           <RouterLink class="link" :to="{ name: item.name }" :aria-keyshortcuts="item.shortcut">
-            <span>{{ item.label }}</span>
+            <span class="label">{{ item.label }}</span>
+            <span v-if="item.badge === 'inbox' && inbox.counts.total > 0" class="badge">
+              {{ formatCount(inbox.counts.total) }}<span class="visually-hidden">&nbsp;open</span>
+            </span>
             <KeyHint class="shortcut" :keys="[item.shortcut]" />
           </RouterLink>
         </li>
@@ -90,6 +104,24 @@ const hints = computed(() => hintsForRoute(route.name, mcp.enabled))
   color: var(--color-text-muted);
   font-weight: var(--font-weight-medium);
   text-decoration: none;
+}
+
+.label {
+  margin-right: auto;
+}
+
+.badge {
+  min-width: calc(var(--space-base) * 5);
+  margin-right: var(--space-2);
+  padding: 0 var(--space-1-5);
+  border-radius: var(--radius-pill);
+  background: var(--color-accent);
+  color: var(--color-on-accent);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-semibold);
+  font-variant-numeric: tabular-nums;
+  line-height: calc(var(--space-base) * 4.5);
+  text-align: center;
 }
 
 .link:hover {
@@ -179,6 +211,14 @@ const hints = computed(() => hintsForRoute(route.name, mcp.enabled))
   .nav li {
     flex: 1;
     min-width: 0;
+  }
+
+  .label {
+    margin-right: 0;
+  }
+
+  .badge {
+    margin: 0 0 0 var(--space-1);
   }
 
   .link {

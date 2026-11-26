@@ -1,5 +1,6 @@
 import { McpServer } from '@modelcontextprotocol/server'
 
+import { DEFAULT_PUBLIC_REGISTRIES } from '#core/sourceAccess.ts'
 import { createDecision } from '#server/db/createDecision.ts'
 import { replaceKevCatalog } from '#server/db/kevCatalogRepository.ts'
 import { recordKevSuccess } from '#server/db/kevFeedRepository.ts'
@@ -7,6 +8,11 @@ import { MEMORY_DB, openDatabase } from '#server/db/openDatabase.ts'
 import { finishSyncRun, startSyncRun } from '#server/db/syncRunRepository.ts'
 import { buildSnapshot, NGINX, REDIS } from '#server/db/__tests__/dbFixtures.ts'
 import type { McpCaller } from '#server/mcp/mcpCaller.ts'
+import {
+  createRateLimiter,
+  PROPOSE_RATE_LIMIT,
+  PROPOSE_RATE_WINDOW_MS,
+} from '#server/mcp/mcpGuards.ts'
 import type { McpToolDeps } from '#server/mcp/mcpToolDeps.ts'
 import { registerQueryTools } from '#server/mcp/tools/registerQueryTools.ts'
 import { registerTriagePrompt } from '#server/mcp/triagePrompt.ts'
@@ -115,7 +121,16 @@ export const seededToolDeps = (overrides: Partial<McpToolDeps> = {}): McpToolDep
     MCP_NOW,
   )
 
-  return { db, clock: () => MCP_NOW, kevSource: 'cisa', baseUrl: BASE_URL, ...overrides }
+  return {
+    db,
+    clock: () => MCP_NOW,
+    kevSource: 'cisa',
+    baseUrl: BASE_URL,
+    publicRegistries: DEFAULT_PUBLIC_REGISTRIES,
+    log: () => {},
+    proposalLimiter: createRateLimiter(PROPOSE_RATE_LIMIT, PROPOSE_RATE_WINDOW_MS),
+    ...overrides,
+  }
 }
 
 /**

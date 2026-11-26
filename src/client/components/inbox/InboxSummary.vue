@@ -1,37 +1,46 @@
 <script setup lang="ts">
+import { computed } from 'vue'
+
+import { INBOX_KINDS, type InboxCounts } from '#core/inbox/inboxItem.ts'
 import BaseButton from '@/components/common/BaseButton.vue'
 import ListSummary from '@/components/list/ListSummary.vue'
+import { countOf, formatCount } from '@/format/count'
 
-defineProps<{
-  shown: number
-  total: number
-  /** Shown findings first seen within the last seven days */
-  newCount: number
+const props = defineProps<{
+  counts: InboxCounts
   checkedCount: number
-  /** Active custom sort, null for the triage order */
-  sortLabel: string | null
+  /** Items the mark button marks, the checked ones or the cursor item */
+  seenCount: number
 }>()
 
-defineEmits<{ bulk: []; resetSort: [] }>()
+defineEmits<{ markSeen: [] }>()
+
+const NOUNS = {
+  proposal: ['proposal', 'proposals'],
+  reopened: ['re-opened', 're-opened'],
+  expiring: ['expiring', 'expiring'],
+  kev: ['new KEV', 'new KEV'],
+} as const
+
+const parts = computed(() =>
+  INBOX_KINDS.filter((kind) => props.counts[kind] > 0).map((kind) => {
+    const [singular, plural] = NOUNS[kind]
+
+    return `${formatCount(props.counts[kind])} ${props.counts[kind] === 1 ? singular : plural}`
+  }),
+)
 </script>
 
 <template>
-  <ListSummary :sort-label="sortLabel" @reset-sort="$emit('resetSort')">
-    <span>{{ shown === total ? `${total} to triage` : `${shown} of ${total} to triage` }}</span>
-    <span v-if="newCount > 0"> · {{ newCount }} new this week</span>
+  <ListSummary>
+    <span>{{ countOf(counts.total, 'item') }}</span>
+    <span v-for="part in parts" :key="part"> · {{ part }}</span>
     <span v-if="checkedCount > 0" class="checked">
-      · {{ checkedCount }} selected<span class="shortcut"
-        >, <kbd>a</kbd> <kbd>n</kbd> <kbd>f</kbd> to decide together</span
-      >
+      · {{ checkedCount }} selected<span class="shortcut">, <kbd>s</kbd> to mark as seen</span>
     </span>
     <template #actions>
-      <BaseButton
-        v-if="checkedCount > 0"
-        class="bulk-button"
-        variant="ghost"
-        @click="$emit('bulk')"
-      >
-        Decide {{ checkedCount }} selected
+      <BaseButton v-if="seenCount > 0" variant="ghost" @click="$emit('markSeen')">
+        {{ seenCount === 1 ? 'Mark as seen' : `Mark ${seenCount} as seen` }}
       </BaseButton>
     </template>
   </ListSummary>
@@ -48,13 +57,6 @@ kbd {
 
 @media (hover: none) and (pointer: coarse) {
   .shortcut {
-    display: none;
-  }
-}
-
-/* the selection bar takes over in this layout */
-@media (max-width: 899px), (hover: none) and (pointer: coarse) {
-  .bulk-button {
     display: none;
   }
 }

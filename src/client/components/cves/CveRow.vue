@@ -46,7 +46,7 @@ const images = computed(() => props.cve.imageRefs.join('\n'))
       <ExposureChip v-if="cve.maxExposure" :exposure="cve.maxExposure" />
     </span>
     <CountValue class="open" :value="cve.openCount" label="open" />
-    <CountValue class="inbox" :value="cve.inboxCount" label="in the inbox" />
+    <CountValue class="inbox" :value="cve.inboxCount" label="to triage" />
     <span class="decisions">
       <AllScopeChip v-if="cve.allScopeDecision" :decision="cve.allScopeDecision" />
       <span class="summary">{{ summary }}</span>

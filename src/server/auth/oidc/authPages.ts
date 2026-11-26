@@ -1,5 +1,11 @@
 import type { Context } from 'hono'
 
+import { setAuthPageHeaders, styleHashSource } from '#server/auth/oidc/authPageHeaders.ts'
+
+const FAILED_PAGE_CSS =
+  'body{font:16px/1.5 system-ui,sans-serif;max-width:32rem;margin:4rem auto;padding:0 1rem}'
+const FAILED_PAGE_STYLE = styleHashSource(FAILED_PAGE_CSS)
+
 const HTML_ESCAPES: Record<string, string> = {
   '&': '&amp;',
   '<': '&lt;',
@@ -25,16 +31,13 @@ export const escapeHtml = (text: string): string =>
  * @returns {Response} - Response
  */
 export const loginFailedPage = (c: Context, status: 400 | 403 | 503, message: string): Response => {
-  c.header('Cache-Control', 'no-store')
-  c.header('Content-Security-Policy', "default-src 'none'; style-src 'unsafe-inline'")
-  c.header('X-Frame-Options', 'DENY')
-  c.header('Referrer-Policy', 'no-referrer')
+  setAuthPageHeaders(c, FAILED_PAGE_STYLE)
 
   return c.html(
     `<!doctype html>
 <html lang="en">
 <head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>sieb login</title>
-<style>body{font:16px/1.5 system-ui,sans-serif;max-width:32rem;margin:4rem auto;padding:0 1rem}</style></head>
+<style>${FAILED_PAGE_CSS}</style></head>
 <body><h1>Login failed</h1><p>${escapeHtml(message)}</p><p><a href="/auth/login">Try again</a></p></body>
 </html>`,
     status,

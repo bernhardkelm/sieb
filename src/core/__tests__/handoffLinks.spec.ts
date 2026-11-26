@@ -37,7 +37,7 @@ describe('hand-off links', () => {
     const prompt = buildHandoffPrompt({
       finding: buildFindingView({ id: 7, vulnId: 'CVE-2024-3094', imageRef: 'nginx:1.25' }),
       instances: [],
-      url: 'https://sieb.example.com/inbox?finding=7',
+      url: 'https://sieb.example.com/triage?finding=7',
     })
 
     for (const target of HANDOFF_TARGETS) {

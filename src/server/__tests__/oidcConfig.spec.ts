@@ -58,6 +58,7 @@ describe('readConfig auth modes', () => {
       clientSecret: SECRET,
       requiredGroup: null,
       sessionHours: 12,
+      displayName: 'SSO',
     })
     expect(
       readConfig(
@@ -65,6 +66,12 @@ describe('readConfig auth modes', () => {
         CWD,
       ).oidc,
     ).toMatchObject({ requiredGroup: 'sieb-users', sessionHours: 168 })
+    expect(
+      readConfig({ ...OIDC_ENV, SIEB_OIDC_DISPLAY_NAME: ' Example ID ' }, CWD).oidc,
+    ).toMatchObject({ displayName: 'Example ID' })
+    expect(readConfig({ ...OIDC_ENV, SIEB_OIDC_DISPLAY_NAME: ' ' }, CWD).oidc?.displayName).toBe(
+      'SSO',
+    )
     expect(readConfig({ ...OIDC_ENV, SIEB_AUTH: ' OIDC ' }, CWD).authMode).toBe('oidc')
   })
 

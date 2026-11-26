@@ -2,6 +2,7 @@ import type { DatabaseSync } from 'node:sqlite'
 
 import { JUSTIFIABLE_STATUS, type Decision, type DecisionPatch } from '#core/decision.ts'
 import { defaultExpiresAt } from '#core/decisionExpiry.ts'
+import type { ProposalProvenance } from '#core/proposal.ts'
 import { mustGetDecision, type DecisionCommandResult } from '#server/db/decisionCommandResult.ts'
 import { appendDecisionEvent } from '#server/db/decisionEventRepository.ts'
 import { getDecision } from '#server/db/decisionRepository.ts'
@@ -24,12 +25,14 @@ const DIFF_FIELDS = [
  * justification for a decision that is not not_affected after the patch is refused. Only a
  * patch with reconfirm clears a latched re-open and records new baselines at the current
  * findings; any other edit, a reason fix included, keeps a re-opened decision re-opened. Writes
- * an updated event with reconfirm and the changed fields as [before, after].
+ * an updated event with reconfirm and the changed fields as [before, after], plus the provenance
+ * of a change from an accepted proposal.
  * @param {DatabaseSync} db - Open database
  * @param {number} id - Decision id
  * @param {DecisionPatch} patch - Validated change
  * @param {string} actor - Acting user
  * @param {Date} now - Current time
+ * @param {ProposalProvenance | null} provenance - Accepted proposal behind the change, null for none
  * @returns {DecisionCommandResult} - Changed decision or the reason it was refused
  */
 export const updateDecision = (
@@ -38,6 +41,7 @@ export const updateDecision = (
   patch: DecisionPatch,
   actor: string,
   now: Date,
+  provenance: ProposalProvenance | null = null,
 ): DecisionCommandResult =>
   inTransaction(db, () => {
     const before = getDecision(db, id)
@@ -96,7 +100,7 @@ export const updateDecision = (
       type: 'updated',
       actor,
       at,
-      payload: { reconfirm, ...diff },
+      payload: provenance === null ? { reconfirm, ...diff } : { reconfirm, ...diff, provenance },
     })
     return { ok: true, decision: after }
   })

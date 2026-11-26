@@ -39,7 +39,7 @@ export const updateDecision = (id: number, patch: DecisionPatchRequest): Promise
   apiRequest(`${DECISIONS_URL}/${id}`, 'PATCH', patch)
 
 /**
- * Revokes a decision, its findings return to the inbox.
+ * Revokes a decision, its findings return to Triage.
  * @param {number} id - Decision id
  * @param {string} comment - Optional reason for the revocation
  * @returns {Promise<DecisionView>} - Revoked decision

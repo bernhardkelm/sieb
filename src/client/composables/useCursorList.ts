@@ -2,7 +2,7 @@ import type { Ref } from 'vue'
 
 import { useFindingPanel } from '@/composables/useFindingPanel'
 import { useListCursor } from '@/composables/useListCursor'
-import type { ShortcutScope } from '@/keyboard/inboxKeymap'
+import type { ShortcutScope } from '@/keyboard/triageKeymap'
 import { listActionFor, type ListAction } from '@/keyboard/listKeymap'
 import { rowByKey } from '@/keyboard/revealRow'
 import { findingIdOfRowKey, findingRowKey, groupOfRowKey } from '@/keyboard/rowKey'

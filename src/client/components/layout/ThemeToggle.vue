@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { computed } from 'vue'
 import { ToggleGroupItem, ToggleGroupRoot } from 'reka-ui'
 
 import HintTooltip from '@/components/common/HintTooltip.vue'
@@ -12,6 +13,19 @@ const OPTIONS: { value: ThemeChoice; label: string }[] = [
 ]
 
 const { theme, setTheme } = useTheme()
+
+const current = computed(
+  () => OPTIONS.find((option) => option.value === theme.value) ?? OPTIONS[1]!,
+)
+const next = computed(() => OPTIONS[(OPTIONS.indexOf(current.value) + 1) % OPTIONS.length]!)
+
+/**
+ * Switches to the next theme of the cycle, used by the compact button.
+ * @returns {void}
+ */
+const cycle = (): void => {
+  setTheme(next.value.value)
+}
 
 /**
  * Applies a selected theme; a click on the active item deselects in Reka, which keeps the choice.
@@ -41,9 +55,35 @@ const onSelect = (value: unknown): void => {
       </ToggleGroupItem>
     </HintTooltip>
   </ToggleGroupRoot>
+  <HintTooltip :text="`${current.label} theme, switch to ${next.label}`">
+    <button
+      class="theme-cycle"
+      type="button"
+      :aria-label="`Theme: ${current.label}, switch to ${next.label}`"
+      @click="cycle"
+    >
+      <ThemeIcon :choice="current.value" />
+    </button>
+  </HintTooltip>
 </template>
 
 <style scoped>
+.theme-cycle {
+  display: none;
+  place-items: center;
+  width: var(--control-height);
+  height: var(--control-height);
+  padding: 0;
+  border: var(--border-width) solid var(--color-border);
+  border-radius: var(--radius);
+  background: var(--color-surface);
+  color: var(--color-text-muted);
+}
+
+.theme-cycle:hover {
+  color: var(--color-text);
+}
+
 .theme-toggle {
   display: inline-flex;
   padding: var(--space-0-5);
@@ -71,5 +111,15 @@ const onSelect = (value: unknown): void => {
 .item[aria-pressed='true'] {
   background: var(--color-hover);
   color: var(--color-text);
+}
+
+@media (max-width: 639px) {
+  .theme-toggle {
+    display: none;
+  }
+
+  .theme-cycle {
+    display: inline-grid;
+  }
 }
 </style>

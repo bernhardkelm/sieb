@@ -5,6 +5,7 @@ import { parseWebUrl } from '#server/mcpConfigValues.ts'
 export const AUTH_MODES: readonly AuthMode[] = ['header', 'oidc']
 export const DEFAULT_SESSION_HOURS = 12
 export const MAX_SESSION_HOURS = 7 * 24
+export const DEFAULT_OIDC_DISPLAY_NAME = 'SSO'
 
 /** Built-in UI login of the oidc auth mode, a confidential client of the issuer */
 export interface OidcConfig {
@@ -13,6 +14,7 @@ export interface OidcConfig {
   clientSecret: string // never logged
   requiredGroup: string | null // groups claim entry a user must have, null admits every user
   sessionHours: number // absolute session lifetime
+  displayName: string // provider name on the sign-in button
 }
 
 /**
@@ -110,5 +112,6 @@ export const readOidcConfig = (
       DEFAULT_SESSION_HOURS,
       MAX_SESSION_HOURS,
     ),
+    displayName: env.SIEB_OIDC_DISPLAY_NAME?.trim() || DEFAULT_OIDC_DISPLAY_NAME,
   }
 }

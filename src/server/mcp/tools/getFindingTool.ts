@@ -128,7 +128,7 @@ export const registerGetFindingTool = (server: McpServer, deps: McpToolDeps): vo
 
       return toolResult({
         finding: {
-          ...toFindingRow(finding, distinctPackageVersions(current), base),
+          ...toFindingRow(finding, distinctPackageVersions(current), base, deps.publicRegistries),
           lastSeen: finding.lastSeen,
         },
         instances: instances.slice(0, MAX_INSTANCES).map((instance) => ({

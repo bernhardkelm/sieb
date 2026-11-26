@@ -11,6 +11,10 @@ export const MCP_RATE_LIMIT = 120
 
 export const MCP_RATE_WINDOW_MS = 60 * 1000
 
+export const PROPOSE_RATE_LIMIT = 30
+
+export const PROPOSE_RATE_WINDOW_MS = 60 * 60 * 1000
+
 /**
  * Returns whether a present Origin header may reach /mcp: the requested host or an allowlisted
  * origin. The opaque null origin and malformed values are refused.

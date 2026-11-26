@@ -14,6 +14,7 @@ import type { FindingSource } from '#server/sources/FindingSource.ts'
 import { applySnapshot } from '#server/sync/applySnapshot.ts'
 import { recordDecisionTransitions } from '#server/sync/recordDecisionTransitions.ts'
 import { recordStatsSnapshot } from '#server/sync/recordStatsSnapshot.ts'
+import { supersedeResolvedProposals } from '#server/sync/supersedeResolvedProposals.ts'
 
 export interface SyncService {
   syncNow: () => Promise<SyncRun> // resolves with the finished run, failed runs included, rejects only when the run cannot be recorded
@@ -38,7 +39,8 @@ const messageOf = (error: unknown): string =>
 
 /**
  * Creates the sync service. A sync fetches the source, then writes the snapshot, the decision
- * transitions, the overview stats and the success of the run in one transaction, so a run is
+ * transitions, the supersede of proposals whose findings resolved, the overview stats and the
+ * success of the run in one transaction, so a run is
  * recorded as successful exactly when its snapshot was committed. A failing fetch or write rolls
  * back, is recorded as failed and resolves nothing. When even the run cannot be recorded, syncNow rejects after
  * logging. A call during a running sync returns that sync. Runs left running by a crashed
@@ -71,6 +73,7 @@ export const createSyncService = ({
         decisionEvents: recordDecisionTransitions(db, now),
       }
 
+      supersedeResolvedProposals(db, now)
       recordStatsSnapshot(db, started.id, now)
 
       return {

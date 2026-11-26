@@ -2,26 +2,27 @@ import { createPinia, setActivePinia } from 'pinia'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { buildFindingView } from '#core/__tests__/coreBuilders.ts'
-import type { FindingDetail } from '#core/findingView.ts'
+import type { FindingDetailResponse } from '#core/apiTypes.ts'
 import { ApiError } from '@/api/ApiError'
 import { fetchFindingDetail } from '@/api/findingsApi'
 import { useFindingDetailStore } from '@/stores/findingDetailStore'
 
 vi.mock('@/api/findingsApi', () => ({
-  fetchFindingDetail: vi.fn<(id: number) => Promise<FindingDetail>>(),
+  fetchFindingDetail: vi.fn<(id: number) => Promise<FindingDetailResponse>>(),
 }))
 
 /**
  * Builds the detail of a finding.
  * @param {number} id - Finding id
- * @returns {FindingDetail} - Detail
+ * @returns {FindingDetailResponse} - Detail
  */
-const detailOf = (id: number): FindingDetail => ({
+const detailOf = (id: number): FindingDetailResponse => ({
   finding: buildFindingView({ id }),
   instances: [],
   decisions: [],
   events: [],
   kev: null,
+  sourceAccess: 'public',
 })
 
 beforeEach(() => {
@@ -31,7 +32,7 @@ beforeEach(() => {
 
 describe('findingDetailStore', () => {
   it('drops the answer of a superseded request', async () => {
-    const answers = new Map<number, (detail: FindingDetail) => void>()
+    const answers = new Map<number, (detail: FindingDetailResponse) => void>()
     vi.mocked(fetchFindingDetail).mockImplementation(
       (id) =>
         new Promise((resolve) => {

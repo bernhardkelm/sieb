@@ -46,6 +46,7 @@ const main = (): void => {
     authMode: config.authMode,
     oidc: config.oidc,
     metricsOnMainPort: config.metricsPort === null,
+    publicRegistries: config.publicRegistries,
   })
 
   const server = serve({ fetch: app.fetch, hostname: config.host, port: config.port }, (info) => {

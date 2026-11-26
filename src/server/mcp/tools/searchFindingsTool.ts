@@ -114,7 +114,7 @@ export const registerSearchFindingsTool = (server: McpServer, deps: McpToolDeps)
         total: findings.length,
         ...page,
         findings: shown.map((finding) =>
-          toFindingRow(finding, versions.get(finding.id) ?? [], base),
+          toFindingRow(finding, versions.get(finding.id) ?? [], base, deps.publicRegistries),
         ),
       })
     },

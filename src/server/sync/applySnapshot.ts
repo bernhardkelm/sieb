@@ -10,6 +10,7 @@ import {
   type StoredKey,
 } from '#server/db/snapshotReads.ts'
 import { createSnapshotWriter } from '#server/db/snapshotWrites.ts'
+import { latestSyncRun } from '#server/db/syncRunRepository.ts'
 
 export type SnapshotCounts = Omit<SyncCounts, 'decisionEvents'>
 
@@ -41,20 +42,26 @@ const resolveUnseen = (
  * Writes a successful snapshot: inserts new findings and instances with first_seen, refreshes
  * last_seen and the aggregated fields of seen ones and clears their resolved_at, and resolves
  * every open finding and instance the snapshot lacks. A snapshot without a KEV list keeps the
- * stored KEV flags and inserts new findings as not listed. Call it inside a transaction.
+ * stored KEV flags and inserts new findings as not listed. kev_since marks findings that became
+ * KEV listed, but not the findings of the initial import, by default the snapshot written while
+ * no earlier sync succeeded. Call it inside a transaction.
  * @param {DatabaseSync} db - Open database
  * @param {SourceSnapshot} snapshot - Snapshot of a successful fetch
  * @param {Date} now - Time recorded as first_seen, last_seen and resolved_at
+ * @param {{ initialImport?: boolean }} options - Overrides whether this is the initial import
  * @returns {SnapshotCounts} - What changed
  */
 export const applySnapshot = (
   db: DatabaseSync,
   snapshot: SourceSnapshot,
   now: Date,
+  {
+    initialImport = latestSyncRun(db, { succeeded: true }) === null,
+  }: { initialImport?: boolean } = {},
 ): SnapshotCounts => {
   const at = now.toISOString()
   const kevIds = new Set(snapshot.kevIds ?? [])
-  const writer = createSnapshotWriter(db)
+  const writer = createSnapshotWriter(db, initialImport)
   const storedFindings = readStoredFindings(db, findingKey)
   const storedInstances = readStoredInstances(db)
   const seenFindings = new Set<number>()

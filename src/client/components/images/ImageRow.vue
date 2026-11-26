@@ -55,7 +55,7 @@ const workloadNoun = computed(() => pluralize(props.image.workloadCount, 'worklo
       tone="kev"
     />
     <CountValue class="open" :value="image.openCount" label="open" />
-    <CountValue class="tally" :value="image.inboxCount" label="in the inbox" />
+    <CountValue class="tally" :value="image.inboxCount" label="to triage" />
     <CountValue
       class="optional"
       :value="image.notAffectedCount"

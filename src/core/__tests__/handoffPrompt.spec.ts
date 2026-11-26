@@ -10,7 +10,7 @@ import {
   type HandoffInput,
 } from '#core/handoffPrompt.ts'
 
-const URL = 'https://sieb.example.com/inbox?finding=7'
+const URL = 'https://sieb.example.com/triage?finding=7'
 
 /**
  * Builds an instance with the fields the prompt reads.

@@ -7,7 +7,7 @@ import {
   type CursorStepName,
 } from '@/keyboard/cursorKeymap'
 import { isDraftKey } from '@/keyboard/draftKeys'
-import type { ShortcutScope } from '@/keyboard/inboxKeymap'
+import type { ShortcutScope } from '@/keyboard/triageKeymap'
 import type { CursorStep } from '@/keyboard/listNavigation'
 import {
   isControlTarget,

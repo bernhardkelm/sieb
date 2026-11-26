@@ -37,10 +37,10 @@ or lost Prometheus data.
 
 `exposure` and `owner` are optional and independent of each other:
 
-- Unknown exposure is not treated as `internal`. The inbox ranks it after `gated` and before
+- Unknown exposure is not treated as `internal`. Triage ranks it after `gated` and before
   `internal`, since such a workload may be reachable. While no open finding has an `exposure`
-  label, sieb hides the exposure column, filter and chip and the "Public" overview stat, and the
-  inbox ranks by KEV listing, severity and score only.
+  label, sieb hides the exposure column, filter and chip and the "Public" overview stat, and
+  Triage ranks by KEV listing, severity and score only.
 - Owner values are trimmed and must be at most 64 characters without commas or control
   characters, other values count as no owner. The owner filter offers the values present in the
   open findings. While no open finding has an `owner` label, sieb hides the owner column and

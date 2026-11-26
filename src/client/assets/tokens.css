@@ -78,6 +78,11 @@
   --color-severity-unknown-wash: color-mix(in srgb, var(--ink) 6%, var(--paper));
   --color-kev-wash: color-mix(in srgb, var(--color-kev) var(--wash-strength), var(--paper));
 
+  /* claims written by Claude, set apart from sieb's own data */
+  --color-claim: light-dark(hsl(14 50% 42%), hsl(16 65% 70%));
+  --color-claim-wash: color-mix(in srgb, var(--color-claim) 8%, var(--paper));
+  --color-on-claim: var(--paper);
+
   /* overview stats */
   --color-stat-surface: color-mix(in srgb, var(--color-surface) 55%, var(--color-sidebar));
   --color-stat-surface-hover: var(--color-surface);

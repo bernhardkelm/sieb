@@ -1,127 +1,65 @@
 <script setup lang="ts">
-import type { FindingView } from '#core/findingView.ts'
-import FindingRow from '@/components/finding/FindingRow.vue'
-import { INBOX_SORT_COLUMNS, type InboxSortColumn } from '@/components/inbox/inboxSort'
+import type { InboxItem } from '#core/inbox/inboxItem.ts'
+import InboxRow from '@/components/inbox/InboxRow.vue'
 import DenseList from '@/components/list/DenseList.vue'
-import ListHeader from '@/components/list/ListHeader.vue'
-import type { SortState } from '@/components/list/listSort'
-import SortHeader from '@/components/list/SortHeader.vue'
 import { rowEstimate } from '@/components/list/virtualRows'
-import { useLabelColumns } from '@/composables/useLabelColumns'
-import { useNow } from '@/composables/useNow'
-import { isNewFinding } from '@/stores/findingFilters'
+import { useLabelsStore } from '@/stores/labelsStore'
 
 defineProps<{
-  findings: FindingView[]
-  currentId: number | null
-  checkedIds: Set<number>
-  sort: SortState<InboxSortColumn> | null
+  items: InboxItem[]
+  currentKey: string | null
+  checkedKeys: Set<string>
 }>()
 
 defineEmits<{
-  select: [id: number, event: MouseEvent]
-  toggle: [id: number, event: MouseEvent]
-  sort: [column: InboxSortColumn]
+  select: [key: string, event: MouseEvent]
+  toggle: [key: string, event: MouseEvent]
+  seen: [key: string]
 }>()
 
-const now = useNow()
-const columns = INBOX_SORT_COLUMNS
-const { hidden, classes } = useLabelColumns()
+const labels = useLabelsStore()
 
 /**
- * Returns the virtualizer key of an inbox row, its finding id as the cursor uses it.
- * @param {FindingView} finding - Finding
- * @returns {number} - Finding id
+ * Returns the virtualizer key of an Inbox row, its item key as the cursor uses it.
+ * @param {InboxItem} item - Item
+ * @returns {string} - Item key
  */
-const idOf = (finding: FindingView): number => finding.id
+const keyOf = (item: InboxItem): string => item.key
 
 /**
- * Estimates the height of an inbox row until it is measured.
- * @param {FindingView} _finding - Finding
+ * Estimates the height of an Inbox row until it is measured.
+ * @param {InboxItem} _item - Item
  * @param {boolean} narrow - Whether the row wraps to two lines
  * @returns {number} - Height in px
  */
-const estimate = (_finding: FindingView, narrow: boolean): number => rowEstimate(narrow)
+const estimate = (_item: InboxItem, narrow: boolean): number => rowEstimate(narrow)
 </script>
 
 <template>
   <div class="inbox-list">
-    <ListHeader class="finding-columns" :class="classes" label="Inbox columns">
-      <span aria-hidden="true" />
-      <SortHeader column="severity" :columns="columns" :sort="sort" @sort="$emit('sort', $event)" />
-      <SortHeader
-        v-if="!hidden.includes('kev')"
-        column="kev"
-        :columns="columns"
-        :sort="sort"
-        @sort="$emit('sort', $event)"
-      />
-      <SortHeader column="vulnId" :columns="columns" :sort="sort" @sort="$emit('sort', $event)" />
-      <SortHeader
-        class="wide-only"
-        column="title"
-        :columns="columns"
-        :sort="sort"
-        @sort="$emit('sort', $event)"
-      />
-      <SortHeader column="image" :columns="columns" :sort="sort" @sort="$emit('sort', $event)" />
-      <SortHeader
-        v-if="!hidden.includes('exposure')"
-        column="exposure"
-        :columns="columns"
-        :sort="sort"
-        @sort="$emit('sort', $event)"
-      />
-      <SortHeader
-        v-if="!hidden.includes('owner')"
-        class="wide-only"
-        column="owner"
-        :columns="columns"
-        :sort="sort"
-        @sort="$emit('sort', $event)"
-      />
-      <SortHeader
-        class="wide-only"
-        column="workloads"
-        short="Workl."
-        end
-        :columns="columns"
-        :sort="sort"
-        @sort="$emit('sort', $event)"
-      />
-      <SortHeader
-        column="firstSeen"
-        short="Seen"
-        end
-        :columns="columns"
-        :sort="sort"
-        @sort="$emit('sort', $event)"
-      />
-    </ListHeader>
     <DenseList
-      label="Inbox findings"
-      :items="findings"
-      :key-of="idOf"
+      label="Inbox items"
+      :items="items"
+      :key-of="keyOf"
       :estimate="estimate"
-      :pinned="currentId"
+      :pinned="currentKey"
     >
-      <template #default="{ item: finding, attrs, measure }">
-        <FindingRow
+      <template #default="{ item, attrs, measure }">
+        <InboxRow
           :ref="measure"
           v-bind="attrs"
-          :finding="finding"
-          :current="finding.id === currentId"
-          :checked="checkedIds.has(finding.id)"
-          :is-new="isNewFinding(finding.firstSeen, now)"
-          @select="$emit('select', finding.id, $event)"
-          @toggle="$emit('toggle', finding.id, $event)"
+          :item="item"
+          :current="item.key === currentKey"
+          :checked="checkedKeys.has(item.key)"
+          :hide-kev="!labels.showKev"
+          @select="$emit('select', item.key, $event)"
+          @toggle="$emit('toggle', item.key, $event)"
+          @seen="$emit('seen', item.key)"
         />
       </template>
     </DenseList>
   </div>
 </template>
-
-<style scoped src="@/components/finding/findingColumns.css"></style>
 
 <style scoped>
 .inbox-list {

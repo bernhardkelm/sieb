@@ -81,15 +81,21 @@ client of the issuer:
 | `SIEB_OIDC_CLIENT_ID`, `SIEB_OIDC_CLIENT_SECRET` | Credentials of the client; keep the secret in a Kubernetes Secret, sieb never logs it |
 | `SIEB_OIDC_REQUIRED_GROUP` | Optional entry of the `groups` claim a user must have, else the login answers 403 |
 | `SIEB_SESSION_HOURS` | Session lifetime, default 12, 1 to 168 |
+| `SIEB_OIDC_DISPLAY_NAME` | Provider name on the sign-in button ("Sign in with SSO"), default `SSO` |
 | `SIEB_PUBLIC_URL` | Required. The redirect URI is `SIEB_PUBLIC_URL` + `/auth/callback` and the post-logout redirect is `SIEB_PUBLIC_URL` + `/`, both derived from this value and never from request headers |
 | `SIEB_METRICS_PORT` | Required, so `/metrics` is never served on the public port, see [Metrics port](#metrics-port) |
 
 The issuer and the public URL must be https in production. The flow:
 
-1. A request without a session is sent to `/auth/login?return=<path>` (pages) or answered 401
-   (`/api` and files). The return path must be relative, anything else returns to `/`.
-2. `/auth/login` seals state, nonce, PKCE verifier and return path (encrypted with A256GCM under a
-   key made at process start, valid 10 minutes) into the HttpOnly login cookie
+1. A page request without a session is sent to the sign-in page `/auth/signin?return=<path>`,
+   `/api` and files answer 401. The page is rendered by the server and loads nothing (the
+   client's assets need a session): the sieb mark, a "Sign in with `SIEB_OIDC_DISPLAY_NAME`"
+   button that starts the login, and nothing else. The return path must be relative, anything
+   else returns to `/`. The client does the same when a read answers 401, so an expired session
+   shows the page instead of a silent new login.
+2. The button leads to `/auth/login`, which seals state, nonce, PKCE verifier and return path
+   (encrypted with A256GCM under a key made at process start, valid 10 minutes) into the
+   HttpOnly login cookie
    (`__Host-sieb_login` over https, `sieb_login` over http, both Path=/), then redirects to the
    issuer with the scopes `openid profile email groups`. Pending logins are not stored, so a flood
    of login requests evicts nobody; a restart invalidates them, which only means logging in
@@ -101,11 +107,15 @@ The issuer and the public URL must be https in production. The flow:
 4. The session cookie is `__Host-sieb_session` (Secure, HttpOnly, SameSite=Lax, Path=/, no Domain)
    over https, and `sieb_session` without Secure over plain http in development. The database
    keeps only the sha-256 of the random session id. A session ends after `SIEB_SESSION_HOURS`
-   however active it is; logging in again is a redirect round trip, since the identity provider
-   keeps its own session. Expired sessions are removed on use and every 15 minutes.
-5. "Log out" in the username menu calls `POST /auth/logout`, which deletes the session and sends
-   the browser to the provider's end-session endpoint with `id_token_hint`, so the provider ends
-   its session too and returns to sieb.
+   however active it is; logging in again is the sign-in button and a redirect round trip, since
+   the identity provider keeps its own session. Expired sessions are removed on use and every 15 minutes.
+5. "Log out" in the username menu calls `POST /auth/logout`, which deletes the session, sets a
+   short-lived signed-out cookie (`__Host-sieb_signedout`, `sieb_signedout` over http, HttpOnly,
+   SameSite=Lax, 5 minutes) and sends the browser to the provider's end-session endpoint with
+   `id_token_hint`. The provider returns to `SIEB_PUBLIC_URL/`, which shows the sign-in page with
+   "You are signed out of sieb." and clears the cookie. authentik's default invalidation flow ends
+   only the session of the sieb application and keeps the authentik session, so users stay
+   signed in to other applications, and "Sign in" logs them back in without a password prompt.
 
 The log has one line per login (username), failed login (reason, never a token), logout and
 session cleanup.
@@ -122,6 +132,7 @@ proxy application of header mode and its tile.
   `http://localhost:5173`.
 - **Post-logout redirect URI:** `https://sieb.example.com/` (and `http://localhost:5173/` for
   development). Without it authentik stops on its own logout page instead of returning to sieb.
+  The sign-in page shown after the logout needs no URI of its own.
 - **Grant types:** make sure `authorization_code` is allowed; a provider without it rejects the
   flow with a bare "invalid grant_type".
 - **Scopes:** the default `openid`, `email` and `profile` mappings. authentik's default profile
@@ -405,8 +416,8 @@ spec:
    `SIEB_AUTH=oidc`, remove the forward-auth middleware from the Ingress (and the second MCP
    Ingress) and allow egress to authentik. Rolling back means reverting this step.
 
-Check from outside afterwards: `/` redirects to authentik, `/api/findings` answers 401,
-`/metrics` 404, `/mcp` without a token 401 (with MCP on), login and logout work, and new decisions
+Check from outside afterwards: `/` redirects to the sign-in page and its button to authentik,
+`/api/findings` answers 401, `/metrics` 404, `/mcp` without a token 401 (with MCP on), login and logout work, and new decisions
 record the same username as before.
 
 ## Security
@@ -481,11 +492,12 @@ protection to hold:
   ```
 
 - Known exception: each session stores the ID token it was opened with, and the logout sends it
-  to the issuer as `id_token_hint` in the end-session URL, so authentik ends its own session and
-  returns to sieb without a confirmation page. This is standard RP-initiated logout. The ID token
-  is a signed statement of who logged in, not an access token: sieb accepts it nowhere (`/mcp`
-  requires the MCP client as the only audience and the `sieb:read` scope), it is deleted with the
-  session row, and the database file should be protected like any credential store.
+  to the issuer as `id_token_hint` in the end-session URL, so authentik ends the application
+  session and returns to sieb without a confirmation page. This is standard RP-initiated logout.
+  The ID token is a signed statement of who logged in, not an access token: sieb accepts it
+  nowhere (`/mcp` requires the MCP client as the only audience and the `sieb:read` scope), it is
+  deleted with the session row, and the database file should be protected like any credential
+  store.
 
 ### NetworkPolicy
 

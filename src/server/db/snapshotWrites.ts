@@ -38,21 +38,26 @@ const findingParams = (fields: FindingFields): Record<string, string | number | 
 })
 
 /**
- * Prepares the statements a sync writes with, so a large snapshot reuses them.
+ * Prepares the statements a sync writes with, so a large snapshot reuses them. kev_since takes
+ * the sync time when a stored finding's flag turns on, and when a finding is inserted KEV listed
+ * unless the snapshot is the initial import; it clears when the flag turns off. The CASE reads
+ * the stored flag before the update.
  * @param {DatabaseSync} db - Open database
+ * @param {boolean} initialImport - True for the first successful sync, whose KEV listings are not news
  * @returns {SnapshotWriter} - Write functions
  */
-export const createSnapshotWriter = (db: DatabaseSync): SnapshotWriter => {
+export const createSnapshotWriter = (db: DatabaseSync, initialImport = false): SnapshotWriter => {
   const insertFinding = db.prepare(
     `INSERT INTO findings (vuln_id, image_ref, severity, score, severity_source, kev, exposure,
-       owner, title, primary_link, first_seen, last_seen)
+       owner, title, primary_link, first_seen, last_seen, kev_since)
      VALUES (:vulnId, :imageRef, :severity, :score, :severitySource, :kev, :exposure, :owner,
-       :title, :primaryLink, :at, :at)`,
+       :title, :primaryLink, :at, :at, :kevSince)`,
   )
   const updateFinding = db.prepare(
     `UPDATE findings SET severity = :severity, score = :score, severity_source = :severitySource,
        kev = :kev, exposure = :exposure, owner = :owner, title = :title,
-       primary_link = :primaryLink, last_seen = :at, resolved_at = NULL
+       primary_link = :primaryLink, last_seen = :at, resolved_at = NULL,
+       kev_since = CASE WHEN :kev = 0 THEN NULL WHEN kev = 0 THEN :at ELSE kev_since END
      WHERE id = :id`,
   )
   const insertInstance = db.prepare(
@@ -72,7 +77,15 @@ export const createSnapshotWriter = (db: DatabaseSync): SnapshotWriter => {
 
   return {
     insertFinding: ({ vulnId, imageRef }, fields, at) =>
-      Number(insertFinding.run({ vulnId, imageRef, ...findingParams(fields), at }).lastInsertRowid),
+      Number(
+        insertFinding.run({
+          vulnId,
+          imageRef,
+          ...findingParams(fields),
+          at,
+          kevSince: fields.kev && !initialImport ? at : null,
+        }).lastInsertRowid,
+      ),
     updateFinding: (id, fields, at) => {
       updateFinding.run({ id, ...findingParams(fields), at })
     },

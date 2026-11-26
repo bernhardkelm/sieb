@@ -23,11 +23,23 @@ export const onWriteSessionExpired = (handler: (() => void) | null): void => {
 }
 
 /**
+ * Encodes the current path and query as return target.
+ * @returns {string} - Encoded return parameter value
+ */
+const currentReturn = (): string =>
+  encodeURIComponent(window.location.pathname + window.location.search)
+
+/**
  * Builds the login URL that returns to the current page.
  * @returns {string} - Login path with the return parameter
  */
-export const loginUrl = (): string =>
-  `/auth/login?return=${encodeURIComponent(window.location.pathname + window.location.search)}`
+export const loginUrl = (): string => `/auth/login?return=${currentReturn()}`
+
+/**
+ * Builds the sign-in page URL that returns to the current page.
+ * @returns {string} - Sign-in page path with the return parameter
+ */
+export const signInPageUrl = (): string => `/auth/signin?return=${currentReturn()}`
 
 /**
  * Starts the login with a full page navigation, the draft guard still asks first.
@@ -38,8 +50,9 @@ export const startLogin = (): void => {
 }
 
 /**
- * Reacts to a 401 answer: a read navigates to the login once per page load, a write notifies.
- * Header mode keeps the plain error.
+ * Reacts to a 401 answer: a read navigates to the sign-in page once per page load, so an expired
+ * session shows the page instead of an unasked new login; a write notifies. Header mode keeps
+ * the plain error.
  * @param {boolean} isRead - Whether the request was a safe method
  * @returns {boolean} - True when the caller should stop, a navigation is under way
  */
@@ -58,7 +71,7 @@ export const handleUnauthorized = (isRead: boolean): boolean => {
   }
 
   redirected = true
-  startLogin()
+  window.location.assign(signInPageUrl())
   return true
 }
 

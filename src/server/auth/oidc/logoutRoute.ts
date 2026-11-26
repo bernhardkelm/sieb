@@ -6,6 +6,7 @@ import type { AppEnv } from '#server/http/AppEnv.ts'
 import { clearSessionCookie, readSessionCookie } from '#server/auth/oidc/authCookies.ts'
 import { errorText, logSafe } from '#server/logSafe.ts'
 import type { OidcAuthDeps } from '#server/auth/oidc/OidcAuthDeps.ts'
+import { setSignedOutCookie } from '#server/auth/oidc/signedOutCookie.ts'
 import { deleteSession, type Session } from '#server/db/sessionRepository.ts'
 
 /**
@@ -43,7 +44,9 @@ const logoutRedirect = async (
 
 /**
  * Creates POST /auth/logout, mounted behind the same-origin write guard: deletes the session of
- * the cookie, clears the cookie and answers where to send the browser next.
+ * the cookie, clears the cookie, sets the short-lived signed-out cookie, so the return from the
+ * issuer lands on the sign-in page with the signed-out note, and answers where to send the
+ * browser next.
  * @param {OidcAuthDeps} deps - Database, client, cookies, public URL, logger
  * @returns {Handler<AppEnv>} - Handler
  */
@@ -54,6 +57,7 @@ export const createLogoutHandler =
     const session = id === undefined ? null : deleteSession(deps.db, id)
 
     clearSessionCookie(c, deps.cookies)
+    setSignedOutCookie(c, deps.cookies)
     if (session !== null) {
       deps.log(`[sieb] logout ${logSafe(session.username)}`)
     }

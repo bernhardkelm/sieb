@@ -1,0 +1,138 @@
+/* checkbox, kind, severity, KEV, CVE, scope, detail, title, age, mark seen */
+.inbox-row {
+  --row-columns: var(--checkbox-size) calc(var(--space-base) * 22) calc(var(--space-base) * 15)
+    calc(var(--space-base) * 8) calc(var(--space-base) * 34) calc(var(--space-base) * 30)
+    calc(var(--space-base) * 64) minmax(0, 1fr) calc(var(--space-base) * 14)
+    calc(var(--space-base) * 12);
+}
+
+.inbox-row.no-kev {
+  --row-columns: var(--checkbox-size) calc(var(--space-base) * 22) calc(var(--space-base) * 15)
+    calc(var(--space-base) * 34) calc(var(--space-base) * 30) calc(var(--space-base) * 64)
+    minmax(0, 1fr) calc(var(--space-base) * 14) calc(var(--space-base) * 12);
+}
+
+.vuln-id,
+.scope,
+.title {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.vuln-id {
+  font-family: var(--font-mono);
+  font-size: var(--font-size-sm);
+}
+
+.scope {
+  display: block;
+  min-width: 0;
+}
+
+.several {
+  color: var(--color-accent);
+  font-weight: var(--font-weight-medium);
+}
+
+.title {
+  color: var(--color-text-muted);
+}
+
+.at {
+  color: var(--color-text-subtle);
+  font-size: var(--font-size-sm);
+  text-align: right;
+}
+
+.action {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.seen-button {
+  --seen-height: var(--chip-height);
+
+  height: var(--seen-height);
+  padding: 0 var(--space-2);
+  border: var(--border-width) solid var(--color-border-strong);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface);
+  color: var(--color-text-muted);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-medium);
+  transition:
+    background-color var(--duration-fast) var(--ease),
+    color var(--duration-fast) var(--ease);
+}
+
+.seen-button:hover {
+  background: var(--color-hover);
+  color: var(--color-text);
+}
+
+@container (max-width: 1100px) {
+  .inbox-row,
+  .inbox-row.no-kev {
+    --row-columns: var(--checkbox-size) calc(var(--space-base) * 22) calc(var(--space-base) * 15)
+      calc(var(--space-base) * 8) calc(var(--space-base) * 34) minmax(0, 1fr)
+      calc(var(--space-base) * 64) calc(var(--space-base) * 14) calc(var(--space-base) * 12);
+  }
+
+  .inbox-row.no-kev {
+    --row-columns: var(--checkbox-size) calc(var(--space-base) * 22) calc(var(--space-base) * 15)
+      calc(var(--space-base) * 34) minmax(0, 1fr) calc(var(--space-base) * 64)
+      calc(var(--space-base) * 14) calc(var(--space-base) * 12);
+  }
+
+  .title {
+    display: none;
+  }
+}
+
+/* two lines: kind, severity, CVE and age above, scope, detail and the button below */
+/* the Seen button and s replace the checkbox on narrow lists */
+@container (max-width: 640px) {
+  .no-check,
+  .row-checkbox,
+  .kev:empty {
+    display: none;
+  }
+
+  .vuln-id {
+    flex: 1 1 0;
+    min-width: calc(var(--space-base) * 24);
+  }
+
+  .scope,
+  .detail,
+  .action {
+    order: 2;
+  }
+
+  .scope {
+    flex: 0 1 auto;
+    max-width: 40%;
+    font-size: var(--font-size-sm);
+  }
+
+  .detail {
+    flex: 1 1 0;
+  }
+
+  .seen-button {
+    --seen-height: calc(var(--chip-height) + var(--space-2));
+  }
+}
+
+@media (hover: none) and (pointer: coarse) {
+  .seen-button {
+    position: relative;
+  }
+
+  .seen-button::after {
+    content: '';
+    position: absolute;
+    inset: calc((var(--seen-height) - var(--touch-target)) / 2) 0;
+  }
+}

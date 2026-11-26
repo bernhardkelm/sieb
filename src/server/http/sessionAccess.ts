@@ -31,7 +31,7 @@ const isUnder = (path: string, prefix: string): boolean =>
  * Classifies a request for the oidc session guard. Public: the login routes, the health check,
  * /mcp and its protected resource metadata while MCP is enabled (they authenticate by bearer
  * token), and the icons of public/. Everything else needs a session: /api answers 401, page
- * navigations redirect to the login, other files answer 401.
+ * navigations redirect to the sign-in page, other files answer 401.
  * @param {string} method - HTTP method
  * @param {string} path - Request path as routed
  * @param {boolean} mcpEnabled - Whether /mcp and its metadata are mounted

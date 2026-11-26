@@ -28,7 +28,7 @@ export const IMAGE_SORT_COLUMNS: SortColumns<ImageAggregate, ImageSortColumn> = 
   },
   kev: { label: 'KEV', first: 'desc', value: (image) => image.kevCount },
   open: { label: 'Open', first: 'desc', value: (image) => image.openCount },
-  inbox: { label: 'Inbox', first: 'desc', value: (image) => image.inboxCount },
+  inbox: { label: 'Triage', first: 'desc', value: (image) => image.inboxCount },
   notAffected: {
     label: 'Not affected',
     first: 'desc',

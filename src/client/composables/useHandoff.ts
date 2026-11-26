@@ -1,5 +1,5 @@
 import { computed, type ComputedRef } from 'vue'
-import { useRoute, useRouter } from 'vue-router'
+import { useRoute, useRouter, type RouteRecordNameGeneric } from 'vue-router'
 
 import {
   buildHandoffPrompt,
@@ -22,9 +22,20 @@ export interface Handoff {
   commandBlockedBy: ComputedRef<string | null>
 }
 
+const INBOX_VIEWS: readonly unknown[] = [ROUTE_NAMES.INBOX, ROUTE_NAMES.INBOX_PROPOSAL]
+
+/**
+ * Returns the view a hand-off link opens the finding on: the current one, Triage from the
+ * Inbox, whose finding links a fresh page load sends to Triage anyway.
+ * @param {RouteRecordNameGeneric | undefined} name - Name of the current route
+ * @returns {RouteRecordNameGeneric} - Route name of the link
+ */
+const linkViewOf = (name: RouteRecordNameGeneric | undefined): RouteRecordNameGeneric =>
+  name === undefined || name === null || INBOX_VIEWS.includes(name) ? ROUTE_NAMES.TRIAGE : name
+
 /**
  * Builds the hand-off texts of the finding shown in the side panel, linking back to it on the
- * current view.
+ * current view, on Triage from the Inbox.
  * @returns {Handoff} - Prompt, command and why the command is unavailable
  */
 export const useHandoff = (): Handoff => {
@@ -40,7 +51,7 @@ export const useHandoff = (): Handoff => {
     }
 
     const link = router.resolve({
-      name: route.name ?? ROUTE_NAMES.INBOX,
+      name: linkViewOf(route.name),
       query: { [FINDING_QUERY]: String(detail.finding.id) },
     })
 

@@ -6,6 +6,7 @@ import type { FindingView } from '#core/findingView.ts'
 import type { FindingInstance } from '#core/instance.ts'
 import { SEVERITIES } from '#core/severity.ts'
 import { findingUrl } from '#core/siebLinks.ts'
+import { SOURCE_ACCESS_LEVELS, sourceAccess } from '#core/sourceAccess.ts'
 import { decisionSummarySchema, type DecisionSummary } from '#server/mcp/views/decisionSummary.ts'
 
 const MAX_INSTANCES = 20
@@ -27,6 +28,11 @@ export const affectedImageSchema = z.object({
   kev: z.boolean(),
   exposure: z.enum(EXPOSURES).nullable(),
   owner: z.string().nullable(),
+  sourceAccess: z
+    .enum(SOURCE_ACCESS_LEVELS)
+    .describe(
+      'public: upstream source and image can be checked, private or unknown: advisory-level only',
+    ),
   decisionState: z.enum(VERDICT_STATES),
   decision: decisionSummarySchema.nullable().describe('governing decision'),
   instances: z.array(instanceRowSchema).describe(`open instances, at most ${MAX_INSTANCES}`),
@@ -64,6 +70,7 @@ export const toInstanceRow = (instance: FindingInstance): z.infer<typeof instanc
  * @param {readonly FindingInstance[]} instances - Its instances, resolved ones included
  * @param {DecisionSummary | null} decision - Its governing decision
  * @param {string} base - Link base
+ * @param {readonly string[]} publicRegistries - Registries whose images count as public
  * @returns {z.infer<typeof affectedImageSchema>} - Affected image
  */
 export const toAffectedImage = (
@@ -71,6 +78,7 @@ export const toAffectedImage = (
   instances: readonly FindingInstance[],
   decision: DecisionSummary | null,
   base: string,
+  publicRegistries: readonly string[],
 ): z.infer<typeof affectedImageSchema> => {
   const open = instances.filter((instance) => instance.resolvedAt === null)
 
@@ -82,6 +90,7 @@ export const toAffectedImage = (
     kev: finding.kev,
     exposure: finding.exposure,
     owner: finding.owner,
+    sourceAccess: sourceAccess(finding.imageRef, finding.owner, publicRegistries),
     decisionState: verdictState(finding),
     decision,
     instances: open.slice(0, MAX_INSTANCES).map(toInstanceRow),

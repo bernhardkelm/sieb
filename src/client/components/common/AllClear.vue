@@ -86,6 +86,28 @@ defineProps<{
   margin-top: var(--space-2);
 }
 
+.actions :slotted(a) {
+  display: inline-flex;
+  align-items: center;
+  padding: var(--space-0-5) var(--space-1-5);
+  border-radius: var(--radius);
+  color: var(--color-text-muted);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  text-decoration: none;
+  transition: color var(--duration-fast) var(--ease);
+}
+
+.actions :slotted(a:hover) {
+  color: var(--color-accent);
+}
+
+@media (hover: none) and (pointer: coarse) {
+  .actions :slotted(a) {
+    min-height: var(--control-height);
+  }
+}
+
 /* opacity hides the round cap of the still empty dash */
 @keyframes smile {
   from {

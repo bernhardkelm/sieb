@@ -15,14 +15,18 @@ as `sieb_suppressed{vuln_id, image_ref}`. Your Prometheus alert rules drop the s
 
 ## Screenshots
 
-| Inbox | Finding panel | Mobile |
+| Triage | Finding panel | Mobile |
 | --- | --- | --- |
-| <picture><source media="(prefers-color-scheme: dark)" srcset=".github/assets/screenshot-inbox-dark.png"><img src=".github/assets/screenshot-inbox-light.png" alt="Inbox of open findings ranked by KEV listing, exposure and severity, with overview stats in the sidebar"></picture> | <picture><source media="(prefers-color-scheme: dark)" srcset=".github/assets/screenshot-panel-dark.png"><img src=".github/assets/screenshot-panel-light.png" alt="Finding panel of a KEV listed finding with the CISA details and the decision form"></picture> | <img src=".github/assets/screenshot-mobile-light.png" alt="Inbox on a phone with the bottom tab bar"> |
+| <picture><source media="(prefers-color-scheme: dark)" srcset=".github/assets/screenshot-inbox-dark.png"><img src=".github/assets/screenshot-inbox-light.png" alt="Triage list of open findings ranked by KEV listing, exposure and severity, with overview stats in the sidebar"></picture> | <picture><source media="(prefers-color-scheme: dark)" srcset=".github/assets/screenshot-panel-dark.png"><img src=".github/assets/screenshot-panel-light.png" alt="Finding panel of a KEV listed finding with the CISA details and the decision form"></picture> | <img src=".github/assets/screenshot-mobile-light.png" alt="Triage on a phone with the bottom tab bar"> |
 
 ## Features
 
-- Inbox of open findings, ranked by KEV listing, optional exposure and severity, with views per
-  image, per CVE and per decision; optional free-form owner labels put your own images first
+- An Inbox of what waits for you, newest first: Claude's decision proposals, re-opened decisions,
+  decisions expiring within 14 days and findings newly KEV listed, with the open count as a badge
+  in the navigation; expiring and KEV items can be marked as seen
+- Triage list of the undecided open findings, ranked by KEV listing, optional exposure and
+  severity, with views per image, per CVE and per decision; optional free-form owner labels put
+  your own images first
 - KEV listing from the CISA Known Exploited Vulnerabilities catalog, fetched daily with date
   added, due date, ransomware use and required action in the finding panel; alternatively from a
   Prometheus query, or switched off. A KEV toggle in the filter bar keeps only KEV listed findings
@@ -47,7 +51,7 @@ as `sieb_suppressed{vuln_id, image_ref}`. Your Prometheus alert rules drop the s
   [docs/mcp.md](docs/mcp.md)
 - Single Node process with an embedded SQLite file, no external database
 - Fully keyboard driven: shortcuts per view, clickable in the sidebar, and `a`, `n` or `f` decide
-  all checked rows in one dialog. The inbox and tree lists are virtualized, phones get a bottom tab bar
+  all checked rows in one dialog. The Inbox, Triage and tree lists are virtualized, phones get a bottom tab bar
   and a selection bar. Light and dark theme
 
 ## Quick start
@@ -114,6 +118,7 @@ variables inline as above.
 | `SIEB_OIDC_CLIENT_SECRET` | empty | oidc: client secret, never logged |
 | `SIEB_OIDC_REQUIRED_GROUP` | empty | oidc: entry of the `groups` claim a user must have, empty admits every user of the issuer |
 | `SIEB_SESSION_HOURS` | `12` | oidc: absolute session lifetime in hours, 1 to 168 |
+| `SIEB_OIDC_DISPLAY_NAME` | `SSO` | oidc: provider name on the sign-in button, "Sign in with SSO" |
 | `SIEB_METRICS_PORT` | empty | Serves `/metrics` on this separate port only, the main port then answers 404; required in oidc mode |
 | `SIEB_ALLOWED_HOSTS` | empty | Comma list of `Host` values accepted besides loopback, e.g. your public hostname |
 | `SIEB_MCP_ENABLED` | `false` | `true` or `1` serves `/mcp`, the personal token routes and, with OAuth, its metadata, see [docs/mcp.md](docs/mcp.md) |
@@ -124,6 +129,7 @@ variables inline as above.
 | `SIEB_OAUTH_JWKS_URL` | discovered | Key set URL of the issuer, unset reads `jwks_uri` from its OpenID configuration |
 | `SIEB_OAUTH_REQUIRED_GROUP` | empty | Entry of the `groups` claim an OAuth caller must have, empty admits every user of the issuer |
 | `SIEB_OAUTH_CLIENT_LABEL` | `claude.ai` | Client name of OAuth callers in logs and tool results |
+| `SIEB_PUBLIC_REGISTRIES` | `docker.io`, `index.docker.io`, `ghcr.io`, `quay.io`, `registry.k8s.io`, `gcr.io`, `public.ecr.aws`, `mcr.microsoft.com` | Comma list of registry hosts whose images count as public for the source access Claude sees; own images (owner `self`) are always private, see [source access](docs/api.md#source-access) |
 
 `NODE_ENV=production` and the `incluster` source refuse the mock source and disable the dev user.
 `SIEB_AUTH=oidc` needs `SIEB_OIDC_ISSUER`, `SIEB_OIDC_CLIENT_ID`, `SIEB_OIDC_CLIENT_SECRET`,

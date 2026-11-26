@@ -8,6 +8,7 @@ import SeverityChip from '@/components/chips/SeverityChip.vue'
 import ImageName from '@/components/common/ImageName.vue'
 import RelativeTime from '@/components/common/RelativeTime.vue'
 import ListRow from '@/components/list/ListRow.vue'
+import ProposalChip from '@/components/proposals/ProposalChip.vue'
 import RowCheckbox from '@/components/list/RowCheckbox.vue'
 import { useLabelColumns } from '@/composables/useLabelColumns'
 import { countOf } from '@/format/count'
@@ -45,9 +46,13 @@ const { hidden, classes } = useLabelColumns()
     <span v-else class="no-check" aria-hidden="true" />
     <SeverityChip :severity="finding.severity" :score="finding.score" :source="null" />
     <span v-if="!hidden.includes('kev')" class="kev"><KevChip v-if="finding.kev" /></span>
-    <span class="vuln-id">{{ finding.vulnId }}</span>
+    <span class="vuln-id">
+      {{ finding.vulnId }}
+      <ProposalChip class="mid-only" :vuln-id="finding.vulnId" :image-ref="finding.imageRef" />
+    </span>
     <span class="title wide-only">
       <span v-if="isNew" class="new">new</span>
+      <ProposalChip class="proposal" :vuln-id="finding.vulnId" :image-ref="finding.imageRef" />
       {{ finding.title ?? '' }}
     </span>
     <span class="image"><ImageName :image-ref="finding.imageRef" /></span>
@@ -91,6 +96,22 @@ const { hidden, classes } = useLabelColumns()
   color: var(--color-text-muted);
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.proposal {
+  margin-right: var(--space-1-5);
+}
+
+/* the title column holds the chip on wide and narrow rows, the 1fr id column in between */
+.vuln-id .mid-only {
+  display: none;
+  margin-left: var(--space-1-5);
+}
+
+@container (min-width: 641px) and (max-width: 900px) {
+  .vuln-id .mid-only {
+    display: inline-flex;
+  }
 }
 
 .new {

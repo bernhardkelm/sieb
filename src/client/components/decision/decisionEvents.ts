@@ -1,5 +1,6 @@
 import type { DecisionJustification, DecisionStatus } from '#core/decision.ts'
 import type { DecisionEvent } from '#core/decisionEvent.ts'
+import { describeProvenance } from '@/components/decision/decisionProvenance'
 import { EVENT_LABELS, JUSTIFICATION_LABELS, REOPEN_LABELS, STATUS_LABELS } from '@/format/labels'
 import { formatDate } from '@/format/relativeTime'
 import { reopenText, triggerOfPayload } from '@/format/reopenText'
@@ -8,6 +9,7 @@ import { reopenText, triggerOfPayload } from '@/format/reopenText'
 export interface EventSummary {
   title: string
   lines: string[]
+  provenance?: string // accepted proposal behind a created or updated event
 }
 
 type Payload = Record<string, unknown>
@@ -108,11 +110,11 @@ const describeReopen = (payload: Payload): string => {
 }
 
 /**
- * Summarises a decision event for the history list.
+ * Summarises a decision event by its type.
  * @param {DecisionEvent} event - Event with its payload
  * @returns {EventSummary} - Title and detail lines
  */
-export const describeEvent = (event: DecisionEvent): EventSummary => {
+const summarize = (event: DecisionEvent): EventSummary => {
   const payload = event.payload
 
   switch (event.type) {
@@ -141,4 +143,16 @@ export const describeEvent = (event: DecisionEvent): EventSummary => {
   }
 
   return { title: String(event.type), lines: [] }
+}
+
+/**
+ * Summarises a decision event for the history list, with the accepted proposal behind it.
+ * @param {DecisionEvent} event - Event with its payload
+ * @returns {EventSummary} - Title, detail lines and provenance
+ */
+export const describeEvent = (event: DecisionEvent): EventSummary => {
+  const summary = summarize(event)
+  const provenance = describeProvenance(event)
+
+  return provenance === null ? summary : { ...summary, provenance }
 }

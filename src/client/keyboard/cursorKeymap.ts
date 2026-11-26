@@ -1,4 +1,4 @@
-import type { ShortcutScope } from '@/keyboard/inboxKeymap'
+import type { ShortcutScope } from '@/keyboard/triageKeymap'
 import { isEditableTarget } from '@/keyboard/keyboardTarget'
 import { hasCommandModifier } from '@/keyboard/modifierKey'
 

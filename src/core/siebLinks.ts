@@ -8,13 +8,13 @@ import type { DecisionState } from '#core/effectiveDecision.ts'
 export const linkBase = (baseUrl: string): string => baseUrl.replace(/\/+$/, '')
 
 /**
- * Returns the link that opens a finding in the side panel of the inbox.
+ * Returns the link that opens a finding in the side panel of the Triage view.
  * @param {string} base - Link base from linkBase
  * @param {number} findingId - Finding id
  * @returns {string} - URL
  */
 export const findingUrl = (base: string, findingId: number): string =>
-  `${base}/inbox?finding=${findingId}`
+  `${base}/triage?finding=${findingId}`
 
 /**
  * Returns the link that expands an image on the by-image view.
@@ -45,7 +45,7 @@ export const decisionUrl = (base: string, decisionId: number, state: DecisionSta
   `${base}/decisions?state=${state}&decision=${decisionId}`
 
 /**
- * Returns the link of the inbox.
+ * Returns the link of the Inbox, what waits for the user.
  * @param {string} base - Link base from linkBase
  * @returns {string} - URL
  */

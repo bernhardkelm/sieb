@@ -7,6 +7,7 @@ import type { CustomFetch } from 'openid-client'
 import type { Clock } from '#core/clock.ts'
 import type { AuthMode, ErrorBody } from '#core/apiTypes.ts'
 import type { KevSourceKind } from '#core/kev.ts'
+import { DEFAULT_PUBLIC_REGISTRIES } from '#core/sourceAccess.ts'
 import type { HealthResponse, SourceKind } from '#core/types.ts'
 import type { AppEnv } from '#server/http/AppEnv.ts'
 import { hostGuard } from '#server/http/hostGuard.ts'
@@ -18,10 +19,12 @@ import { createCveRoutes } from '#server/http/routes/cveRoutes.ts'
 import { createDecisionRoutes } from '#server/http/routes/decisionRoutes.ts'
 import { createFindingRoutes } from '#server/http/routes/findingRoutes.ts'
 import { createImageRoutes } from '#server/http/routes/imageRoutes.ts'
+import { createInboxRoutes } from '#server/http/routes/inboxRoutes.ts'
 import { createLabelRoutes } from '#server/http/routes/labelRoutes.ts'
 import { createMcpInfoRoutes } from '#server/http/routes/mcpInfoRoutes.ts'
 import { createMeRoutes } from '#server/http/routes/meRoutes.ts'
 import { createMetricsRoutes } from '#server/http/routes/metricsRoutes.ts'
+import { createProposalRoutes } from '#server/http/routes/proposalRoutes.ts'
 import { createStatsRoutes } from '#server/http/routes/statsRoutes.ts'
 import { createSyncRoutes } from '#server/http/routes/syncRoutes.ts'
 import { createMcpDisabledRoutes, createTokenRoutes } from '#server/http/routes/tokenRoutes.ts'
@@ -59,6 +62,7 @@ export interface AppDeps {
   oidc?: OidcConfig | null // login settings, required in oidc mode
   oidcFetch?: CustomFetch // replaces fetch towards the OIDC issuer, for tests
   metricsOnMainPort?: boolean // false when SIEB_METRICS_PORT serves /metrics, ignored in oidc mode
+  publicRegistries?: readonly string[] // registries whose images count as public, DEFAULT_PUBLIC_REGISTRIES by default
 }
 
 /**
@@ -74,7 +78,7 @@ export interface AppDeps {
  * session guard right after the host guard replaces the header identity and gates everything
  * but /auth, the health check, /mcp and the icons. /metrics answers 404 here whenever a
  * separate listener serves it, always in oidc mode.
- * @param {AppDeps} deps - Data and KEV source, database, sync service, clock, dev user, user header, allowed hosts, static dir, logger, MCP settings, auth mode and OIDC settings, metrics placement
+ * @param {AppDeps} deps - Data and KEV source, database, sync service, clock, dev user, user header, allowed hosts, static dir, logger, MCP settings, auth mode and OIDC settings, metrics placement, public registries
  * @returns {Hono<AppEnv>} - App
  */
 export const createApp = ({
@@ -98,6 +102,7 @@ export const createApp = ({
   oidc = null,
   oidcFetch,
   metricsOnMainPort = true,
+  publicRegistries = DEFAULT_PUBLIC_REGISTRIES,
 }: AppDeps): Hono<AppEnv> => {
   const app = new Hono<AppEnv>()
   const deps = { db, clock, kevSource }
@@ -125,6 +130,7 @@ export const createApp = ({
       mcpBodyLimit(),
       createMcpRoute({
         ...deps,
+        publicRegistries,
         publicUrl,
         oauth,
         version,
@@ -152,14 +158,16 @@ export const createApp = ({
 
   app.get('/api/health', (c) => c.json<HealthResponse>({ status: 'ok', source }))
   app.route('/api/me', createMeRoutes(authMode))
-  app.route('/api/findings', createFindingRoutes(deps))
+  app.route('/api/findings', createFindingRoutes({ ...deps, publicRegistries }))
   app.route('/api/images', createImageRoutes(deps))
   app.route('/api/cves', createCveRoutes(deps))
   app.route('/api/decisions/bulk', createBulkDecisionRoutes(deps))
   app.route('/api/decisions', createDecisionRoutes(deps))
+  app.route('/api/proposals', createProposalRoutes({ ...deps, publicRegistries, log }))
   app.route('/api/sync', createSyncRoutes({ ...deps, sync }))
   app.route('/api/stats', createStatsRoutes(deps))
   app.route('/api/labels', createLabelRoutes(deps))
+  app.route('/api/inbox', createInboxRoutes({ ...deps, publicUrl }))
   app.route(
     '/api/tokens',
     mcpEnabled ? createTokenRoutes({ ...deps, log }) : createMcpDisabledRoutes(),

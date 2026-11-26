@@ -46,9 +46,11 @@ describe('header mode with a metrics port', () => {
 
   it('never serves the SPA or a login for /auth paths', async () => {
     const app = createApp(testAppDeps({ staticDir }))
-    const login = await app.request('/auth/login')
+    for (const path of ['/auth/login', '/auth/signin?return=%2F', '/auth/signin?signedOut=1']) {
+      const response = await app.request(path)
 
-    expect(login.status).toBe(404)
-    expect(await login.json()).toEqual({ error: 'not_found' })
+      expect(response.status).toBe(404)
+      expect(await response.json()).toEqual({ error: 'not_found' })
+    }
   })
 })

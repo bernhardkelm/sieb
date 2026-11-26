@@ -3,6 +3,7 @@ import { z } from 'zod'
 
 import { inboxUrl, linkBase } from '#core/siebLinks.ts'
 import { readKevFeedStatus } from '#server/db/kevFeedRepository.ts'
+import { readInbox } from '#server/db/readInbox.ts'
 import { readOverviewStats } from '#server/db/readOverviewStats.ts'
 import type { McpCaller } from '#server/mcp/mcpCaller.ts'
 import type { McpToolDeps } from '#server/mcp/mcpToolDeps.ts'
@@ -40,6 +41,15 @@ const outputSchema = z.object({
     .nullable()
     .describe('health of the CISA catalog, null for other KEV sources'),
   connectedAs: z.object({ actor: z.string(), via: z.enum(['token', 'oauth']), client: z.string() }),
+  inboxItems: z
+    .object({
+      proposal: count.describe('open proposals awaiting review'),
+      reopened: count.describe('re-opened decisions'),
+      expiring: count.describe('active decisions expiring within 14 days, not marked seen'),
+      kev: count.describe('open findings KEV listed within the last 14 days, not marked seen'),
+      total: count,
+    })
+    .describe('what waits in the Inbox of the connected user'),
   inboxUrl: z.string(),
 })
 
@@ -60,7 +70,7 @@ export const registerGetOverviewTool = (
     {
       title: 'Overview',
       description:
-        'Reads the live overview counts (open, inbox, KEV, public, by severity, not affected, accepted, fix planned, re-opened), the time of the last successful sync and the KEV source.',
+        'Reads the live overview counts (open, inbox, KEV, public, by severity, not affected, accepted, fix planned, re-opened), the Inbox item counts of the connected user (proposals, re-opened, expiring, new KEV), the time of the last successful sync and the KEV source.',
       outputSchema,
       annotations: READ_ONLY_TOOL,
     },
@@ -76,6 +86,7 @@ export const registerGetOverviewTool = (
           ? { lastSuccessAt: feed.lastSuccessAt, entryCount: feed.entryCount, stale: feed.stale }
           : null,
         connectedAs: { actor: caller.actor, via: caller.via, client: caller.clientLabel },
+        inboxItems: readInbox(deps.db, caller.actor, now, deps.baseUrl).counts,
         inboxUrl: inboxUrl(linkBase(deps.baseUrl)),
       })
     },

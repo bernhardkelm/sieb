@@ -18,10 +18,11 @@ onMounted(() => {
   void labels.ensureLoaded()
 })
 
+// top-level record, so a panel child route such as a proposal keeps focus where it is
 watch(
-  () => route.name,
-  async (name, previous) => {
-    if (previous !== undefined && name !== previous) {
+  () => route.matched[0]?.path,
+  async (view, previous) => {
+    if (previous !== undefined && view !== previous) {
       await nextTick()
       main.value?.focus({ preventScroll: true })
     }

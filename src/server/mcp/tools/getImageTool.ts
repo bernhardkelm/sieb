@@ -99,7 +99,7 @@ export const registerGetImageTool = (server: McpServer, deps: McpToolDeps): void
           url: imageUrl(base, image.imageRef),
         },
         findings: shown.map((finding) =>
-          toFindingRow(finding, versions.get(finding.id) ?? [], base),
+          toFindingRow(finding, versions.get(finding.id) ?? [], base, deps.publicRegistries),
         ),
         totalOpen: findings.length,
         lastSync: readLastSync(deps.db),

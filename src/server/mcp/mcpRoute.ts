@@ -16,7 +16,11 @@ import { callerFromAuthInfo } from '#server/mcp/callerFromAuthInfo.ts'
 import { createMcpServer } from '#server/mcp/createMcpServer.ts'
 import { MCP_PATH, mcpEndpointUrl } from '#server/mcp/mcpEndpointUrl.ts'
 import { createMcpEndpoint, type McpEndpoint } from '#server/mcp/mcpEndpoint.ts'
-import { createRateLimiter } from '#server/mcp/mcpGuards.ts'
+import {
+  createRateLimiter,
+  PROPOSE_RATE_LIMIT,
+  PROPOSE_RATE_WINDOW_MS,
+} from '#server/mcp/mcpGuards.ts'
 import type { OAuthConfig } from '#server/mcpConfigValues.ts'
 
 export interface McpRouteDeps extends RouteDeps {
@@ -25,6 +29,7 @@ export interface McpRouteDeps extends RouteDeps {
   version: string // sieb version reported in serverInfo
   log: (message: string) => void
   jwtKeys?: JWTVerifyGetKey // replaces the discovered issuer key set, for tests
+  publicRegistries: readonly string[] // registries whose images count as public for source access
 }
 
 /**
@@ -59,7 +64,8 @@ const verifiersOf = (deps: McpRouteDeps): BearerVerifiers => ({
  * Creates the /mcp handler, mounted after the Host, Origin and body guards. Identity comes only
  * from the bearer token, the forward-auth header is never read here. A request needs the
  * sieb:read scope, at most MCP_RATE_LIMIT requests per minute and caller pass, and a fresh MCP
- * server answers it statelessly.
+ * server answers it statelessly. The propose_decision limit of PROPOSE_RATE_LIMIT per hour and
+ * sieb user is shared by those servers.
  * @param {McpRouteDeps} deps - Tool dependencies, OAuth settings, version and logger
  * @returns {Handler<AppEnv>} - Handler for app.all('/mcp')
  */
@@ -67,6 +73,7 @@ export const createMcpRoute = (deps: McpRouteDeps): Handler<AppEnv> => {
   const verifiers = verifiersOf(deps)
   const resourceMetadataUrl = metadataUrlOf(deps)
   const limiter = createRateLimiter()
+  const proposalLimiter = createRateLimiter(PROPOSE_RATE_LIMIT, PROPOSE_RATE_WINDOW_MS)
   let endpoint: McpEndpoint | null = null
 
   return async (c) => {
@@ -94,7 +101,10 @@ export const createMcpRoute = (deps: McpRouteDeps): Handler<AppEnv> => {
       return c.json<ErrorBody>({ error: 'rate_limited' }, 429)
     }
 
-    endpoint ??= createMcpEndpoint((info) => createMcpServer(deps, info, deps.version), deps.log)
+    endpoint ??= createMcpEndpoint(
+      (info) => createMcpServer({ ...deps, proposalLimiter }, info, deps.version),
+      deps.log,
+    )
 
     return endpoint.fetch(c.req.raw, authInfo)
   }

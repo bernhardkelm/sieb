@@ -21,6 +21,7 @@ export const OIDC: OidcConfig = {
   clientSecret: IDP_CLIENT_SECRET,
   requiredGroup: 'sieb-users',
   sessionHours: 12,
+  displayName: 'SSO',
 }
 
 export interface OidcTestApp {

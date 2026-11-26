@@ -77,7 +77,7 @@ beforehand.
    - an RSA certificate as signing key: sieb accepts only RS256 and ES256 signed tokens, a provider
      without signing key signs with the client secret (HS256), which sieb refuses,
    - a short access token validity, refresh tokens for longer sessions.
-2. Add scope mappings named `sieb:read` and, for the next release, `sieb:propose`, and select them
+2. Add scope mappings named `sieb:read` and, for proposals, `sieb:propose`, and select them
    on the provider. sieb reads the granted scopes from the space separated `scope` claim of the
    access token; a token without `sieb:read` gets 403 `insufficient_scope`.
 3. Make sure the access token carries the claims sieb needs:
@@ -111,22 +111,25 @@ below.
   (including `sieb:read`), `preferred_username` and `groups`, also when claude.ai requests only the
   scopes sieb advertises. If the profile claims are missing, add them to the `sieb:read` scope
   mapping.
-- Which scopes claude.ai requests, and whether authentik grants the advertised `sieb:propose`
-  before the next release needs it.
+- Which scopes claude.ai requests, and whether authentik grants the advertised `sieb:propose`,
+  which `propose_decision` needs.
 
 ## Tools
 
-Every tool only reads sieb's own database and carries `readOnlyHint`. Results hold sieb links,
-always absolute: on `SIEB_PUBLIC_URL`, else on the origin the request reached sieb at.
+Every tool works on sieb's own database only (`openWorldHint: false`). All but `propose_decision`
+only read and carry `readOnlyHint`. Results hold sieb links, always absolute: on `SIEB_PUBLIC_URL`,
+else on the origin the request reached sieb at.
 
 | Tool | Answers |
 | --- | --- |
-| `get_overview` | "How are we doing?": open, inbox, KEV, public, by severity, not affected, accepted, fix planned, re-opened, the last successful sync, the KEV source and catalog health, and who is connected |
+| `get_overview` | "How are we doing?": open, inbox, KEV, public, by severity, not affected, accepted, fix planned, re-opened, the Inbox counts of the connected user (`inboxItems`: proposals, re-opened, expiring, new KEV), the last successful sync, the KEV source and catalog health, and who is connected |
 | `check_vulnerability` | "Does CVE-X affect us?": every scanned image and workload carrying it with package, installed and fixed version, exposure, owner and governing decision, KEV details, images it was found in before; when absent, says so with the time of the last sync |
 | `search_findings` | Questions across findings, with the [finding filters](api.md#finding-filters) plus `groupBy` (`none`, `cve`, `image`, `namespace`, `package`) for counts per group, `limit` (at most 50, default 20) and `offset`, and the `total` |
 | `get_finding` | One finding by `findingId`, or by `vulnId` and `imageRef`: instances per workload and container, every decision covering it with history, KEV details |
 | `get_image` | One image: owner, exposure, risk counts, workloads and its open findings |
 | `list_decisions` | Earlier verdicts on the same CVE, package or image, filtered by state or status, newest first |
+| `list_my_proposals` | The proposals filed for the connected sieb user, newest first, with state, resolution, outdated flag, reject reason (under `untrusted`) and review URL; `state` (default `all`), `vulnId`, `limit`, `offset` |
+| `propose_decision` | Only with `sieb:propose`: files a structured decision proposal, see [Proposals](#proposals) |
 
 Example questions:
 
@@ -144,13 +147,63 @@ sieb only knows what Trivy scanned. A vulnerability missing from sieb means "not
 scanned image as of the last successful sync", never "safe", and the server instructions tell
 Claude to say so with the sync time.
 
+`check_vulnerability`, `get_finding`, `get_image` and `search_findings` rows carry `sourceAccess`
+per image: `public` for images of a public registry (`SIEB_PUBLIC_REGISTRIES`) that are not your
+own, `private` for own images (owner `self`) and other registries, `unknown` when the ref names no
+registry. The server instructions tell Claude that for `private` images only advisory-level
+checks are possible unless it runs inside the repository that builds the image, for example
+through the hand-off `claude` command, and that it should say so and lower its confidence.
+
+## Proposals
+
+With a token of "Read and propose" access or an OAuth token with `sieb:propose`, Claude sees
+`propose_decision` and files what it found as a structured proposal. Nothing changes in sieb until
+a human accepts it: no decision, no muted alert, no change to `/metrics`, the stats or the triage
+list. The tool is annotated as neither read-only nor destructive.
+
+The target is a `findingId` on its own, or a `vulnId` with `imageRefs` (tag or digest ignored,
+matched case-insensitively) or `all: true` for every image; `findingId` together with `vulnId`,
+`imageRefs` or `all` is refused. Each target image needs an open finding. The
+claims are structured: `verdict` (`not_affected` with an OpenVEX `justification`, `accepted`,
+`fix_planned`, or `needs_patch`, a fix planned with a concrete `fix.change`), `summary`,
+`confidence`, `presence`, `reachability`, `exposure`, `evidence` (`check`, `method`, `result`),
+`fix`, `review` (date and why, the date becomes the proposed expiry), `unknowns`, `references`
+(http(s) only), `agent` and `evidenceBasis`. `evidenceBasis` is required and must be honest:
+`advisory` (advisory and sieb data), `upstream_source`, `image`, `own_source` (the repository
+that builds the image) or `runtime`. For a private image Claude cannot inspect, the basis is
+`advisory` and the confidence low or medium, and a `not_affected` resting on `advisory` alone is
+weak evidence.
+
+The answer is `{ proposalId, url, replacedProposalId?, note }`, `url` being
+`<base>/inbox/proposals/<id>`, where the proposal is reviewed; Claude ends its answer with it. A
+new proposal from the same user for the same target replaces the open one (`replacedProposalId`).
+A user holds at most 200 open proposals, and `propose_decision` takes at most 30 valid calls per
+hour and sieb user, across all of the user's tokens and OAuth clients. Every proposal, accept and
+reject writes a server log line.
+
+The reviewer accepts as proposed, edits status, justification, reason and expiry before
+accepting, or rejects with a reason (see [api.md](api.md#proposals)). `list_my_proposals` returns
+the outcome, so Claude sees the reject reason and does not file the same proposal again.
+
+Every review is opened deliberately. After an accept or reject the review panel closes and focus
+returns to the next Inbox row; Enter or a click opens the next review. Cmd+Enter (Ctrl+Enter)
+accepts only on a fresh key press, never on a key repeat, and only once the proposal has been on
+screen for 700 ms and the reviewer interacted with it since it appeared: a pointer press inside
+the review or a key that is no part of the chord, such as an arrow key scrolling it. Enter, the
+modifier keys, keys pressed with a modifier held and the keys of a refused Cmd+Enter never count.
+The accept sends the decisions of the first load of the review, each with its `updatedAt`; when a
+later reload finds another decision or a newer version of the same one, the accept waits until
+the reviewer chooses Review again.
+
 ## Triage prompt and hand-off
 
 The MCP prompt `triage_finding` takes a `findingId` or a `vulnId` and walks Claude through an
-investigation: facts from sieb and earlier decisions, presence, reachability, exposure, evidence,
-fix path, review date, unknowns and confidence, ending in a report with a verdict (`not_affected`
-with an OpenVEX justification, `accepted`, `fix_planned` or `needs_patch`) or "undecided". In
-Claude Code it appears as `/mcp__sieb__triage_finding`.
+investigation: facts from sieb and earlier decisions, source access, presence, reachability,
+exposure, evidence and its basis, fix path, review date, unknowns and confidence. With
+`sieb:propose` it ends in `propose_decision` (after checking `list_my_proposals`) and the review
+URL; without it, in a report with a verdict (`not_affected` with an OpenVEX justification,
+`accepted`, `fix_planned` or `needs_patch`) or "undecided". In Claude Code it appears as
+`/mcp__sieb__triage_finding`.
 
 The finding panel has a hand-off split button that passes the open finding to Claude: the CVE,
 image, packages with installed and fixed versions, the sieb link and what to investigate. The main
@@ -177,13 +230,10 @@ runs the default action, `h` copies the prompt and `y` the command.
 
 ## What Claude can and cannot do
 
-In 0.1.0 Claude can read findings, images, decisions, KEV details and the overview, and run the
-triage prompt. It cannot create, change, revoke or accept decisions, run a sync or manage tokens:
-no tool for any of that exists. Claude reports its verdict back to you and you decide in sieb.
-
-0.2.0 adds decision proposals: a token with "Read and propose" access, or an OAuth token with
-`sieb:propose`, lets Claude file a structured proposal that you accept, edit or reject in a
-proposal inbox. Proposals never mute an alert until you accept them.
+Claude can read findings, images, decisions, KEV details and the overview, run the triage prompt
+and, with `sieb:propose`, file and list its proposals. It cannot create, change, revoke or accept
+decisions, run a sync or manage tokens: no tool for any of that exists. A proposal only takes
+effect when you accept it in sieb.
 
 ## Security model
 
@@ -210,9 +260,13 @@ proposal inbox. Proposals never mute an alert until you accept them.
   exact audience, and a token without `sieb:read` in its `scope` claim gets 403. `preferred_username` must be 1 to 256 characters without
   control or invisible format characters. With `SIEB_OAUTH_REQUIRED_GROUP` the `groups` claim
   must contain the group, else 403.
-- Advisory text (titles, scanner links, CISA KEV descriptions and notes) and the user-written
-  decision reasons and history values reach Claude under an `untrusted` key, and the server
+- Advisory text (titles, scanner links, CISA KEV descriptions and notes), the user-written
+  decision reasons and history values, and proposal summaries and reject reasons reach Claude
+  under an `untrusted` key, and the server
   instructions and the triage prompt tell Claude to treat it as data, never as instructions.
+- Proposal content is stored and served as plain text with length caps, control, bidirectional
+  formatting and invisible characters removed, and references limited to http(s) URLs without
+  credentials; the review shows each reference normalized, a lookalike host in punycode. No MCP tool accepts, decides, syncs or manages tokens.
 
 ### Offboarding
 

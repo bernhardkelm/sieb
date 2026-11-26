@@ -8,6 +8,7 @@ import DecisionCard from '@/components/decision/DecisionCard.vue'
 import DecisionForm from '@/components/decision/DecisionForm.vue'
 import RevokeDialog from '@/components/decision/RevokeDialog.vue'
 import DraftGuardDialog from '@/components/finding/DraftGuardDialog.vue'
+import ProposalNotice from '@/components/proposals/ProposalNotice.vue'
 import {
   initialFromDecision,
   type DecisionFormInitial,
@@ -191,6 +192,7 @@ onBeforeUnmount(() => {
 
 <template>
   <div class="finding-decisions">
+    <ProposalNotice :vuln-id="detail.finding.vulnId" :image-ref="detail.finding.imageRef" />
     <DecisionCard
       v-for="view in current"
       v-show="!(mode?.kind === 'edit' && mode.decision.id === view.decision.id)"

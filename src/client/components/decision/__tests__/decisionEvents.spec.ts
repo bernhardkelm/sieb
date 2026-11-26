@@ -95,3 +95,43 @@ describe('describeEvent', () => {
     ])
   })
 })
+
+describe('describeEvent provenance', () => {
+  it('names the proposer, the client, the accepting user and the edited fields', () => {
+    const summary = describeEvent(
+      event('created', {
+        status: 'not_affected',
+        reason: 'parser unused',
+        expiresAt: null,
+        provenance: {
+          proposalId: 7,
+          proposedBy: 'alice',
+          clientLabel: 'laptop',
+          editedFields: ['reason', 'expiresAt'],
+        },
+      }),
+    )
+
+    expect(summary.provenance).toBe(
+      'Proposed by alice via laptop, accepted by dev, edited: reason, expiry',
+    )
+    expect(summary.lines).toContain('parser unused')
+  })
+
+  it('leaves out the edits of an unedited accept and the provenance of plain events', () => {
+    expect(
+      describeEvent(
+        event('updated', {
+          reconfirm: true,
+          provenance: {
+            proposalId: 7,
+            proposedBy: 'alice',
+            clientLabel: 'laptop',
+            editedFields: [],
+          },
+        }),
+      ).provenance,
+    ).toBe('Proposed by alice via laptop, accepted by dev')
+    expect(describeEvent(event('updated', { reconfirm: true })).provenance).toBeUndefined()
+  })
+})

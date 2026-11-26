@@ -15,8 +15,20 @@ const TREE: KeyboardHint = { keys: ['←', '→'], label: 'Collapse, expand' }
 const SEARCH: KeyboardHint = { keys: ['/'], label: 'Search', action: 'search' }
 const SYNC: KeyboardHint = { keys: ['r'], label: 'Sync', action: 'sync' }
 
+const INBOX: KeyboardHint[] = [
+  { keys: ['s'], label: 'Mark as seen', action: 'markSeen' },
+  { keys: ['x', 'Space'], label: 'Select', action: 'toggle' },
+  SYNC,
+]
+
 export const KEYBOARD_HINTS: Record<RouteName, KeyboardHint[]> = {
-  [ROUTE_NAMES.INBOX]: [
+  [ROUTE_NAMES.INBOX]: INBOX,
+  [ROUTE_NAMES.INBOX_PROPOSAL]: [
+    { keys: [MODIFIER_KEY, 'Enter'], label: 'Accept' },
+    { keys: ['Esc'], label: 'Close' },
+    SYNC,
+  ],
+  [ROUTE_NAMES.TRIAGE]: [
     { keys: ['a'], label: 'Accept', action: 'accept' },
     { keys: ['n'], label: 'Not affected', action: 'notAffected' },
     { keys: ['f'], label: 'Fix planned', action: 'fixPlanned' },
@@ -52,7 +64,7 @@ export const KEYBOARD_HINTS: Record<RouteName, KeyboardHint[]> = {
  * Returns the shortcut hints of a view.
  * @param {unknown} routeName - Name of the current route
  * @param {boolean} mcpEnabled - Whether the Claude integration is on, its hints are left out otherwise
- * @returns {KeyboardHint[]} - Hints, the inbox ones for unknown routes
+ * @returns {KeyboardHint[]} - Hints, the Inbox ones for unknown routes
  */
 export const hintsForRoute = (routeName: unknown, mcpEnabled = false): KeyboardHint[] =>
   (KEYBOARD_HINTS[routeName as RouteName] ?? KEYBOARD_HINTS[ROUTE_NAMES.INBOX]).filter(

@@ -4,7 +4,14 @@ import { describe, expect, it } from 'vitest'
 import type { LogoutResponse } from '#core/apiTypes.ts'
 
 import { IDP_CLIENT_ID } from './fakeOidcProvider.ts'
-import { logIn, oidcTestApp, send, sessionHeaders, setCookieLine } from './oidcTestApp.ts'
+import {
+  logIn,
+  oidcTestApp,
+  send,
+  sessionHeaders,
+  setCookieLine,
+  setCookies,
+} from './oidcTestApp.ts'
 
 /**
  * Posts a same-origin logout as the client does.
@@ -48,6 +55,39 @@ describe('POST /auth/logout', () => {
     expect(test.deps.db.prepare('SELECT COUNT(*) AS n FROM sessions').get()?.n).toBe(0)
     expect(test.logs).toContain('[sieb] logout alice')
     expect((await send(test.app, '/api/me', { headers: sessionHeaders(session) })).status).toBe(401)
+  })
+
+  it('marks the browser signed out for one sign-in page after the return from the issuer', async () => {
+    const test = await oidcTestApp()
+    const { session } = await logIn(test)
+    const response = await logOut(test.app, sessionHeaders(session))
+    const line = setCookieLine(response, '__Host-sieb_signedout')
+    const marker = {
+      Cookie: `__Host-sieb_signedout=${setCookies(response)['__Host-sieb_signedout']}`,
+    }
+    const home = await send(test.app, '/', { headers: marker })
+    const page = await send(test.app, home.headers.get('location') ?? '', { headers: marker })
+
+    expect(line).toMatch(/^__Host-sieb_signedout=1;/)
+    expect(line).toContain('Max-Age=300')
+    expect(line).toMatch(/Path=\/.*HttpOnly.*Secure.*SameSite=Lax/)
+    expect(home.headers.get('location')).toBe('/auth/signin?return=%2F&signedOut=1')
+    expect(await page.text()).toContain('<p>You are signed out of sieb.</p>')
+    expect(setCookieLine(page, '__Host-sieb_signedout')).toMatch(
+      /^__Host-sieb_signedout=;.*Max-Age=0/,
+    )
+    expect((await send(test.app, '/')).headers.get('location')).toBe('/auth/signin?return=%2F')
+  })
+
+  it('uses the plain signed-out cookie without Secure over http', async () => {
+    const test = await oidcTestApp({ publicUrl: 'http://localhost:5173' })
+    const response = await logOut(test.app)
+    const line = setCookieLine(response, 'sieb_signedout')
+    const home = await send(test.app, '/inbox', { headers: { Cookie: 'sieb_signedout=1' } })
+
+    expect(line).toMatch(/^sieb_signedout=1;.*Max-Age=300/)
+    expect(line).not.toContain('Secure')
+    expect(home.headers.get('location')).toBe('/auth/signin?return=%2Finbox&signedOut=1')
   })
 
   it('answers the public URL when the issuer has no end-session endpoint', async () => {

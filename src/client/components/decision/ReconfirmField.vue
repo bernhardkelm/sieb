@@ -16,7 +16,7 @@ const labels = useLabelsStore()
       {{
         reconfirm
           ? 'Saving puts the decision back in effect and records the current findings as its baseline.'
-          : 'Saving without re-confirming keeps the decision re-opened; its findings stay in the inbox.'
+          : 'Saving without re-confirming keeps the decision re-opened; its findings stay in Triage.'
       }}
     </p>
   </div>

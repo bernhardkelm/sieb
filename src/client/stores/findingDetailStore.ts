@@ -1,8 +1,8 @@
 import { defineStore } from 'pinia'
 import { ref, watch } from 'vue'
 
+import type { FindingDetailResponse } from '#core/apiTypes.ts'
 import type { DecisionStatus } from '#core/decision.ts'
-import type { FindingDetail } from '#core/findingView.ts'
 import { ApiError } from '@/api/ApiError'
 import { errorMessage } from '@/api/apiRequest'
 import { fetchFindingDetail } from '@/api/findingsApi'
@@ -24,7 +24,7 @@ export const useFindingDetailStore = defineStore('findingDetail', () => {
   const dataVersion = useDataVersionStore()
 
   const findingId = ref<number | null>(null)
-  const detail = ref<FindingDetail | null>(null)
+  const detail = ref<FindingDetailResponse | null>(null)
   const loading = ref(false)
   const error = ref<string | null>(null)
   const notFound = ref(false)

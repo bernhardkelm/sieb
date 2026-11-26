@@ -1,4 +1,5 @@
 // @vitest-environment node
+import { createHash } from 'node:crypto'
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -59,8 +60,11 @@ describe('securityHeaders', () => {
     const page = await send(app, '/auth/callback?error=access_denied')
     const redirect = await send(app, '/')
 
+    const css = /<style>([\s\S]*?)<\/style>/.exec(await page.text())?.[1] ?? ''
+    const hash = createHash('sha256').update(css).digest('base64')
+
     expect(page.headers.get('Content-Security-Policy')).toBe(
-      "default-src 'none'; style-src 'unsafe-inline'; frame-ancestors 'none'",
+      `default-src 'none'; style-src 'sha256-${hash}'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'`,
     )
     expectHardened(redirect)
   })

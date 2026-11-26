@@ -1,6 +1,7 @@
 import type { DatabaseSync } from 'node:sqlite'
 
 import type { DecisionInput } from '#core/decision.ts'
+import type { ProposalProvenance } from '#core/proposal.ts'
 import { mustGetDecision, type DecisionCommandResult } from '#server/db/decisionCommandResult.ts'
 import { appendDecisionEvent } from '#server/db/decisionEventRepository.ts'
 import { findCurrentDecision } from '#server/db/decisionRepository.ts'
@@ -11,11 +12,13 @@ import { inTransaction } from '#server/db/inTransaction.ts'
 /**
  * Creates a decision with a baseline per governed image from the current severity and KEV
  * listing and writes its created event in the same transaction. One non-revoked decision per
- * vuln_id, scope and image.
+ * vuln_id, scope and image. A decision from an accepted proposal records its provenance in the
+ * created event.
  * @param {DatabaseSync} db - Open database
  * @param {DecisionInput} input - Validated input
  * @param {string} actor - Acting user
  * @param {Date} now - Current time
+ * @param {ProposalProvenance | null} provenance - Accepted proposal behind the decision, null for none
  * @returns {DecisionCommandResult} - New decision, or conflict with the existing decision id
  */
 export const createDecision = (
@@ -23,6 +26,7 @@ export const createDecision = (
   input: DecisionInput,
   actor: string,
   now: Date,
+  provenance: ProposalProvenance | null = null,
 ): DecisionCommandResult =>
   inTransaction(db, () => {
     const existing = findCurrentDecision(db, input.vulnId, input.scope, input.imageRef)
@@ -69,7 +73,7 @@ export const createDecision = (
       type: 'created',
       actor,
       at,
-      payload: { ...decision },
+      payload: provenance === null ? { ...decision } : { ...decision, provenance },
     })
     return { ok: true, decision }
   })

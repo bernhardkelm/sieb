@@ -39,6 +39,7 @@ const openPanel = async (owner: string | null, enabled = true): Promise<HTMLElem
     decisions: [],
     events: [],
     kev: null,
+    sourceAccess: 'private',
   })
   mounted = await mountWithRouter(FindingPanel, '/inbox?finding=1')
   useMcpStore().info = enabled
@@ -82,7 +83,7 @@ afterEach(() => {
 })
 
 describe('FindingPanel hand-off keys', () => {
-  it('copies the prompt on h with the absolute deep link', async () => {
+  it('copies the prompt on h with the absolute deep link, on Triage from the Inbox', async () => {
     const panel = await openPanel('third-party')
 
     await press(panel, 'h')
@@ -90,7 +91,7 @@ describe('FindingPanel hand-off keys', () => {
     expect(writeText).toHaveBeenCalledOnce()
     expect(writeText.mock.calls[0]![0]).toMatch(/^Triage sieb finding #1: /)
     expect(writeText.mock.calls[0]![0]).toContain(
-      `sieb: ${window.location.origin}/inbox?finding=1.`,
+      `sieb: ${window.location.origin}/triage?finding=1.`,
     )
     expect(notifySuccess).toHaveBeenCalledWith('Copied for Claude', 'Paste the prompt into Claude.')
   })

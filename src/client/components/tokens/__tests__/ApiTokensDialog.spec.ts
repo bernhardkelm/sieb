@@ -169,6 +169,25 @@ describe('ApiTokensDialog', () => {
     expect(dialog().querySelector('form')).not.toBeNull()
   })
 
+  it('creates a read and propose token, labelled as proposals only', async () => {
+    vi.mocked(createToken).mockResolvedValue({ token: token({ scope: 'propose' }), secret: SECRET })
+    await openDialog()
+
+    const propose = [...dialog().querySelectorAll<HTMLButtonElement>('[role="radio"]')].find(
+      (radio) => radio.textContent?.trim() === 'Read and propose',
+    )!
+
+    expect(propose.disabled).toBe(false)
+    expect(dialog().textContent).toContain('Propose lets Claude create proposals only')
+    expect(dialog().textContent).toContain('nothing is muted before that')
+
+    propose.click()
+    await flushPromises()
+    await submitName('laptop')
+
+    expect(createToken).toHaveBeenCalledWith(expect.objectContaining({ scope: 'propose' }))
+  })
+
   it('offers only expiring tokens of 30, 90 or 365 days', async () => {
     await openDialog()
 

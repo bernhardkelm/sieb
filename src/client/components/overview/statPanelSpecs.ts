@@ -42,10 +42,10 @@ export const STAT_PANEL_SPECS: StatPanelSpec[] = [
   },
   {
     key: 'inbox',
-    label: 'Inbox',
+    label: 'Triage',
     value: (stats) => stats.inbox,
     polarity: 'fewer-is-better',
-    target: { route: ROUTE_NAMES.INBOX, filters: {}, hint: 'Untriaged findings in the inbox' },
+    target: { route: ROUTE_NAMES.TRIAGE, filters: {}, hint: 'Undecided findings in Triage' },
     primary: true,
   },
   {
@@ -54,9 +54,9 @@ export const STAT_PANEL_SPECS: StatPanelSpec[] = [
     value: (stats) => stats.kev,
     polarity: 'fewer-is-better',
     target: {
-      route: ROUTE_NAMES.INBOX,
+      route: ROUTE_NAMES.TRIAGE,
       filters: { kev: true },
-      hint: 'Inbox filtered to KEV listed findings',
+      hint: 'Triage filtered to KEV listed findings',
     },
     primary: true,
     needsKev: true,
@@ -67,9 +67,9 @@ export const STAT_PANEL_SPECS: StatPanelSpec[] = [
     value: (stats) => stats.bySeverity.critical + stats.bySeverity.high,
     polarity: 'fewer-is-better',
     target: {
-      route: ROUTE_NAMES.INBOX,
+      route: ROUTE_NAMES.TRIAGE,
       filters: { severity: ['Critical', 'High'] },
-      hint: 'Inbox filtered to critical and high',
+      hint: 'Triage filtered to critical and high',
     },
     primary: true,
   },
@@ -79,9 +79,9 @@ export const STAT_PANEL_SPECS: StatPanelSpec[] = [
     value: (stats) => stats.public,
     polarity: 'fewer-is-better',
     target: {
-      route: ROUTE_NAMES.INBOX,
+      route: ROUTE_NAMES.TRIAGE,
       filters: { exposure: ['public'] },
-      hint: 'Inbox filtered to public exposure',
+      hint: 'Triage filtered to public exposure',
     },
     primary: false,
     needsExposure: true,
