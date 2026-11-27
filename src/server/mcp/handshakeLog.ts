@@ -49,25 +49,50 @@ const handshakeOf = (message: unknown): Handshake | null => {
 }
 
 /**
- * Reads whether an MCP request opens a connection: initialize of the 2025 era or server/discover
- * of the 2026-07-28 revision, also inside a batch. The body is read from a clone.
+ * Reads the JSON-RPC messages of an MCP request from a clone, a batch as its messages.
  * @param {Request} request - MCP request, body not yet read
- * @returns {Promise<Handshake | null>} - Handshake, null for other requests and unreadable bodies
+ * @returns {Promise<unknown[]>} - Messages, empty for other methods than POST and unreadable bodies
  */
-export const readHandshake = async (request: Request): Promise<Handshake | null> => {
+export const readMessages = async (request: Request): Promise<unknown[]> => {
   if (request.method !== 'POST') {
-    return null
+    return []
   }
 
   try {
     const body: unknown = await request.clone().json()
-    const messages: unknown[] = Array.isArray(body) ? body : [body]
 
-    return messages.map(handshakeOf).find((handshake) => handshake !== null) ?? null
+    return Array.isArray(body) ? body : [body]
   } catch {
-    return null
+    return []
   }
 }
+
+/**
+ * Returns the handshake among the messages of a request: initialize of the 2025 era or
+ * server/discover of the 2026-07-28 revision.
+ * @param {readonly unknown[]} messages - Messages from readMessages
+ * @returns {Handshake | null} - Handshake, null when no message opens a connection
+ */
+export const handshakeIn = (messages: readonly unknown[]): Handshake | null =>
+  messages.map(handshakeOf).find((handshake) => handshake !== null) ?? null
+
+/**
+ * Returns the client name any message of a request carries: the clientInfo of a handshake or the
+ * clientInfo key of params._meta, which 2026-07-28 clients send with every request.
+ * @param {readonly unknown[]} messages - Messages from readMessages
+ * @returns {string | null} - Client name, null when no message names one
+ */
+export const clientNameIn = (messages: readonly unknown[]): string | null =>
+  messages.map((message) => clientNameOf(field(message, 'params'))).find((name) => name !== null) ??
+  null
+
+/**
+ * Reads whether an MCP request opens a connection, also inside a batch.
+ * @param {Request} request - MCP request, body not yet read
+ * @returns {Promise<Handshake | null>} - Handshake, null for other requests and unreadable bodies
+ */
+export const readHandshake = async (request: Request): Promise<Handshake | null> =>
+  handshakeIn(await readMessages(request))
 
 /**
  * Builds the log line of a connection handshake with the caller, its scopes and the client

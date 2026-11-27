@@ -4,6 +4,7 @@ import { z } from 'zod'
 import type { ValidationIssue } from '#core/apiTypes.ts'
 import { proposalReviewUrl } from '#core/inbox/inboxLinks.ts'
 import { PATCH_ACTION_HINT } from '#core/patchAction.ts'
+import type { ProposalClientKind } from '#core/proposalClient.ts'
 import { validateProposalInput } from '#core/proposalValidation.ts'
 import { linkBase } from '#core/siebLinks.ts'
 import { createProposal } from '#server/db/createProposal.ts'
@@ -36,15 +37,20 @@ const outputSchema = z.object({
   note: z.string(),
 })
 
+/** Hints for the validation problems Claude can fix by itself, by field and code */
+const PROBLEM_HINTS: Record<string, string> = {
+  'fix.action:required': `required for needs_patch and fix_planned, ${PATCH_ACTION_HINT}`,
+  'missing:required': 'required with inconclusive, what would be needed to decide',
+  'missing:not_allowed': 'only with inconclusive, put open points of a verdict into unknowns',
+}
+
 /**
- * Describes one validation problem, a missing patch action with what to name in it.
+ * Describes one validation problem, with a hint for a missing patch action or missing list.
  * @param {ValidationIssue} error - Validation problem
- * @returns {string} - Field and code, with the hint for fix.action required
+ * @returns {string} - Field and code, or the field with its hint
  */
 const problemText = ({ field, code }: ValidationIssue): string =>
-  field === 'fix.action' && code === 'required'
-    ? `fix.action: required for needs_patch and fix_planned, ${PATCH_ACTION_HINT}`
-    : `${field ?? 'input'}: ${code}`
+  `${field ?? 'input'}: ${PROBLEM_HINTS[`${field}:${code}`] ?? code}`
 
 /**
  * Returns the rate bucket of a caller: one per sieb user, shared by all of that user's tokens
@@ -63,12 +69,14 @@ const rateKeyOf = (caller: McpCaller): string =>
  * @param {McpServer} server - MCP server
  * @param {McpToolDeps} deps - Database, clock, registries, logger, limiter and link base
  * @param {McpCaller} caller - Authenticated caller, the proposer
+ * @param {ProposalClientKind | null} clientKind - Kind of Claude client of the request, null when unknown
  * @returns {void}
  */
 export const registerProposeDecisionTool = (
   server: McpServer,
   deps: McpToolDeps,
   caller: McpCaller,
+  clientKind: ProposalClientKind | null,
 ): void => {
   server.registerTool(
     'propose_decision',
@@ -115,6 +123,7 @@ export const registerProposeDecisionTool = (
           proposedVia: caller.via,
           tokenId: caller.tokenId,
           clientLabel: caller.clientLabel,
+          clientKind,
         },
         checkId: caller.check?.checkId ?? null,
         publicRegistries: deps.publicRegistries,

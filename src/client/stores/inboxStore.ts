@@ -103,7 +103,7 @@ export const useInboxStore = defineStore('inbox', () => {
     try {
       await markInboxSeen(removedKeys)
       notifySuccess(
-        removed.length === 1 ? 'Marked as seen' : `Marked ${removed.length} items as seen`,
+        removed.length === 1 ? 'Marked as seen' : `Marked ${removed.length} as seen`,
         removed.length === 1 ? removed[0]!.vulnId : undefined,
       )
       return true

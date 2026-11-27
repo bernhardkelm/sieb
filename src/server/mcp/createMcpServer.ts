@@ -1,9 +1,11 @@
 import { McpServer, type AuthInfo } from '@modelcontextprotocol/server'
 
+import { proposalClientKind } from '#core/proposalClient.ts'
+
 import { baseUrlFromAuthInfo } from '#server/mcp/baseUrlFromAuthInfo.ts'
 import { callerFromAuthInfo } from '#server/mcp/callerFromAuthInfo.ts'
 import { canPropose } from '#server/mcp/mcpCaller.ts'
-import { isClaudeCodeClient } from '#server/mcp/mcpClient.ts'
+import { clientHintsOf, isClaudeCodeClient } from '#server/mcp/mcpClient.ts'
 import type { McpToolDeps } from '#server/mcp/mcpToolDeps.ts'
 import { serverInstructions } from '#server/mcp/serverInstructions.ts'
 import { registerProposeDecisionTool } from '#server/mcp/tools/proposeDecisionTool.ts'
@@ -15,6 +17,7 @@ import { registerTriagePrompt } from '#server/mcp/triagePrompt.ts'
  * sieb:propose scope also propose_decision, and the triage prompt, with the server instructions
  * that explain sieb to the model, for Claude Code with the hint to look for the repository of an
  * own image. The token of an Auto-check gets the tools bound to its check, see registerQueryTools.
+ * Proposals record the client kind the request's client hints name.
  * Links use the origin of the resource the token was verified for.
  * @param {Omit<McpToolDeps, 'baseUrl'>} deps - Database, clock, KEV source, registries, logger and proposal limiter
  * @param {AuthInfo} authInfo - Verified token information of the request
@@ -51,7 +54,12 @@ export const createMcpServer = (
 
   registerQueryTools(server, toolDeps, caller)
   if (proposing) {
-    registerProposeDecisionTool(server, toolDeps, caller)
+    registerProposeDecisionTool(
+      server,
+      toolDeps,
+      caller,
+      proposalClientKind(clientHintsOf(authInfo), caller.check !== null),
+    )
   }
 
   registerTriagePrompt(server, toolDeps, proposing)

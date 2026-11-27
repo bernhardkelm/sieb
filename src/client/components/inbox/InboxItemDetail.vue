@@ -4,6 +4,7 @@ import { computed } from 'vue'
 import type { InboxItem } from '#core/inbox/inboxItem.ts'
 import BaseChip from '@/components/chips/BaseChip.vue'
 import ConfidenceChip from '@/components/proposals/ConfidenceChip.vue'
+import ProposalClientTag from '@/components/proposals/ProposalClientTag.vue'
 import VerdictChip from '@/components/proposals/VerdictChip.vue'
 import { useNow } from '@/composables/useNow'
 import { expiresText, kevListedText } from '@/format/inboxText'
@@ -31,6 +32,7 @@ const status = computed(() => {
     <template v-if="item.kind === 'proposal'">
       <VerdictChip :verdict="item.verdict" />
       <ConfidenceChip :confidence="item.confidence" />
+      <ProposalClientTag :client="item" />
       <span v-if="item.patchAction" class="patch" :title="item.patchAction">
         {{ item.patchAction }}
       </span>

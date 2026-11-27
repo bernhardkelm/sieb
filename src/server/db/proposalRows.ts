@@ -1,4 +1,5 @@
 import type { DecisionJustification, DecisionScope } from '#core/decision.ts'
+import { storedClientKind } from '#core/proposalClient.ts'
 import type {
   EvidenceBasis,
   Proposal,
@@ -31,6 +32,7 @@ export interface ProposalRow {
   fix: string | null
   review: string | null
   unknowns: string
+  missing: string
   refs: string
   evidence_basis: string
   source_access: string
@@ -38,6 +40,7 @@ export interface ProposalRow {
   proposed_via: string
   token_id: number | null
   client_label: string
+  client_kind: string | null
   agent: string | null
   basis_decisions: string
   state: string
@@ -103,6 +106,7 @@ export const toProposal = (row: ProposalRow): Proposal => ({
   fix: storedFix(row.fix),
   review: parsedOrNull<ProposalReview>(row.review),
   unknowns: parsed<string[]>(row.unknowns),
+  missing: parsed<string[]>(row.missing),
   references: parsed<string[]>(row.refs),
   evidenceBasis: parsed<EvidenceBasis[]>(row.evidence_basis),
   agent: row.agent,
@@ -111,6 +115,7 @@ export const toProposal = (row: ProposalRow): Proposal => ({
   proposedVia: row.proposed_via as ProposalVia,
   tokenId: row.token_id,
   clientLabel: row.client_label,
+  clientKind: storedClientKind(row.client_kind),
   basisDecisions: parsed<ProposalDecisionRef[]>(row.basis_decisions),
   state: row.state as ProposalState,
   resolution: row.resolution as ProposalResolution | null,

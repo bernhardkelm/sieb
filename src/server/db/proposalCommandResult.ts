@@ -7,6 +7,7 @@ export type ProposalCommandError =
   | 'proposal_conflict' // the expected decisions differ from the current ones
   | 'unknown_finding' // a target image has no open finding of the vulnerability
   | 'too_many_proposals' // the proposer holds MAX_OPEN_PROPOSALS open proposals
+  | 'not_acceptable' // an inconclusive proposal accepted without the reviewer's status
 
 export interface ProposalRefusal {
   ok: false

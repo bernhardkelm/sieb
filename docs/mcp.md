@@ -42,7 +42,7 @@ name.
 
 | Client | Connects through |
 | --- | --- |
-| claude.ai, the Claude desktop and mobile apps | the [connector](#connector-in-claudeai) |
+| claude.ai and the Claude app on desktop and mobile | the [connector](#connector-in-claudeai) |
 | Claude Code, interactive, signed in with the same claude.ai account | the same connector, [synced automatically](#claude-code-through-the-connector) |
 | `claude -p`, CI, the Agent SDK, scripts | a [personal token](#personal-tokens) |
 
@@ -108,7 +108,7 @@ Leave the client secret empty for a public client. claude.ai then sends you thro
 your identity provider. With OAuth configured, the token dialog in sieb (your name in the top bar,
 **API tokens…**) shows the connector URL at the top with a copy button.
 
-The connector is available in claude.ai and the Claude desktop and mobile apps of the same
+The connector is available in claude.ai and the Claude app on desktop and mobile, for the same
 account.
 
 ### Claude Code through the connector
@@ -228,7 +228,7 @@ Claude to say so with the sync time.
 per image: `private` only for own images (owner `self`), `public` for images of a registry in
 `SIEB_PUBLIC_REGISTRIES` with another owner, `unknown` for every other registry and for a ref
 without one. For `private` images the server instructions depend on the client: Claude Code
-(clientInfo name `claude-code`, which the terminal, the desktop app's Code tab and the IDE
+(clientInfo name `claude-code`, which the terminal, the Code tab of the Claude app and the IDE
 extensions send at the handshake) is told that the repository is probably on the machine, to check
 whether the working directory is it (git remote, Dockerfile or build config naming the image) and
 otherwise to ask for its path before concluding. Every other client hears that only advisory-level
@@ -258,10 +258,14 @@ The target is a `findingId` on its own, or a `vulnId` with `imageRefs` (tag or d
 matched case-insensitively) or `all: true` for every image; `findingId` together with `vulnId`,
 `imageRefs` or `all` is refused. Each target image needs an open finding. The
 claims are structured: `verdict` (`not_affected` with an OpenVEX `justification`, `accepted`,
-`fix_planned`, or `needs_patch`, a fix planned with a concrete patch), `summary`,
-`confidence`, `presence`, `reachability`, `exposure`, `evidence` (`check`, `method`, `result`),
-`fix` (`action`, `fixedVersion`, `change`, `effort`), `review` (date and why, the date becomes the
-proposed expiry), `unknowns`, `references` (http(s) only), `agent` and `evidenceBasis`.
+`fix_planned`, `needs_patch`, a fix planned with a concrete patch, or `inconclusive`, see
+[below](#verdict-inconclusive)), `summary`, `confidence`, `presence`, `reachability`, `exposure`,
+`evidence` (one entry per check Claude ran, also those that found nothing: `check`, `method` as
+command, file:line, tool call or URL, `result`), `fix` (`action`, `layer`, `fixedVersion`,
+`change` as the ordered steps through deploy and how to confirm, `effort`), `review` (date and
+why, the date becomes the proposed expiry), `unknowns` (only what Claude's access could not
+check, each with the reason), `missing` (with `inconclusive` only), `references` (http(s) links
+Claude actually read), `agent` and `evidenceBasis`.
 
 `needs_patch` and `fix_planned` require `fix.action`: one line of at most 160 characters with
 the step the operator can take now, with exact versions. Claude works out which layer ships the
@@ -271,7 +275,7 @@ closest layer the operator controls that pulls in an available fix, starting wit
 | Layer (`fix.layer`) | Ships the component | Action |
 | --- | --- | --- |
 | `dependency` | lockfile, `go.mod`, requirements, a package installed explicitly in the Dockerfile | bump it to the fixed version, "dependency: bump golang.org/x/text to v0.39.0" |
-| `base_image` | an OS package or runtime inherited from `FROM` | rebuild on a newer base tag or digest with the fix, "base image: rebuild on alpine:3.24.4 (libxslt 1.1.43-r4)"; else upgrade the package in the Dockerfile (`apk upgrade <package>`) when the distro has it; else wait for the base image or distro |
+| `base_image` | an OS package or runtime inherited from `FROM` | rebuild on a newer base tag or digest with the fix, "base image: rebuild on alpine:3.24.4 (libxslt 1.1.43-r4)"; when the tag the build already uses was republished with the fix, "base image: rebuild without cache and redeploy, alpine:3.24 now ships libxslt 1.1.43-r4"; else upgrade the package in the Dockerfile (`apk upgrade <package>`) when the distro has it; else wait for the base image or distro |
 | `image` | a third-party image | bump to a newer published tag or digest with the fix; else wait for upstream |
 | `platform` | a component a distribution such as k3s deploys and manages | upgrade the platform to a release that bundles the fix; else wait, "k3s: wait for a release bundling metrics-server v0.9.1"; never override the bundled component |
 
@@ -286,10 +290,12 @@ operator controls has a fix, the action says what to wait for ("no fixed version
 explicit exception for a high risk, KEV listed and reachable. A missing action is refused with
 this guidance; the full rule is in the `fix.action` description and the triage prompt.
 
-The review panel shows the layer and the action under the verdict, with a copy button for the
-version, tag or digest it names; Inbox rows show the action after the verdict chip, and the
-decision reason generated on accept starts with it. `fix.change` holds the details, such as the
-pull request. Proposals stored before `fix.action` existed have neither action nor layer.
+The review panel shows a What to do section directly under the summary: the layer and the
+action with a copy button for the version, tag or digest it names (for a rebuild of a
+republished tag, the fixed version), then the steps from `fix.change`, then effort and review
+date side by side. Proposals without an action and without steps skip it. Inbox rows show the
+action after the verdict chip, and the decision reason generated on accept starts with it.
+Proposals stored before `fix.action` existed have neither action nor layer.
 
 `evidenceBasis` is required and must be honest:
 `advisory` (advisory and sieb data), `upstream_source`, `image`, `own_source` (the repository
@@ -306,8 +312,8 @@ count apart, see [Auto-check tokens](#auto-check-tokens). Every proposal, accept
 reject writes a server log line.
 
 The reviewer accepts as proposed, edits status, justification, reason and expiry before
-accepting, or rejects with a reason (see [api.md](api.md#proposals)). `list_my_proposals` returns
-the outcome, so Claude sees the reject reason and does not file the same proposal again.
+accepting, or rejects with a reason (see [api.md](api.md#proposals)); an inconclusive proposal
+is decided by the reviewer or dismissed instead. `list_my_proposals` returns the outcome, so Claude sees the reject reason and does not file the same proposal again.
 
 Every review is opened deliberately. After an accept or reject the review panel closes and focus
 returns to the next Inbox row; Enter or a click opens the next review. j and k only move the
@@ -319,6 +325,28 @@ modifier keys, keys pressed with a modifier held and the keys of a refused Cmd+E
 The accept sends the decisions of the first load of the review, each with its `updatedAt`; when a
 later reload finds another decision or a newer version of the same one, the accept waits until
 the reviewer chooses Review again.
+
+### Verdict inconclusive
+
+`inconclusive` is for evidence that supports no verdict, or data Claude needed but could not
+obtain, such as an image it cannot pull. Thin evidence that still supports a verdict is that
+verdict with confidence `low`. `inconclusive` requires `missing`: 1 to 10 entries of at most
+1,000 characters, what would be needed to decide ("pull access to registry.example.com/app",
+"runtime check of the loaded modules"). Any other verdict with a non-empty `missing` is refused,
+open points of a verdict go into `unknowns`. `confidence` stays required, `justification` is
+refused and `fix.action` is not needed.
+
+An inconclusive proposal never becomes a decision as filed and leaves `/metrics`, the stats and
+suppression untouched. It shows as "Could not determine" in the review panel, on Inbox and Triage
+rows and in the finding panel, and counts as pending (`Proposed`) like any open proposal; a new
+proposal from the same user for the same target replaces it as usual. The review panel lists
+what is missing under the summary and offers three actions instead of Accept: **Decide myself**
+opens the decision form for the target without a status; saving it accepts the proposal with the
+reviewer's status and reason as edits (resolution `accepted_edited`). **Re-check** queues an
+Auto-check of the open target findings when Auto-check is on and a target image is public, with
+the usual block reasons; otherwise it is the hand-off button. **Dismiss** rejects with a reason,
+which Claude reads back through `list_my_proposals`. A plain accept, Cmd+Enter or an accept
+without a status edit is refused with 409 `not_acceptable`.
 
 ## Triage prompt and hand-off
 
@@ -355,7 +383,18 @@ Why is one sentence of at most 25 words, Checked and Not checked are comma-separ
 `sieb:propose` the last line is copied verbatim: "No proposal filed: this connection is read-only
 (token or connector needs sieb:propose)." Several triaged findings become a table with the
 columns Finding, Verdict, Conf. and Proposal, one row per finding, followed by one summary line
-such as "3 proposals filed, 1 skipped (no verdict): …".
+such as "3 proposals filed, 1 of them inconclusive". A finding Claude cannot decide gets the
+same block with `inconclusive` and is filed as an [inconclusive proposal](#verdict-inconclusive)
+too:
+
+```text
+**CVE-2025-1234 · registry.example.com/acme/app** → inconclusive · confidence low
+Why: the registry denied the pull, so whether libexample is installed could not be checked.
+Checked: advisory · Not checked: image, own_source, runtime
+Proposal: https://sieb.example.com/inbox/proposals/43
+```
+
+Its Why names what is missing, the proposal carries the full list in `missing`.
 
 A plain question that is no triage, "does CVE-X affect us" across many images included, gets the
 answer in the first line, at most three bullets with counts and names, then the sieb link, with no
@@ -378,7 +417,7 @@ line, the essentials first: finding id, CVE, image and package names, then the i
 `propose_decision` without asking, and reply in the sieb format from the server instructions.
 Versions, links and the reply template come from the tools and the instructions, so a typical
 prompt stays around 330 characters. For your own images (owner `self`) the Claude Code targets
-(desktop Code tab, terminal, VS Code) add one sentence: check the code in the working directory if
+(Code tab of the Claude app, terminal, VS Code) add one sentence: check the code in the working directory if
 it is the image's repository, else ask for its local path. Where the registry path mirrors the
 repository, as for `registry.gitlab.com/<group>/<project>` or `ghcr.io/<owner>/<repo>`, it names
 the likely repository as a hint. The chat target and images of others get the plain prompt. The
@@ -386,8 +425,8 @@ main button runs your default action, the chevron menu lists the rest:
 
 | Target | Link | Needs |
 | --- | --- | --- |
-| Claude Code (desktop) | `claude://code/new?q=` | the Claude desktop app |
-| Claude chat (desktop) | `claude://claude.ai/new?q=` | the desktop app and the sieb connector |
+| Claude Code (app) | `claude://code/new?q=` | the Claude app |
+| Claude chat (app) | `claude://claude.ai/new?q=` | the Claude app, also on a phone, and the sieb connector |
 | Claude Code in terminal | `claude-cli://open?q=` | `claude` run interactively once, which registers the handler |
 | VS Code | `vscode://anthropic.claude-code/open?prompt=` | the Claude Code VS Code extension |
 
@@ -402,7 +441,7 @@ The menu also copies the prompt (the chat variant, without the repository senten
 own images a ready `claude '<prompt>'` command meant to be run inside the repository that builds
 the image, which says so instead. Under
 **Default action** you pick what the main button does; the choice is stored in the browser and
-defaults to Claude Code desktop, or to copying on touch devices. With the panel open, `Shift+H`
+defaults to Claude Code in the Claude app, or to the Claude chat of the app on touch devices. With the panel open, `Shift+H`
 runs the default action, `h` copies the prompt and `y` the command.
 
 The deep links and the command only help once Claude can reach sieb, so they stay disabled, with

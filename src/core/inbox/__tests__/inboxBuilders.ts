@@ -44,6 +44,11 @@ export const inboxProposal = (overrides: Partial<InboxProposal> = {}): InboxProp
   verdict: 'not_affected',
   confidence: 'high',
   patchAction: null,
+  clientKind: null,
+  clientLabel: 'laptop',
+  agent: null,
+  currentDecisionIds: [{ imageRef: NGINX, decisionId: null, updatedAt: null }],
+  outdated: false,
   ...overrides,
 })
 

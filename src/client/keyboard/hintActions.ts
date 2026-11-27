@@ -1,5 +1,6 @@
 export type HintActionId =
   | 'accept'
+  | 'reject'
   | 'notAffected'
   | 'fixPlanned'
   | 'toggle'

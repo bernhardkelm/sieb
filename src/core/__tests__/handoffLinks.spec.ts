@@ -48,7 +48,7 @@ describe('hand-off links', () => {
     }
   })
 
-  it('opens Claude Code for the code targets and the chat for desktop-chat', () => {
+  it('opens Claude Code for the code targets and the chat of the Claude app for desktop-chat', () => {
     expect(HANDOFF_CLIENTS).toEqual({
       'desktop-code': 'code',
       'desktop-chat': 'chat',

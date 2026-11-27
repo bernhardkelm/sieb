@@ -205,7 +205,7 @@ describe('inbox routes', () => {
         ...buildProposalInput(),
         ...PROPOSER,
         sourceAccess: [],
-        basisDecisions: [],
+        basisDecisions: [{ imageRef: NGINX, decisionId: null, updatedAt: null }],
         createdAt,
       })
     const resolved = file(KEV_SINCE)
@@ -243,7 +243,12 @@ describe('inbox routes', () => {
       verdict: 'not_affected',
       confidence: 'medium',
       patchAction: null,
+      clientKind: 'claude_code_cli',
+      clientLabel: 'laptop',
+      agent: null,
       imageCount: 1,
+      currentDecisionIds: [{ imageRef: NGINX, decisionId: null, updatedAt: null }],
+      outdated: false,
     })
   })
 })

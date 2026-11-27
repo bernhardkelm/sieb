@@ -63,6 +63,11 @@ worker port to sieb's Service, for example as port `worker` with `targetPort` 31
   with a Review action that opens the proposal in the Inbox, done without a proposal, or failed
   with its reason. Cancelled checks, checks of other users and checks that ended before the page
   loaded stay silent.
+- **Could not determine.** When the image does not settle the question, Claude files the verdict
+  `inconclusive` with what it would need to decide (`missing`, see
+  [Verdict inconclusive](mcp.md#verdict-inconclusive)) instead of a guess. The review lists it as
+  "Could not determine" and offers Decide myself, Re-check, which queues a new check of the
+  finding, and Dismiss; an inconclusive proposal never becomes a decision on its own.
 - **Usage.** The Usage section of the Checks page sums the ended checks of all users over the
   last 7 and 30 days: checks, input, output and cache tokens, cost and average duration. The cost
   is what Claude Code reports, see [Claude credential](#claude-credential); checks whose worker
@@ -205,7 +210,7 @@ WebFetch reaches only the hosts of `SIEB_CHECKER_WEB_DOMAINS`. A rule matches it
 | CVE databases and advisories | `nvd.nist.gov`, `services.nvd.nist.gov`, `cve.org`, `www.cve.org`, `cveawg.mitre.org`, `www.cisa.gov`, `osv.dev`, `api.osv.dev` |
 | Source hosting | `github.com`, `api.github.com`, `raw.githubusercontent.com` |
 | Go | `pkg.go.dev`, `go.dev`, `proxy.golang.org`, `vuln.go.dev` |
-| Distro trackers | `security-tracker.debian.org`, `tracker.debian.org`, `ubuntu.com`, `launchpad.net`, `security.alpinelinux.org`, `secdb.alpinelinux.org`, `pkgs.alpinelinux.org`, `access.redhat.com`, `bugzilla.redhat.com` |
+| Distro trackers | `security-tracker.debian.org`, `tracker.debian.org`, `ubuntu.com`, `launchpad.net`, `security.alpinelinux.org`, `secdb.alpinelinux.org`, `pkgs.alpinelinux.org`, `access.redhat.com`, `bugzilla.redhat.com`, `www.suse.com`, `lists.suse.com`, `bugzilla.suse.com`, `bodhi.fedoraproject.org`, `alas.aws.amazon.com`, `linux.oracle.com`, `errata.almalinux.org`, `errata.rockylinux.org`, `packages.wolfi.dev` |
 | Package registries | `www.npmjs.com`, `registry.npmjs.org`, `pypi.org`, `crates.io`, `rubygems.org`, `central.sonatype.com`, `repo1.maven.org`, `search.maven.org` |
 | Image registries | `hub.docker.com`, `quay.io`, `ghcr.io` |
 

@@ -61,6 +61,8 @@ Checked before identity:
 | `GET /api/proposals/:id`           | One proposal with sieb's facts per image, the current decisions and what accepting writes |
 | `POST /api/proposals/:id/accept`   | Accept, `{ expectedDecisionIds, edits? }`, writes the decisions in one transaction |
 | `POST /api/proposals/:id/reject`   | Reject, `{ reason }` |
+| `POST /api/proposals/bulk-accept`  | Accept up to 100 proposals unchanged, `{ items: [{ id, expectedDecisionIds }] }`, see [Bulk accept and reject](#bulk-accept-and-reject) |
+| `POST /api/proposals/bulk-reject`  | Reject up to 100 proposals with one reason, `{ ids, reason }` |
 | `GET /api/tokens`                  | Own personal tokens, newest first, see [Tokens](#tokens)                                                                                                                                                                  |
 | `POST /api/tokens`                 | Create a token, `{ name, scope, expiresAt }`, answers its secret once                                                                                                                                                     |
 | `POST /api/tokens/:id/revoke`      | Revoke an own token                                                                                                                                                                                                       |
@@ -290,7 +292,7 @@ and `refs`:
 
 | Kind       | Key                                  | `at`         | In the Inbox while                                                                                | Extra fields                                                                                                                         |
 | ---------- | ------------------------------------ | ------------ | ------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------ |
-| `proposal` | `proposal:<id>`                      | `createdAt`  | the proposal is open                                                                              | `refs: { proposalId }`, `imageRefs` (targets, `null` for every image), `verdict`, `confidence`, `patchAction` (`fix.action` of a patch verdict, else `null`), `imageCount` (covered open findings) |
+| `proposal` | `proposal:<id>`                      | `createdAt`  | the proposal is open                                                                              | `refs: { proposalId }`, `imageRefs` (targets, `null` for every image), `verdict`, `confidence`, `patchAction` (`fix.action` of a patch verdict, else `null`), `clientKind`, `clientLabel` and `agent` (see [Proposals](#proposals)), `imageCount` (covered open findings), `currentDecisionIds` (governing decision per target, the `expectedDecisionIds` of an accept), `outdated` (a governing decision changed since filing) |
 | `reopened` | `reopened:<decisionId>:<reopenedAt>` | `reopenedAt` | the decision is re-opened, until re-confirmed (`reconfirm: true`, also within an edit) or revoked | `refs: { decisionId, findingId }`, `decisionStatus`, `reopenReason`                                                                  |
 | `expiring` | `expiring:<decisionId>:<expiresAt>`  | `expiresAt`  | the decision is active and expires within 14 days, until extended or marked seen                  | `refs: { decisionId, findingId }`, `decisionStatus`                                                                                  |
 | `kev`      | `kev:<findingId>`                    | `kevSince`   | the open finding became KEV listed within the last 14 days, also when decided, until marked seen  | `refs: { findingId, decisionId }`, `decisionStatus` (governing decision or `null`)                                                   |
@@ -334,15 +336,17 @@ A proposal (`Proposal` in `src/core/proposal.ts`) carries:
 
 - Target: `vulnId`, `scope` (`image` or `all`) and `imageRefs` (sorted, `null` for scope all).
   Every target image needs an open finding of the CVE, scope all at least one.
-- Claims: `verdict` (`not_affected`, `accepted`, `fix_planned`, `needs_patch`), `justification`
-  (OpenVEX, required with `not_affected` only), `summary`, `confidence` (`low`, `medium`,
+- Claims: `verdict` (`not_affected`, `accepted`, `fix_planned`, `needs_patch`, `inconclusive`),
+  `justification` (OpenVEX, required with `not_affected` only), `summary`, `confidence` (`low`, `medium`,
   `high`), `presence`, `reachability`, `exposure`, `evidence` (`[{ check, method, result }]`),
   `fix` (`{ action, layer, fixedVersion, change, effort }`, the one-line `action` of at most 160
   characters required for `needs_patch` and `fix_planned`, `layer` optional: `dependency`,
   `base_image`, `image`, `platform` or `unknown`; both `null` in proposals stored before they
   existed), `review`
-  (`{ date, why }`, `date` follows the `expiresAt` rules), `unknowns`, `references` (http(s) URLs
-  only) and `evidenceBasis`, at least one of `advisory`, `upstream_source`, `image`,
+  (`{ date, why }`, `date` follows the `expiresAt` rules), `unknowns`, `missing` (what is needed
+  to decide: 1 to 10 entries of at most 1000 characters with `inconclusive`, `not_allowed` with
+  any other verdict, `[]` for them and for proposals stored before schema step 16), `references`
+  (http(s) URLs only) and `evidenceBasis`, at least one of `advisory`, `upstream_source`, `image`,
   `own_source`, `runtime`. Free text loses control, bidirectional formatting and invisible
   characters (zero-width characters, the Arabic letter mark, soft hyphens) and is capped (summary
   1000 characters, presence, reachability and exposure 4000, at most 30 evidence entries, 20
@@ -351,8 +355,18 @@ A proposal (`Proposal` in `src/core/proposal.ts`) carries:
   (`[{ imageRef, decisionId, updatedAt }]`, the decisions governing the targets when proposed,
   `imageRef` `null` for the all-scope target).
 - Proposer: `proposedBy` (the sieb user of the token or OAuth login), `proposedVia` (`token` or
-  `oauth`), `clientLabel`, `agent` and `createdAt`. The id of the proposer's token is stored for
-  the server log but never answered.
+  `oauth`), `clientLabel`, `clientKind`, `agent` and `createdAt`. The id of the proposer's token is
+  stored for the server log but never answered.
+- `clientKind` is the kind of Claude client sieb derived when the proposal was filed, never text
+  the client wrote: `auto_check` for an Auto-check token; from the entrypoint in Claude Code's
+  `User-Agent` (`claude-code/<version> (<entrypoint>)`) `claude_code_cli` (`cli`),
+  `claude_code_headless` (`sdk-cli`, `sdk-ts`, `sdk-py`), `claude_code_vscode`
+  (`claude-vscode`), `claude_code_app` (`claude-desktop`), else `claude_code`, also for the
+  clientInfo name `claude-code`; `claude_app` for the claude.ai connector (clientInfo name
+  `Anthropic/ClaudeAI`, web, desktop and mobile alike). A 2025-era client names itself only in
+  `initialize`, so a tool call takes the name of the last handshake of the same caller and
+  `User-Agent` this server process saw. `null` for any other client and for proposals stored
+  before schema step 15; the client then shows `agent` and `clientLabel` instead.
 - Outcome: `state` (`open`, `accepted`, `rejected`, `superseded`), `resolution` (`accepted`,
   `accepted_edited`, `rejected`, `replaced`, `other_accepted`, `finding_resolved`),
   `resolutionNote` (the reject reason), `decisionIds`, `resolvedAt` and `resolvedBy` (`sieb` for
@@ -384,7 +398,8 @@ a decision governing one of its targets was created, changed or revoked since it
 - `decisionValues`: `{ status, justification, reason, expiresAt }` that accepting without edits
   writes: `needs_patch` becomes `fix_planned`, the reason is generated from verdict, summary, the
   first three evidence checks, the fix and the confidence (at most 2000 characters), and the
-  expiry is the review date while it lies ahead, else the default of the status.
+  expiry is the review date while it lies ahead, else the default of the status. `null` for
+  `inconclusive`, which has no status of its own.
 - `kevCatalog`: the CISA catalog entry, `null` for other KEV sources.
 
 `POST /api/proposals/:id/accept` takes
@@ -395,7 +410,10 @@ transaction it writes per target image the image-scoped decision, updating and r
 existing one, or for scope all the all-scope decision, and answers
 `{ proposal, decisions, supersededIds }` with the written decisions as `DecisionView`. The
 `created` or `updated` events of those decisions carry
-`provenance: { proposalId, proposedBy, clientLabel, editedFields }`.
+`provenance: { proposalId, proposedBy, clientLabel, editedFields }`. An `inconclusive` proposal
+is accepted only with `edits.status` and `edits.reason`, the reviewer's own decision (resolution
+`accepted_edited`); without a status edit the accept answers 409 `not_acceptable`, without a
+reason 400 `edits.reason` `required`. The UI calls this Decide myself and the reject Dismiss.
 
 `POST /api/proposals/:id/reject` takes `{ "reason" }`, 1 to 2000 characters (`required`,
 `too_long`), and answers `{ proposal }`. The proposer reads the reason back through
@@ -404,8 +422,37 @@ existing one, or for scope all the all-scope decision, and answers
 Errors: 404 `{ "error": "not_found" }` for an unknown proposal; 409
 `{ "error": "proposal_conflict", "currentDecisionIds" }` when a governing decision is no longer the
 expected one or was edited since (same `decisionId`, other `updatedAt`), nothing is written; 409 `{ "error": "proposal_closed", "state" }` for a proposal that
-is no longer open; 400 `expectedDecisionIds` `required` or `invalid` (an entry without `updatedAt`, with an
+is no longer open; 409 `{ "error": "not_acceptable" }` for an `inconclusive` proposal accepted
+without `edits.status`; 400 `expectedDecisionIds` `required` or `invalid` (an entry without `updatedAt`, with an
 unparsable one, or with an `updatedAt` but no `decisionId` is `invalid`).
+
+### Bulk accept and reject
+
+The Inbox accepts and rejects several proposals at once. Both routes take 1 to 100 distinct
+proposals (`items` or `ids`: `required`, `invalid`, `too_many`, `duplicate`) and handle them one
+at a time, each in a transaction of its own, so an outcome never depends on a later proposal of
+the batch. Both answer 200 `{ results: [{ id, vulnId, outcome }] }` in request order, `vulnId`
+`null` for an unknown proposal, and log every write as the single routes do.
+
+`POST /api/proposals/bulk-accept` takes
+`{ "items": [{ "id", "expectedDecisionIds": [{ "imageRef", "decisionId", "updatedAt" }] }] }`,
+the expected decisions read as for the single accept (`items[<n>].expectedDecisionIds`), and
+accepts without edits. It never forces a proposal: one whose governing decision changed since it
+was filed (`outdated` in the list) or differs from the expected one is skipped as `outdated`, an
+inconclusive one as `inconclusive`.
+
+`POST /api/proposals/bulk-reject` takes `{ "ids": [...], "reason" }`, the reason under the rules
+of the single reject, and gives every proposal the same reason.
+
+| `outcome`        | Meaning                                                                           |
+| ---------------- | --------------------------------------------------------------------------------- |
+| `accepted`       | accepted unchanged, as `POST /api/proposals/:id/accept` without edits writes it  |
+| `rejected`       | rejected with the reason                                                          |
+| `outdated`       | skipped, a governing decision changed since filing or is not the expected one     |
+| `inconclusive`   | skipped, an inconclusive proposal never becomes a decision without a review       |
+| `not_acceptable` | skipped, the accept refused it for another reason                                 |
+| `not_open`       | skipped, accepted, rejected or superseded meanwhile, also by an earlier entry     |
+| `not_found`      | no such proposal                                                                  |
 
 ### Source access
 
@@ -627,6 +674,10 @@ Schema step 14 adds `api_tokens.check_id`, which marks the token of a check (uni
 `decision_proposals.check_id`, which marks proposals filed with it; both are filled from
 `checks.token_id` for existing rows. The unique index of open proposals per target and proposer
 includes `check_id`. It also adds `checks.pulled_digest`.
+
+Schema step 15 adds the nullable column `decision_proposals.client_kind`, checked for a length of
+1 to 40 only, so a later kind needs no table rebuild; a value this version does not know reads as
+`null`. Existing proposals keep `null`.
 
 ## MCP endpoint
 

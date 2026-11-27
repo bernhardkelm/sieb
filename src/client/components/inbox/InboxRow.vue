@@ -9,7 +9,7 @@ import SeverityChip from '@/components/chips/SeverityChip.vue'
 import HintTooltip from '@/components/common/HintTooltip.vue'
 import RelativeTime from '@/components/common/RelativeTime.vue'
 import InboxItemDetail from '@/components/inbox/InboxItemDetail.vue'
-import { isSeeable } from '@/components/inbox/inboxItems'
+import { isSeeable, isSelectable } from '@/components/inbox/inboxItems'
 import ListRow from '@/components/list/ListRow.vue'
 import RowCheckbox from '@/components/list/RowCheckbox.vue'
 import { INBOX_KIND_LABELS, inboxScopeText } from '@/format/inboxText'
@@ -32,19 +32,20 @@ const TONES: Record<InboxKind, ChipTone> = {
 }
 
 const seeable = computed(() => isSeeable(props.item))
+const selectable = computed(() => isSelectable(props.item))
 const scope = computed(() => inboxScopeText(props.item))
 </script>
 
 <template>
   <ListRow
     class="inbox-row"
-    :class="{ 'no-kev': hideKev }"
+    :class="{ 'no-kev': hideKev, selectable }"
     :current="current"
     :checked="checked"
     :data-inbox-key="item.key"
     @click="$emit('select', $event)"
   >
-    <RowCheckbox v-if="seeable" :checked="checked" @toggle="$emit('toggle', $event)" />
+    <RowCheckbox v-if="selectable" :checked="checked" @toggle="$emit('toggle', $event)" />
     <span v-else class="no-check" aria-hidden="true" />
     <BaseChip class="kind" :tone="TONES[item.kind]" dot>{{
       INBOX_KIND_LABELS[item.kind]

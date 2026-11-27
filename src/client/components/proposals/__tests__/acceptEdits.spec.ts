@@ -3,9 +3,7 @@ import { describe, expect, it } from 'vitest'
 import { ApiError } from '@/api/ApiError'
 import type { DecisionFormValue } from '@/components/decision/decisionFormModel'
 import { acceptEdits, editInitial, formErrorOfAccept } from '@/components/proposals/acceptEdits'
-import { buildProposalDetail } from '@/__tests__/proposalDetailBuilders'
-
-const proposed = buildProposalDetail().decisionValues
+import { PROPOSED_VALUES as proposed } from '@/__tests__/proposalDetailBuilders'
 
 /**
  * Builds a submitted form value equal to the proposed values.
@@ -48,6 +46,16 @@ describe('acceptEdits', () => {
     expect(acceptEdits(proposed, formValue({ justification: 'component_not_present' }))).toEqual({
       justification: 'component_not_present',
     })
+  })
+
+  it('starts Decide myself without a status and sends status and reason as edits', () => {
+    expect(editInitial(null)).toEqual({ scope: 'image' })
+    expect(
+      acceptEdits(
+        null,
+        formValue({ status: 'not_affected', justification: null, reason: 'Checked by hand.' }),
+      ),
+    ).toEqual({ status: 'not_affected', justification: null, reason: 'Checked by hand.' })
   })
 
   it('maps edits.<field> errors to the form fields', () => {

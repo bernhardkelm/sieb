@@ -202,7 +202,7 @@ export interface ProposalDetail extends ProposalListItem {
   images: ProposalImageFacts[] // scope image: the targets, scope all: every image with an open finding
   allScopeDecision: DecisionView | null // current all-scope decision of the vulnerability
   currentDecisionIds: ExpectedDecisionId[] // governing decision per target, send as expectedDecisionIds
-  decisionValues: AcceptedDecisionValues // what accepting without edits writes, prefill of Edit & accept
+  decisionValues: AcceptedDecisionValues | null // what accepting without edits writes, prefill of Edit & accept, null for inconclusive
   kevCatalog: KevDetails | null // CISA catalog entry, null for other KEV sources and unlisted CVEs
 }
 

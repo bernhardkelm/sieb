@@ -35,5 +35,8 @@ The working directory holds:
 ${pulledLine(claim, image)}
 There is no source repository and no runtime or cluster access, so name own_source and runtime under Not checked.
 There is no shell. Use Read, Grep and Glob for files, the inspect tools (strings, readelf, objdump, unzip_list, jq) for binaries, archives and JSON, WebFetch for advisories and upstream sources on the allowed hosts (CVE databases, distro trackers, GitHub, Go, package and image registries) and WebSearch to find them. Nothing can be written.
-File the verdict with propose_decision, then reply in the sieb format.`
+Everything in image/ is readable, so check before something becomes an unknown: read the entrypoint and start scripts and the configs (image-config.json names the entrypoint), run readelf on a binary for the libraries it links, grep the configs for the module or feature the advisory names. Unknowns are only what this workspace cannot show, such as the source repository, the Dockerfile or the running workload.
+When a page cannot be fetched, try another allowed source for the same fact (NVD, the distro tracker, the GitHub advisory) before you call the advisory unread. A fact no allowed source gives goes under unknowns, or under missing with the verdict inconclusive when no verdict holds without it.
+For a fix path the Dockerfile is not visible: take the base image from the labels and history in image-config.json, check its registry for a tag or digest that carries the fix, and let fix.change cover both cases, the build already uses that tag (rebuild without cache, redeploy) or pins an older one (bump the pin).
+File the verdict with propose_decision, then reply in the sieb format. Its evidence gets one entry per check you ran here: what you checked, the method (file path, inspect call or URL) and the result, also for checks that found nothing. Its references are the advisory and fix pages you fetched. An empty evidence list after checks is an error.`
 }

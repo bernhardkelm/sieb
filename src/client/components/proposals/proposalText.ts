@@ -1,7 +1,9 @@
 import type { DecisionJustification } from '#core/decision.ts'
-import type { ProposalVerdict } from '#core/proposal.ts'
+import { patchActionOf } from '#core/patchAction.ts'
+import { isDecidableVerdict, type ProposalState, type ProposalVerdict } from '#core/proposal.ts'
 import type { ProposalView } from '#core/proposalView.ts'
 import { JUSTIFICATION_LABELS } from '@/format/labels'
+import { proposalClientLabel } from '@/format/proposalClientLabel'
 import { PROPOSAL_STATE_LABELS, RESOLUTION_LABELS, VERDICT_LABELS } from '@/format/proposalLabels'
 
 const SAFE_PROTOCOLS = ['http:', 'https:']
@@ -35,20 +37,37 @@ export const verdictLabel = (
 
 /**
  * Returns who proposed and through which client.
- * @param {Pick<ProposalView, 'proposedBy' | 'agent' | 'clientLabel'>} proposal - Proposer fields
- * @returns {string} - Such as "Proposed by alice via Claude Code (laptop)"
+ * @param {Pick<ProposalView, 'proposedBy' | 'clientKind' | 'agent' | 'clientLabel'>} proposal - Proposer fields
+ * @returns {string} - Such as "Proposed by alice via Claude Code (CLI)"
  */
 export const proposerLine = (
-  proposal: Pick<ProposalView, 'proposedBy' | 'agent' | 'clientLabel'>,
-): string => {
-  const { agent, clientLabel } = proposal
-  const client =
-    agent !== null && agent !== '' && agent !== clientLabel
-      ? `${agent} (${clientLabel})`
-      : clientLabel
+  proposal: Pick<ProposalView, 'proposedBy' | 'clientKind' | 'agent' | 'clientLabel'>,
+): string => `Proposed by ${proposal.proposedBy} via ${proposalClientLabel(proposal)}`
 
-  return `Proposed by ${proposal.proposedBy} via ${client}`
+/** How an inconclusive proposal closed by the reviewer reads, it was never accepted as proposed */
+const INCONCLUSIVE_CLOSED: Partial<Record<ProposalState, string>> = {
+  accepted: 'Decided',
+  rejected: 'Dismissed',
 }
+
+/**
+ * Returns the label of the state of a proposal, an inconclusive one reads as decided or dismissed.
+ * @param {Pick<ProposalView, 'state' | 'verdict'>} proposal - State and verdict
+ * @returns {string} - Such as "Rejected", or "Dismissed" for inconclusive
+ */
+export const proposalStateLabel = (proposal: Pick<ProposalView, 'state' | 'verdict'>): string =>
+  (isDecidableVerdict(proposal.verdict) ? undefined : INCONCLUSIVE_CLOSED[proposal.state]) ??
+  PROPOSAL_STATE_LABELS[proposal.state]
+
+/**
+ * Returns whether the review panel shows the What to do section: a patch action or fix steps,
+ * never for inconclusive, which lists what is missing in its place.
+ * @param {Pick<ProposalView, 'verdict' | 'fix'>} proposal - Verdict and fix path
+ * @returns {boolean} - True when there is something to do
+ */
+export const hasWhatToDo = (proposal: Pick<ProposalView, 'verdict' | 'fix'>): boolean =>
+  isDecidableVerdict(proposal.verdict) &&
+  (patchActionOf(proposal) !== null || Boolean(proposal.fix?.change))
 
 /**
  * Describes how a closed proposal ended.
@@ -57,8 +76,9 @@ export const proposerLine = (
  */
 export const resolutionLine = (proposal: ProposalView): string => {
   const what =
-    proposal.resolution === null
-      ? PROPOSAL_STATE_LABELS[proposal.state]
+    proposal.resolution === null ||
+    (!isDecidableVerdict(proposal.verdict) && INCONCLUSIVE_CLOSED[proposal.state] !== undefined)
+      ? proposalStateLabel(proposal)
       : RESOLUTION_LABELS[proposal.resolution]
   const by =
     proposal.resolvedBy === null || proposal.resolvedBy === 'sieb'

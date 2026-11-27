@@ -18,8 +18,12 @@ const SEARCH: KeyboardHint = { keys: ['/'], label: 'Search', action: 'search' }
 const SYNC: KeyboardHint = { keys: ['r'], label: 'Sync', action: 'sync' }
 
 const INBOX: KeyboardHint[] = [
+  { keys: ['a'], label: 'Accept', action: 'accept' },
+  { keys: ['d'], label: 'Reject', action: 'reject' },
   { keys: ['s'], label: 'Mark as seen', action: 'markSeen' },
   { keys: ['x', 'Space'], label: 'Select', action: 'toggle' },
+  { keys: ['⇧', '↑', '↓'], label: 'Select range' },
+  { keys: [MODIFIER_KEY, 'A'], label: 'Select all', action: 'selectAll' },
   SYNC,
 ]
 

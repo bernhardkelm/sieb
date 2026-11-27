@@ -71,11 +71,16 @@ const imageReplacements = (images: ProposalImageFacts[], status: DecisionStatus)
 
 /**
  * Lists what accepting a proposal without edits does: muted alerts, findings leaving Triage,
- * replaced decisions, the reach of scope all and the expiry.
+ * replaced decisions, the reach of scope all and the expiry; nothing for an inconclusive one,
+ * which cannot be accepted as proposed.
  * @param {ProposalDetail} detail - Proposal detail
  * @returns {AcceptEffect[]} - Effects in reading order
  */
 export const acceptEffects = (detail: ProposalDetail): AcceptEffect[] => {
+  if (detail.decisionValues === null) {
+    return []
+  }
+
   const { status, expiresAt } = detail.decisionValues
   const all = detail.proposal.scope === 'all'
   const affected = detail.images.filter(

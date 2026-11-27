@@ -5,6 +5,8 @@ import { formatDate } from '@/format/relativeTime'
 
 defineProps<{
   proposal: ProposalView
+  /** What to do shows the steps, effort and review date, this keeps only what it leaves out */
+  planShown: boolean
 }>()
 </script>
 
@@ -17,21 +19,25 @@ defineProps<{
         <span v-else class="missing">Not stated</span>
       </dd>
     </div>
-    <div>
+    <div v-if="!planShown && proposal.fix?.change">
       <dt>Change</dt>
-      <dd>
-        <ClaudeText v-if="proposal.fix?.change" :text="proposal.fix.change" />
-        <span v-else class="missing">Not stated</span>
-      </dd>
+      <dd><ClaudeText :text="proposal.fix.change" /></dd>
     </div>
-    <div>
+    <div v-if="!planShown">
       <dt>Effort</dt>
       <dd>
         <span v-if="proposal.fix?.effort">{{ proposal.fix.effort }}</span>
         <span v-else class="missing">Not stated</span>
       </dd>
     </div>
-    <div>
+    <div v-if="planShown">
+      <dt>Review reason</dt>
+      <dd>
+        <ClaudeText v-if="proposal.review?.why" :text="proposal.review.why" />
+        <span v-else class="missing">Not stated</span>
+      </dd>
+    </div>
+    <div v-else>
       <dt>Review by</dt>
       <dd>
         {{ proposal.review?.date ? formatDate(proposal.review.date) : 'No date proposed' }}

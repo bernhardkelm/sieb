@@ -1,25 +1,22 @@
 <script setup lang="ts">
-import { computed } from 'vue'
-
 import type { ProposalDetail } from '#core/apiTypes.ts'
-import { patchActionOf } from '#core/patchAction.ts'
 import BaseChip from '@/components/chips/BaseChip.vue'
 import KevChip from '@/components/chips/KevChip.vue'
 import SeverityChip from '@/components/chips/SeverityChip.vue'
 import RelativeTime from '@/components/common/RelativeTime.vue'
 import ConfidenceChip from '@/components/proposals/ConfidenceChip.vue'
-import PatchAction from '@/components/proposals/PatchAction.vue'
 import VerdictChip from '@/components/proposals/VerdictChip.vue'
-import { proposerLine, resolutionLine } from '@/components/proposals/proposalText'
+import {
+  proposalStateLabel,
+  proposerLine,
+  resolutionLine,
+} from '@/components/proposals/proposalText'
 import { countOf } from '@/format/count'
-import { PROPOSAL_STATE_LABELS } from '@/format/proposalLabels'
 import { SCOPE_LABELS } from '@/format/labels'
 
-const props = defineProps<{
+defineProps<{
   detail: ProposalDetail
 }>()
-
-const patchAction = computed(() => patchActionOf(props.detail.proposal))
 </script>
 
 <template>
@@ -42,12 +39,6 @@ const patchAction = computed(() => patchActionOf(props.detail.proposal))
         />
         <ConfidenceChip :confidence="detail.proposal.confidence" />
       </div>
-      <PatchAction
-        v-if="patchAction"
-        :action="patchAction"
-        :layer="detail.proposal.fix?.layer ?? null"
-        :fixed-version="detail.proposal.fix?.fixedVersion ?? null"
-      />
     </div>
     <p class="proposer">
       {{ proposerLine(detail.proposal) }} ·
@@ -55,7 +46,7 @@ const patchAction = computed(() => patchActionOf(props.detail.proposal))
     </p>
     <p v-if="detail.proposal.state !== 'open'" class="state" role="status">
       <BaseChip :tone="detail.proposal.state === 'accepted' ? 'success' : 'neutral'" outline>
-        {{ PROPOSAL_STATE_LABELS[detail.proposal.state] }}
+        {{ proposalStateLabel(detail.proposal) }}
       </BaseChip>
       <span>
         {{ resolutionLine(detail.proposal) }}

@@ -7,6 +7,7 @@ import type { CheckContext } from '#server/checks/checkContext.ts'
 import type { RouteDeps } from '#server/http/RouteDeps.ts'
 import { createCheckRoutes, createChecksDisabledRoutes } from '#server/http/routes/checkRoutes.ts'
 import { createBulkDecisionRoutes } from '#server/http/routes/bulkDecisionRoutes.ts'
+import { createBulkProposalRoutes } from '#server/http/routes/bulkProposalRoutes.ts'
 import { createCveRoutes } from '#server/http/routes/cveRoutes.ts'
 import { createDecisionRoutes } from '#server/http/routes/decisionRoutes.ts'
 import { createFindingRoutes } from '#server/http/routes/findingRoutes.ts'
@@ -71,6 +72,7 @@ export const useApiRoutes = (
   app.route('/api/cves', createCveRoutes(deps))
   app.route('/api/decisions/bulk', createBulkDecisionRoutes(deps))
   app.route('/api/decisions', createDecisionRoutes(deps))
+  app.route('/api/proposals', createBulkProposalRoutes({ ...deps, log }))
   app.route('/api/proposals', createProposalRoutes({ ...deps, publicRegistries, log }))
   app.route('/api/sync', createSyncRoutes({ ...deps, sync }))
   app.route('/api/stats', createStatsRoutes(deps))

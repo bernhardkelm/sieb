@@ -116,6 +116,8 @@ describe('claimForWorker', () => {
     expect(claim?.prompt).toContain(`Triage sieb finding #${findings.nginx}`)
     expect(claim?.prompt).toContain('propose_decision')
     expect(claim?.prompt).toContain('unattended')
+    expect(claim?.prompt).toContain('6. Evidence: for every check record what you checked')
+    expect(claim?.prompt).toContain('references (http(s) links)')
     expect(getCheck(db, claim?.checkId ?? 0)).toMatchObject({
       state: 'running',
       phase: 'preparing',

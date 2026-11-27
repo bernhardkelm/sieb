@@ -5,7 +5,7 @@ import { isHandoffPreference, type HandoffPreference } from '@/format/handoffTar
 
 export const HANDOFF_TARGET_STORAGE_KEY = 'sieb-handoff-target'
 
-/** Touch devices without a precise pointer rarely run the desktop clients the links open */
+/** Touch devices without a precise pointer, phones and tablets, rarely run Claude Code */
 export const TOUCH_QUERY = '(hover: none) and (pointer: coarse)'
 
 /**
@@ -23,19 +23,19 @@ const readStored = (): HandoffPreference | null => {
 }
 
 /**
- * Returns whether the device is touch only, where copying beats a deep link.
+ * Returns whether the device is touch only, where the chat of the Claude app is the likely client.
  * @returns {boolean} - True for a coarse pointer without hover
  */
 const isTouchDevice = (): boolean =>
   typeof window.matchMedia === 'function' && window.matchMedia(TOUCH_QUERY).matches
 
 /**
- * Holds the default hand-off action: the remembered choice, otherwise Claude Code desktop, or
- * copying the prompt on touch devices.
+ * Holds the default hand-off action: the remembered choice, otherwise Claude Code in the Claude
+ * app, or the Claude chat of the Claude app on touch devices.
  */
 export const useHandoffTargetStore = defineStore('handoffTarget', () => {
   const stored = ref<HandoffPreference | null>(readStored())
-  const fallback: HandoffPreference = isTouchDevice() ? 'copy' : 'desktop-code'
+  const fallback: HandoffPreference = isTouchDevice() ? 'desktop-chat' : 'desktop-code'
 
   const preferred = computed<HandoffPreference>(() => stored.value ?? fallback)
 

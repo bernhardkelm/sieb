@@ -82,7 +82,11 @@ describe('proposal routes', () => {
         severity: finding.severity,
       },
     ])
-    expect(open.body[0]?.proposal).toMatchObject({ proposedVia: 'token', clientLabel: 'laptop' })
+    expect(open.body[0]?.proposal).toMatchObject({
+      proposedVia: 'token',
+      clientLabel: 'laptop',
+      clientKind: 'claude_code_cli',
+    })
     expect(open.body[0]?.proposal).not.toHaveProperty('tokenId')
     expect(other.body).toEqual([])
     expect(rejected.body).toEqual([])
@@ -103,7 +107,11 @@ describe('proposal routes', () => {
         justification: 'vulnerable_code_not_in_execute_path',
       },
     })
-    expect(body.proposal).toMatchObject({ proposedBy: 'dev', clientLabel: 'laptop' })
+    expect(body.proposal).toMatchObject({
+      proposedBy: 'dev',
+      clientLabel: 'laptop',
+      clientKind: 'claude_code_cli',
+    })
     expect(body.proposal).not.toHaveProperty('tokenId')
     expect((await requestJson(app, '/api/proposals/999')).status).toBe(404)
   })

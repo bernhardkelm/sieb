@@ -19,6 +19,7 @@ const emit = defineEmits<{ submit: [value: DecisionFormValue]; cancel: []; dirty
 
 const form = ref<InstanceType<typeof DecisionForm> | null>(null)
 const initial = computed(() => editInitial(props.detail.decisionValues))
+const ownDecision = computed(() => props.detail.decisionValues === null)
 const target = computed(() => {
   const refs = props.detail.proposal.imageRefs
 
@@ -38,8 +39,8 @@ onMounted(async () => {
 <template>
   <div class="proposal-edit-form">
     <p class="scope">
-      Applies to {{ target }}. Scope and images stay as proposed, reject the proposal to change
-      them.
+      Applies to {{ target }}. Scope and images stay as proposed,
+      {{ ownDecision ? 'dismiss' : 'reject' }} the proposal to change them.
     </p>
     <DecisionForm
       ref="form"
@@ -47,7 +48,7 @@ onMounted(async () => {
       :scope-choice="false"
       :error="error"
       :submitting="submitting"
-      submit-label="Accept with edits"
+      :submit-label="ownDecision ? 'Save decision' : 'Accept with edits'"
       sticky-actions
       @submit="emit('submit', $event)"
       @cancel="emit('cancel')"

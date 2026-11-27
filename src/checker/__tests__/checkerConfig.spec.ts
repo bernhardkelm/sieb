@@ -84,6 +84,7 @@ describe('readCheckerConfig', () => {
         'ubuntu.com',
         'security.alpinelinux.org',
         'access.redhat.com',
+        'www.suse.com',
         'registry.npmjs.org',
         'pypi.org',
         'crates.io',

@@ -13,6 +13,7 @@ export const VERDICT_LABELS: Record<ProposalVerdict, string> = {
   accepted: 'Accepted',
   fix_planned: 'Fix planned',
   needs_patch: 'Needs patch',
+  inconclusive: 'Could not determine',
 }
 
 export const PATCH_LAYER_LABELS: Record<PatchLayer, string> = {

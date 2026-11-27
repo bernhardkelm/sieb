@@ -19,6 +19,16 @@ export const isSeeable = (item: InboxItem): item is InboxItem & { kind: SeeableI
   SEEABLE.includes(item.kind)
 
 /**
+ * Returns whether the user can check an item for a bulk action: proposals to accept or reject,
+ * expiring decisions and KEV listings to mark as seen. Re-opened decisions are decided one by
+ * one.
+ * @param {InboxItem} item - Item
+ * @returns {boolean} - True for every kind but reopened
+ */
+export const isSelectable = (item: InboxItem): boolean =>
+  item.kind === 'proposal' || isSeeable(item)
+
+/**
  * Returns the finding an item opens in the side panel.
  * @param {InboxItem} item - Item
  * @returns {number | null} - Finding id, null for proposals and decisions without open findings

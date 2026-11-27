@@ -34,8 +34,8 @@ export const notFound = (c: Context): Response => c.json<ErrorBody>({ error: 'no
 /**
  * Answers a refused decision or proposal command: 404 for an unknown decision or proposal, 409
  * for a revoked or conflicting decision with its id, for a proposal that is no longer open with
- * its state, for an accept whose expected decisions changed with the current ids and for a
- * proposer at the open cap, 400 for a vuln_id or image without a finding and for a justification
+ * its state, for an accept whose expected decisions changed with the current ids, for an accept
+ * of an inconclusive proposal without a status and for a proposer at the open cap, 400 for a vuln_id or image without a finding and for a justification
  * on a decision whose status is not not_affected.
  * @param {Context} c - Request context
  * @param {CommandRefusal} result - Refusal
@@ -70,6 +70,7 @@ export const commandRefused = (
         409,
       )
     }
+    case 'not_acceptable':
     case 'too_many_proposals': {
       return c.json<ErrorBody>({ error: result.error }, 409)
     }

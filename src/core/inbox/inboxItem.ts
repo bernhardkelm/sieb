@@ -2,6 +2,8 @@ import type { DecisionStatus } from '#core/decision.ts'
 import type { ReopenReason } from '#core/effectiveDecision.ts'
 import type { Finding } from '#core/finding.ts'
 import type { ProposalConfidence, ProposalVerdict } from '#core/proposal.ts'
+import type { ExpectedDecisionId } from '#core/proposalFreshness.ts'
+import type { ProposalClientKind } from '#core/proposalClient.ts'
 import type { Severity } from '#core/severity.ts'
 
 export const INBOX_KINDS = ['proposal', 'reopened', 'expiring', 'kev'] as const
@@ -25,6 +27,11 @@ export interface InboxProposal {
   verdict: ProposalVerdict
   confidence: ProposalConfidence
   patchAction: string | null // only for needs_patch and fix_planned
+  clientKind: ProposalClientKind | null
+  clientLabel: string
+  agent: string | null
+  currentDecisionIds: ExpectedDecisionId[] // governing decision per target now
+  outdated: boolean // a governing decision changed since the proposal was filed
 }
 
 /** Open finding as the Inbox needs it */
@@ -52,7 +59,12 @@ export interface ProposalInboxItem extends InboxItemBase {
   verdict: ProposalVerdict
   confidence: ProposalConfidence
   patchAction: string | null // only for needs_patch and fix_planned
+  clientKind: ProposalClientKind | null // null when unknown, then clientLabel and agent describe it
+  clientLabel: string // token name, OAuth client label or Auto-check #<id>
+  agent: string | null // free label the client gave itself, untrusted
   imageCount: number // open findings the proposal covers
+  currentDecisionIds: ExpectedDecisionId[] // governing decision per target, the expectedDecisionIds of an accept
+  outdated: boolean // a governing decision changed since the proposal was filed
 }
 
 export interface ReopenedInboxItem extends InboxItemBase {

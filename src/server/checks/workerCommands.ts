@@ -6,12 +6,14 @@ import { expireAndLog } from '#server/checks/readChecks.ts'
 import { getCheck, touchRunningCheck } from '#server/db/checkRepository.ts'
 import { claimCheck } from '#server/db/claimCheck.ts'
 import { endCheck } from '#server/db/endCheck.ts'
+import { triageWorkflow } from '#server/mcp/triagePromptText.ts'
 import { tokenLogLine } from '#server/tokenLogLine.ts'
 
 export type WorkerUpdate = 'ok' | 'not_found' | 'not_running'
 
 /**
- * Starts the next queued check for the worker after failing timed out ones. The answer is the
+ * Starts the next queued check for the worker after failing timed out ones. The prompt carries the
+ * full triage workflow, a headless run cannot load the triage_finding prompt. The answer is the
  * only place the token secret appears.
  * @param {CheckContext} context - Check context
  * @returns {WorkerClaim | null} - Assignment, null while a check runs or the queue is empty
@@ -44,7 +46,7 @@ export const claimForWorker = (context: CheckContext): WorkerClaim | null => {
     vulnId: finding.vulnId,
     imageRef: pull.imageRef,
     imageDigest: pull.imageDigest,
-    prompt: buildCheckPrompt({ finding: { ...finding, packages: [] }, instances }, pull),
+    prompt: `${buildCheckPrompt({ finding: { ...finding, packages: [] }, instances }, pull)}\n\n${triageWorkflow(true)}`,
     mcpUrl: context.mcpUrl,
     token: secret,
     timeoutSeconds: context.timeoutSeconds,

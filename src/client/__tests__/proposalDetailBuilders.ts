@@ -3,6 +3,7 @@ import { buildDecision } from '#core/__tests__/coreBuilders.ts'
 import { buildProposalInput, PROPOSER } from '#core/__tests__/proposalBuilders.ts'
 import type { DecisionStatus } from '#core/decision.ts'
 import type { DecisionView } from '#core/findingView.ts'
+import type { AcceptedDecisionValues } from '#core/proposalAccept.ts'
 import { toProposalView, type ProposalView } from '#core/proposalView.ts'
 
 export const IMAGE = 'index.docker.io/library/nginx'
@@ -84,6 +85,14 @@ export const buildProposalItem = (overrides: Partial<ProposalView> = {}): Propos
   imageCount: 1,
 })
 
+/** What accepting the default proposal without edits writes */
+export const PROPOSED_VALUES: AcceptedDecisionValues = {
+  status: 'not_affected',
+  justification: 'vulnerable_code_not_in_execute_path',
+  reason: 'Not affected (high confidence): The vulnerable parser is never called.',
+  expiresAt: '2027-05-26T10:00:00.000Z',
+}
+
 /**
  * Builds the review detail of an open, undecided single-image proposal.
  * @param {Partial<ProposalDetail>} overrides - Fields to set
@@ -98,12 +107,29 @@ export const buildProposalDetail = (overrides: Partial<ProposalDetail> = {}): Pr
   images: [buildImageFacts()],
   allScopeDecision: null,
   currentDecisionIds: [{ imageRef: IMAGE, decisionId: null, updatedAt: null }],
-  decisionValues: {
-    status: 'not_affected',
-    justification: 'vulnerable_code_not_in_execute_path',
-    reason: 'Not affected (high confidence): The vulnerable parser is never called.',
-    expiresAt: '2027-05-26T10:00:00.000Z',
-  },
+  decisionValues: PROPOSED_VALUES,
   kevCatalog: null,
   ...overrides,
 })
+
+/**
+ * Builds the review detail of an open inconclusive proposal: what is missing, no decision values.
+ * @param {Partial<ProposalView>} overrides - Proposal fields to set
+ * @param {ProposalImageFacts[]} images - sieb's facts per target image
+ * @returns {ProposalDetail} - Detail
+ */
+export const buildInconclusiveDetail = (
+  overrides: Partial<ProposalView> = {},
+  images: ProposalImageFacts[] = [buildImageFacts()],
+): ProposalDetail =>
+  buildProposalDetail({
+    images,
+    proposal: buildProposal({
+      verdict: 'inconclusive',
+      justification: null,
+      confidence: 'low',
+      missing: ['pull access to registry.example.com/app', 'advisory text not reachable'],
+      ...overrides,
+    }),
+    decisionValues: null,
+  })

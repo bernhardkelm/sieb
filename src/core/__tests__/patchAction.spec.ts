@@ -1,6 +1,11 @@
 import { describe, expect, it } from 'vitest'
 
-import { isPatchVerdict, patchActionOf, patchTargetOf } from '#core/patchAction.ts'
+import {
+  isPatchVerdict,
+  PATCH_ACTION_HINT,
+  patchActionOf,
+  patchTargetOf,
+} from '#core/patchAction.ts'
 
 const FIX = {
   action: 'upgrade libxslt to 1.1.43-r4',
@@ -16,11 +21,13 @@ describe('patch action', () => {
     expect(isPatchVerdict('fix_planned')).toBe(true)
     expect(isPatchVerdict('accepted')).toBe(false)
     expect(isPatchVerdict('not_affected')).toBe(false)
+    expect(isPatchVerdict('inconclusive')).toBe(false)
   })
 
   it('returns the action only for a patch verdict', () => {
     expect(patchActionOf({ verdict: 'needs_patch', fix: FIX })).toBe(FIX.action)
     expect(patchActionOf({ verdict: 'accepted', fix: FIX })).toBeNull()
+    expect(patchActionOf({ verdict: 'inconclusive', fix: FIX })).toBeNull()
     expect(patchActionOf({ verdict: 'fix_planned', fix: null })).toBeNull()
     expect(patchActionOf({ verdict: 'fix_planned', fix: { ...FIX, action: null } })).toBeNull()
   })
@@ -81,5 +88,17 @@ describe('patch action', () => {
     expect(
       patchTargetOf('base image: apk upgrade libxslt to 1.1.43-r4', '1.1.43-r4', 'base_image'),
     ).toBe('1.1.43-r4')
+  })
+
+  it('falls back to the fixed version for a rebuild of the republished tag', () => {
+    const action =
+      'base image: rebuild without cache and redeploy, alpine:3.24 now ships libxslt 1.1.43-r4'
+
+    expect(PATCH_ACTION_HINT).toContain(
+      '"base image: rebuild without cache and redeploy, <tag> now ships',
+    )
+    expect(patchTargetOf(action, '1.1.43-r4', 'base_image')).toBe('1.1.43-r4')
+    expect(patchTargetOf(action, '1.1.43-r4', null)).toBe('1.1.43-r4')
+    expect(patchTargetOf(action, null, 'base_image')).toBeNull()
   })
 })

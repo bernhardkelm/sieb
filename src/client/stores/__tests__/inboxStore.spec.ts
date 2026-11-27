@@ -115,7 +115,7 @@ describe('inboxStore', () => {
 
     resolve!()
     await expect(marking).resolves.toBe(true)
-    expect(notifySuccess).toHaveBeenCalledExactlyOnceWith('Marked 2 items as seen', undefined)
+    expect(notifySuccess).toHaveBeenCalledExactlyOnceWith('Marked 2 as seen', undefined)
   })
 
   it('names the CVE of a single seen item', async () => {

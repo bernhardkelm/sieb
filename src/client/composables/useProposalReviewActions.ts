@@ -1,5 +1,7 @@
 import { ref, type Ref } from 'vue'
 
+import { isDecidableVerdict } from '#core/proposal.ts'
+
 import type { DecisionFormValue } from '@/components/decision/decisionFormModel'
 import { acceptEdits, formErrorOfAccept } from '@/components/proposals/acceptEdits'
 import { useProposalCommands, type ProposalOutcome } from '@/composables/useProposalCommands'
@@ -21,7 +23,7 @@ export interface ProposalReviewActions {
 
 /**
  * Runs the actions of the review panel on the proposal in the review store: Accept,
- * Edit & accept and Reject, one at a time and never again on a proposal one of them finished.
+ * Edit & accept and Reject, for an inconclusive one Decide myself and Dismiss, one at a time and never again on a proposal one of them finished.
  * Both accepts wait while the decisions changed since the reviewer saw them, until Review again.
  * A finished command reports resolved, a proposal that closed in the meantime reports closed, a
  * conflict leaves the panel open on the reloaded detail, and validation errors stay with the
@@ -85,10 +87,14 @@ export const useProposalReviewActions = (
   }
 
   /**
-   * Accepts the proposal as proposed.
+   * Accepts the proposal as proposed, never an inconclusive one, which only Decide myself settles.
    * @returns {Promise<void>} - Resolves when the command ended
    */
   const accept = async (): Promise<void> => {
+    if (review.detail !== null && !isDecidableVerdict(review.detail.proposal.verdict)) {
+      return
+    }
+
     await run((detail) => commands.accept(detail), true)
   }
 

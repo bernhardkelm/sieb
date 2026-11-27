@@ -2,7 +2,7 @@ import type { DatabaseSync } from 'node:sqlite'
 
 import type { Decision, DecisionScope } from '#core/decision.ts'
 import type { AcceptPlan } from '#core/proposalAccept.ts'
-import type { Proposal, ProposalProvenance } from '#core/proposal.ts'
+import { isDecidableVerdict, type Proposal, type ProposalProvenance } from '#core/proposal.ts'
 import {
   currentDecisionRefs,
   matchesExpectedDecisions,
@@ -62,7 +62,9 @@ const writeDecision = (
 }
 
 /**
- * Accepts an open proposal in one transaction. The decisions governing its targets must still be
+ * Accepts an open proposal in one transaction. An inconclusive one is not_acceptable unless the
+ * reviewer set the status, its verdict never becomes a decision. The decisions governing its
+ * targets must still be
  * the ones the reviewer saw, else proposal_conflict with the current ids. Per target image the
  * image-scoped decision is created, or updated and re-confirmed when one exists; scope all does
  * the same with the all-scope decision. The decision events carry the provenance, other open
@@ -86,6 +88,10 @@ export const acceptProposal = (
 
     if (proposal.state !== 'open') {
       return { ok: false, error: 'proposal_closed', state: proposal.state }
+    }
+
+    if (!isDecidableVerdict(proposal.verdict) && !request.plan.editedFields.includes('status')) {
+      return { ok: false, error: 'not_acceptable' }
     }
 
     const current = currentDecisionRefs(proposal, listDecisionsByVuln(db, proposal.vulnId))

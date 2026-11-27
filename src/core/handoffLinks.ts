@@ -35,7 +35,7 @@ const promptLink = (base: string, prompt: string): string | null => {
 }
 
 /**
- * Builds the link that opens a new session in the Code tab of the Claude desktop app.
+ * Builds the link that opens a new session in the Code tab of the Claude app.
  * @param {string} prompt - Prompt to prefill
  * @returns {string | null} - Link, null when the prompt is too long
  */
@@ -43,7 +43,7 @@ export const claudeDesktopCodeLink = (prompt: string): string | null =>
   promptLink('claude://code/new?q=', prompt)
 
 /**
- * Builds the link that opens a new chat in the Claude desktop app.
+ * Builds the link that opens a new chat in the Claude app, on the desktop or a phone.
  * @param {string} prompt - Prompt to prefill
  * @returns {string | null} - Link, null when the prompt is too long
  */

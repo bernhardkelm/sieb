@@ -110,11 +110,9 @@
   }
 }
 
-/* two lines: kind, severity, CVE and age above, scope, detail and the button below */
-/* the Seen button and s replace the checkbox on narrow lists */
+/* two lines: checkbox, kind, severity and CVE above, scope, detail, age and the button below */
 @container (max-width: 640px) {
   .no-check,
-  .row-checkbox,
   .kev:empty {
     display: none;
   }
@@ -126,6 +124,7 @@
 
   .scope,
   .detail,
+  .at,
   .action {
     order: 2;
   }
@@ -138,6 +137,10 @@
 
   .detail {
     flex: 1 1 0;
+  }
+
+  .selectable .scope {
+    margin-left: calc(var(--checkbox-size) + var(--space-2));
   }
 
   .seen-button {

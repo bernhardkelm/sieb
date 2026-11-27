@@ -13,41 +13,45 @@ const EDITS_PREFIX = 'edits.'
 
 /**
  * Returns the starting values of the decision form for Edit & accept, the values accepting
- * without edits writes.
- * @param {AcceptedDecisionValues} values - Decision values of the proposal detail
+ * without edits writes; Decide myself on an inconclusive proposal starts without a status.
+ * @param {AcceptedDecisionValues | null} values - Decision values of the proposal detail
  * @returns {DecisionFormInitial} - Form values, scope image since the form offers no scope
  */
-export const editInitial = (values: AcceptedDecisionValues): DecisionFormInitial => ({
-  status: values.status,
-  justification: values.justification,
-  reason: values.reason,
-  scope: 'image',
-  expiresAt: values.expiresAt,
-})
+export const editInitial = (values: AcceptedDecisionValues | null): DecisionFormInitial =>
+  values === null
+    ? { scope: 'image' }
+    : {
+        status: values.status,
+        justification: values.justification,
+        reason: values.reason,
+        scope: 'image',
+        expiresAt: values.expiresAt,
+      }
 
 /**
- * Returns the edits of an accept: the fields the reviewer changed against the proposed values.
- * An untouched expiry is left out, so the server applies the expiry the proposal gives the
- * chosen status; the justification goes along only with not_affected.
- * @param {AcceptedDecisionValues} proposed - Values accepting without edits writes
+ * Returns the edits of an accept: the fields the reviewer changed against the proposed values,
+ * status and reason always for an inconclusive proposal, which proposes none. An untouched
+ * expiry is left out, so the server applies the expiry the proposal gives the chosen status;
+ * the justification goes along only with not_affected.
+ * @param {AcceptedDecisionValues | null} proposed - Values accepting without edits writes
  * @param {DecisionFormValue} value - Submitted form values
  * @returns {AcceptEdits} - Changed fields, empty when nothing changed
  */
 export const acceptEdits = (
-  proposed: AcceptedDecisionValues,
+  proposed: AcceptedDecisionValues | null,
   value: DecisionFormValue,
 ): AcceptEdits => {
   const edits: AcceptEdits = {}
 
-  if (value.status !== proposed.status) {
+  if (value.status !== proposed?.status) {
     edits.status = value.status
   }
 
-  if (value.status === JUSTIFIABLE_STATUS && value.justification !== proposed.justification) {
+  if (value.status === JUSTIFIABLE_STATUS && value.justification !== proposed?.justification) {
     edits.justification = value.justification
   }
 
-  if (value.reason !== proposed.reason.trim()) {
+  if (value.reason !== proposed?.reason.trim()) {
     edits.reason = value.reason
   }
 

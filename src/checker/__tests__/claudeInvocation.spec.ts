@@ -146,5 +146,13 @@ describe('claude invocation', () => {
     expect(prompt).toContain(
       'File the verdict with propose_decision, then reply in the sieb format.',
     )
+    expect(prompt).toContain('Its evidence gets one entry per check you ran here')
+    expect(prompt).toContain('also for checks that found nothing')
+    expect(prompt).toContain('Its references are the advisory and fix pages you fetched.')
+    expect(prompt).toContain('check before something becomes an unknown')
+    expect(prompt).toContain('Unknowns are only what this workspace cannot show')
+    expect(prompt).toContain('try another allowed source for the same fact')
+    expect(prompt).toContain('under missing with the verdict inconclusive')
+    expect(prompt).toContain('let fix.change cover both cases')
   })
 })

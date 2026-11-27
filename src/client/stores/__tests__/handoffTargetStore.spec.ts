@@ -31,14 +31,14 @@ afterEach(() => {
 })
 
 describe('handoffTargetStore', () => {
-  it('defaults to Claude Code desktop', () => {
+  it('defaults to Claude Code in the Claude app', () => {
     expect(useHandoffTargetStore().preferred).toBe('desktop-code')
   })
 
-  it('defaults to copying on touch devices', () => {
+  it('defaults to the Claude chat of the app on touch devices', () => {
     stubMedia(TOUCH_QUERY)
 
-    expect(useHandoffTargetStore().preferred).toBe('copy')
+    expect(useHandoffTargetStore().preferred).toBe('desktop-chat')
   })
 
   it('remembers the picked default across page views', () => {

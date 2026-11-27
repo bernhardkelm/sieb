@@ -234,7 +234,15 @@ describe('AppSidebar navigation', () => {
     const labels = (): string[] =>
       sidebar.findAll('.hints li > *').map((item) => item.findAll('span').at(-1)?.text() ?? '')
 
-    expect(labels()).toEqual(['Mark as seen', 'Select', 'Sync'])
+    expect(labels()).toEqual([
+      'Accept',
+      'Reject',
+      'Mark as seen',
+      'Select',
+      'Select range',
+      'Select all',
+      'Sync',
+    ])
 
     await sidebar.vm.$router.push('/inboxProposal')
 

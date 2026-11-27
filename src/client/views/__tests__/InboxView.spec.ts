@@ -245,23 +245,26 @@ describe('InboxView', () => {
     expect(rowKeys()).toEqual(['proposal:1', 'reopened:2:pending', 'proposal:5'])
   })
 
-  it('checks only seeable items and marks the checked ones together', async () => {
+  it('checks every kind but re-opened decisions and marks only the seeable checked ones', async () => {
     await mountInbox('/inbox')
 
     await press('x')
-    expect(document.querySelectorAll('.checked')).toHaveLength(0)
-
     await press('j')
+    await press('x')
     await press('j')
     await press('x')
     await press('End')
     await press('x')
-    expect(document.querySelector('.list-summary')?.textContent).toContain('2 selected')
+    expect(document.querySelector('.list-summary')?.textContent).toContain('3 selected')
+    expect(
+      document.querySelector('[data-inbox-key="reopened:2:pending"]')?.classList,
+    ).not.toContain('checked')
 
     await press('s')
 
     expect(markInboxSeen).toHaveBeenCalledExactlyOnceWith([KEV.key, EXPIRING.key])
     expect(rowKeys()).toEqual(['proposal:1', 'reopened:2:pending', 'proposal:5'])
+    expect(document.querySelector('[data-inbox-key="proposal:1"]')?.classList).toContain('checked')
   })
 
   it('starts the cursor on the item of an ?item= link and drops the param once applied', async () => {

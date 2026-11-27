@@ -12,6 +12,8 @@ import { MODIFIER_KEY, MODIFIER_SHORTCUT } from '@/keyboard/modifierKey'
 
 const props = defineProps<{
   vulnId: string
+  /** Dismisses an inconclusive proposal, same command and reason rule as a reject */
+  dismiss?: boolean
   busy: boolean
   /** Failure of the last reject, validation errors of the reason are shown */
   error: unknown
@@ -73,8 +75,12 @@ const onKeydown = (event: KeyboardEvent): void => {
 <template>
   <BaseDialog
     v-model:open="open"
-    :title="`Reject the proposal for ${vulnId}?`"
-    description="Claude reads your reason back when it lists its proposals, so say what is wrong or missing."
+    :title="`${dismiss ? 'Dismiss' : 'Reject'} the proposal for ${vulnId}?`"
+    :description="
+      dismiss
+        ? 'Nothing is decided. Claude reads your reason back when it lists its proposals.'
+        : 'Claude reads your reason back when it lists its proposals, so say what is wrong or missing.'
+    "
   >
     <form class="reject-form" novalidate @submit.prevent="submit" @keydown="onKeydown">
       <label :for="id" class="label">Reason</label>
@@ -94,11 +100,11 @@ const onKeydown = (event: KeyboardEvent): void => {
         <BaseButton :disabled="busy" @click="open = false">Cancel</BaseButton>
         <BaseButton
           type="submit"
-          variant="danger"
+          :variant="dismiss ? 'primary' : 'danger'"
           :disabled="busy"
           :aria-keyshortcuts="`${MODIFIER_SHORTCUT}+Enter`"
         >
-          Reject
+          {{ dismiss ? 'Dismiss' : 'Reject' }}
         </BaseButton>
       </div>
     </form>

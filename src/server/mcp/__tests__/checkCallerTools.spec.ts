@@ -212,7 +212,12 @@ describe('propose_decision with a check token', () => {
 
     expect(checks.replacedProposalId).toBeUndefined()
     expect(mineAgain.replacedProposalId).toBe(mine.proposalId)
-    expect(getProposal(deps.db, Number(checks.proposalId))?.state).toBe('open')
+    expect(getProposal(deps.db, Number(checks.proposalId))).toMatchObject({
+      state: 'open',
+      clientLabel: `Auto-check #${scope.checkId}`,
+      clientKind: 'auto_check',
+    })
+    expect(getProposal(deps.db, Number(mineAgain.proposalId))?.clientKind).toBeNull()
     expect(countOpenProposals(deps.db, 'dev')).toBe(1)
   })
 

@@ -8,6 +8,7 @@ import {
   buildProposal,
   buildProposalDetail,
   IMAGE,
+  PROPOSED_VALUES,
 } from '@/__tests__/proposalDetailBuilders'
 import { ApiError } from '@/api/ApiError'
 import { acceptProposal, fetchProposalDetail, rejectProposal } from '@/api/proposalsApi'
@@ -222,7 +223,7 @@ describe('ProposalReview actions', () => {
 
     const reason = panel.querySelector<HTMLTextAreaElement>('.decision-form textarea')!
 
-    expect(reason.value).toBe(detail.decisionValues.reason)
+    expect(reason.value).toBe(PROPOSED_VALUES.reason)
     expect(panel.querySelector('.proposal-edit-form')!.textContent).toContain(
       'Scope and images stay as proposed',
     )

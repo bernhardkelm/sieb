@@ -145,6 +145,7 @@ describe('propose_decision', () => {
       proposedVia: 'token',
       tokenId: 1,
       clientLabel: 'laptop',
+      clientKind: null,
       imageRefs: [REDIS],
       sourceAccess: [{ imageRef: REDIS, access: 'public' }],
     })

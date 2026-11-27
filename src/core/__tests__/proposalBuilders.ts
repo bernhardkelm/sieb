@@ -5,6 +5,7 @@ export const PROPOSER: ProposalProposer = {
   proposedVia: 'token',
   tokenId: 1,
   clientLabel: 'laptop',
+  clientKind: 'claude_code_cli',
 }
 
 /**
@@ -60,6 +61,7 @@ export const buildProposalInput = (overrides: Partial<ProposalInput> = {}): Prop
   fix: null,
   review: null,
   unknowns: [],
+  missing: [],
   references: [],
   evidenceBasis: ['image'],
   agent: null,

@@ -1,4 +1,4 @@
-import { flushPromises, type VueWrapper } from '@vue/test-utils'
+import type { VueWrapper } from '@vue/test-utils'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import type { ProposalFix } from '#core/proposal.ts'
@@ -36,45 +36,55 @@ afterEach(() => {
 })
 
 describe('ProposalHeader', () => {
-  it('shows the patch action under the verdict and copies its version', async () => {
-    const writeText = vi.fn<(text: string) => Promise<void>>().mockResolvedValue()
-
-    vi.stubGlobal('navigator', { clipboard: { writeText } })
-
+  it('shows the verdict and confidence without the patch action, What to do holds it', () => {
     const claim = header({
       verdict: 'needs_patch',
       justification: null,
       fix: { ...FIX, layer: 'base_image' },
     }).get('.claim')
-    const copy = claim.get('.patch-action button')
 
     expect(claim.get('.verdict-chip').text()).toBe('Needs patch')
-    expect(claim.get('.patch-action .layer').text()).toBe('Base image')
-    expect(claim.get('.patch-action .text').text()).toBe(FIX.action)
-    expect(copy.attributes('aria-label')).toBe('Copy 1.1.43-r4')
-
-    await copy.trigger('click')
-    await flushPromises()
-
-    expect(writeText).toHaveBeenCalledWith('1.1.43-r4')
+    expect(claim.text()).toContain('Medium confidence')
+    expect(claim.find('.patch-action').exists()).toBe(false)
   })
 
-  it('shows an action without a version or digest without a copy button', () => {
-    const fix = { ...FIX, action: 'no fixed version yet, watch the advisory', fixedVersion: null }
-    const row = header({ verdict: 'fix_planned', justification: null, fix })
-
-    expect(row.get('.patch-action').text()).toBe('no fixed version yet, watch the advisory')
-    expect(row.find('.patch-action button').exists()).toBe(false)
-    expect(row.find('.patch-action .layer').exists()).toBe(false)
-  })
-
-  it('shows no patch action for other verdicts or proposals stored without one', () => {
-    expect(header({ fix: FIX }).find('.patch-action').exists()).toBe(false)
-    wrapper?.unmount()
+  it('labels an inconclusive proposal and its dismissal', () => {
     expect(
-      header({ verdict: 'needs_patch', justification: null, fix: { ...FIX, action: null } })
-        .find('.patch-action')
-        .exists(),
-    ).toBe(false)
+      header({ verdict: 'inconclusive', justification: null, missing: ['registry access'] })
+        .get('.verdict-chip')
+        .text(),
+    ).toBe('Could not determine')
+    wrapper?.unmount()
+
+    const dismissed = header({
+      verdict: 'inconclusive',
+      justification: null,
+      missing: ['registry access'],
+      state: 'rejected',
+      resolution: 'rejected',
+      resolutionNote: 'Checked by hand',
+      resolvedAt: '2026-11-26T12:00:00.000Z',
+      resolvedBy: 'alice',
+    })
+
+    expect(dismissed.get('.state .chip').text()).toBe('Dismissed')
+    expect(dismissed.get('.state').text()).toContain('Dismissed by alice')
+  })
+
+  it('names the client kind in the proposer line, an Auto-check and older proposals by label', () => {
+    const proposerOf = (overrides: Partial<ProposalView>): string => {
+      const text = header(overrides).get('.proposer').text()
+
+      wrapper?.unmount()
+      return text
+    }
+
+    expect(proposerOf({ clientKind: 'claude_app' })).toMatch(/^Proposed by dev via Claude app ·/)
+    expect(proposerOf({ clientKind: 'auto_check', clientLabel: 'Auto-check #2' })).toMatch(
+      /^Proposed by dev via Auto-check #2 ·/,
+    )
+    expect(proposerOf({ clientKind: null })).toMatch(
+      /^Proposed by dev via Claude Code \(laptop\) ·/,
+    )
   })
 })

@@ -14,12 +14,12 @@ export interface HandoffOption {
 
 export const HANDOFF_OPTIONS: Record<HandoffPreference, HandoffOption> = {
   'desktop-code': {
-    label: 'Claude Code (desktop)',
+    label: 'Claude Code (app)',
     action: 'Open in Claude Code',
-    help: 'Needs the Claude desktop app',
+    help: 'Needs the Claude app',
   },
   'desktop-chat': {
-    label: 'Claude chat (desktop)',
+    label: 'Claude chat (app)',
     action: 'Open in Claude chat',
     help: 'Needs the sieb connector in Claude',
   },

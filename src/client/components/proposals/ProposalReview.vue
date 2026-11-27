@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import { computed, nextTick, onBeforeUnmount, ref, watch } from 'vue'
 
+import { isDecidableVerdict } from '#core/proposal.ts'
+
 import BaseButton from '@/components/common/BaseButton.vue'
 import CloseButton from '@/components/common/CloseButton.vue'
 import CopyButton from '@/components/common/CopyButton.vue'
@@ -132,6 +134,7 @@ onBeforeUnmount(() => {
         />
         <ProposalActions
           v-else
+          :detail="store.detail"
           :busy="busy"
           :conflict="store.conflict"
           :chord-refused="chordRefused"
@@ -144,6 +147,7 @@ onBeforeUnmount(() => {
       <RejectDialog
         v-model:open="rejecting"
         :vuln-id="store.detail.proposal.vulnId"
+        :dismiss="!isDecidableVerdict(store.detail.proposal.verdict)"
         :busy="busy"
         :error="rejectError"
         @confirm="actions.reject"

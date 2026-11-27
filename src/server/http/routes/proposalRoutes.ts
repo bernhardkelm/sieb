@@ -10,7 +10,7 @@ import type {
 import { nonBlank } from '#core/decisionFieldReaders.ts'
 import { readExpectedDecisionIds } from '#core/expectedDecisionIds.ts'
 import { PROPOSAL_LIMITS, PROPOSAL_STATES, type ProposalState } from '#core/proposal.ts'
-import { validateAcceptEdits } from '#core/proposalAccept.ts'
+import { lacksReviewerStatus, validateAcceptEdits } from '#core/proposalAccept.ts'
 import { readProposalText } from '#core/proposalTextReaders.ts'
 import { toProposalView } from '#core/proposalView.ts'
 import { acceptProposal } from '#server/db/acceptProposal.ts'
@@ -35,7 +35,8 @@ export interface ProposalRouteDeps extends RouteDeps {
  * Creates the proposal routes: GET / lists proposals, ?state= open (default), accepted,
  * rejected, superseded or all and ?vulnId=; GET /:id answers the review detail with sieb's facts
  * per image and the current decisions; POST /:id/accept writes the decisions when the expected
- * decision ids still hold, with optional edits of status, justification, reason and expiry;
+ * decision ids still hold, with optional edits of status, justification, reason and expiry, an
+ * inconclusive proposal only with the reviewer's status and reason, else 409 not_acceptable;
  * POST /:id/reject closes it with a reason. Accept and reject are logged.
  * @param {ProposalRouteDeps} deps - Database, clock, KEV source, public registries, logger
  * @returns {Hono<AppEnv>} - Routes, mounted at /api/proposals
@@ -86,6 +87,14 @@ export const createProposalRoutes = (deps: ProposalRouteDeps): Hono<AppEnv> => {
 
     if (body === null) {
       return validationFailed(c, INVALID_BODY)
+    }
+
+    if (proposal.state !== 'open') {
+      return commandRefused(c, { error: 'proposal_closed', state: proposal.state })
+    }
+
+    if (lacksReviewerStatus(proposal, body.edits)) {
+      return commandRefused(c, { error: 'not_acceptable' })
     }
 
     const errors: ValidationIssue[] = []

@@ -14,12 +14,20 @@ import { listInboxProposals } from '#server/db/inboxProposals.ts'
  * @param {string} baseUrl - Absolute origin for the item links
  * @returns {Inbox} - Items and counts
  */
-export const readInbox = (db: DatabaseSync, username: string, now: Date, baseUrl: string): Inbox =>
-  buildInbox({
+export const readInbox = (
+  db: DatabaseSync,
+  username: string,
+  now: Date,
+  baseUrl: string,
+): Inbox => {
+  const decisions = listDecisions(db)
+
+  return buildInbox({
     findings: listInboxFindings(db),
-    decisions: listDecisions(db),
-    proposals: listInboxProposals(db),
+    decisions,
+    proposals: listInboxProposals(db, decisions),
     seen: readSeenMarks(db, username),
     now,
     baseUrl,
   })
+}

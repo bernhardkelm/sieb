@@ -42,7 +42,12 @@ export const proposalItem = (
   verdict: 'not_affected',
   confidence: 'high',
   patchAction: null,
+  clientKind: 'claude_code_cli',
+  clientLabel: 'laptop',
+  agent: null,
   imageCount: 3,
+  currentDecisionIds: [{ imageRef: null, decisionId: null, updatedAt: null }],
+  outdated: false,
   ...overrides,
 })
 

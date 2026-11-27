@@ -1,5 +1,8 @@
 <script setup lang="ts">
+import { computed } from 'vue'
+
 import type { ProposalDetail } from '#core/apiTypes.ts'
+import { isDecidableVerdict } from '#core/proposal.ts'
 import KevDetails from '@/components/finding/KevDetails.vue'
 import AcceptEffects from '@/components/proposals/AcceptEffects.vue'
 import ClaimBox from '@/components/proposals/ClaimBox.vue'
@@ -8,14 +11,20 @@ import ClaudeText from '@/components/proposals/ClaudeText.vue'
 import EvidenceBasis from '@/components/proposals/EvidenceBasis.vue'
 import EvidenceChecklist from '@/components/proposals/EvidenceChecklist.vue'
 import FixAndReview from '@/components/proposals/FixAndReview.vue'
+import MissingList from '@/components/proposals/MissingList.vue'
 import ProposalHeader from '@/components/proposals/ProposalHeader.vue'
+import { hasWhatToDo } from '@/components/proposals/proposalText'
 import ReferenceLinks from '@/components/proposals/ReferenceLinks.vue'
 import SiebFacts from '@/components/proposals/SiebFacts.vue'
 import UnknownsList from '@/components/proposals/UnknownsList.vue'
+import WhatToDo from '@/components/proposals/WhatToDo.vue'
 
-defineProps<{
+const props = defineProps<{
   detail: ProposalDetail
 }>()
+
+const decidable = computed(() => isDecidableVerdict(props.detail.proposal.verdict))
+const planShown = computed(() => hasWhatToDo(props.detail.proposal))
 </script>
 
 <template>
@@ -25,6 +34,16 @@ defineProps<{
       <h3 id="review-summary" class="section-title">Summary</h3>
       <ClaimBox>
         <ClaudeText :text="detail.proposal.summary" class="summary" />
+      </ClaimBox>
+    </section>
+    <section v-if="!decidable" class="section" aria-labelledby="review-missing">
+      <h3 id="review-missing" class="section-title">Missing to decide</h3>
+      <MissingList :missing="detail.proposal.missing" />
+    </section>
+    <section v-else-if="planShown" class="section" aria-labelledby="review-todo">
+      <h3 id="review-todo" class="section-title">What to do</h3>
+      <ClaimBox>
+        <WhatToDo :proposal="detail.proposal" />
       </ClaimBox>
     </section>
     <section class="section" aria-labelledby="review-basis">
@@ -53,7 +72,7 @@ defineProps<{
     <section class="section" aria-labelledby="review-fix">
       <h3 id="review-fix" class="section-title">Fix path and review</h3>
       <ClaimBox>
-        <FixAndReview :proposal="detail.proposal" />
+        <FixAndReview :proposal="detail.proposal" :plan-shown="planShown" />
       </ClaimBox>
     </section>
     <section class="section" aria-labelledby="review-unknowns">
@@ -67,7 +86,7 @@ defineProps<{
       <ReferenceLinks :references="detail.proposal.references" />
     </section>
     <section
-      v-if="detail.proposal.state === 'open'"
+      v-if="detail.proposal.state === 'open' && decidable"
       class="section"
       aria-labelledby="review-effects"
     >

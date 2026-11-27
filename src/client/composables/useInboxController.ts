@@ -1,8 +1,9 @@
-import { computed, onMounted, type ComputedRef, type Ref } from 'vue'
+import { computed, onMounted, ref, type ComputedRef, type Ref } from 'vue'
 
 import type { InboxItem } from '#core/inbox/inboxItem.ts'
 import { findingIdOfItem } from '@/components/inbox/inboxItems'
 import { useCursorRefocus } from '@/composables/useCursorRefocus'
+import { useInboxBulk, type InboxBulk } from '@/composables/useInboxBulk'
 import { useInboxCursorPanels } from '@/composables/useInboxCursorPanels'
 import { useInboxHintActions } from '@/composables/useInboxHintActions'
 import { useInboxItemLink } from '@/composables/useInboxItemLink'
@@ -20,6 +21,8 @@ export interface InboxController {
   proposalId: ComputedRef<number | null>
   /** Items s marks as seen: the checked ones, else the cursor item when it can be seen */
   seenTargets: ComputedRef<string[]>
+  /** Bulk accept and reject of the checked proposals */
+  bulk: InboxBulk
   select: (key: string, event?: MouseEvent) => void
   toggleChecked: (key: string, event?: MouseEvent) => void
   markSeen: (keys?: readonly string[]) => Promise<void>
@@ -30,8 +33,9 @@ export interface InboxController {
 
 /**
  * Drives the Inbox on the shared list cursor: j and k move, Enter or o opens the cursor item in
- * its panel, Escape closes the topmost panel, Space, x and the Shift and modifier clicks check
- * the items that can be marked as seen, and s marks the checked items, or the cursor item, as
+ * its panel, Escape closes the topmost panel, Space, x, select all and the Shift and modifier
+ * clicks check proposals, expiring decisions and KEV listings, a and d open the bulk accept and
+ * reject of the checked proposals, and s marks the checked items, or the cursor item, as
  * seen. A key move closes an open review and never opens one; a resolved proposal closes the
  * review panel and refetches the Inbox, focus lands on the next row and the next review opens
  * only on Enter or a click. A link with `?item=<key>` starts the cursor on that item.
@@ -52,6 +56,8 @@ export const useInboxController = (): InboxController => {
   const rowOf = (key: string): HTMLElement | null =>
     document.querySelector<HTMLElement>(`[data-inbox-key="${CSS.escape(key)}"]`)
 
+  const dialogs = { acceptOpen: ref(false), rejectOpen: ref(false) }
+
   const cursor = useListCursor<string>({
     keys,
     findingIdOf: (key) => {
@@ -62,6 +68,7 @@ export const useInboxController = (): InboxController => {
     keyOfFinding: (id) => items.value.find((item) => findingIdOfItem(item) === id)?.key ?? '',
     rowOf,
     multiselect: true,
+    paused: () => dialogs.acceptOpen.value || dialogs.rejectOpen.value,
     handleKey: (event, scope) => {
       const action = inboxActionFor(event, scope)
 
@@ -75,6 +82,18 @@ export const useInboxController = (): InboxController => {
   const refocusCursor = useCursorRefocus(currentKey, rowOf)
 
   const { seenTargets, markSeen } = useInboxSeen(selection, byKey)
+
+  /**
+   * Refetches the Inbox after a bulk action and focuses the cursor row, which moved on once its
+   * row left.
+   * @returns {Promise<void>} - Resolves once focused
+   */
+  const refetch = async (): Promise<void> => {
+    await store.refresh()
+    await cursor.refocus()
+  }
+
+  const bulk = useInboxBulk(selection, byKey, refetch, dialogs)
 
   /**
    * Runs an Inbox key action.
@@ -92,6 +111,12 @@ export const useInboxController = (): InboxController => {
         return item !== undefined
       case 'close':
         return panels.closeTop()
+      case 'accept':
+        bulk.openAccept()
+        return true
+      case 'reject':
+        bulk.openReject()
+        return true
       case 'markSeen':
         void markSeen()
         return true
@@ -139,11 +164,10 @@ export const useInboxController = (): InboxController => {
    */
   const onResolved = async (): Promise<void> => {
     await panels.closeProposal()
-    await store.refresh()
-    await cursor.refocus()
+    await refetch()
   }
 
-  useInboxHintActions({ cursor, items: byKey, seenTargets, markSeen })
+  useInboxHintActions({ cursor, items: byKey, seenTargets, markSeen, bulk })
   useInboxItemLink(
     keys,
     computed(() => store.loaded),
@@ -160,6 +184,7 @@ export const useInboxController = (): InboxController => {
     checkedKeys: selection.checkedIds,
     proposalId: panels.proposalId,
     seenTargets,
+    bulk,
     select,
     toggleChecked,
     markSeen,

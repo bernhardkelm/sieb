@@ -56,7 +56,12 @@ export const proposalItems = (
       verdict: proposal.verdict,
       confidence: proposal.confidence,
       patchAction: proposal.patchAction,
+      clientKind: proposal.clientKind,
+      clientLabel: proposal.clientLabel,
+      agent: proposal.agent,
       imageCount: covered.length,
+      currentDecisionIds: proposal.currentDecisionIds,
+      outdated: proposal.outdated,
     }
   })
 }

@@ -22,10 +22,11 @@ export const readPendingIndex = (
   now: Date,
   checksEnabled: boolean,
 ): PendingIndex => {
+  const decisions = listDecisions(db)
   const { items } = buildInbox({
     findings: listInboxFindings(db),
-    decisions: listDecisions(db),
-    proposals: listInboxProposals(db),
+    decisions,
+    proposals: listInboxProposals(db, decisions),
     seen: username === null ? new Map() : readSeenMarks(db, username),
     now,
     baseUrl: '', // item links are not read

@@ -62,10 +62,10 @@ describe('InboxRow', () => {
     expect(cell(row, '.kind')).toBe('Proposal')
     expect(cell(row, '.vuln-id')).toBe('CVE-2025-1001')
     expect(cell(row, '.scope')).toBe('3 images')
-    expect(detail(row)).toBe('Not affected High confidence')
+    expect(detail(row)).toBe('Not affected High confidence Claude Code (CLI)')
     expect(cell(row, '.title')).toBe('Heap overflow in a parser')
     expect(cell(row, '.at')).toBe('1d ago')
-    expect(row.find('.row-checkbox').exists()).toBe(false)
+    expect(row.find('.row-checkbox').exists()).toBe(true)
     expect(row.find('.seen-button').exists()).toBe(false)
   })
 
@@ -76,8 +76,23 @@ describe('InboxRow', () => {
     )
     const patch = row.get('.detail .patch')
 
-    expect(detail(row)).toBe(`Needs patch Medium confidence ${action}`)
+    expect(detail(row)).toBe(`Needs patch Medium confidence Claude Code (CLI) ${action}`)
     expect(patch.attributes('title')).toBe(action)
+  })
+
+  it('names the client of a proposal, an Auto-check and an unknown client by their labels', () => {
+    const tagOf = (overrides: Parameters<typeof proposalItem>[1]): string => {
+      const text = mountRow(proposalItem(1, overrides)).get('.proposal-client-tag').text()
+
+      wrapper?.unmount()
+      return text
+    }
+
+    expect(tagOf({ clientKind: 'claude_app', clientLabel: 'claude.ai' })).toBe('Claude app')
+    expect(tagOf({ clientKind: 'auto_check', clientLabel: 'Auto-check #4' })).toBe('Auto-check #4')
+    expect(tagOf({ clientKind: null, clientLabel: 'laptop', agent: 'Cursor' })).toBe(
+      'Cursor (laptop)',
+    )
   })
 
   it('shows a re-opened decision with its reason and status', () => {
@@ -86,6 +101,7 @@ describe('InboxRow', () => {
     expect(cell(row, '.kind')).toBe('Re-opened')
     expect(cell(row, '.scope')).toBe('nginx')
     expect(detail(row)).toBe('Listed in KEV Accepted')
+    expect(row.find('.row-checkbox').exists()).toBe(false)
     expect(row.find('.seen-button').exists()).toBe(false)
   })
 

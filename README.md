@@ -52,7 +52,7 @@ as `sieb_suppressed{vuln_id, image_ref}`. Your Prometheus alert rules drop the s
   personal API tokens from the user menu serve `claude -p`, CI and scripts. Claude queries
   findings, images and decisions and, with `sieb:propose`, files verdicts as proposals you accept
   or reject, and a hand-off button
-  (`Shift+H`, `h`, `y`) opens a finding in Claude Code (desktop, terminal or VS Code) or Claude
+  (`Shift+H`, `h`, `y`) opens a finding in Claude Code (app, terminal or VS Code) or Claude
   chat with the prompt prefilled, never sent, or copies it; in Triage it hands off all checked
   rows in one prompt, see [docs/mcp.md](docs/mcp.md). Proposals that mean patching name the
   patch action at the layer that ships the fix (dependency, base image, image or platform), with

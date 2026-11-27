@@ -1,4 +1,5 @@
 import type { ProposalAcceptRequest, ProposalDetail } from '#core/apiTypes.ts'
+import { isDecidableVerdict } from '#core/proposal.ts'
 import { ApiError } from '@/api/ApiError'
 import { acceptProposal, rejectProposal } from '@/api/proposalsApi'
 import { countOf } from '@/format/count'
@@ -88,9 +89,10 @@ export const useProposalCommands = (): ProposalCommands => {
         expectedDecisionIds: review.reviewedDecisionIds ?? detail.currentDecisionIds,
         ...(edits === undefined ? {} : { edits }),
       })
-      const status = result.decisions[0]?.decision.status ?? detail.decisionValues.status
+      const status = result.decisions[0]?.decision.status ?? detail.decisionValues?.status
       const where =
         proposal.scope === 'all' ? 'all images' : countOf(result.decisions.length, 'image')
+      const edited = result.proposal.resolution === 'accepted_edited' ? ' with edits' : ''
 
       for (const view of result.decisions) {
         findings.applyDecision(view.decision, view.effective)
@@ -99,8 +101,10 @@ export const useProposalCommands = (): ProposalCommands => {
       review.setConflict(false)
       dataVersion.bump()
       notifySuccess(
-        `${STATUS_LABELS[status]}: ${proposal.vulnId}`,
-        `Claude's proposal accepted${result.proposal.resolution === 'accepted_edited' ? ' with edits' : ''} for ${where}`,
+        status === undefined ? proposal.vulnId : `${STATUS_LABELS[status]}: ${proposal.vulnId}`,
+        isDecidableVerdict(proposal.verdict)
+          ? `Claude's proposal accepted${edited} for ${where}`
+          : `Your decision saved for ${where}`,
       )
       return { kind: 'done' }
     } catch (error) {
@@ -119,7 +123,10 @@ export const useProposalCommands = (): ProposalCommands => {
       await rejectProposal(detail.proposal.id, reason.trim())
       review.setConflict(false)
       dataVersion.bump()
-      notifySuccess(`Rejected: ${detail.proposal.vulnId}`, 'Claude sees your reason')
+      notifySuccess(
+        `${isDecidableVerdict(detail.proposal.verdict) ? 'Rejected' : 'Dismissed'}: ${detail.proposal.vulnId}`,
+        'Claude sees your reason',
+      )
       return { kind: 'done' }
     } catch (error) {
       return settleFailure('Proposal not rejected', error)

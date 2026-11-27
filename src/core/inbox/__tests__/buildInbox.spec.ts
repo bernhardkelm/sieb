@@ -24,7 +24,13 @@ describe('buildInbox proposals', () => {
     const { items, counts } = inboxOf({
       findings,
       proposals: [
-        inboxProposal({ id: 7, imageRefs: [NGINX], createdAt: fromNow(-DAY_MS) }),
+        inboxProposal({
+          id: 7,
+          imageRefs: [NGINX],
+          createdAt: fromNow(-DAY_MS),
+          clientKind: 'claude_app',
+          clientLabel: 'claude.ai',
+        }),
         inboxProposal({
           id: 8,
           imageRefs: null,
@@ -51,7 +57,12 @@ describe('buildInbox proposals', () => {
         verdict: 'not_affected',
         confidence: 'high',
         patchAction: null,
+        clientKind: 'claude_app',
+        clientLabel: 'claude.ai',
+        agent: null,
         imageCount: 1,
+        currentDecisionIds: [{ imageRef: NGINX, decisionId: null, updatedAt: null }],
+        outdated: false,
       },
       expect.objectContaining({
         key: 'proposal:8',

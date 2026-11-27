@@ -7,7 +7,9 @@ import {
   OWN_IMAGE,
 } from '@/__tests__/proposalDetailBuilders'
 import {
+  hasWhatToDo,
   isLongText,
+  proposalStateLabel,
   proposerLine,
   resolutionLine,
   safeReferences,
@@ -23,13 +25,18 @@ describe('proposalText', () => {
     expect(verdictLabel('needs_patch', null)).toBe('Needs patch')
   })
 
-  it('names the proposer, the agent and the client label once', () => {
-    expect(proposerLine({ proposedBy: 'alice', agent: 'Claude Code', clientLabel: 'laptop' })).toBe(
+  it('names the proposer with the client kind, else the agent and the client label once', () => {
+    const proposer = { proposedBy: 'alice', agent: 'Claude Code', clientLabel: 'laptop' }
+
+    expect(proposerLine({ ...proposer, clientKind: 'claude_code_vscode' })).toBe(
+      'Proposed by alice via Claude Code (VS Code)',
+    )
+    expect(proposerLine({ ...proposer, clientKind: null })).toBe(
       'Proposed by alice via Claude Code (laptop)',
     )
-    expect(proposerLine({ proposedBy: 'alice', agent: null, clientLabel: 'claude.ai' })).toBe(
-      'Proposed by alice via claude.ai',
-    )
+    expect(
+      proposerLine({ ...proposer, agent: null, clientLabel: 'claude.ai', clientKind: null }),
+    ).toBe('Proposed by alice via claude.ai')
   })
 
   it('describes how a closed proposal ended', () => {
@@ -43,6 +50,51 @@ describe('proposalText', () => {
         buildProposal({ state: 'superseded', resolution: 'finding_resolved', resolvedBy: 'sieb' }),
       ),
     ).toBe('The findings resolved')
+  })
+
+  it('labels an inconclusive proposal as could not determine, decided or dismissed', () => {
+    const inconclusive = { verdict: 'inconclusive', justification: null } as const
+
+    expect(verdictLabel('inconclusive', null)).toBe('Could not determine')
+    expect(
+      resolutionLine(
+        buildProposal({
+          ...inconclusive,
+          state: 'rejected',
+          resolution: 'rejected',
+          resolvedBy: 'bob',
+        }),
+      ),
+    ).toBe('Dismissed by bob')
+    expect(
+      resolutionLine(
+        buildProposal({
+          ...inconclusive,
+          state: 'accepted',
+          resolution: 'accepted_edited',
+          resolvedBy: 'bob',
+        }),
+      ),
+    ).toBe('Decided by bob')
+    expect(
+      resolutionLine(
+        buildProposal({ ...inconclusive, state: 'superseded', resolution: 'replaced' }),
+      ),
+    ).toBe('Replaced by a newer proposal from the same proposer')
+    expect(proposalStateLabel({ ...inconclusive, state: 'rejected' })).toBe('Dismissed')
+    expect(proposalStateLabel({ verdict: 'accepted', state: 'rejected' })).toBe('Rejected')
+  })
+
+  it('shows What to do for a patch action or steps, never for inconclusive', () => {
+    const fix = { action: null, layer: null, fixedVersion: '1.2', change: null, effort: 'small' }
+
+    expect(hasWhatToDo({ verdict: 'needs_patch', fix: { ...fix, action: 'bump x to 1.2' } })).toBe(
+      true,
+    )
+    expect(hasWhatToDo({ verdict: 'accepted', fix: { ...fix, change: 'pin x' } })).toBe(true)
+    expect(hasWhatToDo({ verdict: 'accepted', fix })).toBe(false)
+    expect(hasWhatToDo({ verdict: 'not_affected', fix: null })).toBe(false)
+    expect(hasWhatToDo({ verdict: 'inconclusive', fix: { ...fix, change: 'pin x' } })).toBe(false)
   })
 
   it('keeps only http and https references', () => {

@@ -3,6 +3,7 @@ import type { Handler } from 'hono'
 import type { JWTVerifyGetKey } from 'jose'
 
 import type { ErrorBody } from '#core/apiTypes.ts'
+import { USER_AGENT_MAX } from '#core/proposalClient.ts'
 import { createBearerVerifier, type BearerVerifiers } from '#server/auth/bearerVerifier.ts'
 import { createDiscoveredJwks } from '#server/auth/discoveredJwks.ts'
 import { createJwtVerifier } from '#server/auth/jwtVerifier.ts'
@@ -13,8 +14,14 @@ import { callerFromAuthInfo } from '#server/mcp/callerFromAuthInfo.ts'
 import { createConnectionRecorder } from '#server/mcp/connectionRecorder.ts'
 import { createMcpBearerGate } from '#server/mcp/mcpBearerGate.ts'
 import { createMcpServer } from '#server/mcp/createMcpServer.ts'
-import { handshakeLogLine, readHandshake } from '#server/mcp/handshakeLog.ts'
-import { withClientName } from '#server/mcp/mcpClient.ts'
+import { createClientNameMemory } from '#server/mcp/clientNameMemory.ts'
+import {
+  clientNameIn,
+  handshakeIn,
+  handshakeLogLine,
+  readMessages,
+} from '#server/mcp/handshakeLog.ts'
+import { withClient } from '#server/mcp/mcpClient.ts'
 import { MCP_PATH, mcpEndpointUrl } from '#server/mcp/mcpEndpointUrl.ts'
 import { createMcpEndpoint, type McpEndpoint } from '#server/mcp/mcpEndpoint.ts'
 import {
@@ -70,7 +77,9 @@ const verifiersOf = (deps: McpRouteDeps): BearerVerifiers => ({
  * statelessly. Each handshake logs the caller with its scopes and client name, which also picks
  * the server instructions. The propose_decision limit of PROPOSE_RATE_LIMIT per hour and sieb
  * user is shared by those servers. Each admitted request records the caller's connection,
- * throttled, for the hand-off state in /api/mcp-info.
+ * throttled, for the hand-off state in /api/mcp-info. The client name and the capped User-Agent
+ * reach the server in the AuthInfo, a request without a client name gets the last one its caller
+ * sent with the same User-Agent, see createClientNameMemory.
  * @param {McpRouteDeps} deps - Tool dependencies, OAuth settings, version and logger
  * @returns {Handler<AppEnv>} - Handler for app.all('/mcp')
  */
@@ -80,6 +89,7 @@ export const createMcpRoute = (deps: McpRouteDeps): Handler<AppEnv> => {
   const limiter = createRateLimiter()
   const proposalLimiter = createRateLimiter(PROPOSE_RATE_LIMIT, PROPOSE_RATE_WINDOW_MS)
   const recordConnection = createConnectionRecorder(deps)
+  const clientNames = createClientNameMemory()
   let endpoint: McpEndpoint | null = null
 
   return async (c) => {
@@ -96,10 +106,8 @@ export const createMcpRoute = (deps: McpRouteDeps): Handler<AppEnv> => {
     }
 
     const caller = callerFromAuthInfo(authInfo)
-    const retryAfter = limiter.hit(
-      `${caller.via}:${caller.tokenId ?? caller.actor}`,
-      deps.clock().getTime(),
-    )
+    const callerKey = `${caller.via}:${caller.tokenId ?? caller.actor}`
+    const retryAfter = limiter.hit(callerKey, deps.clock().getTime())
 
     if (retryAfter !== null) {
       c.header('Retry-After', String(retryAfter))
@@ -110,7 +118,10 @@ export const createMcpRoute = (deps: McpRouteDeps): Handler<AppEnv> => {
       recordConnection(caller)
     }
 
-    const handshake = await readHandshake(c.req.raw)
+    const messages = await readMessages(c.req.raw)
+    const handshake = handshakeIn(messages)
+    const userAgent = c.req.header('User-Agent')?.slice(0, USER_AGENT_MAX) ?? null
+    const clientName = clientNames.resolve(callerKey, userAgent, clientNameIn(messages))
 
     if (handshake !== null) {
       deps.log(handshakeLogLine(caller, handshake))
@@ -121,6 +132,6 @@ export const createMcpRoute = (deps: McpRouteDeps): Handler<AppEnv> => {
       deps.log,
     )
 
-    return endpoint.fetch(c.req.raw, withClientName(authInfo, handshake?.clientName ?? null))
+    return endpoint.fetch(c.req.raw, withClient(authInfo, { clientName, userAgent }))
   }
 }

@@ -113,7 +113,7 @@ afterEach(() => {
 })
 
 describe('HandoffButton', () => {
-  it('opens Claude Code desktop by default and offers copying in a toast', async () => {
+  it('opens Claude Code in the Claude app by default and offers copying in a toast', async () => {
     const wrapper = mountButton(null)
     await flushPromises()
     const primary = wrapper.get('button.primary')
@@ -170,8 +170,8 @@ describe('HandoffButton', () => {
     const wrapper = await openMenu(null)
 
     expect(menuTexts()).toEqual([
-      'Claude Code (desktop) Needs the Claude desktop app ⇧ H',
-      'Claude chat (desktop) Needs the sieb connector in Claude',
+      'Claude Code (app) Needs the Claude app ⇧ H',
+      'Claude chat (app) Needs the sieb connector in Claude',
       'Claude Code in terminal Needs Claude Code run once in a terminal',
       'VS Code Needs the Claude Code VS Code extension',
       'Copy prompt h',
@@ -214,8 +214,8 @@ describe('HandoffButton', () => {
     const radios = [...document.body.querySelectorAll<HTMLElement>('[role="menuitemradio"]')]
 
     expect(radios.map((radio) => radio.textContent?.trim())).toEqual([
-      'Claude Code (desktop)',
-      'Claude chat (desktop)',
+      'Claude Code (app)',
+      'Claude chat (app)',
       'Claude Code in terminal',
       'VS Code',
       'Copy prompt',
@@ -243,7 +243,7 @@ describe('HandoffButton', () => {
     expect(note?.textContent?.trim()).toBe(REASON)
     expect(content?.getAttribute('aria-describedby')).toBe(note?.id)
 
-    for (const label of ['Claude Code (desktop)', 'VS Code', 'Copy claude command']) {
+    for (const label of ['Claude Code (app)', 'VS Code', 'Copy claude command']) {
       const item = menuItem(label)
 
       expect(item.getAttribute('aria-disabled')).toBe('true')

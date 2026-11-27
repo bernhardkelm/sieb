@@ -1,0 +1,22 @@
+/* buttons of the selection bar, shared by the bar and the actions its views pass in */
+.action {
+  min-width: var(--touch-target);
+  min-height: var(--touch-target);
+  padding: 0 var(--space-3);
+  border: var(--border-width) solid var(--color-border-strong);
+  border-radius: var(--radius);
+  background: var(--color-surface);
+  color: var(--color-text);
+  font-weight: var(--font-weight-medium);
+  white-space: nowrap;
+  transition: background-color var(--duration-fast) var(--ease);
+}
+
+.action:hover:not([aria-disabled='true']) {
+  background: var(--color-hover);
+}
+
+.action[aria-disabled='true'] {
+  color: var(--color-text-subtle);
+  cursor: default;
+}

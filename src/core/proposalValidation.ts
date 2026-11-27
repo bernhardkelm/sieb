@@ -1,19 +1,16 @@
 import type { ValidationIssue } from '#core/apiTypes.ts'
-import { DECISION_SCOPES, type DecisionJustification, type DecisionScope } from '#core/decision.ts'
-import { readJustification } from '#core/decisionFieldReaders.ts'
-import type { DecisionInputError } from '#core/decisionInputError.ts'
+import { DECISION_SCOPES, type DecisionScope } from '#core/decision.ts'
 import { isPatchVerdict } from '#core/patchAction.ts'
 import {
   EVIDENCE_BASES,
   PROPOSAL_CONFIDENCES,
   PROPOSAL_LIMITS as LIMITS,
   PROPOSAL_VERDICTS,
-  statusOfVerdict,
   type ProposalInput,
-  type ProposalVerdict,
 } from '#core/proposal.ts'
 import { readEvidence, readFix, readReferences, readReview } from '#core/proposalStructReaders.ts'
 import { readProposalEnum, readProposalList, readProposalText } from '#core/proposalTextReaders.ts'
+import { readMissing, readProposalJustification } from '#core/proposalVerdictReaders.ts'
 
 export type ProposalValidated<T> = { ok: true; value: T } | { ok: false; errors: ValidationIssue[] }
 
@@ -57,42 +54,11 @@ const readImageRefs = (
 }
 
 /**
- * Reads the justification: required with verdict not_affected, not allowed with the others.
- * @param {unknown} value - Raw justification
- * @param {ProposalVerdict | null} verdict - Validated verdict
- * @param {ValidationIssue[]} errors - Collected errors, appended to
- * @returns {DecisionJustification | null} - Justification
- */
-const readProposalJustification = (
-  value: unknown,
-  verdict: ProposalVerdict | null,
-  errors: ValidationIssue[],
-): DecisionJustification | null => {
-  const decisionErrors: DecisionInputError[] = []
-  const justification = readJustification(
-    value,
-    verdict === null ? null : statusOfVerdict(verdict),
-    decisionErrors,
-  )
-
-  errors.push(...decisionErrors)
-
-  if (verdict === 'not_affected' && (justification === undefined || justification === null)) {
-    if (decisionErrors.length === 0) {
-      errors.push({ field: 'justification', code: 'required' })
-    }
-
-    return null
-  }
-
-  return justification ?? null
-}
-
-/**
  * Validates a proposal: target, verdict with its justification, the structured claims with
  * their caps, references as http(s) URLs and a non-empty evidence basis. Free text loses
  * control and bidirectional formatting characters; needs_patch and fix_planned need a patch
- * action.
+ * action, inconclusive needs the list of what is missing to decide, which no other verdict
+ * may carry.
  * @param {RawInput} raw - Raw input
  * @param {Date} now - Current time, for the review date
  * @returns {ProposalValidated<ProposalInput>} - Validated input or the list of errors
@@ -170,6 +136,7 @@ export const validateProposalInput = (
         readProposalText(item, field, { max: LIMITS.unknown, multiline: true }, errors),
       errors,
     ),
+    missing: readMissing(raw.missing, verdict, errors),
     references: readReferences(raw.references, errors),
     evidenceBasis: [...new Set(evidenceBasis)],
     agent: readProposalText(raw.agent, 'agent', { max: LIMITS.agent }, errors),

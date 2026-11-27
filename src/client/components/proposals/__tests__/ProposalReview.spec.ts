@@ -63,7 +63,7 @@ describe('ProposalReview', () => {
     )
     expect(panel.querySelector('.confidence-chip')!.textContent).toContain('High confidence')
     expect(panel.querySelector('.proposer')!.textContent).toContain(
-      'Proposed by dev via Claude Code (laptop)',
+      'Proposed by dev via Claude Code (CLI)',
     )
     expect(panel.querySelectorAll('.badge.checked')).toHaveLength(2)
     expect(panel.querySelector('.evidence-basis [role="alert"]')).toBeNull()

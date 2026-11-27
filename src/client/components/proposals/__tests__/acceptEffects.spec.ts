@@ -7,6 +7,7 @@ import {
   buildProposalDetail,
   IMAGE,
   OWN_IMAGE,
+  PROPOSED_VALUES,
 } from '@/__tests__/proposalDetailBuilders'
 import { acceptEffects } from '@/components/proposals/acceptEffects'
 
@@ -87,7 +88,7 @@ describe('acceptEffects', () => {
     })
     const lines = acceptEffects({
       ...detail,
-      decisionValues: { ...detail.decisionValues, status: 'fix_planned', expiresAt: null },
+      decisionValues: { ...PROPOSED_VALUES, status: 'fix_planned', expiresAt: null },
     }).map((effect) => effect.text)
 
     expect(lines[0]).toBe('Alerts keep firing, Fix planned only takes the findings out of Triage')

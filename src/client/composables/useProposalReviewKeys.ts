@@ -1,5 +1,7 @@
 import { ref, watch, type Ref } from 'vue'
 
+import { isDecidableVerdict } from '#core/proposal.ts'
+
 import type { ProposalReviewActions } from '@/composables/useProposalReviewActions'
 import { isEditableTarget } from '@/keyboard/keyboardTarget'
 import { useProposalReviewStore } from '@/stores/proposalReviewStore'
@@ -23,7 +25,7 @@ export interface ProposalReviewKeys {
 
 /**
  * Handles keys inside the review panel: Cmd+Enter or Ctrl+Enter accepts while no form is open,
- * once armed for this proposal and never on a key repeat, a refused press shows how to arm it;
+ * once armed for this proposal and never on a key repeat or an inconclusive proposal, a refused press shows how to arm it;
  * Escape leaves a text entry, cancels an untouched edit, or closes the panel. No single key
  * accepts.
  * @param {ProposalReviewKeyOptions} options - Review actions, arming and the panel hooks
@@ -49,7 +51,13 @@ export const useProposalReviewKeys = (options: ProposalReviewKeyOptions): Propos
     }
 
     if (event.key === 'Enter' && (event.metaKey || event.ctrlKey)) {
-      if (!actions.editing.value && store.detail?.proposal.state === 'open') {
+      const proposal = store.detail?.proposal
+
+      if (
+        !actions.editing.value &&
+        proposal?.state === 'open' &&
+        isDecidableVerdict(proposal.verdict)
+      ) {
         event.preventDefault()
 
         if (event.repeat) {
