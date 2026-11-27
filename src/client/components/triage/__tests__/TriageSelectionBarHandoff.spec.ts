@@ -6,6 +6,7 @@ import { buildFindingView } from '#core/__tests__/coreBuilders.ts'
 import type { FindingView } from '#core/findingView.ts'
 import { visibleText } from '@/__tests__/visibleText'
 import TriageSelectionBar from '@/components/triage/TriageSelectionBar.vue'
+import { CAPPED_REASON } from '@/format/selectionHandoffText'
 import { useHandoffSelectionStore } from '@/stores/handoffSelectionStore'
 import { useHandoffTargetStore } from '@/stores/handoffTargetStore'
 import { useMcpStore } from '@/stores/mcpStore'
@@ -92,30 +93,30 @@ describe('TriageSelectionBar hand-off', () => {
   it('opens the default client and copies the prompt for the selection', async () => {
     mountBar(FOREIGN)
 
-    button('Open in Claude Code')!.click()
+    button('Open 2 in Claude Code')!.click()
     expect(decodeURIComponent(assign.mock.calls[0]![0])).toContain('\n#1 CVE-2099-1 in ')
 
-    button('Copy for Claude')!.click()
+    button('Copy 2 for Claude')!.click()
     await flushPromises()
     expect(writeText.mock.calls[0]![0]).toMatch(/^Triage these sieb findings/)
     expect(notifySuccess).toHaveBeenCalledWith(
       'Copied prompt for 2 findings',
       'Paste the prompt into Claude.',
     )
-    expect(button('Copy claude command')).toBeUndefined()
+    expect(button('Copy claude command for 2')).toBeUndefined()
   })
 
   it('offers the claude command for own images of one repository', async () => {
     mountBar(OWN)
 
-    button('Copy claude command')!.click()
+    button('Copy claude command for 2')!.click()
     await flushPromises()
     expect(writeText.mock.calls[0]![0]).toContain('This repository builds these images')
   })
 
   it('names the connect step on a blocked open, copying still works', async () => {
     mountBar(OWN, false)
-    const open = button('Open in Claude Code')!
+    const open = button('Open 2 in Claude Code')!
 
     expect(open.getAttribute('aria-disabled')).toBe('true')
     expect(open.title).toMatch(/^Connect Claude first/)
@@ -123,9 +124,17 @@ describe('TriageSelectionBar hand-off', () => {
     expect(assign).not.toHaveBeenCalled()
     expect(notifyNotice).toHaveBeenCalledWith('Not handed off', open.title)
 
-    button('Copy for Claude')!.click()
+    button('Copy 2 for Claude')!.click()
     await flushPromises()
     expect(writeText).toHaveBeenCalledOnce()
+  })
+
+  it('counts the findings the prompt lists and names the cap in the tooltip', () => {
+    mountBar(Array.from({ length: 51 }, (_, index) => buildFindingView({ id: index + 1 })))
+    const copy = button('Copy 50 for Claude')!
+
+    expect(copy.getAttribute('aria-label')).toBe('Copy 50 findings for Claude')
+    expect(copy.title).toBe(`50 of 51 selected. ${CAPPED_REASON}`)
   })
 
   it('shows no open button while copying is the default action', async () => {
@@ -133,7 +142,7 @@ describe('TriageSelectionBar hand-off', () => {
     useHandoffTargetStore().setPreferred('copy')
     await flushPromises()
 
-    expect(button('Open in Claude Code')).toBeUndefined()
-    expect(button('Copy for Claude')).toBeDefined()
+    expect(button('Open 2 in Claude Code')).toBeUndefined()
+    expect(button('Copy 2 for Claude')).toBeDefined()
   })
 })

@@ -45,7 +45,7 @@ const estimate = (_finding: FindingView, narrow: boolean): number => rowEstimate
 </script>
 
 <template>
-  <div class="triage-list">
+  <div class="triage-list" data-list-background>
     <ListHeader class="finding-columns" :class="classes" label="Triage columns">
       <span aria-hidden="true" />
       <SortHeader column="severity" :columns="columns" :sort="sort" @sort="$emit('sort', $event)" />

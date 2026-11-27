@@ -650,8 +650,12 @@ A running check has a `phase` of `preparing`, `investigating` or `reporting`. Ru
 The routes answer `Cache-Control: no-store`; writes follow the [Request rules](#request-rules) and
 need the acting user. A check is answered as `CheckView` from `src/core/check.ts`:
 `{ id, findingId, vulnId, imageRef, requestedBy, state, phase, position, createdAt, startedAt,
-finishedAt, durationMs, error, proposalId, usage, reply, pulledDigest }`. `pulledDigest` is the
-digest the worker reports it exported, `null` when it reported none. `phase` is set on running checks only,
+finishedAt, durationMs, error, proposalId, usage, reply, pulledDigest, pulledImages }`.
+`pulledDigest` is the digest of the primary image the worker reports it exported, `null` when it
+reported none. `pulledImages` lists every exported image, primary first, as `{ digest, tag }`,
+with the tag an instance of the finding names for that digest (for a pull by tag the claimed
+tag), `null` when none does; it is empty when the worker reported nothing, and a check that ended
+before the field existed lists its `pulledDigest` without tag. `phase` is set on running checks only,
 `position` (1-based) on queued ones only. `reply` is Claude's final reply as untrusted plain text,
 at most 4000 characters, `usage` the token counts, turns and estimated cost the worker reported, plus `models`, the ids of
 the models that ran, most output tokens first, at most 8 (absent from checks that ended before the
@@ -693,22 +697,32 @@ service name and the secret is the defence. Bodies are JSON of at most 32 KiB (4
 are validated against the types in `src/core/check.ts` (400 `validation` otherwise).
 
 - `POST /worker/claim` answers 200 `WorkerClaim`, or 204 without a body while a check runs or the
-  queue is empty. A claim carries `checkId`, `findingId`, `vulnId`, `imageRef` and `imageDigest`,
-  `prompt` (the chat hand-off prompt plus a note that nobody answers questions; the worker
-  appends its workspace layout), `mcpUrl` (`/mcp` on `SIEB_PUBLIC_URL`), `token`,
-  `timeoutSeconds` and `maxTurns`. With a digest of the most recently seen open instance,
-  `imageRef` is `repository@digest` and `imageDigest` that digest. Without one, `imageRef` is
-  `repository:tag` and `imageDigest` is `null`: the tag may have moved since the scan, the prompt
-  says so, and the worker resolves and reports the digest it pulled.
+  queue is empty. A claim carries `checkId`, `findingId`, `vulnId`, `imageRef` and `imageDigest`
+  of the primary image, `images`, `prompt` (the chat hand-off prompt plus a note that nobody
+  answers questions; the worker appends its workspace layout), `mcpUrl` (`/mcp` on
+  `SIEB_PUBLIC_URL`), `token`, `timeoutSeconds` and `maxTurns`. `images` holds one
+  `{ imageRef, imageDigest, tag }` per distinct digest of the open instances, most recently seen
+  first and at most 3, the primary image first; `tag` is the tag of the newest instance with that
+  digest, `null` when none names one, and the prompt names the open tags no image covers. The
+  primary image is `repository@digest` with `imageDigest` that digest. Without any digest, the
+  single image is `repository:tag` of the most recently seen open instance and `imageDigest` is
+  `null`: the tag may have moved since the scan, the prompt says so, and the worker resolves and
+  reports the digest it pulled. A worker treats a claim without `images`, from an older sieb, as
+  its single primary image, ignores entries past the third, and refuses a list that does not
+  start with the primary image, repeats a reference or has a further image without digest.
 - `POST /worker/checks/:id/heartbeat` takes `{ "phase" }` and answers 204, or 409
   `{ "error": "check_not_running" }` once the check was cancelled or timed out, which tells the
   worker to stop.
 - `POST /worker/checks/:id/result` takes
-  `{ "status": "done" | "failed", "error", "durationMs", "usage", "reply", "pulledDigest" }` and
+  `{ "status": "done" | "failed", "error", "durationMs", "usage", "reply", "pulledDigest", "pulledDigests" }` and
   answers 204, 409 for a check that is no longer running, 404 for an unknown one. `error` is cut
   to 500 and `reply` to 4000 characters, counted in code points (`capText` in
   `src/core/checkLimits.ts`, which also holds the bounds of the timeout and the turns).
-  `pulledDigest` is optional, an `algorithm:hex` digest.
+  `pulledDigest` is optional, an `algorithm:hex` digest of the primary image. `pulledDigests` is
+  optional too, the digests of every exported image, primary first: repeated digests count once,
+  entries past the third are dropped, and a list that does not start with `pulledDigest` is
+  refused (`invalid`). A result of an older worker without the list counts `pulledDigest` as its
+  single image.
 
 `token` is a token of the requester named `Auto-check #<id>` with scope `propose`, minted on
 claim outside the 20 live token cap and the user-facing lifetimes, and expiring 10 minutes after
@@ -735,6 +749,9 @@ includes `check_id`. It also adds `checks.pulled_digest`.
 Schema step 15 adds the nullable column `decision_proposals.client_kind`, checked for a length of
 1 to 40 only, so a later kind needs no table rebuild; a value this version does not know reads as
 `null`. Existing proposals keep `null`.
+
+Schema step 18 adds `checks.pulled_images`, the exported images as a JSON array of
+`{ digest, tag }`, checked with `json_valid`. Existing checks keep `null`.
 
 ## MCP endpoint
 

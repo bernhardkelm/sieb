@@ -3,11 +3,9 @@ import type { CallToolResult } from '@modelcontextprotocol/server'
 import type { CommandOptions, ExecCommand } from '#checker/inspect/execCommand.ts'
 import { stringsArgs } from '#checker/inspect/inspectArgs.ts'
 import { commandResult, toolError } from '#checker/inspect/inspectResult.ts'
+import { FILTER_INPUT_BYTES, filterLines } from '#checker/inspect/patternFilter.ts'
 import { workspaceFile } from '#checker/inspect/workspaceFile.ts'
 import { errorMessage } from '#checker/safeText.ts'
-
-/** strings output read before filtering by a pattern */
-export const FILTER_INPUT_BYTES = 32 * 1024 * 1024
 
 /** Arguments of the strings tool */
 export interface StringsInput {
@@ -64,22 +62,15 @@ export const createStringsHandler =
 
       const note = all.truncated ? INPUT_NOTE : ''
 
-      if (regex) {
-        const flags = ignoreCase ? ['-E', '-i'] : ['-E']
-        const grep = { ...deps.limits, maxBytes: deps.maxBytes, input: all.stdout }
-        const output = await deps.exec('grep', [...flags, '-e', pattern, '-'], grep)
+      const filtered = await filterLines(deps, all, { pattern, regex, ignoreCase })
 
-        return commandResult('grep', output, answerLimits, [0, 1], note)
-      }
-
-      const needle = ignoreCase ? pattern.toLowerCase() : pattern
-      const lines = all.stdout
-        .toString('utf8')
-        .split('\n')
-        .filter((line) => (ignoreCase ? line.toLowerCase() : line).includes(needle))
-      const filtered = { ...all, stdout: Buffer.from(lines.join('\n')), truncated: false, code: 0 }
-
-      return commandResult('strings', filtered, answerLimits, [0], note)
+      return commandResult(
+        regex ? filtered.tool : 'strings',
+        filtered.output,
+        answerLimits,
+        regex ? [0, 1] : [0],
+        note,
+      )
     } catch (error) {
       return toolError(errorMessage(error))
     }

@@ -3,8 +3,10 @@ import { computed } from 'vue'
 
 import { INBOX_KINDS, type InboxCounts } from '#core/inbox/inboxItem.ts'
 import BaseButton from '@/components/common/BaseButton.vue'
-import BlockableButton from '@/components/common/BlockableButton.vue'
+import type { InboxBulkCounts } from '@/components/inbox/inboxBulkCounts'
+import BulkActionButton from '@/components/list/BulkActionButton.vue'
 import ListSummary from '@/components/list/ListSummary.vue'
+import type { BulkNoun } from '@/format/bulkCount'
 import { countOf, formatCount } from '@/format/count'
 import type { HintActionId } from '@/keyboard/hintActions'
 import { useHintActionsStore } from '@/stores/hintActionsStore'
@@ -14,6 +16,8 @@ const props = defineProps<{
   checkedCount: number
   /** Items the mark button marks, the checked ones or the cursor item */
   seenCount: number
+  /** Checked items each bulk action acts on */
+  bulkCounts: InboxBulkCounts
 }>()
 
 defineEmits<{ markSeen: [] }>()
@@ -27,10 +31,12 @@ const NOUNS = {
   kev: ['new KEV', 'new KEV'],
 } as const
 
-const BULK: { id: HintActionId; label: string }[] = [
-  { id: 'accept', label: 'Accept selected' },
-  { id: 'reject', label: 'Reject selected' },
+const BULK: { id: HintActionId & keyof InboxBulkCounts; label: string; noun: BulkNoun }[] = [
+  { id: 'accept', label: 'Accept', noun: { singular: 'proposal' } },
+  { id: 'reject', label: 'Reject', noun: { singular: 'proposal' } },
 ]
+
+const ITEM = { singular: 'item' }
 
 const parts = computed(() =>
   INBOX_KINDS.filter((kind) => props.counts[kind] > 0).map((kind) => {
@@ -61,28 +67,30 @@ const runAction = (id: HintActionId): void => {
     </span>
     <template #actions>
       <template v-if="checkedCount > 0">
-        <BlockableButton
+        <BulkActionButton
           v-for="action in BULK"
           :key="action.id"
           :as="BaseButton"
           class="bulk-button"
           variant="ghost"
+          :label="action.label"
+          :count="bulkCounts[action.id]"
+          :noun="action.noun"
           :blocked-by="actions.reasonOf(action.id)"
           blocked-title="Not available"
           @press="runAction(action.id)"
-        >
-          {{ action.label }}
-        </BlockableButton>
-        <BlockableButton
+        />
+        <BulkActionButton
           :as="BaseButton"
           class="bulk-button"
           variant="ghost"
+          label="Mark seen"
+          :count="bulkCounts.markSeen"
+          :noun="ITEM"
           :blocked-by="actions.reasonOf('markSeen')"
           blocked-title="Not available"
           @press="$emit('markSeen')"
-        >
-          Mark seen
-        </BlockableButton>
+        />
       </template>
       <BaseButton v-else-if="seenCount > 0" variant="ghost" @click="$emit('markSeen')">
         Mark as seen

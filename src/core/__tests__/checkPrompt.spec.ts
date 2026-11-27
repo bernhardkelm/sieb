@@ -8,52 +8,9 @@ import {
   textLength,
   WORKER_ONLINE_MS,
 } from '#core/checkLimits.ts'
-import { checkPullRef, isImageDigest } from '#core/checkPrompt.ts'
+import { isImageDigest, isImageTag } from '#core/checkPrompt.ts'
 
-const IMAGE = 'ghcr.io/example/app'
 const DIGEST = `sha256:${'c'.repeat(64)}`
-
-/**
- * Builds an instance with the fields the pull ref reads.
- * @param {Partial<Parameters<typeof checkPullRef>[1][number]>} overrides - Fields to set
- * @returns {Parameters<typeof checkPullRef>[1][number]} - Instance
- */
-const instance = (overrides: Partial<Parameters<typeof checkPullRef>[1][number]> = {}) => ({
-  id: 1,
-  imageTag: null,
-  imageDigest: null,
-  lastSeen: '2026-06-01T00:00:00.000Z',
-  resolvedAt: null,
-  ...overrides,
-})
-
-describe('checkPullRef', () => {
-  it('prefers the digest of the most recently seen open instance', () => {
-    expect(
-      checkPullRef(IMAGE, [
-        instance({ id: 1, imageTag: '1.0', lastSeen: '2026-06-02T00:00:00.000Z' }),
-        instance({ id: 2, imageDigest: DIGEST }),
-      ]),
-    ).toEqual({ imageRef: `${IMAGE}@${DIGEST}`, imageDigest: DIGEST })
-  })
-
-  it('pulls by tag without a digest and says so with imageDigest null', () => {
-    expect(checkPullRef(IMAGE, [instance({ imageTag: '1.0' })])).toEqual({
-      imageRef: `${IMAGE}:1.0`,
-      imageDigest: null,
-    })
-  })
-
-  it('never falls back to the bare ref, which would pull latest', () => {
-    expect(
-      checkPullRef(IMAGE, [
-        instance({ imageDigest: DIGEST, resolvedAt: 't' }),
-        instance({ id: 2, imageTag: '1.0 ; rm -rf /', imageDigest: 'sha256:xyz' }),
-      ]),
-    ).toBeNull()
-    expect(checkPullRef(IMAGE, [])).toBeNull()
-  })
-})
 
 describe('isImageDigest', () => {
   it('accepts algorithm and hex and refuses other text and overlong values', () => {
@@ -61,6 +18,16 @@ describe('isImageDigest', () => {
     expect(isImageDigest('sha256:xyz')).toBe(false)
     expect(isImageDigest(`${DIGEST}\n`)).toBe(false)
     expect(isImageDigest(`sha256:${'a'.repeat(200)}`)).toBe(false)
+  })
+})
+
+describe('isImageTag', () => {
+  it('accepts tags that are safe as directory names only', () => {
+    expect(isImageTag('17.11-trixie')).toBe(true)
+    expect(isImageTag('.hidden')).toBe(false)
+    expect(isImageTag('../x')).toBe(false)
+    expect(isImageTag('-flag')).toBe(false)
+    expect(isImageTag('a'.repeat(129))).toBe(false)
   })
 })
 

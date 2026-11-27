@@ -7,7 +7,8 @@ import {
   type CheckBlocker,
 } from '#core/checkEligibility.ts'
 import { checkTokenExpiry } from '#core/checkLimits.ts'
-import { checkPullRef, NO_PULL_REF_ERROR, type CheckPull } from '#core/checkPrompt.ts'
+import { NO_PULL_REF_ERROR } from '#core/checkPrompt.ts'
+import { checkPullRef, type CheckPull } from '#core/checkPull.ts'
 import type { Finding } from '#core/finding.ts'
 import type { FindingInstance } from '#core/instance.ts'
 import { getCheck } from '#server/db/checkRepository.ts'

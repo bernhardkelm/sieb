@@ -179,7 +179,7 @@ describe('InboxView bulk actions', () => {
     )
 
     answerInbox(ITEMS.filter((item) => item !== FRESH))
-    buttonOf('Accept 1').click()
+    buttonOf('Accept 1', '[role="dialog"]').click()
     await flushPromises()
 
     expect(bulkAcceptProposals).toHaveBeenCalledExactlyOnceWith([
@@ -203,7 +203,7 @@ describe('InboxView bulk actions', () => {
       { id: 5, vulnId: OUTDATED.vulnId, outcome: 'rejected' },
     ])
 
-    buttonOf('Reject selected', '.list-summary').click()
+    buttonOf('Reject 2', '.list-summary').click()
     await flushPromises()
 
     const dialog = document.querySelector('[role="dialog"]')!
@@ -214,7 +214,7 @@ describe('InboxView bulk actions', () => {
     reason.value = 'Parser reachable through the upload endpoint'
     reason.dispatchEvent(new Event('input'))
     answerInbox(ITEMS.filter((item) => item !== FRESH && item !== OUTDATED))
-    buttonOf('Reject 2').click()
+    buttonOf('Reject 2', '[role="dialog"]').click()
     await flushPromises()
 
     expect(bulkRejectProposals).toHaveBeenCalledExactlyOnceWith(
@@ -229,7 +229,7 @@ describe('InboxView bulk actions', () => {
     await mountInbox()
     await check(FRESH, KEV, EXPIRING)
 
-    buttonOf('Mark seen', '[role="toolbar"]').click()
+    buttonOf('Mark seen 2', '[role="toolbar"]').click()
     await flushPromises()
 
     expect(markInboxSeen).toHaveBeenCalledExactlyOnceWith([KEV.key, EXPIRING.key])
@@ -245,8 +245,8 @@ describe('InboxView bulk actions', () => {
 
     expect(accept.getAttribute('aria-disabled')).toBe('true')
     expect(accept.title).toBe(NO_PROPOSALS)
-    expect(buttonOf('Reject selected', '.list-summary').title).toBe(NO_PROPOSALS)
-    expect(buttonOf('Mark seen', '[role="toolbar"]').hasAttribute('aria-disabled')).toBe(false)
+    expect(buttonOf('Reject', '.list-summary').title).toBe(NO_PROPOSALS)
+    expect(buttonOf('Mark seen 1', '[role="toolbar"]').hasAttribute('aria-disabled')).toBe(false)
 
     await press('a')
     expect(notifyNotice).toHaveBeenCalledExactlyOnceWith('Not available', NO_PROPOSALS)
@@ -255,11 +255,38 @@ describe('InboxView bulk actions', () => {
     await check(KEV, OUTDATED, INCONCLUSIVE)
 
     expect(buttonOf('Accept', '[role="toolbar"]').title).toBe(NONE_ACCEPTABLE)
-    expect(buttonOf('Reject', '[role="toolbar"]').hasAttribute('aria-disabled')).toBe(false)
+    expect(buttonOf('Reject 2', '[role="toolbar"]').hasAttribute('aria-disabled')).toBe(false)
     expect(buttonOf('Mark seen', '[role="toolbar"]').title).toBe(NOTHING_TO_SEE)
 
     await press('s')
     expect(markInboxSeen).not.toHaveBeenCalled()
+  })
+
+  it('counts the items each action acts on and names the skipped ones', async () => {
+    await mountInbox()
+    await check(FRESH, KEV, OUTDATED, EXPIRING)
+
+    for (const within of ['[role="toolbar"]', '.list-summary']) {
+      const accept = buttonOf('Accept 1', within)
+      const reject = buttonOf('Reject 2', within)
+      const seen = buttonOf('Mark seen 2', within)
+
+      expect(accept.getAttribute('aria-label')).toBe('Accept 1 proposal')
+      expect(accept.title).toBe(`1 of 4 selected. ${NO_PROPOSALS}. ${NONE_ACCEPTABLE}.`)
+      expect(reject.getAttribute('aria-label')).toBe('Reject 2 proposals')
+      expect(reject.title).toBe(`2 of 4 selected. ${NO_PROPOSALS}.`)
+      expect(seen.getAttribute('aria-label')).toBe('Mark seen 2 items')
+      expect(seen.title).toBe(`2 of 4 selected. ${NOTHING_TO_SEE}.`)
+    }
+
+    await check(KEV, EXPIRING)
+
+    const reject = buttonOf('Reject 2', '[role="toolbar"]')
+
+    expect(reject.title).toBe('')
+    expect(buttonOf('Accept 1', '[role="toolbar"]').title).toBe(
+      `1 of 2 selected. ${NONE_ACCEPTABLE}.`,
+    )
   })
 
   it('reports a batch without writes as a notice', async () => {
@@ -270,7 +297,7 @@ describe('InboxView bulk actions', () => {
     ])
 
     await press('a')
-    buttonOf('Accept 1').click()
+    buttonOf('Accept 1', '[role="dialog"]').click()
     await flushPromises()
 
     expect(notifySuccess).not.toHaveBeenCalled()

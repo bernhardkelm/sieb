@@ -1,5 +1,7 @@
 import { onBeforeUnmount, onMounted, type Ref } from 'vue'
 
+import { isClearingTarget } from '@/components/list/listBackground'
+
 export const SHEET_QUERY = '(max-width: 639px)' // the side panel turns into a full screen sheet
 
 // a press here keeps the panel: other side panels, list rows, dialogs, menus, popovers, toasts
@@ -30,7 +32,7 @@ const layerOpen = (): boolean =>
  * Returns whether a pointer press should close an overlay panel: a primary button press on the
  * page outside the panel and outside the elements in KEEP_SELECTOR, while no other layer is
  * open and the panel is no full screen sheet. A press on the page scrollbar targets the html
- * element and never counts.
+ * element and never counts, nor does one on empty list space that clears the checked rows.
  * @param {PointerEvent} event - Pointer press
  * @param {HTMLElement} panel - Panel element
  * @returns {boolean} - True for a press outside
@@ -42,7 +44,12 @@ export const isOutsidePress = (event: PointerEvent, panel: HTMLElement): boolean
     return false
   }
 
-  if (panel.contains(target) || target.closest(KEEP_SELECTOR) !== null || layerOpen()) {
+  if (
+    panel.contains(target) ||
+    target.closest(KEEP_SELECTOR) !== null ||
+    isClearingTarget(target) ||
+    layerOpen()
+  ) {
     return false
   }
 

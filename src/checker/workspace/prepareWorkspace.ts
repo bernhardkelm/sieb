@@ -1,17 +1,30 @@
-import { mkdir, readFile, rm, writeFile } from 'node:fs/promises'
+import { mkdir, rm } from 'node:fs/promises'
 
 import type { WorkerClaim } from '#core/check.ts'
 import { CheckFailure } from '#checker/CheckFailure.ts'
 import { writeClaudeFiles } from '#checker/claude/writeClaudeFiles.ts'
-import { errorTail } from '#checker/process/errorTail.ts'
-import type { CheckLayout } from '#checker/workspace/checkLayout.ts'
-import { containSymlinks } from '#checker/workspace/containSymlinks.ts'
-import { exportImage } from '#checker/workspace/exportImage.ts'
+import { imageLayout, type CheckLayout } from '#checker/workspace/checkLayout.ts'
+import { ImageTooLargeFailure } from '#checker/workspace/exportImage.ts'
+import { prepareImage } from '#checker/workspace/prepareImage.ts'
 import type { PulledImage } from '#checker/workspace/resolveImage.ts'
-import { runTool, toolEnv, type ToolContext } from '#checker/workspace/runTool.ts'
-import { trimInventory } from '#checker/workspace/trimInventory.ts'
+import type { ToolContext } from '#checker/workspace/runTool.ts'
 
-const CONFIG_MAX_BYTES = 4 * 1024 * 1024
+/** A pulled image in the workspace */
+export interface PreparedImage extends PulledImage {
+  dir: string // relative to the workspace, images/<n>-<tag>
+}
+
+/** An extra image the workspace lacks and why */
+export interface SkippedImage {
+  image: PulledImage
+  reason: 'size' | 'pull' // over the remaining size cap, or its pull or extraction failed
+}
+
+/** What the workspace holds */
+export interface WorkspaceImages {
+  prepared: PreparedImage[] // primary first
+  skipped: SkippedImage[]
+}
 
 /**
  * Creates the check directory with the workspace, HOME and TMPDIR.
@@ -19,112 +32,70 @@ const CONFIG_MAX_BYTES = 4 * 1024 * 1024
  * @returns {Promise<void>}
  */
 export const createCheckDirs = async (layout: CheckLayout): Promise<void> => {
-  await mkdir(layout.imageDir, { recursive: true })
+  await mkdir(layout.images, { recursive: true })
   await mkdir(layout.home, { recursive: true, mode: 0o700 })
   await mkdir(layout.tmp, { recursive: true, mode: 0o700 })
 }
 
 /**
- * Writes the image config from crane config, the first pull of the image.
- * @param {PulledImage} image - Image by digest
- * @param {CheckLayout} layout - Check paths
- * @param {ToolContext} context - Runner, config and abort handling
- * @returns {Promise<void>}
- * @throws {CheckFailure} - When the image cannot be pulled or its config is too large
+ * Returns whether a failed extra image is skipped: the failure is an expected one and the
+ * check was neither stopped nor out of time, which would fail the next step as well.
+ * @param {unknown} error - Failure of the image
+ * @param {ToolContext} context - Abort signal and deadline
+ * @returns {boolean} - Whether to skip the image and go on
  */
-const writeImageConfig = async (
-  image: PulledImage,
-  layout: CheckLayout,
-  context: ToolContext,
-): Promise<void> => {
-  const run = await runTool(
-    'image config',
-    {
-      command: 'crane',
-      args: ['config', '--platform', context.config.platform, image.ref],
-      maxStdoutBytes: CONFIG_MAX_BYTES,
-    },
-    layout,
-    context,
-  )
-
-  if (run.exit.code !== 0) {
-    throw new CheckFailure(`image pull failed: ${run.exit.error ?? errorTail(run.stderr)}`)
-  }
-
-  if (run.stdoutTruncated) {
-    throw new CheckFailure(`image config exceeds ${CONFIG_MAX_BYTES} bytes`)
-  }
-
-  await writeFile(layout.imageConfig, run.stdout)
-}
+const skippable = (error: unknown, context: ToolContext): boolean =>
+  error instanceof CheckFailure && !context.signal.aborted && context.remainingMs() > 0
 
 /**
- * Writes inventory.json from a syft scan of the image directory; a failed scan leaves a note
- * instead of failing the check.
- * @param {CheckLayout} layout - Check paths
- * @param {ToolContext} context - Runner, config and abort handling
- * @returns {Promise<void>}
- */
-const writeInventory = async (layout: CheckLayout, context: ToolContext): Promise<void> => {
-  const run = await runTool(
-    'inventory scan',
-    {
-      command: 'syft',
-      args: ['scan', 'dir:image', '-q', '-o', `json=${layout.syftOutput}`],
-      maxStdoutBytes: 0,
-    },
-    layout,
-    context,
-  )
-
-  if (run.exit.code !== 0) {
-    const reason = run.exit.error ?? errorTail(run.stderr)
-
-    context.log(`[sieb-checker] syft failed: ${reason}`)
-    await writeFile(layout.inventory, JSON.stringify({ error: `syft failed: ${reason}` }))
-
-    return
-  }
-
-  await writeFile(layout.inventory, trimInventory(await readFile(layout.syftOutput, 'utf8')))
-  await rm(layout.syftOutput, { force: true })
-}
-
-/**
- * Prepares the created check directory: the image files, its config and inventory in the
- * workspace, then Claude's MCP config and settings outside of it.
+ * Prepares the created check directory: one directory per image with its filesystem, config
+ * and inventory, then Claude's MCP config and settings outside the workspace. The byte cap
+ * covers all images together; an extra image that does not fit or fails to pull is removed
+ * and skipped, while a failing primary image fails the check.
  * @param {WorkerClaim} claim - Claimed check
- * @param {PulledImage} image - Image by digest
+ * @param {PulledImage[]} images - Images by digest, primary first
  * @param {CheckLayout} layout - Check paths
  * @param {ToolContext} context - Runner, config, abort signal, deadline and log
- * @returns {Promise<void>}
- * @throws {CheckFailure} - When pulling, exporting or extracting the image fails
+ * @returns {Promise<WorkspaceImages>} - Prepared and skipped images
+ * @throws {CheckFailure} - When pulling, exporting or extracting the primary image fails
  */
 export const prepareWorkspace = async (
   claim: WorkerClaim,
-  image: PulledImage,
+  images: PulledImage[],
   layout: CheckLayout,
   context: ToolContext,
-): Promise<void> => {
-  await writeImageConfig(image, layout, context)
+): Promise<WorkspaceImages> => {
+  const result: WorkspaceImages = { prepared: [], skipped: [] }
+  let budget = context.config.imageMaxBytes
 
-  const stats = await exportImage({
-    runner: context.runner,
-    imageRef: image.ref,
-    platform: context.config.platform,
-    imageDir: layout.imageDir,
-    maxBytes: context.config.imageMaxBytes,
-    env: toolEnv(context.config, layout),
-    signal: context.signal,
-    timeoutMs: context.remainingMs(),
-  })
-  const links = await containSymlinks(layout.imageDir)
+  for (const [index, image] of images.entries()) {
+    const paths = imageLayout(layout, index, image.tag)
 
-  context.log(
-    `[sieb-checker] check ${claim.checkId}: ${stats.entries} entries extracted, dropped ` +
-      `${JSON.stringify(stats.dropped)}, symlinks rewritten ${links.rewritten}, removed ${links.removed}`,
-  )
-  await writeInventory(layout, context)
+    if (budget <= 0) {
+      result.skipped.push({ image, reason: 'size' })
+      continue
+    }
+
+    try {
+      budget -= await prepareImage(image, paths, layout, { ...context, maxBytes: budget })
+      result.prepared.push({ ...image, dir: paths.dir })
+    } catch (error) {
+      if (index === 0 || !skippable(error, context)) {
+        throw error
+      }
+
+      context.log(
+        `[sieb-checker] check ${claim.checkId}: skipped ${image.ref}: ${(error as Error).message}`,
+      )
+      await rm(paths.path, { recursive: true, force: true })
+      result.skipped.push({
+        image,
+        reason: error instanceof ImageTooLargeFailure ? 'size' : 'pull',
+      })
+    }
+  }
+
   await writeClaudeFiles(claim, layout, context.config)
+
+  return result
 }

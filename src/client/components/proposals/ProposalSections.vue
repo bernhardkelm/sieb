@@ -13,6 +13,7 @@ import EvidenceChecklist from '@/components/proposals/EvidenceChecklist.vue'
 import FixAndReview from '@/components/proposals/FixAndReview.vue'
 import MissingList from '@/components/proposals/MissingList.vue'
 import ProposalHeader from '@/components/proposals/ProposalHeader.vue'
+import { fixPathTitle } from '@/components/proposals/fixPathRows'
 import { hasWhatToDo } from '@/components/proposals/proposalText'
 import ReferenceLinks from '@/components/proposals/ReferenceLinks.vue'
 import SiebFacts from '@/components/proposals/SiebFacts.vue'
@@ -25,6 +26,7 @@ const props = defineProps<{
 
 const decidable = computed(() => isDecidableVerdict(props.detail.proposal.verdict))
 const planShown = computed(() => hasWhatToDo(props.detail.proposal))
+const fixTitle = computed(() => fixPathTitle(props.detail.proposal, planShown.value))
 </script>
 
 <template>
@@ -70,7 +72,7 @@ const planShown = computed(() => hasWhatToDo(props.detail.proposal))
       </ClaimBox>
     </section>
     <section class="section" aria-labelledby="review-fix">
-      <h3 id="review-fix" class="section-title">Fix path and review</h3>
+      <h3 id="review-fix" class="section-title">{{ fixTitle }}</h3>
       <ClaimBox>
         <FixAndReview :proposal="detail.proposal" :plan-shown="planShown" />
       </ClaimBox>

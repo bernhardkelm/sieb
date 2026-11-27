@@ -2,6 +2,7 @@ import { computed, type ComputedRef } from 'vue'
 
 import { useConnectionPoll } from '@/composables/useConnectionPoll'
 import { useSelectionHandoff } from '@/composables/useSelectionHandoff'
+import type { BulkCount } from '@/format/bulkCount'
 import { HANDOFF_OPTIONS } from '@/format/handoffTargets'
 import { useHandoffTargetStore } from '@/stores/handoffTargetStore'
 import { runUnlessBlocked } from '@/toast/blockedNotice'
@@ -11,10 +12,14 @@ export type SelectionHandoffKind = 'open' | 'prompt' | 'command'
 export interface SelectionHandoffButton {
   kind: SelectionHandoffKind
   label: string
+  /** Label with `{n}` where the count of carried findings goes */
+  template: string
   /** Key that runs the same action on the page */
   shortcut: string
   /** Why the action cannot run, null while it can */
   blockedBy: string | null
+  /** Checked rows the hand-off carries */
+  count: BulkCount
 }
 
 export interface SelectionHandoffButtons {
@@ -43,23 +48,29 @@ export const useSelectionHandoffButtons = (): SelectionHandoffButtons => {
           {
             kind: 'open' as const,
             label: HANDOFF_OPTIONS[targets.preferred].action,
+            template: HANDOFF_OPTIONS[targets.preferred].action.replace(' ', ' {n} '),
             shortcut: 'Shift+H',
             blockedBy: handoff.openBlockedBy(),
+            count: handoff.count.value,
           },
         ]),
     {
       kind: 'prompt',
       label: 'Copy for Claude',
+      template: 'Copy {n} for Claude',
       shortcut: 'h',
       blockedBy: handoff.promptBlockedBy(),
+      count: handoff.count.value,
     },
     ...(handoff.hasCommand.value
       ? [
           {
             kind: 'command' as const,
             label: 'Copy claude command',
+            template: 'Copy claude command for {n}',
             shortcut: 'y',
             blockedBy: handoff.commandBlockedBy(),
+            count: handoff.count.value,
           },
         ]
       : []),

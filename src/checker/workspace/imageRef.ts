@@ -30,3 +30,16 @@ export const digestOfRef = (ref: string): string | null => {
  */
 export const isPinnedRef = (ref: string): boolean =>
   digestOfRef(ref) !== null || repositoryOf(ref) !== ref
+
+/**
+ * Returns the tag an image reference names.
+ * @param {string} ref - Reference such as app:1.2 or app:1.2@sha256:...
+ * @returns {string | null} - Tag, null for a reference by digest only
+ */
+export const tagOfRef = (ref: string): string | null => {
+  const at = ref.indexOf('@')
+  const base = at === -1 ? ref : ref.slice(0, at)
+  const repository = repositoryOf(base)
+
+  return repository === base ? null : base.slice(repository.length + 1)
+}

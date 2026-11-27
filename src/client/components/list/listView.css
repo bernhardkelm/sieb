@@ -1,0 +1,5 @@
+/* fills the viewport below the top bar, so the space below the last row belongs to the list area */
+.list-view {
+  min-height: calc(100vh - var(--topbar-height) - var(--nav-inset));
+  min-height: calc(100dvh - var(--topbar-height) - var(--nav-inset));
+}

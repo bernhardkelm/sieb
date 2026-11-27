@@ -7,6 +7,7 @@ export const NOT_PUBLIC_REASON =
   'Auto-check covers public images only; use Claude Code in the repository.'
 export const RESOLVED_REASON = 'The finding is resolved, nothing left to check.'
 export const ALL_OPEN_REASON = 'Every selected finding already has an open check.'
+export const OPEN_SKIP_REASON = 'Findings with an open check are skipped.'
 
 export interface CheckAvailability {
   enabled: boolean

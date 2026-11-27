@@ -9,6 +9,8 @@ import { notifyNotice } from '@/toast/toastManager'
 export interface SelectionAutoCheck {
   /** Whether rows are checked, the Auto-check then acts on them instead of the panel finding */
   active: ComputedRef<boolean>
+  /** Checked rows a run queues, those without an open check */
+  count: ComputedRef<number>
   /** Why the checked rows cannot be checked now, null while some can */
   blockedBy: ComputedRef<string | null>
   /** Queues checks of the checked rows without an open check, false while blocked */
@@ -65,6 +67,7 @@ export const useSelectionAutoCheck = (): SelectionAutoCheck => {
 
   return {
     active: computed(() => selection.findingIds.length > 0),
+    count: computed(() => candidates.value.length),
     blockedBy,
     run,
     runOrExplain,

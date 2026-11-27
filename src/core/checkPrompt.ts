@@ -1,5 +1,5 @@
+import type { CheckPull } from '#core/checkPull.ts'
 import { buildHandoffPrompts, type HandoffInput } from '#core/handoffPrompt.ts'
-import type { FindingInstance } from '#core/instance.ts'
 
 const TAG_PATTERN = /^\w[\w.-]{0,127}$/
 const DIGEST_PATTERN = /^[a-z0-9]+(?:[+._-][a-z0-9]+)*:[0-9a-f]{32,}$/
@@ -15,44 +15,31 @@ export const MAX_DIGEST_LENGTH = 200
 export const isImageDigest = (value: string): boolean =>
   value.length <= MAX_DIGEST_LENGTH && DIGEST_PATTERN.test(value)
 
-type PullInstance = Pick<
-  FindingInstance,
-  'id' | 'imageTag' | 'imageDigest' | 'lastSeen' | 'resolvedAt'
->
+/**
+ * Returns whether a value is an image tag, which is also safe as a directory name.
+ * @param {string} value - Value
+ * @returns {boolean} - True for word characters, dots and dashes, not leading, at most 128
+ */
+export const isImageTag = (value: string): boolean => TAG_PATTERN.test(value)
 
-/** What the worker pulls: a digest-pinned ref, else a tagged ref without a known digest */
-export interface CheckPull {
-  imageRef: string // repository@digest or repository:tag
-  imageDigest: string | null // null when only the tag is known
-}
+const LISTED_NOT_PULLED = 10
 
 /**
- * Returns what the worker pulls: the finding's image with the digest of its most recently seen
- * open instance, else with that instance's tag. Never a bare ref, which would pull latest, a
- * different image than the one Trivy scanned. Values that are not a valid tag or digest are
- * skipped, so the ref never carries scanner text.
- * @param {string} imageRef - Image ref of the finding, without tag
- * @param {readonly PullInstance[]} instances - Instances of the finding
- * @returns {CheckPull | null} - Pull, null when sieb knows neither a digest nor a tag
+ * Describes the open tags the worker does not pull, beyond the image cap.
+ * @param {readonly string[]} notPulled - Labels of the uncovered tags
+ * @returns {string} - Prompt sentence with a leading space, empty when every tag is pulled
  */
-export const checkPullRef = (
-  imageRef: string,
-  instances: readonly PullInstance[],
-): CheckPull | null => {
-  const open = instances
-    .filter((instance) => instance.resolvedAt === null)
-    .sort((a, b) => b.lastSeen.localeCompare(a.lastSeen) || b.id - a.id)
-  const digest = open.find((instance) => isImageDigest(instance.imageDigest ?? ''))?.imageDigest
-
-  if (digest !== undefined && digest !== null) {
-    return { imageRef: `${imageRef}@${digest}`, imageDigest: digest }
+const notPulledText = (notPulled: readonly string[]): string => {
+  if (notPulled.length === 0) {
+    return ''
   }
 
-  const tag = open.find((instance) => TAG_PATTERN.test(instance.imageTag ?? ''))?.imageTag
+  const listed = notPulled.slice(0, LISTED_NOT_PULLED).join(', ')
+  const rest = notPulled.length - LISTED_NOT_PULLED
+  const more = rest > 0 ? ` and ${rest} more` : ''
+  const subject = notPulled.length === 1 ? '1 more tag was' : `${notPulled.length} more tags were`
 
-  return tag === undefined || tag === null
-    ? null
-    : { imageRef: `${imageRef}:${tag}`, imageDigest: null }
+  return ` ${subject} not pulled: ${listed}${more}. Name them under unknowns.`
 }
 
 /** Error of a check whose image sieb cannot pin, it fails at claim */
@@ -61,8 +48,9 @@ export const NO_PULL_REF_ERROR =
 
 /**
  * Builds the investigation prompt of a check: the chat hand-off prompt, which suits public
- * images, plus a note that nobody answers questions and, for a pull by tag, that the tag may
- * have moved since the scan. The worker appends the workspace layout.
+ * images, plus a note that nobody answers questions, for a pull by tag that the tag may have
+ * moved since the scan, and the open tags beyond the image cap. The worker appends the
+ * workspace layout.
  * @param {HandoffInput} input - Finding and its instances
  * @param {CheckPull} pull - What the worker pulls
  * @returns {string} - Prompt
@@ -77,5 +65,5 @@ export const buildCheckPrompt = (input: HandoffInput, pull: CheckPull): string =
         ' Trivy scanned: compare the package versions before you rely on them.'
       : ''
 
-  return `${buildHandoffPrompts(input).chat}${unattended}${tagOnly}`
+  return `${buildHandoffPrompts(input).chat}${unattended}${tagOnly}${notPulledText(pull.notPulled)}`
 }

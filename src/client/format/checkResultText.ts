@@ -1,4 +1,4 @@
-import type { CheckCreateResponse, CheckSkipReason, CheckUsage } from '#core/check.ts'
+import type { CheckCreateResponse, CheckedImage, CheckSkipReason, CheckUsage } from '#core/check.ts'
 import { countOf, formatCount } from '@/format/count'
 
 export const CHECK_SKIP_LABELS: Record<CheckSkipReason, string> = {
@@ -86,3 +86,22 @@ export const usageText = (usage: CheckUsage): string =>
  */
 export const costText = (costUsd: number | null): string | null =>
   costUsd === null ? null : `$${costUsd < 0.01 ? costUsd.toFixed(4) : costUsd.toFixed(2)}`
+
+/**
+ * Names the images a check exported by tag and short digest.
+ * @param {readonly CheckedImage[] | undefined} images - Exported images, primary first
+ * @returns {string | null} - Text such as "18-alpine (sha256:0123456789ab), 17 (sha256:…)", null for none
+ */
+export const checkedImagesText = (images: readonly CheckedImage[] | undefined): string | null => {
+  if (images === undefined || images.length === 0) {
+    return null
+  }
+
+  return images
+    .map(({ digest, tag }) => {
+      const short = digest.slice(0, digest.indexOf(':') + 13)
+
+      return tag === null ? short : `${tag} (${short})`
+    })
+    .join(', ')
+}

@@ -1,9 +1,14 @@
 <script setup lang="ts">
+import { computed } from 'vue'
+
 import SelectionAutoCheckButton from '@/components/checks/SelectionAutoCheckButton.vue'
 import BaseButton from '@/components/common/BaseButton.vue'
+import BulkActionButton from '@/components/list/BulkActionButton.vue'
 import ListSummary from '@/components/list/ListSummary.vue'
+import { useSelectionAutoCheckLabel } from '@/composables/useSelectionAutoCheckLabel'
+import { allOf } from '@/format/bulkCount'
 
-defineProps<{
+const props = defineProps<{
   shown: number
   total: number
   /** Shown findings first seen within the last seven days that the user has not seen */
@@ -14,6 +19,11 @@ defineProps<{
 }>()
 
 defineEmits<{ bulk: []; resetSort: []; markSeen: [] }>()
+
+const autoCheck = useSelectionAutoCheckLabel()
+const decided = computed(() => allOf(props.checkedCount))
+
+const NOUN = { singular: 'finding' }
 </script>
 
 <template>
@@ -29,21 +39,26 @@ defineEmits<{ bulk: []; resetSort: []; markSeen: [] }>()
       <BaseButton v-if="newCount > 0" variant="ghost" @click="$emit('markSeen')">
         Mark all as seen
       </BaseButton>
-      <BaseButton
+      <BulkActionButton
         v-if="checkedCount > 0"
+        :as="BaseButton"
         class="bulk-button"
         variant="ghost"
-        @click="$emit('bulk')"
-      >
-        Decide {{ checkedCount }} selected
-      </BaseButton>
+        label="Decide"
+        :count="decided"
+        :noun="NOUN"
+        :blocked-by="null"
+        blocked-title="Not available"
+        @press="$emit('bulk')"
+      />
       <SelectionAutoCheckButton
         v-if="checkedCount > 0"
         :as="BaseButton"
         class="bulk-button"
         variant="ghost"
+        v-bind="autoCheck.attrs.value"
       >
-        Auto-check {{ checkedCount }} selected
+        {{ autoCheck.text.value }}
       </SelectionAutoCheckButton>
     </template>
   </ListSummary>

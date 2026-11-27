@@ -5,7 +5,9 @@ import { selectionHandoffTexts } from '#core/selectionHandoff.ts'
 import { useClipboardCopy } from '@/composables/useClipboardCopy'
 import { useHandoffOpen } from '@/composables/useHandoffOpen'
 import type { HandoffActions } from '@/composables/usePanelHandoff'
+import type { BulkCount } from '@/format/bulkCount'
 import {
+  CAPPED_REASON,
   NO_SELECTION_REASON,
   commandReason,
   copiedToast,
@@ -21,6 +23,8 @@ export interface SelectionHandoff extends HandoffActions {
   active: ComputedRef<boolean>
   /** Whether the selection has a claude command, all own images of one repository */
   hasCommand: ComputedRef<boolean>
+  /** Checked rows the prompt lists, at most the cap */
+  count: ComputedRef<BulkCount>
 }
 
 /**
@@ -131,6 +135,11 @@ export const useSelectionHandoff = (): SelectionHandoff => {
   return {
     active: computed(() => texts.value !== null),
     hasCommand: computed(() => texts.value !== null && texts.value.command !== null),
+    count: computed(() => ({
+      affected: texts.value?.listed ?? 0,
+      selected: texts.value?.total ?? 0,
+      skipped: [CAPPED_REASON],
+    })),
     promptBlockedBy,
     openBlockedBy,
     commandBlockedBy,

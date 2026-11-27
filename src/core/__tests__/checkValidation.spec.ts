@@ -134,6 +134,29 @@ describe('validateWorkerResult', () => {
     })
   })
 
+  it('reads pulledDigests distinct and cut to three, and from pulledDigest of an older worker', () => {
+    const [c, d, e, f] = ['c', 'd', 'e', 'f'].map((hex) => `sha256:${hex.repeat(64)}`)
+
+    expect(validateWorkerResult(RESULT)).toMatchObject({ value: { pulledDigests: [] } })
+    expect(validateWorkerResult({ ...RESULT, pulledDigest: c })).toMatchObject({
+      value: { pulledDigest: c, pulledDigests: [c] },
+    })
+    expect(
+      validateWorkerResult({ ...RESULT, pulledDigest: c, pulledDigests: [c, d, d, e, f] }),
+    ).toMatchObject({ value: { pulledDigest: c, pulledDigests: [c, d, e] } })
+    expect(validateWorkerResult({ ...RESULT, pulledDigests: [d, c] })).toMatchObject({
+      value: { pulledDigest: d, pulledDigests: [d, c] },
+    })
+    for (const pulledDigests of ['x', [c, 'latest'], [c, 42]]) {
+      expect(validateWorkerResult({ ...RESULT, pulledDigests })).toMatchObject({
+        errors: [{ field: 'pulledDigests', code: 'invalid' }],
+      })
+    }
+    expect(validateWorkerResult({ ...RESULT, pulledDigest: c, pulledDigests: [d] })).toMatchObject({
+      errors: [{ field: 'pulledDigests', code: 'invalid' }],
+    })
+  })
+
   it('counts reply and error in code points like the database', () => {
     const result = validateWorkerResult({ ...RESULT, reply: '😀'.repeat(4001) })
 

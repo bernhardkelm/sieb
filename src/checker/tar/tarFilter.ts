@@ -19,6 +19,7 @@ export class ExportTooLargeError extends Error {
 export interface TarFilter {
   stream: Transform
   stats: TarFilterStats
+  bytes: () => number // input bytes read so far
 }
 
 /**
@@ -56,5 +57,5 @@ export const createTarFilter = (maxBytes: number): TarFilter => {
 
   const rewriter = createTarRewriter((chunk) => stream.push(chunk))
 
-  return { stream, stats: rewriter.stats }
+  return { stream, stats: rewriter.stats, bytes: () => total }
 }

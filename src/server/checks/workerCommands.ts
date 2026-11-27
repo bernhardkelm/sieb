@@ -1,11 +1,13 @@
 import type { CheckPhase, WorkerClaim, WorkerResult } from '#core/check.ts'
 import { buildCheckPrompt } from '#core/checkPrompt.ts'
+import { checkedImagesOf } from '#core/checkPull.ts'
 import type { CheckContext } from '#server/checks/checkContext.ts'
 import { claimLogLine, endLogLine, endLogLines } from '#server/checks/checkLogLines.ts'
 import { expireAndLog } from '#server/checks/readChecks.ts'
 import { getCheck, touchRunningCheck } from '#server/db/checkRepository.ts'
 import { claimCheck } from '#server/db/claimCheck.ts'
 import { endCheck } from '#server/db/endCheck.ts'
+import { listInstances } from '#server/db/instanceRepository.ts'
 import { triageWorkflow } from '#server/mcp/triagePromptText.ts'
 import { tokenLogLine } from '#server/tokenLogLine.ts'
 
@@ -46,6 +48,7 @@ export const claimForWorker = (context: CheckContext): WorkerClaim | null => {
     vulnId: finding.vulnId,
     imageRef: pull.imageRef,
     imageDigest: pull.imageDigest,
+    images: pull.images,
     prompt: `${buildCheckPrompt({ finding: { ...finding, packages: [] }, instances }, pull)}\n\n${triageWorkflow(true)}`,
     mcpUrl: context.mcpUrl,
     token: secret,
@@ -78,7 +81,8 @@ export const recordHeartbeat = (
 
 /**
  * Ends a running check with the worker's result, links the proposal its token filed and
- * deletes the token.
+ * deletes the token. The exported digests are stored with the tags the finding's instances
+ * name for them.
  * @param {CheckContext} context - Check context
  * @param {number} id - Check id
  * @param {WorkerResult} result - Validated result
@@ -97,6 +101,7 @@ export const recordResult = (
     return 'not_found'
   }
 
+  const digests = result.pulledDigests ?? (result.pulledDigest ? [result.pulledDigest] : [])
   const ended =
     check.state === 'running'
       ? endCheck(
@@ -109,6 +114,7 @@ export const recordResult = (
             usage: result.usage,
             reply: result.reply,
             pulledDigest: result.pulledDigest ?? null,
+            pulledImages: checkedImagesOf(digests, listInstances(context.db, check.findingId)),
           },
           context.clock(),
         )

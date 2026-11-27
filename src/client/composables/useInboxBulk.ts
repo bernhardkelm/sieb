@@ -10,6 +10,7 @@ import {
   rejectBlockedBy,
   type InboxBulkTargets,
 } from '@/components/inbox/inboxBulkTargets'
+import { inboxBulkCounts, type InboxBulkCounts } from '@/components/inbox/inboxBulkCounts'
 import { proposalItemKey } from '@/components/inbox/inboxItems'
 import type { ListSelection } from '@/composables/useListSelection'
 import { bulkResultText } from '@/format/bulkProposalText'
@@ -19,6 +20,8 @@ import { notifyError, notifyNotice, notifySuccess } from '@/toast/toastManager'
 
 export interface InboxBulk {
   targets: ComputedRef<InboxBulkTargets>
+  /** Checked items each bulk action acts on, for the counts on the buttons */
+  counts: ComputedRef<InboxBulkCounts>
   acceptBlockedBy: ComputedRef<string | null>
   rejectBlockedBy: ComputedRef<string | null>
   acceptOpen: Ref<boolean>
@@ -171,6 +174,7 @@ export const useInboxBulk = (
 
   return {
     targets,
+    counts: computed(() => inboxBulkCounts(targets.value)),
     acceptBlockedBy: acceptBlocked,
     rejectBlockedBy: rejectBlocked,
     acceptOpen,

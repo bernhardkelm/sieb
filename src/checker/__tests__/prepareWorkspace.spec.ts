@@ -1,15 +1,29 @@
 // @vitest-environment node
-import { mkdtemp, readFile, rm, stat } from 'node:fs/promises'
+import { mkdtemp, readdir, readFile, rm, stat } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 
 import { CLAIM, PULLED, testConfig } from '#checker/__tests__/checkFixtures.ts'
-import { createFakeRunner, toolBehaviour, type Behaviour } from '#checker/__tests__/fakeRunner.ts'
+import {
+  createFakeRunner,
+  toolBehaviour,
+  type Behaviour,
+  type FakeProcess,
+} from '#checker/__tests__/fakeRunner.ts'
 import { tarArchive } from '#checker/__tests__/tarFixtures.ts'
 import { checkLayout } from '#checker/workspace/checkLayout.ts'
 import { createCheckDirs, prepareWorkspace } from '#checker/workspace/prepareWorkspace.ts'
+import type { PulledImage } from '#checker/workspace/resolveImage.ts'
+
+const SECOND: PulledImage = {
+  ref: `docker.io/library/nginx@sha256:${'b'.repeat(64)}`,
+  digest: `sha256:${'b'.repeat(64)}`,
+  scanned: true,
+  tag: '1.26-alpine',
+  claimRef: `docker.io/library/nginx@sha256:${'b'.repeat(64)}`,
+}
 
 describe('prepareWorkspace', () => {
   let workdir = ''
@@ -25,15 +39,17 @@ describe('prepareWorkspace', () => {
   /**
    * Prepares the workspace of the test claim with fake tools.
    * @param {Record<string, Behaviour>} overrides - Tool behaviours to replace
-   * @returns {Promise<ReturnType<typeof createFakeRunner>>} - Runner and spawned processes
+   * @param {PulledImage[]} images - Images to prepare
+   * @returns {Promise<object>} - Runner, spawned processes and the prepared and skipped images
    */
-  const prepare = async (overrides: Record<string, Behaviour> = {}) => {
+  const prepare = async (overrides: Record<string, Behaviour> = {}, images = [PULLED]) => {
     const fake = createFakeRunner(toolBehaviour(overrides))
     const config = testConfig(workdir)
     const layout = checkLayout(workdir, 7)
 
     await createCheckDirs(layout)
-    await prepareWorkspace(CLAIM, PULLED, layout, {
+
+    const result = await prepareWorkspace(CLAIM, images, layout, {
       runner: fake.runner,
       config,
       signal: new AbortController().signal,
@@ -41,31 +57,24 @@ describe('prepareWorkspace', () => {
       log: () => undefined,
     })
 
-    return fake
+    return { ...fake, result }
   }
 
   it('runs crane by digest, tar and syft with the platform, the check paths and no secrets', async () => {
     const { spawned } = await prepare()
     const root = join(workdir, 'check-7')
     const workspace = join(root, 'workspace')
+    const rootfs = join(workspace, 'images/1-1.27/rootfs')
 
     expect(spawned.map(({ spec }) => [spec.command, spec.args, spec.cwd])).toEqual([
       ['crane', ['config', '--platform', 'linux/amd64', PULLED.ref], workspace],
-      ['crane', ['export', '--platform', 'linux/amd64', PULLED.ref, '-'], join(workspace, 'image')],
+      ['crane', ['export', '--platform', 'linux/amd64', PULLED.ref, '-'], rootfs],
+      ['tar', ['-x', '-f', '-', '-C', rootfs, '--no-same-owner', '--no-same-permissions'], rootfs],
       [
-        'tar',
-        [
-          '-x',
-          '-f',
-          '-',
-          '-C',
-          join(workspace, 'image'),
-          '--no-same-owner',
-          '--no-same-permissions',
-        ],
-        join(workspace, 'image'),
+        'syft',
+        ['scan', 'dir:images/1-1.27/rootfs', '-q', '-o', `json=${join(root, 'syft.json')}`],
+        workspace,
       ],
-      ['syft', ['scan', 'dir:image', '-q', '-o', `json=${join(root, 'syft.json')}`], workspace],
     ])
     for (const { spec } of spawned) {
       expect(Object.keys(spec.env).sort()).toEqual([
@@ -82,8 +91,12 @@ describe('prepareWorkspace', () => {
     await prepare()
     const root = join(workdir, 'check-7')
 
-    expect(await readFile(join(root, 'workspace/image-config.json'), 'utf8')).toContain('amd64')
-    expect(await readFile(join(root, 'workspace/inventory.json'), 'utf8')).toContain('musl')
+    expect(
+      await readFile(join(root, 'workspace/images/1-1.27/image-config.json'), 'utf8'),
+    ).toContain('amd64')
+    expect(await readFile(join(root, 'workspace/images/1-1.27/inventory.json'), 'utf8')).toContain(
+      'musl',
+    )
     expect((await stat(join(root, 'mcp.json'))).mode & 0o777).toBe(0o600)
     expect(await readFile(join(root, 'mcp.json'), 'utf8')).toContain('Bearer sieb_check_token')
     expect(JSON.parse(await readFile(join(root, 'settings.json'), 'utf8'))).toMatchObject({
@@ -202,8 +215,69 @@ describe('prepareWorkspace', () => {
       },
     })
 
-    expect(await readFile(join(workdir, 'check-7/workspace/inventory.json'), 'utf8')).toBe(
-      '{"error":"syft failed: could not catalog"}',
+    expect(
+      await readFile(join(workdir, 'check-7/workspace/images/1-1.27/inventory.json'), 'utf8'),
+    ).toBe('{"error":"syft failed: could not catalog"}')
+  })
+
+  it('fills one directory per image and returns them in claim order', async () => {
+    const { spawned, result } = await prepare({}, [PULLED, SECOND])
+    const workspace = join(workdir, 'check-7/workspace')
+
+    expect(await readdir(join(workspace, 'images'))).toEqual(['1-1.27', '2-1.26-alpine'])
+    expect((await stat(join(workspace, 'images/2-1.26-alpine/rootfs'))).isDirectory()).toBe(true)
+    expect(
+      await readFile(join(workspace, 'images/2-1.26-alpine/inventory.json'), 'utf8'),
+    ).toContain('musl')
+    expect(
+      spawned.filter(({ spec }) => spec.args[0] === 'export').map(({ spec }) => spec.args[3]),
+    ).toEqual([PULLED.ref, SECOND.ref])
+    expect(result).toEqual({
+      prepared: [
+        { ...PULLED, dir: 'images/1-1.27' },
+        { ...SECOND, dir: 'images/2-1.26-alpine' },
+      ],
+      skipped: [],
+    })
+  })
+
+  it('applies the size cap to all images and skips an extra image that does not fit', async () => {
+    const half = tarArchive([{ name: 'half', data: 'x'.repeat(600 * 1024) }])
+    const { result } = await prepare(
+      {
+        'crane export': (proc) => {
+          proc.stdout.write(half)
+          proc.exit(0)
+        },
+      },
+      [PULLED, SECOND],
+    )
+
+    expect(result.prepared.map(({ digest }) => digest)).toEqual([PULLED.digest])
+    expect(result.skipped).toEqual([{ image: SECOND, reason: 'size' }])
+    expect(await readdir(join(workdir, 'check-7/workspace/images'))).toEqual(['1-1.27'])
+  })
+
+  it('skips an extra image whose pull fails but fails the check for the primary one', async () => {
+    /**
+     * Fails crane config for the second image only.
+     * @param {FakeProcess} proc - Fake crane process
+     * @returns {void}
+     */
+    const failSecond = (proc: FakeProcess): void => {
+      if (proc.spec.args.includes(SECOND.ref)) {
+        proc.stderr.write('MANIFEST_UNKNOWN\n')
+        proc.exit(1)
+      } else {
+        proc.stdout.write('{}')
+        proc.exit(0)
+      }
+    }
+    const { result } = await prepare({ 'crane config': failSecond }, [PULLED, SECOND])
+
+    expect(result.skipped).toEqual([{ image: SECOND, reason: 'pull' }])
+    await expect(prepare({ 'crane config': failSecond }, [SECOND, PULLED])).rejects.toThrow(
+      'image pull failed: MANIFEST_UNKNOWN',
     )
   })
 })

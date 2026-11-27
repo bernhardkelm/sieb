@@ -78,6 +78,7 @@ describe('runCheck', () => {
       reply: expect.stringContaining('not_affected'),
       usage: expect.objectContaining({ inputTokens: 1200, costUsd: 0.42, turns: 7 }),
       pulledDigest: PULLED.digest,
+      pulledDigests: [PULLED.digest],
     })
     expect(result.reply).toContain(
       `\n\nPulled ${PULLED.ref}, resolved from the tag at check time; the scanned digest is unknown.`,
@@ -105,6 +106,29 @@ describe('runCheck', () => {
     expect(scanned.result.reply).toContain(
       `Pulled docker.io/library/nginx@${digest}, the scanned digest.`,
     )
+  })
+
+  it('pulls every image of the claim and reports their digests, primary first', async () => {
+    const [first, second] = ['b', 'c'].map((hex) => `sha256:${hex.repeat(64)}`) as [string, string]
+    const images = [first, second].map((digest, index) => ({
+      imageRef: `docker.io/library/nginx@${digest}`,
+      imageDigest: digest,
+      tag: `1.2${index}`,
+    }))
+    const { result, spawned } = await run({
+      claim: { ...CLAIM, imageRef: images[0]!.imageRef, imageDigest: first, images },
+    })
+
+    expect(
+      spawned.filter(({ spec }) => spec.args[0] === 'config').map(({ spec }) => spec.args[3]),
+    ).toEqual(images.map(({ imageRef }) => imageRef))
+    expect(result).toMatchObject({ pulledDigest: first, pulledDigests: [first, second] })
+    expect(result.reply).toContain(
+      `Pulled docker.io/library/nginx@${first}, the scanned digest. Plus 1 more image.`,
+    )
+    const prompt = spawned.find(({ spec }) => spec.command === 'claude')?.spec.args[1] ?? ''
+
+    expect(prompt).toContain('- images/2-1.21/: docker.io/library/nginx@')
   })
 
   it('hands the Claude credential over on fd 3, never in env or argv', async () => {

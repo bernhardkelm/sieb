@@ -49,6 +49,13 @@ export interface CheckView {
   usage: CheckUsage | null
   reply: string | null // Claude's final reply, plain text, untrusted
   pulledDigest?: string | null // digest the worker reports it exported, the server always sets it
+  pulledImages?: CheckedImage[] // images the worker reports it exported, primary first, the server always sets it
+}
+
+/** One image a check exported, with the tag sieb knows for its digest */
+export interface CheckedImage {
+  digest: string
+  tag: string | null // null when no instance of the finding names a tag for the digest
 }
 
 /** Checks that ended within the last `days` days and their summed Claude usage */
@@ -90,6 +97,13 @@ export interface CheckCreateResponse {
   skipped: { findingId: number; reason: CheckSkipReason }[]
 }
 
+/** One image of a claim */
+export interface WorkerClaimImage {
+  imageRef: string // repository@digest, else repository:tag for the single image of a tag-only finding
+  imageDigest: string | null // null only for a pull by tag
+  tag: string | null // tag of the most recently seen open instance with this digest
+}
+
 /** POST /worker/claim answer when a check is assigned, 204 without body when the queue is empty */
 export interface WorkerClaim {
   checkId: number
@@ -97,6 +111,7 @@ export interface WorkerClaim {
   vulnId: string
   imageRef: string // public image to export: repository@digest, else repository:tag, never bare
   imageDigest: string | null // digest of the scanned image, null when sieb only knows the tag
+  images?: WorkerClaimImage[] // primary image first, at most MAX_CHECK_IMAGES, absent from older sieb
   prompt: string // investigation prompt built by sieb, the worker appends the workspace layout
   mcpUrl: string // absolute /mcp URL
   token: string // short-lived token of the requester bound to this check's finding, revoked when it ends
@@ -116,5 +131,6 @@ export interface WorkerResult {
   durationMs: number
   usage: CheckUsage | null
   reply: string | null // Claude's final reply, at most MAX_CHECK_REPLY_LENGTH code points
-  pulledDigest?: string | null // digest of the exported image, optional
+  pulledDigest?: string | null // digest of the exported primary image, optional
+  pulledDigests?: string[] // digests of every exported image, primary first, absent from older workers
 }

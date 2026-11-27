@@ -7,7 +7,7 @@ import CheckFinding from '@/components/checks/CheckFinding.vue'
 import CheckReply from '@/components/checks/CheckReply.vue'
 import RetryCheckButton from '@/components/checks/RetryCheckButton.vue'
 import RelativeTime from '@/components/common/RelativeTime.vue'
-import { costText, usageText } from '@/format/checkResultText'
+import { checkedImagesText, costText, usageText } from '@/format/checkResultText'
 import { formatCount } from '@/format/count'
 import { formatElapsed, NO_FAILURE_REASON } from '@/format/checkText'
 
@@ -16,6 +16,7 @@ const props = defineProps<{
 }>()
 
 const cost = computed(() => costText(props.check.usage?.costUsd ?? null))
+const images = computed(() => checkedImagesText(props.check.pulledImages))
 </script>
 
 <template>
@@ -37,6 +38,10 @@ const cost = computed(() => costText(props.check.usage?.costUsd ?? null))
       <div v-if="check.durationMs !== null">
         <dt>Duration</dt>
         <dd>{{ formatElapsed(check.durationMs) }}</dd>
+      </div>
+      <div v-if="images !== null">
+        <dt>Checked images</dt>
+        <dd class="images">{{ images }}</dd>
       </div>
       <div v-if="check.usage?.models?.length">
         <dt>Model</dt>
@@ -98,6 +103,11 @@ const cost = computed(() => costText(props.check.usage?.costUsd ?? null))
 .facts dd {
   margin: 0;
   font-variant-numeric: tabular-nums;
+}
+
+.facts .images {
+  font-family: var(--font-mono);
+  overflow-wrap: anywhere;
 }
 
 .estimate {

@@ -1,7 +1,7 @@
 // @vitest-environment node
 import { describe, expect, it } from 'vitest'
 
-import { CLAIM, PULLED, testConfig } from '#checker/__tests__/checkFixtures.ts'
+import { CLAIM, testConfig, WORKSPACE } from '#checker/__tests__/checkFixtures.ts'
 import { claudeArgs, claudeEnv, mcpConfig } from '#checker/claude/claudeInvocation.ts'
 import { claudeSettings } from '#checker/claude/claudeSettings.ts'
 import { workspacePrompt } from '#checker/claude/workspacePrompt.ts'
@@ -65,7 +65,7 @@ describe('claude invocation', () => {
 
   it('never puts a secret or the sieb token on the command line or into the env', () => {
     const exposed = JSON.stringify([
-      claudeArgs(workspacePrompt(CLAIM, config.platform, PULLED), layout, 40, domains),
+      claudeArgs(workspacePrompt(CLAIM, config.platform, WORKSPACE), layout, 40, domains),
       claudeEnv(config.credential.kind, config.path, layout),
       claudeSettings(layout, domains),
     ])
@@ -129,37 +129,5 @@ describe('claude invocation', () => {
       ]),
     )
     expect(claudeArgs('x', layout, 1, domains).join(' ')).not.toMatch(/Bash/)
-  })
-
-  it('appends the workspace description and the pulled digest to the sieb prompt', () => {
-    const prompt = workspacePrompt(CLAIM, 'linux/amd64', PULLED)
-
-    expect(prompt.startsWith(CLAIM.prompt)).toBe(true)
-    expect(prompt).toContain('image/: the flattened filesystem of the image (linux/amd64)')
-    expect(prompt).toContain(
-      `The worker pulled ${PULLED.ref}, the digest docker.io/library/nginx:1.27 pointed to at check time. The digest of the scanned image is unknown`,
-    )
-    expect(workspacePrompt(CLAIM, 'linux/amd64', { ...PULLED, scanned: true })).toContain(
-      `The worker pulled ${PULLED.ref}, the digest of the scanned image.`,
-    )
-    expect(prompt).toContain('name own_source and runtime under Not checked')
-    expect(prompt).toContain('There is no shell.')
-    expect(prompt).toContain('the inspect tools (strings, readelf, objdump, unzip_list, jq)')
-    expect(prompt).toContain(
-      'File the verdict with propose_decision, then reply in the sieb format.',
-    )
-    expect(prompt).toContain('Its evidence gets one entry per check you ran here')
-    expect(prompt).toContain('also for checks that found nothing')
-    expect(prompt).toContain('Its references are the advisory and fix pages you fetched.')
-    expect(prompt).toContain('check before something becomes an unknown')
-    expect(prompt).toContain('Unknowns are only what this workspace cannot show')
-    expect(prompt).toContain('try another allowed source for the same fact')
-    expect(prompt).toContain('under missing with the verdict inconclusive')
-    expect(prompt).toContain('let fix.change cover both cases')
-    expect(prompt).toContain('WebSearch only finds pages.')
-    expect(prompt).toContain('A search summary is not a source')
-    expect(prompt).toContain('until you can name the first release that ships the fix')
-    expect(prompt).toContain('is your work, not a step in fix.action or fix.change')
-    expect(prompt).toContain('is a skipped check, not an unknown')
   })
 })

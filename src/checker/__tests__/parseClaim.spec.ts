@@ -67,4 +67,51 @@ describe('parseClaim', () => {
       }),
     ).toBe('imageDigest')
   })
+
+  it('fills the single image of a claim without images, as an older sieb sends it', () => {
+    expect(parseClaim({ ...CLAIM, images: undefined }).images).toEqual([
+      { imageRef: CLAIM.imageRef, imageDigest: null, tag: '1.27' },
+    ])
+    expect(
+      parseClaim({ ...CLAIM, imageRef: `docker.io/library/nginx@${DIGEST}`, imageDigest: DIGEST })
+        .images,
+    ).toEqual([{ imageRef: `docker.io/library/nginx@${DIGEST}`, imageDigest: DIGEST, tag: null }])
+  })
+
+  it('accepts images with the primary first and keeps at most three', () => {
+    const images = ['c', 'd', 'e', 'f'].map((hex, index) => ({
+      imageRef: `docker.io/library/postgres@sha256:${hex.repeat(64)}`,
+      imageDigest: `sha256:${hex.repeat(64)}`,
+      tag: index === 1 ? null : `1${index}-alpine`,
+    }))
+    const claim = parseClaim({ ...CLAIM, ...images[0], images })
+
+    expect(claim.images).toEqual(images.slice(0, 3))
+  })
+
+  it('rejects images that do not start with the primary one, repeat or lack a digest', () => {
+    const primary = { imageRef: `docker.io/library/nginx@${DIGEST}`, imageDigest: DIGEST, tag: '1' }
+    const other = `sha256:${'d'.repeat(64)}`
+    const extra = { imageRef: `docker.io/library/nginx@${other}`, imageDigest: other, tag: '2' }
+    const base = { imageRef: primary.imageRef, imageDigest: DIGEST }
+
+    expect(rejected({ ...base, images: [primary, extra] })).toBeNull()
+    expect(rejected({ ...base, images: [extra, primary] })).toBe('images')
+    expect(rejected({ ...base, images: [primary, primary] })).toBe('images')
+    expect(rejected({ ...base, images: [] })).toBe('images')
+    expect(rejected({ ...base, images: 'nginx' })).toBe('images')
+    expect(
+      rejected({
+        ...base,
+        images: [primary, { imageRef: 'nginx:2', imageDigest: null, tag: '2' }],
+      }),
+    ).toBe('images')
+    expect(rejected({ ...base, images: [primary, { ...extra, tag: '../2' }] })).toBe('images')
+    expect(rejected({ ...base, images: [primary, { ...extra, imageRef: '-x@' + other }] })).toBe(
+      'images',
+    )
+    expect(rejected({ ...base, images: [primary, { ...extra, imageDigest: DIGEST }] })).toBe(
+      'images',
+    )
+  })
 })

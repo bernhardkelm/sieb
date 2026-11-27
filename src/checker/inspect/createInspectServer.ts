@@ -13,6 +13,11 @@ const path = z
   .min(1)
   .max(4096)
   .describe('file in the workspace, relative to it (for example image/usr/bin/curl) or absolute')
+const filterShape = {
+  pattern: z.string().min(1).max(200).optional(),
+  regex: z.boolean().optional(),
+  ignoreCase: z.boolean().optional(),
+}
 
 /**
  * Creates the inspect MCP server: read-only binary and archive inspection on workspace files.
@@ -33,9 +38,7 @@ export const createInspectServer = (handlers: InspectHandlers): McpServer => {
       inputSchema: z.object({
         path,
         minLength: z.number().int().min(3).max(64).optional().describe('default 6'),
-        pattern: z.string().min(1).max(200).optional(),
-        regex: z.boolean().optional(),
-        ignoreCase: z.boolean().optional(),
+        ...filterShape,
       }),
     },
     (input) => handlers.strings(input),
@@ -46,10 +49,11 @@ export const createInspectServer = (handlers: InspectHandlers): McpServer => {
       ...tool,
       title: 'ELF details',
       description:
-        'Runs readelf on an ELF file in one view: header, sections, segments, dynamic (NEEDED libraries, RPATH), symbols, dynamic_symbols, notes (build id, ABI) or versions.',
+        'Runs readelf on an ELF file in one view: header, sections, segments, dynamic (NEEDED libraries, RPATH), symbols, dynamic_symbols, notes (build id, ABI) or versions. Output is capped, so pass pattern (plain text, or an extended regular expression with regex true, ignoreCase optional) to keep only matching lines, for example one symbol in symbols.',
       inputSchema: z.object({
         path,
         mode: z.enum(Object.keys(READELF_MODES) as [keyof typeof READELF_MODES]),
+        ...filterShape,
       }),
     },
     (input) => handlers.readelf(input),
@@ -60,11 +64,12 @@ export const createInspectServer = (handlers: InspectHandlers): McpServer => {
       ...tool,
       title: 'Object file details',
       description:
-        'Runs objdump on an object file: private_headers, section_headers, or disassemble_symbol with a symbol name to check whether and how a function is compiled in.',
+        'Runs objdump on an object file: private_headers, section_headers, or disassemble_symbol with a symbol name to check whether and how a function is compiled in. Takes the same pattern filter as readelf.',
       inputSchema: z.object({
         path,
         mode: z.enum(OBJDUMP_MODES),
         symbol: z.string().regex(SYMBOL_PATTERN).optional(),
+        ...filterShape,
       }),
     },
     (input) => handlers.objdump(input),

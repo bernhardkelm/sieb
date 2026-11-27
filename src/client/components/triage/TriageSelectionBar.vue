@@ -1,13 +1,17 @@
 <script setup lang="ts">
+import { computed } from 'vue'
+
 import SelectionAutoCheckButton from '@/components/checks/SelectionAutoCheckButton.vue'
-import BlockableButton from '@/components/common/BlockableButton.vue'
+import BulkActionButton from '@/components/list/BulkActionButton.vue'
 import SelectionBar from '@/components/list/SelectionBar.vue'
+import { useSelectionAutoCheckLabel } from '@/composables/useSelectionAutoCheckLabel'
 import { useSelectionHandoffButtons } from '@/composables/useSelectionHandoffButtons'
+import { allOf } from '@/format/bulkCount'
 import type { HintActionId } from '@/keyboard/hintActions'
 import { useHintActionsStore } from '@/stores/hintActionsStore'
 import { useMcpStore } from '@/stores/mcpStore'
 
-defineProps<{
+const props = defineProps<{
   /** Checked rows, the bar shows from one */
   count: number
 }>()
@@ -17,6 +21,8 @@ defineEmits<{ clear: [] }>()
 const actions = useHintActionsStore()
 const mcp = useMcpStore()
 const handoff = useSelectionHandoffButtons()
+const autoCheck = useSelectionAutoCheckLabel()
+const decided = computed(() => allOf(props.count))
 
 const ACTIONS: { id: HintActionId; label: string }[] = [
   { id: 'accept', label: 'Accept' },
@@ -25,6 +31,8 @@ const ACTIONS: { id: HintActionId; label: string }[] = [
 ]
 
 const BLOCKED_TITLE = 'Not available'
+
+const NOUN = { singular: 'finding' }
 
 /**
  * Runs a hint action as its key does, leaving focus on the bar so a tap does not scroll the
@@ -40,30 +48,35 @@ const runAction = (id: HintActionId): void => {
 <template>
   <SelectionBar :count="count" @clear="$emit('clear')">
     <div class="decide">
-      <BlockableButton
+      <BulkActionButton
         v-for="action in ACTIONS"
         :key="action.id"
         class="action decision"
+        :label="action.label"
+        :count="decided"
+        :noun="NOUN"
         :blocked-by="actions.reasonOf(action.id)"
         :blocked-title="BLOCKED_TITLE"
         @press="runAction(action.id)"
-      >
-        {{ action.label }}
-      </BlockableButton>
+      />
     </div>
-    <SelectionAutoCheckButton class="action auto-check" />
+    <SelectionAutoCheckButton class="action auto-check" v-bind="autoCheck.attrs.value">
+      {{ autoCheck.text.value }}
+    </SelectionAutoCheckButton>
     <template v-if="mcp.enabled">
-      <BlockableButton
+      <BulkActionButton
         v-for="button in handoff.buttons.value"
         :key="button.kind"
         class="action"
+        :label="button.label"
+        :template="button.template"
+        :count="button.count"
+        :noun="NOUN"
         :blocked-by="button.blockedBy"
         blocked-title="Not handed off"
         :aria-keyshortcuts="button.shortcut"
         @press="handoff.press(button.kind)"
-      >
-        {{ button.label }}
-      </BlockableButton>
+      />
     </template>
   </SelectionBar>
 </template>

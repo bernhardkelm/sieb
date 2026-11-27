@@ -10,6 +10,8 @@ export const NOTHING_TO_SEE = 'Only expiring decisions and new KEV listings can 
 export type AcceptSkip = 'inconclusive' | 'outdated'
 
 export interface InboxBulkTargets {
+  /** Checked items still listed */
+  selected: number
   /** Checked proposals, the targets of accept and reject */
   proposals: ProposalInboxItem[]
   /** Checked proposals a bulk accept would accept */
@@ -46,6 +48,7 @@ export const bulkTargetsOf = (
   const proposals = items.filter((item): item is ProposalInboxItem => item.kind === 'proposal')
 
   return {
+    selected: items.length,
     proposals,
     acceptable: proposals.filter((item) => acceptSkipOf(item) === null),
     seeable: items.filter(isSeeable),

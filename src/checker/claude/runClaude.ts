@@ -7,7 +7,7 @@ import { workspacePrompt } from '#checker/claude/workspacePrompt.ts'
 import type { ProcessRunner } from '#checker/process/processRunner.ts'
 import { runCaptured } from '#checker/process/runCaptured.ts'
 import type { CheckLayout } from '#checker/workspace/checkLayout.ts'
-import type { PulledImage } from '#checker/workspace/resolveImage.ts'
+import type { WorkspaceImages } from '#checker/workspace/prepareWorkspace.ts'
 
 const STDOUT_MAX_BYTES = 8 * 1024 * 1024
 
@@ -23,7 +23,7 @@ export interface ClaudeRunContext {
  * Runs headless Claude Code in the check workspace and maps its output to result parts. The
  * credential reaches Claude on file descriptor 3.
  * @param {WorkerClaim} claim - Claimed check
- * @param {PulledImage} image - Pulled image, named in the prompt
+ * @param {WorkspaceImages} images - Prepared and skipped images, named in the prompt
  * @param {CheckLayout} layout - Prepared check paths
  * @param {ClaudeRunContext} context - Runner, config, abort signal and time left
  * @returns {Promise<Omit<WorkerResult, 'durationMs'>>} - Status, error, usage and reply
@@ -31,12 +31,12 @@ export interface ClaudeRunContext {
  */
 export const runClaude = async (
   claim: WorkerClaim,
-  image: PulledImage,
+  images: WorkspaceImages,
   layout: CheckLayout,
   context: ClaudeRunContext,
 ): Promise<Omit<WorkerResult, 'durationMs'>> => {
   const { config } = context
-  const prompt = workspacePrompt(claim, config.platform, image)
+  const prompt = workspacePrompt(claim, config.platform, images)
   const run = await runCaptured(
     context.runner,
     {

@@ -12,8 +12,8 @@ import {
   MAX_CHECK_FINDINGS,
   MAX_CHECK_REPLY_LENGTH,
 } from '#core/checkLimits.ts'
-import { isImageDigest } from '#core/checkPrompt.ts'
 import { readCheckUsage } from '#core/checkUsageValidation.ts'
+import { readPulledDigests } from '#core/pulledDigestValidation.ts'
 
 export type CheckValidation<T> = { ok: true; value: T } | { ok: false; errors: ValidationIssue[] }
 
@@ -90,25 +90,6 @@ const readOptionalText = (
 }
 
 /**
- * Reads the optional digest of the image the worker exported.
- * @param {unknown} value - Raw value
- * @param {ValidationIssue[]} errors - Collected errors, appended to
- * @returns {string | null} - Digest, null when absent or invalid
- */
-const readPulledDigest = (value: unknown, errors: ValidationIssue[]): string | null => {
-  if (value === undefined || value === null) {
-    return null
-  }
-
-  if (typeof value !== 'string' || !isImageDigest(value)) {
-    errors.push({ field: 'pulledDigest', code: 'invalid' })
-    return null
-  }
-
-  return value
-}
-
-/**
  * Validates the body of a worker result. Error and reply are cut to their limits instead of
  * refused, so an overlong reply never leaves the check running until it times out.
  * @param {Record<string, unknown>} raw - Parsed request body
@@ -122,7 +103,7 @@ export const validateWorkerResult = (
   const error = readOptionalText(raw.error, 'error', MAX_CHECK_ERROR_LENGTH, errors)
   const reply = readOptionalText(raw.reply, 'reply', MAX_CHECK_REPLY_LENGTH, errors)
   const usage = readCheckUsage(raw.usage, errors)
-  const pulledDigest = readPulledDigest(raw.pulledDigest, errors)
+  const pulled = readPulledDigests(raw, errors)
   const durationMs = raw.durationMs
 
   if (status === null) {
@@ -146,7 +127,7 @@ export const validateWorkerResult = (
       durationMs: durationMs as number,
       usage,
       reply,
-      pulledDigest,
+      ...pulled,
     },
   }
 }

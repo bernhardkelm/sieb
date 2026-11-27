@@ -10,6 +10,8 @@ import {
   type ReadelfMode,
 } from '#checker/inspect/inspectArgs.ts'
 import { commandResult, toolError } from '#checker/inspect/inspectResult.ts'
+import { runLines } from '#checker/inspect/linesHandler.ts'
+import type { LineFilter } from '#checker/inspect/patternFilter.ts'
 import { createStringsHandler, type StringsInput } from '#checker/inspect/stringsHandler.ts'
 import { workspaceFile } from '#checker/inspect/workspaceFile.ts'
 import { errorMessage } from '#checker/safeText.ts'
@@ -28,8 +30,12 @@ export interface InspectDeps {
 /** One handler per inspect tool */
 export interface InspectHandlers {
   strings: (input: StringsInput) => Promise<CallToolResult>
-  readelf: (input: { path: string; mode: ReadelfMode }) => Promise<CallToolResult>
-  objdump: (input: { path: string; mode: ObjdumpMode; symbol?: string }) => Promise<CallToolResult>
+  readelf: (
+    input: { path: string; mode: ReadelfMode } & Partial<LineFilter>,
+  ) => Promise<CallToolResult>
+  objdump: (
+    input: { path: string; mode: ObjdumpMode; symbol?: string } & Partial<LineFilter>,
+  ) => Promise<CallToolResult>
   unzip_list: (input: { path: string }) => Promise<CallToolResult>
   jq: (input: { path: string; filter: string }) => Promise<CallToolResult>
 }
@@ -83,6 +89,34 @@ export const createInspectHandlers = (deps: InspectDeps): InspectHandlers => {
     }
   }
 
+  /**
+   * Runs a line output command on a workspace file, keeping only lines that match the pattern.
+   * @param {string} tool - Command name
+   * @param {string} path - Path argument
+   * @param {(file: string) => string[]} args - Builds the arguments for the resolved file
+   * @param {Partial<LineFilter>} filter - Optional pattern and matching mode
+   * @returns {Promise<CallToolResult>} - Tool result
+   */
+  const runFiltered = async (
+    tool: string,
+    path: string,
+    args: (file: string) => string[],
+    { pattern, ...mode }: Partial<LineFilter>,
+  ): Promise<CallToolResult> => {
+    try {
+      const file = await workspaceFile(deps.root, path)
+
+      return await runLines(
+        { exec: deps.exec, limits, maxBytes: deps.maxBytes },
+        tool,
+        args(file.path),
+        pattern ? { pattern, ...mode } : undefined,
+      )
+    } catch (error) {
+      return toolError(errorMessage(error))
+    }
+  }
+
   return {
     strings: createStringsHandler({
       root: deps.root,
@@ -90,9 +124,10 @@ export const createInspectHandlers = (deps: InspectDeps): InspectHandlers => {
       limits,
       maxBytes: deps.maxBytes,
     }),
-    readelf: ({ path, mode }) => run('readelf', path, (file) => readelfArgs(file, mode)),
-    objdump: ({ path, mode, symbol }) =>
-      run('objdump', path, (file) => objdumpArgs(file, mode, symbol)),
+    readelf: ({ path, mode, ...filter }) =>
+      runFiltered('readelf', path, (file) => readelfArgs(file, mode), filter),
+    objdump: ({ path, mode, symbol, ...filter }) =>
+      runFiltered('objdump', path, (file) => objdumpArgs(file, mode, symbol), filter),
     unzip_list: ({ path }) => run('unzip', path, unzipArgs),
     jq: ({ path, filter }) => run('jq', path, (file) => jqArgs(file, filter), JQ_MAX_FILE_BYTES),
   }

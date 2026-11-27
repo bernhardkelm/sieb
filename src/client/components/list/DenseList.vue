@@ -81,6 +81,7 @@ usePanelClip(list, () => rendered.value)
   <ul
     ref="list"
     class="dense-list"
+    data-list-background
     :role="kind"
     :aria-multiselectable="kind === 'listbox' || undefined"
     :aria-rowcount="kind === 'treegrid' ? items.length + headerRows : undefined"
@@ -91,6 +92,7 @@ usePanelClip(list, () => rendered.value)
       ref="origin"
       class="origin"
       role="none"
+      data-list-background
       aria-hidden="true"
       :style="{ height: `${totalSize}px` }"
     />

@@ -1,22 +1,26 @@
 <script setup lang="ts">
-import BlockableButton from '@/components/common/BlockableButton.vue'
+import type { InboxBulkCounts } from '@/components/inbox/inboxBulkCounts'
+import BulkActionButton from '@/components/list/BulkActionButton.vue'
 import SelectionBar from '@/components/list/SelectionBar.vue'
+import type { BulkNoun } from '@/format/bulkCount'
 import type { HintActionId } from '@/keyboard/hintActions'
 import { useHintActionsStore } from '@/stores/hintActionsStore'
 
 defineProps<{
   /** Checked rows, the bar shows from one */
   count: number
+  /** Checked items each action acts on */
+  counts: InboxBulkCounts
 }>()
 
 defineEmits<{ clear: [] }>()
 
 const actions = useHintActionsStore()
 
-const ACTIONS: { id: HintActionId; label: string }[] = [
-  { id: 'accept', label: 'Accept' },
-  { id: 'reject', label: 'Reject' },
-  { id: 'markSeen', label: 'Mark seen' },
+const ACTIONS: { id: HintActionId & keyof InboxBulkCounts; label: string; noun: BulkNoun }[] = [
+  { id: 'accept', label: 'Accept', noun: { singular: 'proposal' } },
+  { id: 'reject', label: 'Reject', noun: { singular: 'proposal' } },
+  { id: 'markSeen', label: 'Mark seen', noun: { singular: 'item' } },
 ]
 
 /**
@@ -32,16 +36,17 @@ const runAction = (id: HintActionId): void => {
 
 <template>
   <SelectionBar :count="count" @clear="$emit('clear')">
-    <BlockableButton
+    <BulkActionButton
       v-for="action in ACTIONS"
       :key="action.id"
       class="action"
+      :label="action.label"
+      :count="counts[action.id]"
+      :noun="action.noun"
       :blocked-by="actions.reasonOf(action.id)"
       blocked-title="Not available"
       @press="runAction(action.id)"
-    >
-      {{ action.label }}
-    </BlockableButton>
+    />
   </SelectionBar>
 </template>
 

@@ -57,15 +57,15 @@ afterEach(() => {
 describe('TriageSummary', () => {
   it('offers the Auto-check of the selection only while Auto-check is on', async () => {
     await mountSummary(null)
-    expect(labels()).toEqual(['Decide 2 selected'])
+    expect(labels()).toEqual(['Decide 2'])
 
     useChecksStore().response = buildChecksResponse({ enabled: false })
     await flushPromises()
-    expect(labels()).toEqual(['Decide 2 selected'])
+    expect(labels()).toEqual(['Decide 2'])
 
     useChecksStore().response = buildChecksResponse()
     await flushPromises()
-    expect(labels()).toEqual(['Decide 2 selected', 'Auto-check 2 selected'])
+    expect(labels()).toEqual(['Decide 2', 'Auto-check 2'])
   })
 
   it('marks a blocked Auto-check with its reason, focusable', async () => {

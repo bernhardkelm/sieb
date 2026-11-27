@@ -1,6 +1,6 @@
 import type { WorkerClaim, WorkerResult } from '#core/check.ts'
 import type { WorkerApi } from '#checker/api/workerApi.ts'
-import { withPulledImage } from '#checker/check/pulledNote.ts'
+import { withPulledImages } from '#checker/check/pulledNote.ts'
 import { startHeartbeat } from '#checker/check/heartbeat.ts'
 import { sendResult } from '#checker/check/sendResult.ts'
 import { wipeCheckDir } from '#checker/check/wipe.ts'
@@ -10,7 +10,7 @@ import { CANCELLED_REASON, failureReason } from '#checker/failureReason.ts'
 import type { ProcessRunner } from '#checker/process/processRunner.ts'
 import { checkLayout } from '#checker/workspace/checkLayout.ts'
 import { createCheckDirs, prepareWorkspace } from '#checker/workspace/prepareWorkspace.ts'
-import { resolveImage, type PulledImage } from '#checker/workspace/resolveImage.ts'
+import { resolveImages, type PulledImage } from '#checker/workspace/resolveImage.ts'
 
 /** What running a check needs */
 export interface CheckDeps {
@@ -25,7 +25,7 @@ export interface CheckDeps {
 }
 
 /**
- * Runs one claimed check: resolves the image digest, prepares the workspace, runs Claude,
+ * Runs one claimed check: resolves the image digests, prepares the workspace, runs Claude,
  * reports the result and then always wipes the check directory, so a slow wipe on shutdown
  * cannot lose the result. A 409 or 404 heartbeat answer or a worker stop kills the running
  * process group and ends the check as failed.
@@ -54,15 +54,21 @@ export const runCheck = async (claim: WorkerClaim, deps: CheckDeps): Promise<Wor
     log: deps.log,
     intervalMs: deps.heartbeatIntervalMs,
   })
-  let image: PulledImage | null = null
+  let pulled: PulledImage[] = []
   let parts: Omit<WorkerResult, 'durationMs'>
 
   try {
     await createCheckDirs(layout)
-    image = await resolveImage(claim, layout, context)
-    await prepareWorkspace(claim, image, layout, context)
+
+    const resolved = await resolveImages(claim, layout, context)
+
+    pulled = resolved.slice(0, 1)
+
+    const images = await prepareWorkspace(claim, resolved, layout, context)
+
+    pulled = images.prepared
     heartbeat.setPhase('investigating')
-    parts = await runClaude(claim, image, layout, { ...context, timeoutMs: remainingMs() })
+    parts = await runClaude(claim, images, layout, { ...context, timeoutMs: remainingMs() })
   } catch (error) {
     parts = { status: 'failed', error: failureReason(error, signal), usage: null, reply: null }
   }
@@ -70,7 +76,7 @@ export const runCheck = async (claim: WorkerClaim, deps: CheckDeps): Promise<Wor
   heartbeat.setPhase('reporting')
 
   const result: WorkerResult = {
-    ...(image === null ? parts : withPulledImage(parts, image)),
+    ...withPulledImages(parts, pulled),
     durationMs: Math.max(0, Math.round(deps.now() - started)),
   }
 

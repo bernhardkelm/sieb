@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, useTemplateRef } from 'vue'
 
 import BaseButton from '@/components/common/BaseButton.vue'
 import EmptyState from '@/components/common/EmptyState.vue'
@@ -13,6 +13,7 @@ import { TRIAGE_SORT_COLUMNS } from '@/components/triage/triageSort'
 import TriageSummary from '@/components/triage/TriageSummary.vue'
 import ViewToolbar from '@/components/layout/ViewToolbar.vue'
 import SortMenu from '@/components/list/SortMenu.vue'
+import { useClearSelectionOnBackgroundClick } from '@/composables/useClearSelectionOnBackgroundClick'
 import { useTriageController } from '@/composables/useTriageController'
 import { useLabelColumns } from '@/composables/useLabelColumns'
 import { hasActiveFilters } from '@/stores/findingFilters'
@@ -37,10 +38,17 @@ const {
 } = triage
 
 const { hidden } = useLabelColumns()
+
+useClearSelectionOnBackgroundClick(useTemplateRef<HTMLElement>('root'), triage.clearChecked)
 </script>
 
 <template>
-  <div class="triage-view">
+  <div
+    ref="root"
+    class="triage-view list-view"
+    data-list-background
+    :data-list-checked="checkedIds.size > 0 || undefined"
+  >
     <ViewToolbar>
       <FilterBar ref="filterBar" v-model:filters="filters" :resolved-toggle="false">
         <SortMenu
@@ -93,3 +101,5 @@ const { hidden } = useLabelColumns()
     />
   </div>
 </template>
+
+<style scoped src="@/components/list/listView.css"></style>

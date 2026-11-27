@@ -10,7 +10,7 @@ import type {
 } from '@/components/decision/decisionFormModel'
 import type { BulkTarget } from '@/components/decision/bulkTargets'
 import { useDecisionCommands } from '@/composables/useDecisionCommands'
-import { countOf } from '@/format/count'
+import { countOf, formatCount } from '@/format/count'
 
 const props = defineProps<{
   targets: BulkTarget[]
@@ -31,20 +31,27 @@ const initial = computed<DecisionFormInitial>(() =>
   props.status ? { scope: 'image', status: props.status } : { scope: 'image' },
 )
 
-const description = computed(() => {
-  const [first] = props.targets
-
-  if (props.targets.length === 1 && first?.imageRefs === 'all-open') {
-    return `${first.vulnId} in every image with an open finding, one decision per image. Images decided already are skipped.`
-  }
-
-  const images = props.targets.reduce(
+const allOpen = computed(
+  () => props.targets.length === 1 && props.targets[0]?.imageRefs === 'all-open',
+)
+const images = computed(() =>
+  props.targets.reduce(
     (sum, target) => sum + (target.imageRefs === 'all-open' ? 0 : target.imageRefs.length),
     0,
-  )
+  ),
+)
+const submitLabel = computed(() =>
+  allOpen.value ? 'Decide all' : `Decide ${formatCount(images.value)}`,
+)
+
+const description = computed(() => {
+  if (allOpen.value) {
+    return `${props.targets[0]?.vulnId} in every image with an open finding, one decision per image. Images decided already are skipped.`
+  }
+
   const cves = props.targets.map((target) => target.vulnId).join(', ')
 
-  return `${countOf(images, 'selected finding')} of ${cves}, one decision per image.`
+  return `${countOf(images.value, 'selected finding')} of ${cves}, one decision per image.`
 })
 
 /**
@@ -97,7 +104,7 @@ watch(open, (value) => {
       :initial="initial"
       :error="error"
       :submitting="submitting"
-      submit-label="Decide all"
+      :submit-label="submitLabel"
       @submit="onSubmit"
       @cancel="open = false"
     />

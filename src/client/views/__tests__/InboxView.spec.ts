@@ -285,4 +285,37 @@ describe('InboxView', () => {
     expect(document.querySelector('.current')?.getAttribute('data-inbox-key')).toBe('proposal:1')
     expect(router.currentRoute.value.query.item).toBeUndefined()
   })
+
+  it('clears the checked rows on a click on empty list space, the review panel stays', async () => {
+    const router = await mountInbox('/inbox/proposals/5')
+    const root = document.querySelector('.inbox-view')!
+
+    /**
+     * Presses and releases the primary button on an element.
+     * @param {Element} target - Clicked element
+     * @returns {Promise<void>} - Resolves once settled
+     */
+    const clickOn = async (target: Element): Promise<void> => {
+      target.dispatchEvent(new MouseEvent('pointerdown', { bubbles: true, button: 0 }))
+      target.dispatchEvent(new MouseEvent('click', { bubbles: true, button: 0 }))
+      await flushPromises()
+    }
+
+    for (const item of [KEV, EXPIRING]) {
+      document
+        .querySelector(`[data-inbox-key="${item.key}"] .row-checkbox`)!
+        .dispatchEvent(new MouseEvent('click', { bubbles: true }))
+      await flushPromises()
+    }
+
+    await clickOn(document.querySelector('.review')!)
+    await clickOn(document.querySelector('.list-summary')!)
+    expect(document.querySelectorAll('.list-row.checked')).toHaveLength(2)
+
+    await clickOn(root)
+
+    expect(document.querySelectorAll('.list-row.checked')).toHaveLength(0)
+    expect(router.currentRoute.value.name).toBe(ROUTE_NAMES.INBOX_PROPOSAL)
+    expect(document.querySelector('.review')?.getAttribute('data-id')).toBe('5')
+  })
 })

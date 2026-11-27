@@ -1,29 +1,34 @@
 <script setup lang="ts">
+import { computed } from 'vue'
+
 import type { ProposalView } from '#core/proposalView.ts'
 import ClaudeText from '@/components/proposals/ClaudeText.vue'
+import { fixPathRows } from '@/components/proposals/fixPathRows'
 import { formatDate } from '@/format/relativeTime'
 
-defineProps<{
+const props = defineProps<{
   proposal: ProposalView
   /** What to do shows the steps, effort and review date, this keeps only what it leaves out */
   planShown: boolean
 }>()
+
+const rows = computed(() => fixPathRows(props.proposal, props.planShown))
 </script>
 
 <template>
   <dl class="fix-and-review">
-    <div>
+    <div v-if="rows.fixedVersion">
       <dt>Fixed version</dt>
       <dd>
         <span v-if="proposal.fix?.fixedVersion" class="mono">{{ proposal.fix.fixedVersion }}</span>
         <span v-else class="missing">Not stated</span>
       </dd>
     </div>
-    <div v-if="!planShown && proposal.fix?.change">
+    <div v-if="rows.change && proposal.fix?.change">
       <dt>Change</dt>
       <dd><ClaudeText :text="proposal.fix.change" /></dd>
     </div>
-    <div v-if="!planShown">
+    <div v-if="rows.effort">
       <dt>Effort</dt>
       <dd>
         <span v-if="proposal.fix?.effort">{{ proposal.fix.effort }}</span>

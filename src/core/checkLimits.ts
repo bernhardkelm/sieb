@@ -10,6 +10,9 @@ export const MAX_RECENT_CHECKS = 50
 /** Windows of the usage summary GET /api/checks answers, in days */
 export const CHECK_USAGE_WINDOW_DAYS = { last7Days: 7, last30Days: 30 } as const
 
+/** Images of a finding one check pulls, distinct digests of its open instances */
+export const MAX_CHECK_IMAGES = 3
+
 /** Longest error text of a check, in code points like textLength */
 export const MAX_CHECK_ERROR_LENGTH = 500
 

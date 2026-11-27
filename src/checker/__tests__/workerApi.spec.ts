@@ -21,9 +21,14 @@ describe('createWorkerApi', () => {
   it('claims with the worker secret as bearer token', async () => {
     const { api, fetch } = setup(Response.json(CLAIM))
 
-    expect(await api.claim()).toEqual(CLAIM)
+    const parsed = {
+      ...CLAIM,
+      images: [{ imageRef: CLAIM.imageRef, imageDigest: null, tag: '1.27' }],
+    }
+
+    expect(await api.claim()).toEqual(parsed)
     expect(await setup(Response.json({ ...CLAIM, imageDigest: undefined })).api.claim()).toEqual(
-      CLAIM,
+      parsed,
     )
     expect(fetch).toHaveBeenCalledWith(
       'http://sieb:3101/worker/claim',

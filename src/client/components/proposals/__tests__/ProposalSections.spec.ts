@@ -139,6 +139,51 @@ describe('ProposalSections', () => {
     ])
   })
 
+  it('hides empty fix rows for not_affected, accepted and inconclusive, titled Review', () => {
+    for (const verdict of ['not_affected', 'accepted'] as const) {
+      const root = sections(
+        buildProposalDetail({
+          proposal: buildProposal({
+            verdict,
+            fix: { ...FIX, action: null, fixedVersion: null, change: null, effort: null },
+            review: REVIEW,
+          }),
+        }),
+      )
+
+      expect(terms(root.querySelector('.fix-and-review'))).toEqual(['Review by'])
+      expect(titles(root)).toContain('Review')
+      expect(titles(root)).not.toContain('Fix path and review')
+      wrapper?.unmount()
+    }
+
+    const inconclusive = sections(buildInconclusiveDetail({ fix: null }))
+
+    expect(terms(inconclusive.querySelector('.fix-and-review'))).toEqual(['Review by'])
+  })
+
+  it('keeps Not stated for needs_patch and fix_planned', () => {
+    for (const verdict of ['needs_patch', 'fix_planned'] as const) {
+      const root = sections(
+        buildProposalDetail({
+          proposal: buildProposal({
+            verdict,
+            fix: { ...FIX, action: null, fixedVersion: null, change: null, effort: null },
+            review: REVIEW,
+          }),
+        }),
+      )
+
+      expect(terms(root.querySelector('.fix-and-review'))).toEqual([
+        'Fixed version',
+        'Effort',
+        'Review by',
+      ])
+      expect(titles(root)).toContain('Fix path and review')
+      wrapper?.unmount()
+    }
+  })
+
   it('lists what is missing under the summary for inconclusive, without accept effects', () => {
     const root = sections(buildInconclusiveDetail({ fix: FIX }))
 

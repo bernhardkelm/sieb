@@ -22,7 +22,8 @@ let router: Router
  */
 const openPanel = async (): Promise<void> => {
   document.body.innerHTML =
-    '<div role="option" class="row">row</div><button type="button" class="outside">x</button>'
+    '<div role="option" class="row">row</div><button type="button" class="outside">x</button>' +
+    '<div class="list-area" data-list-background><span class="label">label</span></div>'
   const routed = await mountWithRouter(FindingPanel, '/triage?finding=1')
 
   wrapper = routed.wrapper
@@ -84,6 +85,26 @@ describe('FindingPanel outside press', () => {
     await flushPromises()
 
     expect(openFinding()).toBe('1')
+  })
+
+  it('stays open for a press on empty list space that clears checked rows', async () => {
+    await openPanel()
+    const area = document.querySelector('.list-area')!
+
+    area.setAttribute('data-list-checked', '')
+    await press(area)
+    expect(openFinding()).toBe('1')
+
+    await press(document.querySelector('.list-area .label')!)
+    expect(openFinding()).toBeUndefined()
+  })
+
+  it('closes for a press on empty list space without checked rows', async () => {
+    await openPanel()
+
+    await press(document.querySelector('.list-area')!)
+
+    expect(openFinding()).toBeUndefined()
   })
 
   it('leaves the full screen sheet alone', async () => {

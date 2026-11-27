@@ -16,17 +16,20 @@ accepts or rejects the proposal. The routes, states and timeouts are described i
   Run a single worker replica.
 - **No cluster access.** The worker needs no service account and never talks to the Kubernetes
   API. It reaches sieb's worker port, the registries, Anthropic and the web.
-- **The scanned image, by digest.** The worker pulls the digest of the scanned image. When sieb
-  knows only the tag, the worker resolves the tag's current digest with `crane digest`, pulls
-  that, and tells Claude and the Checks page that the content may differ from what was scanned.
-- **What Claude sees:** the investigation prompt sieb builds from the finding, the flattened
-  filesystem of the image for one platform, the image config (environment, entrypoint, labels,
-  history), a package inventory from syft, the [inspect tools](#inspect-tools) for binaries,
+- **The scanned images, by digest.** A finding groups every tag of one image repository, and a
+  decision covers all of them. The worker pulls each distinct digest of the finding's open
+  instances, at most three, most recently seen first; the prompt names the open tags beyond
+  that, and Claude lists them as unknowns. When sieb knows no digest at all, the worker resolves
+  the tag of the most recently seen instance with `crane digest`, pulls that one image, and tells
+  Claude and the Checks page that the content may differ from what was scanned.
+- **What Claude sees:** the investigation prompt sieb builds from the finding, per pulled image
+  the flattened filesystem for one platform, the image config (environment, entrypoint, labels,
+  history) and a package inventory from syft, the [inspect tools](#inspect-tools) for binaries,
   archives and JSON, sieb's MCP tools limited to the check's finding (see
   [Auto-check tokens](mcp.md#auto-check-tokens)), WebFetch on an
   [allow list](#web-access) of advisory and source hosts, and WebSearch. Claude has no shell.
-- **What Claude does not see:** no source repository, no running container, no cluster, no other
-  images and no files of the worker. A verdict that depends on how the image is deployed or on
+- **What Claude does not see:** no source repository, no running container, no cluster, no images
+  of other findings and no files of the worker. A verdict that depends on how the image is deployed or on
   your own source names those under *Not checked*.
 
 ## Enabling it in sieb
@@ -54,8 +57,9 @@ worker port to sieb's Service, for example as port `worker` with `targetPort` 31
   skipped ones with their reason.
 - **Checks page.** The Checks page (key `6`, in the navigation while Auto-check is on, with the
   open checks as a badge) shows the running check with its phase, the queue in claim order, and
-  the 50 most recent ended checks with requester, duration, the model that ran, turns, usage, cost, the error of a failed
-  check and Claude's reply as plain text. Any signed-in user can cancel a queued or running check.
+  the 50 most recent ended checks with requester, duration, the checked images (tag and short
+  digest), the model that ran, turns, usage, cost, the error of a failed check and Claude's reply
+  as plain text. Any signed-in user can cancel a queued or running check.
 - **Retry.** A failed or cancelled check that is the latest of its finding has a Retry action, on
   the Checks page and in the finding panel. It queues the finding again with the same rules as a
   new check, so it is blocked while the worker is offline.
@@ -111,7 +115,7 @@ Code would prefer over both.
 | `CLAUDE_CODE_OAUTH_TOKEN_FILE` or `CLAUDE_CODE_OAUTH_TOKEN` | one credential required | File with, or value of, a token from `claude setup-token` |
 | `SIEB_CHECKER_WORKDIR` | `/work` | Directory for the check workspaces, needs room for the largest image |
 | `SIEB_CHECKER_POLL_SECONDS` | `10` | Wait between claims while the queue is empty, 1 to 60 |
-| `SIEB_CHECKER_IMAGE_MAX_BYTES` | `4294967296` (4 GiB) | Cap on the uncompressed image filesystem, larger images fail the check |
+| `SIEB_CHECKER_IMAGE_MAX_BYTES` | `4294967296` (4 GiB) | Cap on the uncompressed filesystems of all images of a check together; a larger primary image fails the check, a further image that does not fit is skipped |
 | `SIEB_CHECKER_PLATFORM` | `linux/amd64` | Platform exported from multi-platform images |
 | `SIEB_CHECKER_MODEL` | the account default | Model alias or id passed to Claude Code as `--model`, for example `opus`, `sonnet` or `claude-opus-5-5`; letters, digits, `.`, `-` and `[]` only |
 | `SIEB_CHECKER_EFFORT` | Claude Code's default | Effort level passed to Claude Code as `--effort`: `low`, `medium`, `high`, `xhigh` or `max` |
@@ -124,21 +128,28 @@ Claude, reports the running check as failed and exits.
 
 ## How a check runs
 
-1. The worker claims a check and receives the image with its scanned digest, if sieb knows one,
-   the prompt, the MCP URL and a short-lived token of the requester bound to the check's finding.
+1. The worker claims a check and receives up to three images with their scanned digests, the
+   prompt, the MCP URL and a short-lived token of the requester bound to the check's finding. A
+   claim of an older sieb without the image list counts as its single image.
 2. It creates `<workdir>/check-<id>/`. Without a scanned digest it resolves the tag's digest with
    `crane digest`; everything after that reads `repository@digest`, so a tag that moves during
-   the check changes nothing. It fills `workspace/` with `image/` (the filesystem from
-   `crane export`), `image-config.json` (`crane config`) and `inventory.json` (`syft`, trimmed to
-   name, version, type, purl and paths when large). Outside the workspace it writes Claude's
-   `home/` and `tmp/`, the MCP config (mode 600) with the sieb token and the inspect server, and
-   the permission settings.
+   the check changes nothing. It gives every image, also a single one, its own directory
+   `workspace/images/<n>-<tag>/` (`untagged` when sieb knows no tag) with `rootfs/` (the
+   filesystem from `crane export`), `image-config.json` (`crane config`) and `inventory.json`
+   (`syft`, trimmed to name, version, type, purl and paths when large). The byte cap applies to
+   all images together: the primary image gets the whole cap, each further one what is left.
+   A further image that would pass the cap, or whose pull fails, is removed and skipped, and the
+   prompt names it as not pulled; a failing primary image fails the check. Outside the workspace
+   it writes Claude's `home/` and `tmp/`, the MCP config (mode 600) with the sieb token and the
+   inspect server, and the permission settings.
 3. It runs `claude -p` in `workspace/` with a wall-clock limit of the check timeout and sends a
    heartbeat with the phase (`preparing`, `investigating`, `reporting`) every 30 seconds. When
    sieb answers a heartbeat with 409 (cancelled or timed out), the worker kills Claude.
-4. It reports status, a short error, Claude's final reply, the token usage and the pulled digest,
-   which also ends the error or the reply as a note (`Pulled <repository>@<digest>`, with "the
-   scanned digest is unknown" for a tag). Then it deletes the check directory, also when sending
+4. It reports status, a short error, Claude's final reply, the token usage and the pulled
+   digests, primary first; the primary one also ends the error or the reply as a note
+   (`Pulled <repository>@<digest>`, with "the scanned digest is unknown" for a tag, and how many
+   more images it pulled). sieb stores each digest with the tag its instances name for it, which
+   the Checks page shows as the checked images. Then it deletes the check directory, also when sending
    the result failed; a 4xx answer other than 408 and 429 is not retried. Leftovers of a crashed
    worker are deleted at the next start.
 
@@ -181,7 +192,8 @@ extracted, and the ignore files ripgrep honours (`.gitignore`, `.ignore`, `.rgig
 headers without setuid, setgid or sticky bits. GNU tar extracts with `--no-same-owner
 --no-same-permissions`. Afterwards absolute symlinks, and relative ones that climb above the
 image root, are rewritten as they resolve in the container, and every symlink that still resolves
-outside the root is removed, so no path below `image/` leads to the worker's own files.
+outside the root is removed, so no path below an image's `rootfs/` leads to another image or the
+worker's own files.
 
 **Claude Code permissions.** Claude gets the built-in tools `Read`, `Grep`, `Glob`, `WebFetch`
 and `WebSearch` only (`--tools`), so `Bash`, `Edit`, `Write`, subagents and the rest are absent,
@@ -238,8 +250,8 @@ tools are read-only and named `mcp__inspect__<tool>`:
 | Tool | Arguments | Runs |
 | --- | --- | --- |
 | `strings` | `path`, `minLength` (3 to 64, default 6), `pattern`, `regex`, `ignoreCase` | `strings -a -n <minLength>`, lines filtered by plain text in Node or by an extended regular expression through `grep -E` |
-| `readelf` | `path`, `mode`: `header`, `sections`, `segments`, `dynamic`, `symbols`, `dynamic_symbols`, `notes`, `versions` | `readelf` with the fixed flags of the mode, wide output |
-| `objdump` | `path`, `mode`: `private_headers`, `section_headers`, `disassemble_symbol`, and `symbol` for the latter | `objdump -p`, `-h -w` or `-d --no-show-raw-insn --disassemble=<symbol>` |
+| `readelf` | `path`, `mode`: `header`, `sections`, `segments`, `dynamic`, `symbols`, `dynamic_symbols`, `notes`, `versions`, and the same `pattern`, `regex`, `ignoreCase` as `strings` | `readelf` with the fixed flags of the mode, wide output |
+| `objdump` | `path`, `mode`: `private_headers`, `section_headers`, `disassemble_symbol`, `symbol` for the latter, and the same `pattern` filter | `objdump -p`, `-h -w` or `-d --no-show-raw-insn --disassemble=<symbol>` |
 | `unzip_list` | `path` | `unzip -l`, lists without extracting |
 | `jq` | `path` of a `.json` file up to 64 MiB, `filter` up to 500 characters | `jq -M -- <filter> <path>` |
 
@@ -249,7 +261,7 @@ a shell, with `PATH` as their whole environment, the workspace as working direct
 timeout and 64 KiB of output: a command is stopped at the cap and its output cut with a note,
 while only the tail of stderr is kept, so a failing command reports its exit code however much it
 writes there. With a `pattern`, `strings` reads at most 32 MiB of strings output and says so when
-matches past that point are missing. A symbol
+matches past that point are missing. `readelf` and `objdump` take the same filter and apply it before the cap; output still over the cap ends with the number of dropped lines and a hint to add or narrow the pattern. A symbol
 for `disassemble_symbol` may contain letters, digits and `_ . $ @` only. A jq filter must not use
 `import`, `include`, `env`, `$ENV`, `input_filename` or the module search builtins. objdump disassembles only code of the worker's own architecture, so run the worker on nodes
 that match `SIEB_CHECKER_PLATFORM`; readelf, strings and the other tools read any architecture. Go build
@@ -353,7 +365,7 @@ spec:
             defaultMode: 0400
 ```
 
-The work volume holds one image at a time: its filesystem up to `SIEB_CHECKER_IMAGE_MAX_BYTES`
+The work volume holds one check at a time: its image filesystems up to `SIEB_CHECKER_IMAGE_MAX_BYTES` in total
 plus the syft output and Claude's home. Size it above the cap; when the volume runs full, the
 kubelet evicts the pod and sieb fails the check after the missing heartbeats.
 

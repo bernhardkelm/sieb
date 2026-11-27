@@ -36,7 +36,7 @@ const estimate = (_item: InboxItem, narrow: boolean): number => rowEstimate(narr
 </script>
 
 <template>
-  <div class="inbox-list">
+  <div class="inbox-list" data-list-background>
     <DenseList
       label="Inbox items"
       :items="items"

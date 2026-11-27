@@ -1,4 +1,4 @@
-import type { CheckPhase, CheckState, CheckUsage, CheckView } from '#core/check.ts'
+import type { CheckedImage, CheckPhase, CheckState, CheckUsage, CheckView } from '#core/check.ts'
 
 export interface CheckRow {
   id: number
@@ -19,6 +19,7 @@ export interface CheckRow {
   usage: string | null
   reply: string | null
   pulled_digest: string | null
+  pulled_images: string | null
 }
 
 /** Stored check with the fields the client view leaves out */
@@ -41,6 +42,7 @@ export interface StoredCheck {
   usage: CheckUsage | null
   reply: string | null
   pulledDigest: string | null
+  pulledImages: CheckedImage[] | null // null for checks that ended before schema step 18
 }
 
 /**
@@ -67,6 +69,8 @@ export const toStoredCheck = (row: CheckRow): StoredCheck => ({
   usage: row.usage === null ? null : (JSON.parse(row.usage) as CheckUsage),
   reply: row.reply,
   pulledDigest: row.pulled_digest,
+  pulledImages:
+    row.pulled_images === null ? null : (JSON.parse(row.pulled_images) as CheckedImage[]),
 })
 
 /**
@@ -86,6 +90,15 @@ const durationOf = (check: StoredCheck): number | null => {
 
   return Math.max(0, Date.parse(check.finishedAt) - Date.parse(check.startedAt))
 }
+
+/**
+ * Returns the images a check exported, for an older check its pulled digest without tag.
+ * @param {StoredCheck} check - Check
+ * @returns {CheckedImage[]} - Images, primary first, empty when the worker reported none
+ */
+const pulledImagesOf = (check: StoredCheck): CheckedImage[] =>
+  check.pulledImages ??
+  (check.pulledDigest === null ? [] : [{ digest: check.pulledDigest, tag: null }])
 
 /**
  * Maps a stored check to the client view, the phase only while running.
@@ -111,4 +124,5 @@ export const toCheckView = (check: StoredCheck, position: number | null = null):
   usage: check.usage,
   reply: check.reply,
   pulledDigest: check.pulledDigest,
+  pulledImages: pulledImagesOf(check),
 })

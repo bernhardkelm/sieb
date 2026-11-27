@@ -52,6 +52,11 @@ const DONE = buildCheck({
     models: ['claude-opus-5-5'],
   },
   reply: '<img src=x onerror="alert(1)"> Not affected, see <b>proposal</b>.',
+  pulledDigest: `sha256:${'ab'.repeat(32)}`,
+  pulledImages: [
+    { digest: `sha256:${'ab'.repeat(32)}`, tag: '18-alpine' },
+    { digest: `sha256:${'cd'.repeat(32)}`, tag: null },
+  ],
 })
 const FAILED = buildCheck({
   id: 1,
@@ -111,6 +116,10 @@ describe('ChecksView', () => {
     expect(done.text()).toContain('Modelclaude-opus-5-5')
     expect(done.text()).toContain('Turns8')
     expect(done.text()).toContain('$0.42 API-equivalent estimate')
+    expect(done.text()).toContain(
+      'Checked images18-alpine (sha256:abababababab), sha256:cdcdcdcdcdcd',
+    )
+    expect(view.get('[data-check-id="1"]').text()).not.toContain('Checked images')
     expect(view.get('[data-check-id="1"]').text()).toContain(
       'Timed out: the worker sent no heartbeat',
     )

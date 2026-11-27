@@ -90,4 +90,21 @@ describe('BulkDecisionDialog', () => {
     expect(wrapper.emitted('update:open')).toEqual([[false]])
     expect(wrapper.emitted('done')).toHaveLength(1)
   })
+
+  it('counts the selected images on the submit button, every open image stays all', async () => {
+    const wrapper = await mountDialog()
+    /**
+     * Returns the label of the submit button.
+     * @returns {string | undefined} - Label, undefined without the button
+     */
+    const submitText = (): string | undefined =>
+      [...document.querySelectorAll('button[type="submit"], button')]
+        .map((button) => button.textContent?.trim())
+        .find((text) => text?.startsWith('Decide'))
+
+    expect(submitText()).toBe('Decide 2')
+
+    await wrapper.setProps({ targets: [{ vulnId: 'CVE-2025-1000', imageRefs: 'all-open' }] })
+    expect(submitText()).toBe('Decide all')
+  })
 })

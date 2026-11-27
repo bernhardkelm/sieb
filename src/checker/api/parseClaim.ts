@@ -1,10 +1,11 @@
 import type { WorkerClaim } from '#core/check.ts'
 import { MAX_CHECK_MAX_TURNS, MAX_CHECK_TIMEOUT_SECONDS } from '#core/checkLimits.ts'
-import { isImageDigest } from '#core/checkPrompt.ts'
-import { digestOfRef, isPinnedRef } from '#checker/workspace/imageRef.ts'
-
-// no leading dash, so the reference cannot be read as a crane flag
-const IMAGE_REF_PATTERN = /^[A-Za-z0-9][A-Za-z0-9._\-/:@+]{0,511}$/
+import {
+  claimImages,
+  isClaimImageList,
+  isPinnedImageRef,
+  isScannedDigest,
+} from '#checker/api/claimImages.ts'
 const TOKEN_PATTERN = /^[\x21-\x7e]{1,512}$/
 const PROMPT_MAX_LENGTH = 100_000
 const VULN_ID_MAX_LENGTH = 200
@@ -55,46 +56,8 @@ const isHttpUrl = (value: unknown): value is string => {
 }
 
 /**
- * Returns whether the image reference is valid and pinned by a tag or a valid digest, so crane
- * never falls back to latest.
- * @param {Record<string, unknown>} claim - Raw claim
- * @returns {boolean} - Whether imageRef is acceptable
- */
-const isPinnedImage = (claim: Record<string, unknown>): boolean => {
-  const ref = claim.imageRef
-
-  if (typeof ref !== 'string' || !IMAGE_REF_PATTERN.test(ref) || !isPinnedRef(ref)) {
-    return false
-  }
-
-  const refDigest = digestOfRef(ref)
-
-  return refDigest === null || isImageDigest(refDigest)
-}
-
-/**
- * Returns whether the scanned digest is absent or valid and matches a digest in the reference.
- * @param {Record<string, unknown>} claim - Raw claim
- * @returns {boolean} - Whether imageDigest is acceptable
- */
-const isScannedDigest = (claim: Record<string, unknown>): boolean => {
-  const digest = claim.imageDigest
-
-  if (digest === null || digest === undefined) {
-    return true
-  }
-
-  if (typeof digest !== 'string' || !isImageDigest(digest)) {
-    return false
-  }
-
-  const refDigest = typeof claim.imageRef === 'string' ? digestOfRef(claim.imageRef) : null
-
-  return refDigest === null || refDigest === digest
-}
-
-/**
- * Validates a claim answer before any of its values reach a command line or a file.
+ * Validates a claim answer before any of its values reach a command line or a file. A claim
+ * without images, from an older sieb, gets its single image as the list.
  * @param {unknown} body - Parsed JSON body of POST /worker/claim
  * @returns {WorkerClaim} - The claim
  * @throws {InvalidClaimError} - Naming the first invalid field
@@ -110,8 +73,9 @@ export const parseClaim = (body: unknown): WorkerClaim => {
         claim.vulnId.length > 0 &&
         claim.vulnId.length <= VULN_ID_MAX_LENGTH,
     ],
-    ['imageRef', isPinnedImage(claim)],
-    ['imageDigest', isScannedDigest(claim)],
+    ['imageRef', isPinnedImageRef(claim.imageRef)],
+    ['imageDigest', isScannedDigest(claim.imageDigest, claim.imageRef)],
+    ['images', isClaimImageList(claim)],
     [
       'prompt',
       typeof claim.prompt === 'string' &&
@@ -131,10 +95,12 @@ export const parseClaim = (body: unknown): WorkerClaim => {
     throw new InvalidClaimError(invalid[0], checkId)
   }
 
-  return {
+  const valid = {
     ...(claim as unknown as WorkerClaim),
     imageDigest: (claim.imageDigest ?? null) as string | null,
   }
+
+  return { ...valid, images: claimImages(valid) }
 }
 
 /**

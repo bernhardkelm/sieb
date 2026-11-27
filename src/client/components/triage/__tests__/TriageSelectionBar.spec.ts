@@ -65,9 +65,9 @@ describe('TriageSelectionBar', () => {
   })
 
   it.each([
-    ['Accept', 'accept'],
-    ['Not affected', 'notAffected'],
-    ['Fix planned', 'fixPlanned'],
+    ['Accept 2', 'accept'],
+    ['Not affected 2', 'notAffected'],
+    ['Fix planned 2', 'fixPlanned'],
     ['Select all', 'selectAll'],
   ] as const)('runs %s as its key does, without refocusing the list', async (label, id) => {
     const bar = mountBar(2)
@@ -99,14 +99,24 @@ describe('TriageSelectionBar', () => {
     expect(bar.emitted('clear')).toHaveLength(1)
   })
 
+  it('counts the checked rows on the decision actions', () => {
+    const bar = mountBar(3)
+    const accept = buttonOf(bar, 'Accept 3')
+
+    expect(accept.getAttribute('aria-label')).toBe('Accept 3 findings')
+    expect(buttonOf(bar, 'Not affected 3').getAttribute('aria-label')).toBe(
+      'Not affected 3 findings',
+    )
+  })
+
   it('marks blocked actions as disabled', () => {
     const bar = mountBar(1)
 
-    expect(buttonOf(bar, 'Accept').getAttribute('aria-disabled')).toBe('true')
+    expect(buttonOf(bar, 'Accept 1').getAttribute('aria-disabled')).toBe('true')
     expect(buttonOf(bar, 'Clear').hasAttribute('aria-disabled')).toBe(false)
   })
 
-  it.each(['Select all', 'Accept', 'Not affected', 'Fix planned'])(
+  it.each(['Select all', 'Accept 1', 'Not affected 1', 'Fix planned 1'])(
     'keeps blocked %s focusable, describes the reason and names it in a toast on a tap',
     (label) => {
       vi.mocked(notifyNotice).mockClear()
@@ -128,14 +138,14 @@ describe('TriageSelectionBar', () => {
 
   it('moves focus between the buttons with the arrow keys', async () => {
     const bar = mountBar(1)
-    const accept = buttonOf(bar, 'Accept')
+    const accept = buttonOf(bar, 'Accept 1')
 
     accept.focus()
     await bar.get('[role="toolbar"]').trigger('keydown', { key: 'ArrowRight' })
-    expect(document.activeElement).toBe(buttonOf(bar, 'Not affected'))
+    expect(document.activeElement).toBe(buttonOf(bar, 'Not affected 1'))
 
     buttonOf(bar, 'Select all').focus()
     await bar.get('[role="toolbar"]').trigger('keydown', { key: 'ArrowLeft' })
-    expect(document.activeElement).toBe(buttonOf(bar, 'Fix planned'))
+    expect(document.activeElement).toBe(buttonOf(bar, 'Fix planned 1'))
   })
 })

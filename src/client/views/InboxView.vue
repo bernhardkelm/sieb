@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { useTemplateRef } from 'vue'
+
 import LoadState from '@/components/common/LoadState.vue'
 import BulkAcceptDialog from '@/components/inbox/BulkAcceptDialog.vue'
 import BulkRejectDialog from '@/components/inbox/BulkRejectDialog.vue'
@@ -6,6 +8,7 @@ import InboxAllClear from '@/components/inbox/InboxAllClear.vue'
 import InboxList from '@/components/inbox/InboxList.vue'
 import InboxSelectionBar from '@/components/inbox/InboxSelectionBar.vue'
 import InboxSummary from '@/components/inbox/InboxSummary.vue'
+import { useClearSelectionOnBackgroundClick } from '@/composables/useClearSelectionOnBackgroundClick'
 import { useInboxController } from '@/composables/useInboxController'
 import { useInboxStore } from '@/stores/inboxStore'
 import { useLabelsStore } from '@/stores/labelsStore'
@@ -14,11 +17,18 @@ const store = useInboxStore()
 const labels = useLabelsStore()
 const inbox = useInboxController()
 const { items, currentKey, checkedKeys, seenTargets, bulk } = inbox
-const { targets, acceptOpen, rejectOpen, busy, rejectError } = bulk
+const { targets, counts, acceptOpen, rejectOpen, busy, rejectError } = bulk
+
+useClearSelectionOnBackgroundClick(useTemplateRef<HTMLElement>('root'), inbox.clearChecked)
 </script>
 
 <template>
-  <div class="inbox-view">
+  <div
+    ref="root"
+    class="inbox-view list-view"
+    data-list-background
+    :data-list-checked="checkedKeys.size > 0 || undefined"
+  >
     <LoadState
       v-if="!store.loaded || labels.pending"
       subject="the Inbox"
@@ -31,6 +41,7 @@ const { targets, acceptOpen, rejectOpen, busy, rejectError } = bulk
         :counts="store.counts"
         :checked-count="checkedKeys.size"
         :seen-count="seenTargets.length"
+        :bulk-counts="counts"
         @mark-seen="inbox.markSeen()"
       />
       <InboxList
@@ -41,7 +52,7 @@ const { targets, acceptOpen, rejectOpen, busy, rejectError } = bulk
         @toggle="inbox.toggleChecked"
         @seen="inbox.markSeen([$event])"
       />
-      <InboxSelectionBar :count="checkedKeys.size" @clear="inbox.clearChecked" />
+      <InboxSelectionBar :count="checkedKeys.size" :counts="counts" @clear="inbox.clearChecked" />
     </template>
     <BulkAcceptDialog
       v-model:open="acceptOpen"
@@ -61,3 +72,5 @@ const { targets, acceptOpen, rejectOpen, busy, rejectError } = bulk
     </RouterView>
   </div>
 </template>
+
+<style scoped src="@/components/list/listView.css"></style>

@@ -5,9 +5,10 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { buildFindingView } from '#core/__tests__/coreBuilders.ts'
 import type { CheckCreateResponse, ChecksResponse } from '#core/check.ts'
 import { buildCheck, buildChecksResponse } from '@/__tests__/checkBuilders'
+import { visibleText } from '@/__tests__/visibleText'
 import { createChecks } from '@/api/checksApi'
 import TriageSelectionBar from '@/components/triage/TriageSelectionBar.vue'
-import { ALL_OPEN_REASON, WORKER_OFFLINE_REASON } from '@/format/checkBlockReason'
+import { ALL_OPEN_REASON, OPEN_SKIP_REASON, WORKER_OFFLINE_REASON } from '@/format/checkBlockReason'
 import { useChecksStore } from '@/stores/checksStore'
 import { useHandoffSelectionStore } from '@/stores/handoffSelectionStore'
 import { useMcpStore } from '@/stores/mcpStore'
@@ -82,6 +83,30 @@ describe('TriageSelectionBar Auto-check', () => {
     )
   })
 
+  it('counts the rows it queues and names the skipped ones in the tooltip', async () => {
+    mountBar([1, 2, 3])
+    useChecksStore().response = buildChecksResponse()
+    await flushPromises()
+
+    expect(visibleText(autoCheck())).toBe('Auto-check 3')
+    expect(autoCheck().getAttribute('aria-label')).toBe('Auto-check 3 findings')
+    expect(autoCheck().title).toBe('Queue an Auto-check per selected finding')
+
+    useChecksStore().response = buildChecksResponse({ queued: [buildCheck({ findingId: 2 })] })
+    await flushPromises()
+
+    expect(visibleText(autoCheck())).toBe('Auto-check 2')
+    expect(autoCheck().getAttribute('aria-label')).toBe('Auto-check 2 findings')
+    expect(autoCheck().title).toBe(`2 of 3 selected. ${OPEN_SKIP_REASON}`)
+
+    useChecksStore().response = buildChecksResponse({
+      queued: [buildCheck({ findingId: 2 })],
+      workerOnline: false,
+    })
+    await flushPromises()
+    expect(autoCheck().title).toBe(WORKER_OFFLINE_REASON)
+  })
+
   it('is blocked with a reason while the worker is offline or every row has an open check', async () => {
     mountBar([2])
     useChecksStore().response = buildChecksResponse({ queued: [buildCheck({ findingId: 2 })] })
@@ -89,6 +114,7 @@ describe('TriageSelectionBar Auto-check', () => {
 
     expect(autoCheck().getAttribute('aria-disabled')).toBe('true')
     expect(autoCheck().title).toBe(ALL_OPEN_REASON)
+    expect(visibleText(autoCheck())).toBe('Auto-check')
 
     useChecksStore().response = buildChecksResponse({ workerOnline: false })
     await flushPromises()

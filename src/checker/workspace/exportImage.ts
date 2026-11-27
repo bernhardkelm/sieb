@@ -4,11 +4,29 @@ import { CheckFailure } from '#checker/CheckFailure.ts'
 import { collectOutput } from '#checker/process/collectOutput.ts'
 import type { ProcessRunner } from '#checker/process/processRunner.ts'
 import { watchProcess } from '#checker/process/watchProcess.ts'
-import { createTarFilter } from '#checker/tar/tarFilter.ts'
+import { createTarFilter, ExportTooLargeError } from '#checker/tar/tarFilter.ts'
 import type { TarFilterStats } from '#checker/tar/tarRewriter.ts'
 import { exportFailure } from '#checker/workspace/exportOutcome.ts'
 
 const ERROR_TAIL_BYTES = 4096
+
+/** An export that passed its byte cap, the worker skips an extra image for it */
+export class ImageTooLargeFailure extends CheckFailure {
+  /**
+   * Creates the failure with the short reason of the export.
+   * @param {string} message - Short reason
+   * @returns {void}
+   */
+  constructor(message: string) {
+    super(message)
+    this.name = 'ImageTooLargeFailure'
+  }
+}
+
+/** Entry counts of an export and the uncompressed bytes it read */
+export interface ExportStats extends TarFilterStats {
+  bytes: number
+}
 
 /** Inputs of one image export */
 export interface ExportOptions {
@@ -26,10 +44,10 @@ export interface ExportOptions {
  * Streams the flattened filesystem of an image into a directory: crane export, through the tar
  * filter with its byte cap, into tar -x without owners and permissions from the archive.
  * @param {ExportOptions} options - Image, platform, target directory, cap and abort handling
- * @returns {Promise<TarFilterStats>} - Extracted and dropped entry counts
+ * @returns {Promise<ExportStats>} - Extracted and dropped entry counts and the bytes read
  * @throws {CheckFailure} - When the export is too large, the pull fails or extraction fails
  */
-export const exportImage = async (options: ExportOptions): Promise<TarFilterStats> => {
+export const exportImage = async (options: ExportOptions): Promise<ExportStats> => {
   const { runner, env, imageDir } = options
   const crane = runner.spawn({
     command: 'crane',
@@ -66,20 +84,24 @@ export const exportImage = async (options: ExportOptions): Promise<TarFilterStat
 
   watches.forEach((watch) => watch.release())
 
+  const aborted = watches.some((watch) => watch.aborted())
+  const timedOut = watches.some((watch) => watch.timedOut())
   const failure = exportFailure({
     pipeError,
     crane: craneExit,
     tar: tarExit,
     craneErrors: craneErrors.text(),
     tarErrors: tarErrors.text(),
-    aborted: watches.some((watch) => watch.aborted()),
-    timedOut: watches.some((watch) => watch.timedOut()),
+    aborted,
+    timedOut,
     maxBytes: options.maxBytes,
   })
 
   if (failure !== null) {
-    throw new CheckFailure(failure)
+    const tooLarge = !aborted && !timedOut && pipeError instanceof ExportTooLargeError
+
+    throw tooLarge ? new ImageTooLargeFailure(failure) : new CheckFailure(failure)
   }
 
-  return filter.stats
+  return { ...filter.stats, bytes: filter.bytes() }
 }

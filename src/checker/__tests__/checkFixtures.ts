@@ -1,5 +1,6 @@
 import type { WorkerClaim } from '#core/check.ts'
 import type { CheckerConfig } from '#checker/checkerConfig.ts'
+import type { WorkspaceImages } from '#checker/workspace/prepareWorkspace.ts'
 import type { PulledImage } from '#checker/workspace/resolveImage.ts'
 
 export const CLAIM: WorkerClaim = {
@@ -39,4 +40,12 @@ export const PULLED: PulledImage = {
   ref: `docker.io/library/nginx@sha256:${'a'.repeat(64)}`,
   digest: `sha256:${'a'.repeat(64)}`,
   scanned: false,
+  tag: '1.27',
+  claimRef: 'docker.io/library/nginx:1.27',
+}
+
+/** The workspace of CLAIM with its single image */
+export const WORKSPACE: WorkspaceImages = {
+  prepared: [{ ...PULLED, dir: 'images/1-1.27' }],
+  skipped: [],
 }

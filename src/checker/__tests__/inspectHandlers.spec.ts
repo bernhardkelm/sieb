@@ -68,7 +68,7 @@ describe('inspect handlers', () => {
       path: '/usr/bin:/bin',
       cwd: root,
       timeoutMs: 30_000,
-      maxBytes: 1024,
+      maxBytes: 32 * 1024 * 1024,
     })
   })
 
@@ -129,6 +129,55 @@ describe('inspect handlers', () => {
       ['-E', '-e', 'OpenSSL [0-9.]+', '-'],
     ])
     expect(exec.mock.calls.at(-1)?.[2].input?.toString()).toBe('OpenSSL 3.3.1\n')
+  })
+
+  it('filters readelf and objdump lines before the cap and counts dropped lines', async () => {
+    const lines = Array.from({ length: 50 }, (_, index) => `sym${index} FUNC OPENSSL_${index}`)
+
+    exec.mockResolvedValueOnce(output(lines.join('\n')))
+    expect(
+      text(
+        await handlers().readelf({
+          path: 'image/usr/bin/curl',
+          mode: 'symbols',
+          pattern: 'openssl_4',
+          ignoreCase: true,
+        }),
+      ),
+    ).toBe(lines.filter((line) => line.includes('OPENSSL_4')).join('\n'))
+    expect(exec.mock.calls.at(-1)?.slice(0, 2)).toEqual([
+      'readelf',
+      ['-s', '-W', join(root, 'image/usr/bin/curl')],
+    ])
+
+    exec.mockResolvedValueOnce(output(lines.join('\n')))
+    const cut = text(await handlers(100).readelf({ path: 'image/usr/bin/curl', mode: 'symbols' }))
+
+    expect(cut).toMatch(/\[output truncated at 100 bytes, \d+ lines dropped, add a pattern\]$/u)
+
+    const rows = Array.from({ length: 10 }, (_, index) => `sym${index}abcd`)
+
+    exec.mockResolvedValueOnce(output(`${rows.join('\n')}\n`))
+    expect(
+      text(await handlers(35).readelf({ path: 'image/usr/bin/curl', mode: 'symbols' })),
+    ).toMatch(/, 6 lines dropped, add a pattern\]$/u)
+
+    exec.mockResolvedValueOnce(output(`${rows.join('\n')}\n`))
+    expect(
+      text(
+        await handlers(35).readelf({ path: 'image/usr/bin/curl', mode: 'symbols', pattern: 'sym' }),
+      ),
+    ).toMatch(/, 6 lines dropped, narrow the pattern\]$/u)
+
+    exec.mockResolvedValueOnce(output(lines.join('\n')))
+    exec.mockResolvedValueOnce(output(lines.slice(0, 5).join('\n')))
+    await handlers().objdump({
+      path: 'image/usr/bin/curl',
+      mode: 'section_headers',
+      pattern: 'sym[0-4] ',
+      regex: true,
+    })
+    expect(exec.mock.calls.at(-1)?.[1]).toEqual(['-E', '-e', 'sym[0-4] ', '-'])
   })
 
   it('caps the output with a note and reports timeouts and failures as errors', async () => {

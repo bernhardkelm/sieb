@@ -5,6 +5,7 @@ import type { SelectionHandoffTexts } from '#core/selectionHandoff.ts'
 export const NO_SELECTION_REASON = 'Select findings first'
 export const NOT_ONE_REPOSITORY_REASON = 'Only for own images of one repository'
 export const NOT_OWN_SELECTION_REASON = 'Only for own images'
+export const CAPPED_REASON = `A prompt lists at most ${MULTI_HANDOFF_CAP} findings.`
 
 /**
  * Returns why a deep link cannot carry the selection, naming how many findings would fit.
@@ -48,8 +49,7 @@ export const copiedToast = (
     texts.listed < texts.total
       ? `${texts.listed} of ${texts.total} findings`
       : `${texts.total} finding${texts.total === 1 ? '' : 's'}`
-  const capped =
-    texts.listed < texts.total ? `A prompt lists at most ${MULTI_HANDOFF_CAP} findings. ` : ''
+  const capped = texts.listed < texts.total ? `${CAPPED_REASON} ` : ''
   const next =
     kind === 'prompt'
       ? 'Paste the prompt into Claude.'
