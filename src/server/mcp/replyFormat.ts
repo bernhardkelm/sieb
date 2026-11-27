@@ -11,17 +11,22 @@ const EXAMPLE_INCONCLUSIVE = `Inconclusive example:
 Why: the registry denied the pull, so whether libexample is installed could not be checked.
 Checked: advisory · Not checked: image, own_source, runtime`
 
+const EXAMPLE_WAITING = `Waiting example:
+**CVE-2025-1234 · docker.io/example/proxy** → fix_planned · waiting for upstream · confidence medium
+Why: libexample 1.2.0 is compiled in and reachable; the newest published tag 3.4.1 still ships it.
+Checked: advisory, upstream_source, image · Not checked: runtime`
+
 const BLOCK_RULES =
-  'The first line contains "confidence"; needs_patch and fix_planned add ": <exact patch action>" ("→ needs_patch: upgrade libexample to 1.2.1 · confidence high"), also in tables. inconclusive: Why names what is missing. Why has at most 25 words. Checked and Not checked hold only comma-separated keywords: advisory, upstream_source, image, own_source, runtime; sieb data counts as advisory.'
+  'needs_patch and fix_planned add ": <exact patch action>" ("→ needs_patch: upgrade libexample to 1.2.1 · confidence high"), upstream_pending " · waiting for upstream" instead, also in tables. inconclusive: Why names what is missing. Why has at most 25 words. Checked and Not checked hold only comma-separated keywords: advisory, upstream_source, image, own_source, runtime; sieb data counts as advisory.'
 
 /**
  * Returns the example blocks of a single-finding reply, left out of the server instructions,
  * which have a length limit and carry the first line inside the rules.
  * @param {string} proposalLine - Last line of each example
- * @returns {string} - Example of a verdict and of an inconclusive reply
+ * @returns {string} - Examples of a verdict, a wait for upstream and an inconclusive reply
  */
 const examples = (proposalLine: string): string =>
-  `\nExample:\n${EXAMPLE_HEAD}\n${EXAMPLE_BODY}\n${proposalLine}\n${EXAMPLE_INCONCLUSIVE}\n${proposalLine}`
+  `\nExample:\n${EXAMPLE_HEAD}\n${EXAMPLE_BODY}\n${proposalLine}\n${EXAMPLE_WAITING}\n${proposalLine}\n${EXAMPLE_INCONCLUSIVE}\n${proposalLine}`
 
 /**
  * Returns the sieb reply format for one finding, with the proposal line of the connection.
@@ -51,12 +56,12 @@ ${BLOCK_RULES}${verbatim}${full ? examples(exampleLine) : ''}`
  */
 const severalFindings = (canPropose: boolean): string =>
   canPropose
-    ? 'Several triaged findings: a table | Finding | Verdict | Conf. | Proposal |, then one summary line such as "3 proposals filed, 1 of them inconclusive".'
+    ? 'Several triaged findings: a table | Finding | Verdict | Conf. | Proposal |, then one line such as "3 proposals filed, 1 inconclusive".'
     : `Several triaged findings: a table | Finding | Verdict | Conf. | Proposal | with "none" as proposal, then the line "${READ_ONLY_PROPOSAL_LINE}"`
 
 const QUESTIONS = `Plain questions, "does CVE-X affect us" across many images included: the answer in the first line, at most 3 bullets with counts and names, then the sieb link. No table, no verdict block.
 Find, then triage: the same, then the 4-line block of the triaged finding. No paragraphs, no other table.
-A filtered search returning 0: say so in the first line before you widen it and name the widened filter ("None with exposure public; widened to all exposures:").`
+A filtered search returning 0: say so in the first line before you widen it and name the widened filter.`
 
 /**
  * Joins the reply format of one and of several findings.

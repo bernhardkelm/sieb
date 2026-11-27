@@ -4,6 +4,7 @@ import { DECISION_JUSTIFICATIONS } from '#core/decision.ts'
 import { PATCH_ACTION_HINT } from '#core/patchAction.ts'
 import {
   EVIDENCE_BASES,
+  FIX_AVAILABILITIES,
   PATCH_LAYERS,
   PROPOSAL_CONFIDENCES,
   PROPOSAL_LIMITS as LIMITS,
@@ -97,6 +98,32 @@ export const proposeDecisionInput = z.object({
         .describe(
           'rough effort and what it touches, e.g. "rebuild and deploy, about 15 minutes, no code' +
             ' change"',
+        ),
+      availability: z
+        .enum(FIX_AVAILABILITIES)
+        .optional()
+        .describe(
+          'available: a fix is published today at a layer you control; upstream_pending: none' +
+            ' yet, needs waitingFor and a review date. Decide it from release pages you read, not' +
+            ' from a guess',
+        ),
+      waitingFor: text(LIMITS.waitingFor)
+        .optional()
+        .describe(
+          'with upstream_pending: exactly which release or image you wait for, e.g. "k3s release' +
+            ' bundling traefik 3.7.17 or later"',
+        ),
+      interim: z
+        .object({
+          action: text(LIMITS.interimAction),
+          steps: text(LIMITS.interimSteps).optional(),
+          caveats: text(LIMITS.interimCaveats),
+        })
+        .optional()
+        .describe(
+          'only with upstream_pending and only when urgent (KEV listed, or critical or high and' +
+            ' reachable on a public workload): an advised manual workaround or mitigation until' +
+            ' upstream ships; caveats say what it risks and when to revert',
         ),
     })
     .optional(),

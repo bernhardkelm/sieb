@@ -30,6 +30,8 @@ const value = (overrides: Partial<DecisionFormValue> = {}): DecisionFormValue =>
   expiresAt: fromDateInput(toDateInput(STORED_EXPIRY)),
   expiryTouched: false,
   reconfirm: false,
+  upstreamPending: false,
+  waitingFor: null,
   ...overrides,
 })
 

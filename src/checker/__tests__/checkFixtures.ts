@@ -30,6 +30,8 @@ export const testConfig = (workdir: string): CheckerConfig => ({
   platform: 'linux/amd64',
   path: '/usr/bin:/bin',
   webDomains: ['nvd.nist.gov', '*.github.com'],
+  model: null,
+  effort: null,
 })
 
 /** The pulled image of CLAIM, resolved from its tag */

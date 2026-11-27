@@ -43,6 +43,7 @@ describe('decisionTabs', () => {
       reopened: 1,
       expired: 0,
       fix_planned: 1,
+      upstream_pending: 0,
       revoked: 1,
     })
   })

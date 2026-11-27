@@ -77,6 +77,33 @@ describe('describeEvent', () => {
     ).toEqual(['ok', 'Expires never'])
   })
 
+  it('names waiting for upstream of a new decision and its changes', () => {
+    expect(
+      describeEvent(
+        event('created', {
+          status: 'fix_planned',
+          reason: 'no fix yet',
+          expiresAt: null,
+          upstreamPending: true,
+          waitingFor: 'k3s 1.34',
+        }),
+      ).lines,
+    ).toEqual(['Waiting for upstream: k3s 1.34', 'no fix yet', 'Expires never'])
+    expect(
+      describeEvent(
+        event('updated', {
+          reconfirm: false,
+          upstreamPending: [true, false],
+          waitingFor: ['k3s 1.34', null],
+        }),
+      ).lines,
+    ).toEqual(['No longer waiting for upstream'])
+    expect(
+      describeEvent(event('updated', { reconfirm: false, waitingFor: ['k3s 1.34', 'k3s 1.35'] }))
+        .lines,
+    ).toEqual(['Waiting for: k3s 1.35'])
+  })
+
   it('explains a re-open from its trigger, also for old events without one', () => {
     expect(
       describeEvent(

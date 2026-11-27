@@ -42,6 +42,14 @@ const PROBLEM_HINTS: Record<string, string> = {
   'fix.action:required': `required for needs_patch and fix_planned, ${PATCH_ACTION_HINT}`,
   'missing:required': 'required with inconclusive, what would be needed to decide',
   'missing:not_allowed': 'only with inconclusive, put open points of a verdict into unknowns',
+  'fix.availability:required':
+    'required with fix_planned: available when a fix is published at a layer you control, else upstream_pending',
+  'fix.availability:not_allowed':
+    'needs_patch means a published fix; without one use fix_planned with upstream_pending',
+  'fix.waitingFor:required': 'required with upstream_pending, the release or image you wait for',
+  'fix.waitingFor:not_allowed': 'only with fix_planned and availability upstream_pending',
+  'fix.interim:not_allowed': 'only with fix_planned and availability upstream_pending',
+  'review.date:required': 'required with upstream_pending, when to look for the upstream fix again',
 }
 
 /**

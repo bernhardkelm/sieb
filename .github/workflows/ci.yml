@@ -127,6 +127,10 @@ jobs:
           echo "$refusal"
           grep -qx '\[sieb-checker\] SIEB_WORKER_URL is required' <<<"$refusal"
           "${run[@]}" --entrypoint claude sieb-checker:ci --version
+          # SIEB_CHECKER_MODEL and SIEB_CHECKER_EFFORT need these flags in the pinned Claude Code
+          help="$("${run[@]}" --entrypoint claude sieb-checker:ci --help)"
+          grep -q -- '--model <model>' <<<"$help"
+          grep -q -- '--effort <level>' <<<"$help"
           tools="$(printf '%s\n' \
             '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-06-18","capabilities":{},"clientInfo":{"name":"ci","version":"1"}}}' \
             '{"jsonrpc":"2.0","method":"notifications/initialized"}' \

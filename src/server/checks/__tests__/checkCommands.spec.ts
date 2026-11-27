@@ -25,6 +25,7 @@ const USAGE = {
   cacheCreationTokens: 800,
   costUsd: 0.42,
   turns: 12,
+  models: ['claude-opus-5-5', 'claude-haiku-5'],
 }
 
 describe('queueForUser', () => {

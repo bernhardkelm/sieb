@@ -1,6 +1,7 @@
 import type { DatabaseSync } from 'node:sqlite'
 
 import type { Decision } from '#core/decision.ts'
+import type { DecisionInputError } from '#core/decisionInputError.ts'
 import { getDecision } from '#server/db/decisionRepository.ts'
 
 export type DecisionCommandError =
@@ -9,10 +10,11 @@ export type DecisionCommandError =
   | 'conflict'
   | 'unknown_finding'
   | 'justification_not_allowed' // a justification for a decision that stays other than not_affected
+  | 'upstream_invalid' // the change breaks an upstream rule, see upstreamIssue
 
 export type DecisionCommandResult =
   | { ok: true; decision: Decision }
-  | { ok: false; error: DecisionCommandError; decisionId?: number }
+  | { ok: false; error: DecisionCommandError; decisionId?: number; issue?: DecisionInputError }
 
 /**
  * Reads a decision that must exist after a write.

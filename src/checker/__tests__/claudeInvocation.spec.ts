@@ -34,6 +34,8 @@ describe('claude invocation', () => {
       '--disable-slash-commands',
       '--no-session-persistence',
     ])
+    expect(claudeArgs('x', layout, 1, domains, 'opus').slice(-2)).toEqual(['--model', 'opus'])
+    expect(claudeArgs('x', layout, 1, domains)).not.toContain('--model')
     expect(claudeArgs('- bullet', layout, 1, domains)[1]).toBe('\n- bullet')
   })
 
@@ -154,5 +156,10 @@ describe('claude invocation', () => {
     expect(prompt).toContain('try another allowed source for the same fact')
     expect(prompt).toContain('under missing with the verdict inconclusive')
     expect(prompt).toContain('let fix.change cover both cases')
+    expect(prompt).toContain('WebSearch only finds pages.')
+    expect(prompt).toContain('A search summary is not a source')
+    expect(prompt).toContain('until you can name the first release that ships the fix')
+    expect(prompt).toContain('is your work, not a step in fix.action or fix.change')
+    expect(prompt).toContain('is a skipped check, not an unknown')
   })
 })

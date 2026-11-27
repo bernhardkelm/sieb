@@ -66,6 +66,10 @@ export const findingFilterShape = {
     .describe(
       'what waits on the finding in your Inbox: proposed (open proposal), reopened (governing decision re-opened), kev (new KEV listing), checking (queued or running Auto-check), untouched (none of these)',
     ),
+  upstreamPending: z
+    .boolean()
+    .optional()
+    .describe('true: the governing decision is fix_planned waiting for upstream, false: it is not'),
   view: z
     .enum(['inbox', 'all'])
     .default('all')
@@ -103,4 +107,5 @@ export const toFindingQuery = (input: FindingFilterInput): FindingQuery => ({
     : null,
   fixable: input.fixable ?? null,
   pending: input.pending,
+  upstreamPending: input.upstreamPending ?? null,
 })

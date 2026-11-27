@@ -46,6 +46,8 @@ describe('readCheckerConfig', () => {
       platform: 'linux/amd64',
       path: '/usr/bin:/bin',
       webDomains: DEFAULT_WEB_DOMAINS,
+      model: null,
+      effort: null,
     })
   })
 
@@ -66,6 +68,15 @@ describe('readCheckerConfig', () => {
       platform: 'linux/arm64/v8',
       webDomains: ['nvd.nist.gov', '*.example.org', 'osv.dev'],
     })
+  })
+
+  it('reads a valid model alias or id', () => {
+    expect(readCheckerConfig({ ...ENV, SIEB_CHECKER_MODEL: ' opus ' }).model).toBe('opus')
+    expect(readCheckerConfig({ ...ENV, SIEB_CHECKER_MODEL: 'claude-opus-5-5' }).model).toBe(
+      'claude-opus-5-5',
+    )
+    expect(readCheckerConfig({ ...ENV, SIEB_CHECKER_MODEL: 'sonnet[1m]' }).model).toBe('sonnet[1m]')
+    expect(readCheckerConfig({ ...ENV, SIEB_CHECKER_MODEL: ' ' }).model).toBeNull()
   })
 
   it('lists the advisory, source, Go, distro and registry hosts by default', () => {
@@ -187,6 +198,9 @@ describe('readCheckerConfig', () => {
       'integer',
     )
     expect(() => readCheckerConfig({ ...ENV, SIEB_CHECKER_PLATFORM: 'amd64' })).toThrow('os/arch')
+    expect(() => readCheckerConfig({ ...ENV, SIEB_CHECKER_MODEL: 'Opus 4' })).toThrow(
+      'SIEB_CHECKER_MODEL',
+    )
     expect(() => readCheckerConfig({ ...ENV, SIEB_CHECKER_WEB_DOMAINS: 'https://evil' })).toThrow(
       '"https://evil" is no host name',
     )

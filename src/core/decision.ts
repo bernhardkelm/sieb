@@ -23,6 +23,12 @@ export const DECISION_SCOPES = ['image', 'all'] as const
 
 export type DecisionScope = (typeof DECISION_SCOPES)[number]
 
+/** The only status that may wait for upstream */
+export const UPSTREAM_STATUS: DecisionStatus = 'fix_planned'
+
+/** Longest waitingFor text of a decision or proposal */
+export const WAITING_FOR_MAX_LENGTH = 160
+
 /** Validated input for a new decision */
 export interface DecisionInput {
   vulnId: string
@@ -32,6 +38,8 @@ export interface DecisionInput {
   justification: DecisionJustification | null // only with status not_affected
   reason: string
   expiresAt: string | null
+  upstreamPending: boolean // fix_planned waiting for an upstream release, needs waitingFor and an expiry
+  waitingFor: string | null // only with upstreamPending
 }
 
 /** Validated change of an existing decision, absent fields stay as they are */
@@ -40,6 +48,8 @@ export interface DecisionPatch {
   justification?: DecisionJustification | null // null clears it
   reason?: string
   expiresAt?: string | null
+  upstreamPending?: boolean
+  waitingFor?: string | null // null clears it
   reconfirm?: true // clears a re-open and records new baselines
 }
 
@@ -52,6 +62,8 @@ export interface Decision {
   justification: DecisionJustification | null // cleared when the status leaves not_affected
   reason: string
   expiresAt: string | null
+  upstreamPending: boolean // cleared when the status leaves fix_planned
+  waitingFor: string | null // set exactly while upstreamPending
   createdBy: string
   createdAt: string
   updatedAt: string

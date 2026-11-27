@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { isUnseenNew } from '#core/findingRecency.ts'
 import type { FindingView } from '#core/findingView.ts'
 import FindingRow from '@/components/finding/FindingRow.vue'
 import { TRIAGE_SORT_COLUMNS, type TriageSortColumn } from '@/components/triage/triageSort'
@@ -9,7 +10,6 @@ import SortHeader from '@/components/list/SortHeader.vue'
 import { rowEstimate } from '@/components/list/virtualRows'
 import { useLabelColumns } from '@/composables/useLabelColumns'
 import { useNow } from '@/composables/useNow'
-import { isNewFinding } from '@/stores/findingFilters'
 
 defineProps<{
   findings: FindingView[]
@@ -112,7 +112,7 @@ const estimate = (_finding: FindingView, narrow: boolean): number => rowEstimate
           :finding="finding"
           :current="finding.id === currentId"
           :checked="checkedIds.has(finding.id)"
-          :is-new="isNewFinding(finding.firstSeen, now)"
+          :is-new="isUnseenNew(finding, now)"
           @select="$emit('select', finding.id, $event)"
           @toggle="$emit('toggle', finding.id, $event)"
         />

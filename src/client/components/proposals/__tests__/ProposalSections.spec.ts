@@ -17,6 +17,9 @@ const FIX: ProposalFix = {
   fixedVersion: '1.1.43-r4',
   change: '1. Bump FROM to alpine:3.24.4\n2. Rebuild and deploy',
   effort: 'rebuild and deploy, about 15 minutes',
+  availability: null,
+  waitingFor: null,
+  interim: null,
 }
 
 const REVIEW = { date: '2026-12-15T23:59:59.999Z', why: 'next base image release' }

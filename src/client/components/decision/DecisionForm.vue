@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, ref, useId, watch } from 'vue'
 
-import type { DecisionStatus } from '#core/decision.ts'
+import { UPSTREAM_STATUS, type DecisionStatus } from '#core/decision.ts'
 import DecisionEffectNote from '@/components/decision/DecisionEffectNote.vue'
 import DecisionFormActions from '@/components/decision/DecisionFormActions.vue'
 import ExpiryField from '@/components/decision/ExpiryField.vue'
@@ -10,6 +10,7 @@ import RadioChoice from '@/components/decision/RadioChoice.vue'
 import ReasonField from '@/components/decision/ReasonField.vue'
 import ReconfirmField from '@/components/decision/ReconfirmField.vue'
 import StatusFields from '@/components/decision/StatusFields.vue'
+import UpstreamField from '@/components/decision/UpstreamField.vue'
 import type {
   DecisionFormInitial,
   DecisionFormValue,
@@ -52,6 +53,7 @@ const reasonField = ref<{ focus: () => void } | null>(null)
 const statusFields = ref<{ focus: () => void } | null>(null)
 const fields = useDecisionFormFields(props.initial)
 const { status, justification, reason, scope, reconfirm, expiryDate, never } = fields
+const { upstreamPending, waitingFor } = fields
 const errors = useDecisionFormErrors(fields, () => props.error)
 
 const scopeOptions = computed(() => [
@@ -111,6 +113,13 @@ defineExpose({ focusReason, setStatus })
       :field-id="id"
       :status-errors="errors.status.value"
       :justification-errors="errors.server.value.justification"
+    />
+    <UpstreamField
+      v-if="status === UPSTREAM_STATUS"
+      v-model:upstream-pending="upstreamPending"
+      v-model:waiting-for="waitingFor"
+      :field-id="id"
+      :errors="errors.waitingFor.value"
     />
     <ReasonField
       ref="reasonField"

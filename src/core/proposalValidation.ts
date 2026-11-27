@@ -8,6 +8,7 @@ import {
   PROPOSAL_VERDICTS,
   type ProposalInput,
 } from '#core/proposal.ts'
+import { applyFixAvailability } from '#core/proposalFixUpstream.ts'
 import { readEvidence, readFix, readReferences, readReview } from '#core/proposalStructReaders.ts'
 import { readProposalEnum, readProposalList, readProposalText } from '#core/proposalTextReaders.ts'
 import { readMissing, readProposalJustification } from '#core/proposalVerdictReaders.ts'
@@ -58,7 +59,7 @@ const readImageRefs = (
  * their caps, references as http(s) URLs and a non-empty evidence basis. Free text loses
  * control and bidirectional formatting characters; needs_patch and fix_planned need a patch
  * action, inconclusive needs the list of what is missing to decide, which no other verdict
- * may carry.
+ * may carry; applyFixAvailability holds the rules of an upstream_pending fix.
  * @param {RawInput} raw - Raw input
  * @param {Date} now - Current time, for the review date
  * @returns {ProposalValidated<ProposalInput>} - Validated input or the list of errors
@@ -86,7 +87,8 @@ export const validateProposalInput = (
   )
   const confidence = readProposalEnum(raw.confidence, PROPOSAL_CONFIDENCES, 'confidence', errors)
   const narrative = { max: LIMITS.narrative, multiline: true }
-  const fix = readFix(raw.fix, errors)
+  const review = readReview(raw.review, now, errors)
+  const fix = applyFixAvailability(readFix(raw.fix, errors), verdict, review, errors)
   const evidenceBasis = readProposalList(
     raw.evidenceBasis,
     'evidenceBasis',
@@ -127,7 +129,7 @@ export const validateProposalInput = (
       errors,
     ),
     fix,
-    review: readReview(raw.review, now, errors),
+    review,
     unknowns: readProposalList(
       raw.unknowns,
       'unknowns',

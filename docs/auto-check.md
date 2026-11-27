@@ -54,7 +54,7 @@ worker port to sieb's Service, for example as port `worker` with `targetPort` 31
   skipped ones with their reason.
 - **Checks page.** The Checks page (key `6`, in the navigation while Auto-check is on, with the
   open checks as a badge) shows the running check with its phase, the queue in claim order, and
-  the 50 most recent ended checks with requester, duration, usage, cost, the error of a failed
+  the 50 most recent ended checks with requester, duration, the model that ran, turns, usage, cost, the error of a failed
   check and Claude's reply as plain text. Any signed-in user can cancel a queued or running check.
 - **Retry.** A failed or cancelled check that is the latest of its finding has a Retry action, on
   the Checks page and in the finding panel. It queues the finding again with the same rules as a
@@ -113,6 +113,8 @@ Code would prefer over both.
 | `SIEB_CHECKER_POLL_SECONDS` | `10` | Wait between claims while the queue is empty, 1 to 60 |
 | `SIEB_CHECKER_IMAGE_MAX_BYTES` | `4294967296` (4 GiB) | Cap on the uncompressed image filesystem, larger images fail the check |
 | `SIEB_CHECKER_PLATFORM` | `linux/amd64` | Platform exported from multi-platform images |
+| `SIEB_CHECKER_MODEL` | the account default | Model alias or id passed to Claude Code as `--model`, for example `opus`, `sonnet` or `claude-opus-5-5`; letters, digits, `.`, `-` and `[]` only |
+| `SIEB_CHECKER_EFFORT` | Claude Code's default | Effort level passed to Claude Code as `--effort`: `low`, `medium`, `high`, `xhigh` or `max` |
 | `SIEB_CHECKER_WEB_DOMAINS` | the [default list](#web-access) | Comma or space separated hosts WebFetch may reach, `*.example.org` covers every subdomain; replaces the defaults |
 
 Prefer the `_FILE` variants: a secret mounted as a file stays out of the worker's environment and

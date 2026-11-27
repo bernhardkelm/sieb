@@ -15,6 +15,7 @@ import {
   readText,
 } from '#core/decisionFieldReaders.ts'
 import type { DecisionInputError, Validated } from '#core/decisionInputError.ts'
+import { readUpstreamInput, readUpstreamPatch } from '#core/decisionUpstream.ts'
 
 type RawInput = Record<string, unknown>
 
@@ -36,6 +37,14 @@ export const validateDecisionInput = (raw: RawInput, now: Date): Validated<Decis
   const justification = readJustification(raw.justification, status, errors)
   const imageRef = nonBlank(raw.imageRef)
   const expiresAt = readExpiry(raw.expiresAt, now, errors)
+  const finalExpiresAt =
+    expiresAt === undefined && status !== null ? defaultExpiresAt(status, now) : expiresAt
+  const upstream = readUpstreamInput(
+    raw,
+    status,
+    errors.some((e) => e.field === 'expiresAt') ? undefined : finalExpiresAt,
+    errors,
+  )
 
   if (vulnId === null) {
     errors.push({ field: 'vulnId', code: 'required' })
@@ -70,14 +79,15 @@ export const validateDecisionInput = (raw: RawInput, now: Date): Validated<Decis
       status,
       justification: justification ?? null,
       reason,
-      expiresAt: expiresAt === undefined ? defaultExpiresAt(status, now) : expiresAt,
+      expiresAt: finalExpiresAt ?? null,
+      ...upstream,
     },
   }
 }
 
 /**
- * Validates a change of an existing decision. Only status, justification, reason and expiresAt
- * may change, reconfirm true re-confirms the decision at the current findings, at least one of
+ * Validates a change of an existing decision. Only status, justification, reason, expiresAt,
+ * upstreamPending and waitingFor may change, reconfirm true re-confirms the decision at the current findings, at least one of
  * them must be present, and a present reason must not be blank. reconfirm false counts as absent.
  * A justification next to a status other than not_affected is not allowed; next to no status the
  * stored status is checked by the update.
@@ -126,6 +136,8 @@ export const validateDecisionPatch = (raw: RawInput, now: Date): Validated<Decis
   if (expiresAt !== undefined) {
     patch.expiresAt = expiresAt
   }
+
+  Object.assign(patch, readUpstreamPatch(raw, errors))
 
   if (errors.length === 0 && Object.keys(patch).length === 0) {
     errors.push({ field: null, code: 'empty_patch' })

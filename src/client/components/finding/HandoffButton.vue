@@ -4,6 +4,7 @@ import { computed } from 'vue'
 import type { HandoffTarget } from '#core/handoffLinks.ts'
 import type { HandoffPrompts } from '#core/handoffPrompt.ts'
 import HandoffMenu from '@/components/finding/HandoffMenu.vue'
+import { usePanelAction } from '@/components/finding/panelAction'
 import { useClipboardCopy } from '@/composables/useClipboardCopy'
 import { useConnectionPoll } from '@/composables/useConnectionPoll'
 import { useHandoffOpen } from '@/composables/useHandoffOpen'
@@ -22,6 +23,7 @@ const targets = useHandoffTargetStore()
 const mcp = useMcpStore()
 const { copied, copy } = useClipboardCopy()
 const { open } = useHandoffOpen()
+const panelAction = usePanelAction()
 
 const label = computed(() => HANDOFF_OPTIONS[targets.preferred].action)
 
@@ -39,6 +41,8 @@ const runPrimary = (): void => {
     return
   }
 
+  panelAction()
+
   if (targets.preferred === 'copy') {
     void copy(props.prompts.chat)
     return
@@ -53,6 +57,7 @@ const runPrimary = (): void => {
  * @returns {void}
  */
 const openTarget = (target: HandoffTarget): void => {
+  panelAction()
   open(target, props.prompts)
 }
 
@@ -66,6 +71,7 @@ const copyText = (kind: 'prompt' | 'command'): void => {
   const text = kind === 'command' ? props.command : props.prompts.chat
 
   if (text !== null) {
+    panelAction()
     void copy(text)
   }
 }

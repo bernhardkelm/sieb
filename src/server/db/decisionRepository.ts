@@ -28,6 +28,8 @@ export interface DecisionRow {
   kev_at_decision: number
   reopened_at: string | null
   reopen_trigger: string | null
+  upstream_pending: number
+  waiting_for: string | null
 }
 
 /**
@@ -45,6 +47,8 @@ const toDecision = (row: DecisionRow, baselines: DecisionBaseline[]): Decision =
   justification: row.justification as DecisionJustification | null,
   reason: row.reason,
   expiresAt: row.expires_at,
+  upstreamPending: row.upstream_pending === 1,
+  waitingFor: row.waiting_for,
   createdBy: row.created_by,
   createdAt: row.created_at,
   updatedAt: row.updated_at,

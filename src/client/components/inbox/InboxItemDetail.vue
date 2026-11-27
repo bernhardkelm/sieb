@@ -3,6 +3,7 @@ import { computed } from 'vue'
 
 import type { InboxItem } from '#core/inbox/inboxItem.ts'
 import BaseChip from '@/components/chips/BaseChip.vue'
+import UpstreamPendingChip from '@/components/chips/UpstreamPendingChip.vue'
 import ConfidenceChip from '@/components/proposals/ConfidenceChip.vue'
 import ProposalClientTag from '@/components/proposals/ProposalClientTag.vue'
 import VerdictChip from '@/components/proposals/VerdictChip.vue'
@@ -32,6 +33,7 @@ const status = computed(() => {
     <template v-if="item.kind === 'proposal'">
       <VerdictChip :verdict="item.verdict" />
       <ConfidenceChip :confidence="item.confidence" />
+      <UpstreamPendingChip v-if="item.upstreamPending" :waiting-for="null" />
       <ProposalClientTag :client="item" />
       <span v-if="item.patchAction" class="patch" :title="item.patchAction">
         {{ item.patchAction }}

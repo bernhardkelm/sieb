@@ -43,6 +43,8 @@ const VALUE: DecisionFormValue = {
   expiresAt: null,
   expiryTouched: false,
   reconfirm: false,
+  upstreamPending: false,
+  waitingFor: null,
 }
 
 /**

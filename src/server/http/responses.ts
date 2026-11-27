@@ -13,6 +13,7 @@ import type { ProposalCommandError, ProposalRefusal } from '#server/db/proposalC
 type CommandRefusal = Omit<ProposalRefusal, 'ok' | 'error'> & {
   error: DecisionCommandError | ProposalCommandError
   decisionId?: number
+  issue?: ValidationIssue
 }
 
 /**
@@ -36,7 +37,7 @@ export const notFound = (c: Context): Response => c.json<ErrorBody>({ error: 'no
  * for a revoked or conflicting decision with its id, for a proposal that is no longer open with
  * its state, for an accept whose expected decisions changed with the current ids, for an accept
  * of an inconclusive proposal without a status and for a proposer at the open cap, 400 for a vuln_id or image without a finding and for a justification
- * on a decision whose status is not not_affected.
+ * on a decision whose status is not not_affected or for a change that breaks an upstream rule.
  * @param {Context} c - Request context
  * @param {CommandRefusal} result - Refusal
  * @param {string} findingField - Field reported for unknown_finding
@@ -56,6 +57,9 @@ export const commandRefused = (
     }
     case 'justification_not_allowed': {
       return validationFailed(c, [{ field: 'justification', code: 'not_allowed' }])
+    }
+    case 'upstream_invalid': {
+      return validationFailed(c, [result.issue ?? { field: 'upstreamPending', code: 'invalid' }])
     }
     case 'revoked':
     case 'conflict': {

@@ -198,9 +198,13 @@ else on the origin the request reached sieb at.
 | `search_findings` | Questions across findings, with the [finding filters](api.md#finding-filters) (`pending` against the connected user's Inbox) plus `groupBy` (`none`, `cve`, `image`, `namespace`, `package`) for counts per group, `limit` (at most 50, default 20) and `offset`, and the `total` |
 | `get_finding` | One finding by `findingId`, or by `vulnId` and `imageRef`: instances per workload and container, `foundIn` (paths, package type and PURL from Trivy), every decision covering it with history, KEV details |
 | `get_image` | One image: owner, exposure, risk counts, workloads and its open findings |
-| `list_decisions` | Earlier verdicts on the same CVE, package or image, filtered by state or status, newest first |
+| `list_decisions` | Earlier verdicts on the same CVE, package or image, filtered by state (also `expiring` and `upstream_pending`) or status, newest first |
 | `list_my_proposals` | The proposals filed for the connected sieb user, newest first, with state, resolution, outdated flag, reject reason (under `untrusted`) and review URL; `state` (default `all`), `vulnId`, `limit`, `offset` |
 | `propose_decision` | Only with `sieb:propose`: files a structured decision proposal, see [Proposals](#proposals) |
+
+The decisions of `get_finding` and `list_decisions` carry `upstreamPending` (a `fix_planned`
+decision waiting for an upstream release, its `expiresAt` the review date) and, under
+`untrusted`, `waitingFor`.
 
 `get_finding`, `check_vulnerability`, `get_image` and `search_findings` (when it lists findings)
 carry one `exposureNote` per result: the meaning of each
@@ -262,7 +266,8 @@ claims are structured: `verdict` (`not_affected` with an OpenVEX `justification`
 [below](#verdict-inconclusive)), `summary`, `confidence`, `presence`, `reachability`, `exposure`,
 `evidence` (one entry per check Claude ran, also those that found nothing: `check`, `method` as
 command, file:line, tool call or URL, `result`), `fix` (`action`, `layer`, `fixedVersion`,
-`change` as the ordered steps through deploy and how to confirm, `effort`), `review` (date and
+`change` as the ordered steps through deploy and how to confirm, `effort`, `availability`,
+`waitingFor`, `interim`, see [Waiting for upstream](#waiting-for-upstream)), `review` (date and
 why, the date becomes the proposed expiry), `unknowns` (only what Claude's access could not
 check, each with the reason), `missing` (with `inconclusive` only), `references` (http(s) links
 Claude actually read), `agent` and `evidenceBasis`.
@@ -277,18 +282,22 @@ closest layer the operator controls that pulls in an available fix, starting wit
 | `dependency` | lockfile, `go.mod`, requirements, a package installed explicitly in the Dockerfile | bump it to the fixed version, "dependency: bump golang.org/x/text to v0.39.0" |
 | `base_image` | an OS package or runtime inherited from `FROM` | rebuild on a newer base tag or digest with the fix, "base image: rebuild on alpine:3.24.4 (libxslt 1.1.43-r4)"; when the tag the build already uses was republished with the fix, "base image: rebuild without cache and redeploy, alpine:3.24 now ships libxslt 1.1.43-r4"; else upgrade the package in the Dockerfile (`apk upgrade <package>`) when the distro has it; else wait for the base image or distro |
 | `image` | a third-party image | bump to a newer published tag or digest with the fix; else wait for upstream |
-| `platform` | a component a distribution such as k3s deploys and manages | upgrade the platform to a release that bundles the fix; else wait, "k3s: wait for a release bundling metrics-server v0.9.1"; never override the bundled component |
+| `platform` | a component a distribution such as k3s deploys and manages | upgrade to the first platform release that bundles a fixed component (a newer version or a rebuilt mirrored image), "k3s: upgrade to v1.x.y+k3s1 or later (bundles metrics-server v0.9.1)"; else wait for upstream; never override the bundled component in `fix.action` |
 
 `fix.layer` is optional and may also be `unknown`. Claude finds the layer from sieb's facts (Found
 in paths, package type and class, os-pkgs versus language packages, the PURL, installed and fixed
 version, the owner only as a hint), for an own image from its Dockerfile and lockfiles, and from
 image config labels such as `org.opencontainers.image.base.name`, and checks on release pages and
-registries that the fixed version, tag or platform release exists today. When no layer the
-operator controls has a fix, the action says what to wait for ("no fixed version yet, watch
-<advisory>" when there is none at all) and the verdict is `fix_planned` with a review date, or
-`accepted` or `not_affected` where the evidence supports it. Manual overrides come up only as an
-explicit exception for a high risk, KEV listed and reachable. A missing action is refused with
-this guidance; the full rule is in the `fix.action` description and the triage prompt.
+registries that the fixed version, tag or platform release exists today, from pages it opened,
+not from search snippets. `fix.action` and `fix.change` hold only steps the operator carries out,
+never a lookup such as "check the release notes": Claude does that check itself. When no layer
+the operator controls has a fix, the verdict is `fix_planned` with `fix.availability`
+`upstream_pending`, `fix.waitingFor` and a review date (see
+[Waiting for upstream](#waiting-for-upstream)), or `accepted` or `not_affected` where the evidence
+supports it. A manual workaround comes up only as `fix.interim` and only when urgent (KEV listed,
+or critical or high and reachable on a public workload), preferring mitigations that change no
+version. A missing action is refused with this guidance; the full rule is in the `fix.action`
+description and the triage prompt.
 
 The review panel shows a What to do section directly under the summary: the layer and the
 action with a copy button for the version, tag or digest it names (for a rebuild of a
@@ -296,6 +305,34 @@ republished tag, the fixed version), then the steps from `fix.change`, then effo
 date side by side. Proposals without an action and without steps skip it. Inbox rows show the
 action after the verdict chip, and the decision reason generated on accept starts with it.
 Proposals stored before `fix.action` existed have neither action nor layer.
+
+### Waiting for upstream
+
+`fix.availability` says whether a fix is published today at a layer the operator controls
+(`available`) or not yet (`upstream_pending`); Claude decides it from release pages it read, not
+from a guess. The verdict rules:
+
+| Verdict | `availability` | `waitingFor` | `interim` |
+| --- | --- | --- | --- |
+| `needs_patch` | `available`, absent means `available` | `not_allowed` | `not_allowed` |
+| `fix_planned` | required (`fix.availability` `required`) | required with `upstream_pending`, else `not_allowed` | only with `upstream_pending` |
+| other verdicts | `not_allowed` | `not_allowed` | `not_allowed` |
+
+`upstream_pending` also needs `review.date` (`review.date` `required`). `waitingFor` (at most 160
+characters) names exactly which release or image is awaited, such as "k3s release bundling traefik
+3.7.17 or later". `interim` (`{ action, steps, caveats }`, `action` one line of at most 160
+characters, `steps` and `caveats` up to 2000, `action` and `caveats` required) is an advised manual
+workaround or mitigation until upstream ships, only when urgent: KEV listed, or critical or high and
+reachable on a public workload. Its caveats say what it risks and that it is reverted once
+upstream ships. Each refusal names the rule in its hint.
+
+For `upstream_pending` What to do starts with "Waiting for upstream: <waitingFor>" and the review
+date instead of the patch action; an `interim` follows below as a marked warning box, "Urgent:
+manual workaround advised. No upstream fix exists yet.", with its action, a copy button, steps and
+caveats, never styled like the main fix. The review header and Inbox rows carry a "Waiting for
+upstream" chip. Accepting carries it over to the decision (`upstreamPending`, `waitingFor`, see
+[api.md](api.md#waiting-for-upstream)). Proposals stored before `availability` existed read it as
+`null` and show as before.
 
 `evidenceBasis` is required and must be honest:
 `advisory` (advisory and sieb data), `upstream_source`, `image`, `own_source` (the repository
@@ -383,7 +420,7 @@ Why is one sentence of at most 25 words, Checked and Not checked are comma-separ
 `sieb:propose` the last line is copied verbatim: "No proposal filed: this connection is read-only
 (token or connector needs sieb:propose)." Several triaged findings become a table with the
 columns Finding, Verdict, Conf. and Proposal, one row per finding, followed by one summary line
-such as "3 proposals filed, 1 of them inconclusive". A finding Claude cannot decide gets the
+such as "3 proposals filed, 1 inconclusive". A finding Claude cannot decide gets the
 same block with `inconclusive` and is filed as an [inconclusive proposal](#verdict-inconclusive)
 too:
 

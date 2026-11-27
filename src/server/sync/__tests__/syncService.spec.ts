@@ -82,6 +82,8 @@ describe('createSyncService', () => {
         justification: null,
         reason: 'x',
         expiresAt: null,
+        upstreamPending: false,
+        waitingFor: null,
       },
       'dev',
       NOW,

@@ -67,7 +67,8 @@ const parsed = <T>(text: string): T => JSON.parse(text) as T
 const parsedOrNull = <T>(text: string | null): T | null => (text === null ? null : parsed<T>(text))
 
 /**
- * Parses the fix column, a fix stored before the patch action existed reads as without one.
+ * Parses the fix column, a fix stored before the patch action or the availability existed reads
+ * as without them.
  * @param {string | null} text - Column value
  * @returns {ProposalFix | null} - Fix, null for NULL
  */
@@ -82,6 +83,9 @@ const storedFix = (text: string | null): ProposalFix | null => {
         fixedVersion: fix.fixedVersion ?? null,
         change: fix.change ?? null,
         effort: fix.effort ?? null,
+        availability: fix.availability ?? null,
+        waitingFor: fix.waitingFor ?? null,
+        interim: fix.interim ?? null,
       }
 }
 

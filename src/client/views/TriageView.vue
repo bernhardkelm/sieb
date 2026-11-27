@@ -66,6 +66,7 @@ const { hidden } = useLabelColumns()
         :checked-count="checkedIds.size"
         :sort-label="sort.label.value"
         @bulk="triage.openBulk"
+        @mark-seen="triage.markAllSeen"
         @reset-sort="triage.resetSort"
       />
       <EmptyState v-if="findings.length === 0" title="No matches">

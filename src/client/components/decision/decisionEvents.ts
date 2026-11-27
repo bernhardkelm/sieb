@@ -4,6 +4,7 @@ import { describeProvenance } from '@/components/decision/decisionProvenance'
 import { EVENT_LABELS, JUSTIFICATION_LABELS, REOPEN_LABELS, STATUS_LABELS } from '@/format/labels'
 import { formatDate } from '@/format/relativeTime'
 import { reopenText, triggerOfPayload } from '@/format/reopenText'
+import { UPSTREAM_PENDING_LABEL, waitingForText } from '@/format/upstreamText'
 
 /** History entry as the panel lists it */
 export interface EventSummary {
@@ -62,6 +63,12 @@ const describeChanges = (payload: Payload): string[] => {
       lines.push(`Expiry ${expiryLabel(before)} → ${expiryLabel(after)}`)
     } else if (field === 'severityAtDecision') {
       lines.push(`Confirmed at severity ${String(after)}`)
+    } else if (field === 'upstreamPending') {
+      lines.push(
+        after ? UPSTREAM_PENDING_LABEL : `No longer ${UPSTREAM_PENDING_LABEL.toLowerCase()}`,
+      )
+    } else if (field === 'waitingFor' && typeof after === 'string') {
+      lines.push(`Waiting for: ${after}`)
     } else if (field === 'kevAtDecision') {
       lines.push(after ? 'Confirmed while KEV listed' : 'Confirmed without KEV listing')
     }
@@ -129,6 +136,9 @@ const summarize = (event: DecisionEvent): EventSummary => {
         lines: [
           ...(payload.justification
             ? [`Justification: ${justificationLabel(payload.justification)}`]
+            : []),
+          ...(payload.upstreamPending === true
+            ? [waitingForText(typeof payload.waitingFor === 'string' ? payload.waitingFor : null)]
             : []),
           String(payload.reason ?? ''),
           `Expires ${expiryLabel(payload.expiresAt)}`,

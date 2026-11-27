@@ -1,6 +1,7 @@
 import { useClipboardCopy } from '@/composables/useClipboardCopy'
 import { useHandoff, NO_FINDING_REASON, type Handoff } from '@/composables/useHandoff'
 import { useHandoffOpen } from '@/composables/useHandoffOpen'
+import { useFindingSeenStore } from '@/stores/findingSeenStore'
 import { useHandoffTargetStore } from '@/stores/handoffTargetStore'
 import { useMcpStore } from '@/stores/mcpStore'
 import { notifySuccess } from '@/toast/toastManager'
@@ -26,13 +27,14 @@ export interface PanelHandoff extends HandoffActions {
 /**
  * Hands the panel finding over to Claude for keys and hints, which have no button to show the
  * copied state, so a toast confirms each action. Deep links and the claude command need Claude
- * connected to sieb, copying the prompt does not.
+ * connected to sieb, copying the prompt does not. Each action marks the panel finding seen.
  * @returns {PanelHandoff} - Hand-off texts, block reasons, copy and open functions
  */
 export const usePanelHandoff = (): PanelHandoff => {
   const handoff = useHandoff()
   const targets = useHandoffTargetStore()
   const mcp = useMcpStore()
+  const seen = useFindingSeenStore()
   const { copyPrompt, open } = useHandoffOpen()
   const { copy } = useClipboardCopy()
 
@@ -67,6 +69,7 @@ export const usePanelHandoff = (): PanelHandoff => {
       return false
     }
 
+    seen.markShown()
     notifySuccess('Copied claude command', 'Run it in the repository that builds the image.')
     return true
   }
@@ -82,6 +85,7 @@ export const usePanelHandoff = (): PanelHandoff => {
       return false
     }
 
+    seen.markShown()
     open(targets.preferred, prompts)
     return true
   }
@@ -91,8 +95,16 @@ export const usePanelHandoff = (): PanelHandoff => {
     promptBlockedBy,
     openBlockedBy,
     commandBlockedBy,
-    copyPrompt: async () =>
-      handoff.prompts.value !== null && copyPrompt(handoff.prompts.value.chat),
+    copyPrompt: async () => {
+      const copied =
+        handoff.prompts.value !== null && (await copyPrompt(handoff.prompts.value.chat))
+
+      if (copied) {
+        seen.markShown()
+      }
+
+      return copied
+    },
     copyCommand,
     openPreferred,
   }

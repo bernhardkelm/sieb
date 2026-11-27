@@ -6,14 +6,14 @@ import ListSummary from '@/components/list/ListSummary.vue'
 defineProps<{
   shown: number
   total: number
-  /** Shown findings first seen within the last seven days */
+  /** Shown findings first seen within the last seven days that the user has not seen */
   newCount: number
   checkedCount: number
   /** Active custom sort, null for the triage order */
   sortLabel: string | null
 }>()
 
-defineEmits<{ bulk: []; resetSort: [] }>()
+defineEmits<{ bulk: []; resetSort: []; markSeen: [] }>()
 </script>
 
 <template>
@@ -26,6 +26,9 @@ defineEmits<{ bulk: []; resetSort: [] }>()
       >
     </span>
     <template #actions>
+      <BaseButton v-if="newCount > 0" variant="ghost" @click="$emit('markSeen')">
+        Mark all as seen
+      </BaseButton>
       <BaseButton
         v-if="checkedCount > 0"
         class="bulk-button"

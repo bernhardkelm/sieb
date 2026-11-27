@@ -73,6 +73,8 @@ export const createBulkDecisions = (
           justification: input.justification,
           reason: input.reason,
           expiresAt: input.expiresAt,
+          upstreamPending: input.upstreamPending,
+          waitingFor: input.waitingFor,
         },
         actor,
         now,

@@ -74,6 +74,8 @@ describe('sync with the CISA catalog', () => {
         justification: null,
         reason: 'x',
         expiresAt: null,
+        upstreamPending: false,
+        waitingFor: null,
       },
       'dev',
       NOW,

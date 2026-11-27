@@ -20,6 +20,7 @@ describe('readFindingFilters', () => {
         new: '1',
         resolved: '1',
         pending: 'Proposed,reopened,kev,checking,untouched',
+        upstream: '1',
         finding: '12',
       }),
     ).toEqual({
@@ -31,6 +32,7 @@ describe('readFindingFilters', () => {
       newThisWeek: true,
       includeResolved: true,
       pending: ['proposed', 'reopened', 'kev', 'checking', 'untouched'],
+      upstreamPending: true,
     })
   })
 
@@ -57,6 +59,7 @@ describe('findingFilterParams', () => {
       severity: ['Critical' as const, 'High' as const],
       kev: true,
       pending: ['reopened' as const, 'untouched' as const],
+      upstreamPending: true,
     }
     const params = findingFilterParams(filters)
 
@@ -69,6 +72,7 @@ describe('findingFilterParams', () => {
       new: null,
       resolved: null,
       pending: 'reopened,untouched',
+      upstream: '1',
     })
     expect(sameFindingFilters(readFindingFilters(findingFilterQuery(filters)), filters)).toBe(true)
   })

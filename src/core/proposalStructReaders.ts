@@ -8,6 +8,7 @@ import {
   type ProposalFix,
   type ProposalReview,
 } from '#core/proposal.ts'
+import { readFixUpstream } from '#core/proposalFixUpstream.ts'
 import {
   isHttpUrl,
   isPlainObject,
@@ -56,8 +57,9 @@ export const readEvidence = (
 }
 
 /**
- * Reads the fix path: the one-line patch action with its layer, fixed version, what to change
- * and rough effort, each optional here.
+ * Reads the fix path: the one-line patch action with its layer, fixed version, what to change,
+ * rough effort, availability, what an upstream_pending fix waits for and an interim workaround,
+ * each optional here; applyFixAvailability adds the verdict rules.
  * @param {unknown} value - Raw fix
  * @param {ValidationIssue[]} errors - Collected errors, appended to
  * @returns {ProposalFix | null} - Fix, null when absent, empty or invalid
@@ -91,6 +93,7 @@ export const readFix = (value: unknown, errors: ValidationIssue[]): ProposalFix 
       errors,
     ),
     effort: readProposalText(value.effort, 'fix.effort', { max: LIMITS.fixEffort }, errors),
+    ...readFixUpstream(value, errors),
   }
 
   return Object.values(fix).every((part) => part === null) ? null : fix

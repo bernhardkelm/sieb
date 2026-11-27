@@ -1,5 +1,6 @@
 import {
   JUSTIFIABLE_STATUS,
+  UPSTREAM_STATUS,
   type Decision,
   type DecisionJustification,
   type DecisionScope,
@@ -34,6 +35,8 @@ export interface DecisionFormValue {
   expiresAt: string | null
   expiryTouched: boolean // the user changed the date or the never toggle
   reconfirm: boolean // re-arms a re-opened decision, only offered when editing one
+  upstreamPending: boolean // only with fix_planned
+  waitingFor: string | null // set exactly while upstreamPending
 }
 
 /** Starting values of the form, absent fields take the defaults */
@@ -53,6 +56,23 @@ export const justificationFor = (
   status: DecisionStatus,
   justification: DecisionJustification | null,
 ): DecisionJustification | null => (status === JUSTIFIABLE_STATUS ? justification : null)
+
+/**
+ * Returns the upstream fields a status may carry: the checked box and its trimmed text for
+ * fix_planned, none otherwise.
+ * @param {DecisionStatus} status - Chosen status
+ * @param {boolean} checked - Whether Waiting for upstream is checked
+ * @param {string} waitingFor - Typed waiting for text
+ * @returns {Pick<DecisionFormValue, 'upstreamPending' | 'waitingFor'>} - Fields to submit
+ */
+export const upstreamFor = (
+  status: DecisionStatus,
+  checked: boolean,
+  waitingFor: string,
+): Pick<DecisionFormValue, 'upstreamPending' | 'waitingFor'> =>
+  status === UPSTREAM_STATUS && checked
+    ? { upstreamPending: true, waitingFor: waitingFor.trim() }
+    : { upstreamPending: false, waitingFor: null }
 
 /**
  * Pads a number to two digits.
@@ -122,6 +142,8 @@ export const initialFromDecision = (decision: Decision, now: Date): DecisionForm
   justification: decision.justification,
   reason: decision.reason,
   scope: decision.scope,
+  upstreamPending: decision.upstreamPending,
+  waitingFor: decision.waitingFor,
   expiresAt: isLapsed(decision.expiresAt, now)
     ? defaultExpiresAt(decision.status, now)
     : decision.expiresAt,

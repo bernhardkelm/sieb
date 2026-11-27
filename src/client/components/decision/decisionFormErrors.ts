@@ -2,7 +2,7 @@ import { ApiError } from '@/api/ApiError'
 import { errorMessage } from '@/api/apiRequest'
 import { errorCodeMessage } from '@/format/labels'
 
-const FORM_FIELDS = ['status', 'justification', 'reason', 'expiresAt'] as const
+const FORM_FIELDS = ['status', 'justification', 'reason', 'expiresAt', 'waitingFor'] as const
 
 export type FormField = (typeof FORM_FIELDS)[number]
 
@@ -21,6 +21,7 @@ export const decisionFormErrors = (error: unknown): DecisionFormErrors => {
     justification: [],
     reason: [],
     expiresAt: [],
+    waitingFor: [],
     general: [],
   }
 
@@ -51,25 +52,44 @@ export const decisionFormErrors = (error: unknown): DecisionFormErrors => {
 }
 
 /** Messages of the checks the form runs before it submits */
-export type LocalFormErrors = Record<'status' | 'reason' | 'expiresAt', string[]>
+export type LocalFormErrors = Record<'status' | 'reason' | 'expiresAt' | 'waitingFor', string[]>
 
 export interface LocalFormInput {
   status: string | null
   reason: string
   never: boolean
   expiresAt: string | null // null for an empty or unreadable date
+  upstreamPending: boolean // checked with status fix_planned
+  waitingFor: string
 }
 
 /**
- * Checks the input before it is submitted: a status is chosen, the reason is not blank and a
- * date is set unless the decision never expires.
+ * Returns the message of a missing expiry: a review date while waiting for upstream, else a
+ * date or never.
+ * @param {LocalFormInput} input - Current input
+ * @returns {string[]} - Message, empty when the expiry passes
+ */
+const expiryErrors = (input: LocalFormInput): string[] => {
+  if (input.upstreamPending && (input.never || input.expiresAt === null)) {
+    return ['Waiting for upstream needs a review date.']
+  }
+
+  return !input.never && input.expiresAt === null ? ['Pick a date or choose never.'] : []
+}
+
+/**
+ * Checks the input before it is submitted: a status is chosen, the reason is not blank, a date
+ * is set unless the decision never expires, and waiting for upstream names what it waits for
+ * and has a review date.
  * @param {LocalFormInput} input - Current input
  * @returns {LocalFormErrors} - Messages per field, empty lists when the input passes
  */
 export const localFormErrors = (input: LocalFormInput): LocalFormErrors => ({
   status: input.status === null ? ['Choose a status.'] : [],
   reason: input.reason.trim() === '' ? ['A reason is required.'] : [],
-  expiresAt: !input.never && input.expiresAt === null ? ['Pick a date or choose never.'] : [],
+  expiresAt: expiryErrors(input),
+  waitingFor:
+    input.upstreamPending && input.waitingFor.trim() === '' ? ['Name what you wait for.'] : [],
 })
 
 /**

@@ -68,16 +68,15 @@ export const partialCreateTitle = (queued: number, failed: number): string =>
   `${countOf(queued, 'Auto-check')} queued, ${formatCount(failed)} not queued`
 
 /**
- * Describes the tokens and turns of a check.
+ * Describes the tokens of a check.
  * @param {CheckUsage} usage - Usage
- * @returns {string} - Text such as "12.3K in · 1,104 out · 40K cache · 8 turns"
+ * @returns {string} - Text such as "12.3K in · 1,104 out · 40K cache"
  */
 export const usageText = (usage: CheckUsage): string =>
   [
     `${formatCount(usage.inputTokens)} in`,
     `${formatCount(usage.outputTokens)} out`,
     `${formatCount(usage.cacheReadTokens + usage.cacheCreationTokens)} cache`,
-    countOf(usage.turns, 'turn'),
   ].join(' · ')
 
 /**

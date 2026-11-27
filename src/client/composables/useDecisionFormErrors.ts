@@ -15,6 +15,7 @@ export interface DecisionFormErrorState {
   status: ComputedRef<string[]>
   reason: ComputedRef<string[]>
   expiresAt: ComputedRef<string[]>
+  waitingFor: ComputedRef<string[]>
 }
 
 /**
@@ -28,7 +29,7 @@ export const useDecisionFormErrors = (
   fields: DecisionFormFields,
   error: () => unknown,
 ): DecisionFormErrorState => {
-  const local = ref<LocalFormErrors>({ status: [], reason: [], expiresAt: [] })
+  const local = ref<LocalFormErrors>({ status: [], reason: [], expiresAt: [], waitingFor: [] })
   const server = computed(() => decisionFormErrors(error()))
 
   watch(fields.status, () => {
@@ -39,8 +40,12 @@ export const useDecisionFormErrors = (
     local.value.reason = []
   })
 
-  watch([fields.expiryDate, fields.never], () => {
+  watch([fields.expiryDate, fields.never, fields.upstreamPending], () => {
     local.value.expiresAt = []
+  })
+
+  watch([fields.waitingFor, fields.upstreamPending], () => {
+    local.value.waitingFor = []
   })
 
   return {
@@ -49,5 +54,6 @@ export const useDecisionFormErrors = (
     status: computed(() => [...local.value.status, ...server.value.status]),
     reason: computed(() => [...local.value.reason, ...server.value.reason]),
     expiresAt: computed(() => [...local.value.expiresAt, ...server.value.expiresAt]),
+    waitingFor: computed(() => [...local.value.waitingFor, ...server.value.waitingFor]),
   }
 }

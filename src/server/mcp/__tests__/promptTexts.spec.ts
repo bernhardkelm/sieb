@@ -16,8 +16,9 @@ const SKELETON = [
 ]
 
 const BLOCK_RULES =
-  'The first line contains "confidence"; needs_patch and fix_planned add ": <exact patch' +
-  ' action>" ("→ needs_patch: upgrade libexample to 1.2.1 · confidence high"), also in tables.' +
+  'needs_patch and fix_planned add ": <exact patch action>" ("→ needs_patch: upgrade' +
+  ' libexample to 1.2.1 · confidence high"), upstream_pending " · waiting for upstream"' +
+  ' instead, also in tables.' +
   ' inconclusive: Why names what is missing. Why has at most 25 words. Checked and Not' +
   ' checked hold only comma-separated keywords: advisory, upstream_source, image, own_source,' +
   ' runtime; sieb data counts as advisory.'
@@ -66,16 +67,25 @@ describe('serverInstructions', () => {
     expect(text).toContain('Never ask whether you should file one')
     expect(text).toContain('The detail goes into its fields, not into the chat')
     expect(text).toContain('evidence, one entry per check you ran, also when it found nothing')
-    expect(text).toContain('references, the pages you read')
+    expect(text).toContain(
+      'references, the pages you opened, deciding facts never rest on search snippets',
+    )
     expect(text).toContain('unknowns, only what your access could not check, so check first')
-    expect(text).toContain('fix.action, what the operator does now, and fix.change, the exact')
+    expect(text).toContain(
+      'fix.action and fix.change, only steps the operator carries out, never a lookup ("check' +
+        ' the release notes"): do it yourself, name the release, tag or digest.',
+    )
+    expect(text).toContain(
+      'No fix published yet: fix_planned, fix.availability upstream_pending, waitingFor;' +
+        ' fix.interim, a workaround, only when urgent.',
+    )
     expect(text).toContain('never guess, propose inconclusive with missing')
     expect(text).toContain('weak evidence for a verdict is that verdict with confidence low')
     expect(text).not.toMatch(/do not propose|undecided/)
     expect(text).toContain('the client has disabled the tool')
     expectReplyFormat(text, 'Proposal: <url propose_decision returns>')
     expect(text).not.toContain('Example:')
-    expect(text).toContain('"3 proposals filed, 1 of them inconclusive"')
+    expect(text).toContain('"3 proposals filed, 1 inconclusive"')
     expect(text).not.toContain('Copy the last line verbatim.')
     expect(text).toContain(PLAIN)
     expect(text).toContain(MIXED)
@@ -90,6 +100,7 @@ describe('serverInstructions', () => {
     expect(text).toContain('reconnecting the connector with sieb:propose')
     expect(text).not.toContain('Never ask whether you should file one')
     expect(text).toContain('never guess, reply inconclusive and name what is missing')
+    expect(text).toContain('Deciding facts come from pages you opened, never from search snippets')
     expect(text).not.toContain('undecided')
     expectReplyFormat(text, READ_ONLY_PROPOSAL_LINE)
     expect(text).not.toContain('<url propose_decision returns>')
@@ -132,7 +143,7 @@ describe('serverInstructions', () => {
 
       expect(code).toContain(
         'private: an own image (owner self), its repository is probably on this machine: if the' +
-          ' working directory is not it, ask the user for its path before concluding.',
+          ' working directory is not it, ask for its path before concluding.',
       )
       expect(code).not.toContain('unless you run in its repository')
       expect(other).toContain(
@@ -150,7 +161,7 @@ describe('serverInstructions', () => {
       serverInstructions(true, true),
     ]) {
       expect(text).toContain('kevCatalog is null by design')
-      expect(text).toContain('that is not a contradiction')
+      expect(text).toContain('(see kevNote), no contradiction')
       expect(text).toContain('may or may not be inspectable, try pulling it')
       expect(text).toContain('private: an own image (owner self)')
       expect(text).toContain('advisory-only evidence is acceptable')
@@ -216,15 +227,71 @@ describe('triageWorkflow', () => {
     expect(text).toContain('"base image: rebuild on alpine:3.24.4 (libxslt 1.1.43-r4)"')
     expect(text).toContain('"k3s: wait for a release bundling metrics-server v0.9.1"')
     expect(text).toContain('"dependency: bump golang.org/x/text to v0.39.0"')
-    expect(text).toContain('Never suggest overriding the bundled component.')
+    expect(text).toContain('"k3s: upgrade to v1.x.y+k3s1 or later (bundles metrics-server v0.9.1)"')
+    expect(text).toContain('Never override the bundled component in fix.action.')
     expect(text).toContain('the owner only as a hint')
     expect(text).toContain('org.opencontainers.image.base.name')
-    expect(text).toContain('Manual overrides only as an explicit exception for high risk')
     expect(triageWorkflow(false)).toContain(
       'No fix published at any layer the operator controls: the action says what to wait for and' +
-        ' the verdict is fix_planned with a review date, not needs_patch',
+        ' the verdict is fix_planned with availability upstream_pending, waitingFor and a review' +
+        ' date, not needs_patch',
     )
     expect(text).not.toContain('owner not self')
+  })
+
+  it('keeps research out of What to do and facts on opened pages', () => {
+    for (const canPropose of [true, false]) {
+      const text = triageWorkflow(canPropose)
+
+      expect(text).toContain(
+        'No research in What to do: fix.action and fix.change hold only steps the operator' +
+          ' carries out (upgrade, rebuild, deploy, confirm).',
+      )
+      expect(text).toContain(
+        'run that check yourself with the tools you have and write its concrete result',
+      )
+      expect(text).toContain(
+        'comes from a page you opened (advisory, release page, pull request, commit, manifest,' +
+          ' registry), never from a search result snippet',
+      )
+      expect(text).toContain('say so in the evidence entry and lower the confidence')
+    }
+    expect(triageWorkflow(true)).toContain('no deciding fact rests on a search snippet')
+    expect(triageWorkflow(true)).toContain('with no step that asks them to look something up')
+  })
+
+  it('decides the availability from release pages and names what is awaited', () => {
+    const text = triageWorkflow(true)
+
+    expect(text).toContain('Availability is decided, not guessed')
+    expect(text).toContain('fix_planned with fix.availability available')
+    expect(text).toContain(
+      'fix_planned with fix.availability upstream_pending, fix.waitingFor naming exactly the' +
+        ' release or image awaited',
+    )
+    expect(text).toContain(
+      'either a newer component version or a rebuilt mirrored image of the same tag',
+    )
+    expect(text).toContain('github.com/k3s-io/k3s')
+    expect(text).toContain('rancher/image-build-*')
+    expect(text).toContain('upstream_pending always has one')
+    expect(text).toContain(
+      '→ fix_planned · waiting for upstream · confidence medium\nWhy: libexample 1.2.0',
+    )
+  })
+
+  it('advises an interim workaround only for an urgent wait and never as the fix', () => {
+    const text = triageWorkflow(true)
+
+    expect(text).toContain(
+      'only with upstream_pending and only when urgent: KEV listed, or critical or high and' +
+        ' reachable on a public workload per your evidence',
+    )
+    expect(text).toContain('Prefer a mitigation that changes no version')
+    expect(text).toContain('a HelmChartConfig image override) is allowed only here')
+    expect(text).toContain('unsupported, the platform may revert it, remove it when upstream ships')
+    expect(text).toContain('It is never the fix and never part of fix.action.')
+    expect(text).toContain('Not urgent: no interim, the operator waits.')
   })
 
   it('ends in the same reply format with the read-only line for a read-only connection', () => {

@@ -39,6 +39,7 @@ export interface FindingQuery {
   kevAddedSince?: string | null // YYYY-MM-DD, CISA date_added on or after it, needs the cisa catalog
   fixable?: boolean | null // true: a current instance has a fixed version, false: none has
   pending?: PendingFilter[] // what waits on the finding in the acting user's Inbox or as an open check
+  upstreamPending?: boolean | null // true: the governing decision waits for upstream, false: it does not
 }
 
 export type FindingQueryResult =
@@ -59,7 +60,7 @@ const isSeverity = (value: unknown): value is Severity =>
  * Parses the query parameters of the finding list. Lists are comma separated, owner entries are
  * free-form owner labels (no commas, at most OWNER_MAX_LENGTH characters), exposure takes the
  * exposure labels and unknown for findings without one, booleans accept true
- * and 1 (includeResolved, kev; fixable also false and 0), newSince and kevAddedSince take any
+ * and 1 (includeResolved, kev; fixable and upstreamPending also false and 0), newSince and kevAddedSince take any
  * parseable timestamp, minScore a number from 0 to 10, pending the options of PENDING_FILTERS.
  * @param {RawQuery} raw - Query parameters
  * @returns {FindingQueryResult} - Parsed query or the list of errors
@@ -92,6 +93,7 @@ export const parseFindingQuery = (raw: RawQuery): FindingQueryResult => {
     kevAddedSince: readTimestamp(raw.kevAddedSince, 'kevAddedSince', errors)?.slice(0, 10) ?? null,
     fixable: readOptionalBoolean(raw.fixable, 'fixable', errors),
     pending: readList(raw.pending, isPendingFilter, 'pending', errors),
+    upstreamPending: readOptionalBoolean(raw.upstreamPending, 'upstreamPending', errors),
   }
 
   return errors.length > 0 ? { ok: false, errors } : { ok: true, value }

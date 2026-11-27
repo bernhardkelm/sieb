@@ -16,6 +16,7 @@ export const DECISION_TABS: DecisionTab[] = [
   { value: 'reopened', label: 'Re-opened' },
   { value: 'expired', label: 'Expired' },
   { value: 'fix_planned', label: 'Fix planned' },
+  { value: 'upstream_pending', label: 'Waiting for upstream' },
   { value: 'revoked', label: 'Revoked' },
 ]
 
@@ -32,7 +33,8 @@ export const parseDecisionTab = (value: string | null): DecisionFilter =>
   isDecisionFilter(value) ? value : DEFAULT_DECISION_TAB
 
 /**
- * Counts the decisions of every tab; expiring decisions count under active too.
+ * Counts the decisions of every tab; expiring decisions count under active too, those waiting
+ * for upstream under their state.
  * @param {readonly TabDecision[]} views - Decisions with their state
  * @param {Date} now - Current time, anchors expiring
  * @returns {Record<DecisionFilter, number>} - Count per tab
@@ -76,6 +78,10 @@ export const DECISION_TAB_EMPTY: Record<DecisionFilter, { title: string; text: s
   },
   expired: { title: 'No expired decisions', text: 'Decisions past their expiry show up here.' },
   fix_planned: { title: 'No planned fixes', text: 'Fix planned decisions show up here.' },
+  upstream_pending: {
+    title: 'Nothing waits for upstream',
+    text: 'Fix planned decisions waiting for an upstream release show up here.',
+  },
   revoked: { title: 'Nothing revoked', text: 'Revoked decisions show up here.' },
 }
 

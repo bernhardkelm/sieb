@@ -27,6 +27,7 @@ export interface CheckUsage {
   cacheCreationTokens: number
   costUsd: number | null // API-equivalent estimate, billed with an API key, plan limits with a subscription
   turns: number
+  models?: string[] // model ids that ran, most output tokens first, absent from older results
 }
 
 /** One Auto-check as the client sees it */

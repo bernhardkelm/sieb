@@ -79,6 +79,8 @@ const decide = (db: DatabaseSync, input: Partial<DecisionInput>, now: Date): num
       justification: null,
       reason: 'x',
       expiresAt: null,
+      upstreamPending: false,
+      waitingFor: null,
       ...input,
     },
     'dev',

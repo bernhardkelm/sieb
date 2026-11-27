@@ -42,6 +42,7 @@ export const proposalItem = (
   verdict: 'not_affected',
   confidence: 'high',
   patchAction: null,
+  upstreamPending: false,
   clientKind: 'claude_code_cli',
   clientLabel: 'laptop',
   agent: null,

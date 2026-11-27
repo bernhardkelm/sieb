@@ -20,6 +20,8 @@ describe('validateBulkDecisionInput', () => {
         justification: null,
         reason: 'ok',
         expiresAt: '2026-08-30T12:00:00.000Z',
+        upstreamPending: false,
+        waitingFor: null,
       },
     })
   })

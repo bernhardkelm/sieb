@@ -56,6 +56,7 @@ export const proposalItems = (
       verdict: proposal.verdict,
       confidence: proposal.confidence,
       patchAction: proposal.patchAction,
+      upstreamPending: proposal.upstreamPending,
       clientKind: proposal.clientKind,
       clientLabel: proposal.clientLabel,
       agent: proposal.agent,

@@ -97,6 +97,8 @@ describe('DecisionForm', () => {
       expiresAt: new Date(2026, 7, 30, 23, 59, 59).toISOString(),
       expiryTouched: false,
       reconfirm: false,
+      upstreamPending: false,
+      waitingFor: null,
     })
   })
 

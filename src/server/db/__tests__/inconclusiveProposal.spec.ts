@@ -6,7 +6,7 @@ import { DatabaseSync } from 'node:sqlite'
 import { NOW } from '#core/__tests__/coreBuilders.ts'
 import { buildProposalInput, PROPOSER } from '#core/__tests__/proposalBuilders.ts'
 import type { ProposalInput } from '#core/proposal.ts'
-import { validateAcceptEdits } from '#core/proposalAccept.ts'
+import { validateAcceptEdits } from '#core/proposalAcceptEdits.ts'
 import { DEFAULT_PUBLIC_REGISTRIES } from '#core/sourceAccess.ts'
 import { acceptProposal } from '#server/db/acceptProposal.ts'
 import { createProposal } from '#server/db/createProposal.ts'
@@ -87,7 +87,14 @@ describe('inconclusive proposals', () => {
     const result = acceptProposal(db, id, {
       expectedDecisionIds: [{ imageRef: NGINX, decisionId: null, updatedAt: null }],
       plan: {
-        values: { status: 'accepted', justification: null, reason: 'x', expiresAt: null },
+        values: {
+          status: 'accepted',
+          justification: null,
+          reason: 'x',
+          expiresAt: null,
+          upstreamPending: false,
+          waitingFor: null,
+        },
         editedFields: ['reason'],
       },
       actor: 'alice',

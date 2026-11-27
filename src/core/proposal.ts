@@ -1,4 +1,9 @@
-import type { DecisionJustification, DecisionScope, DecisionStatus } from '#core/decision.ts'
+import {
+  WAITING_FOR_MAX_LENGTH,
+  type DecisionJustification,
+  type DecisionScope,
+  type DecisionStatus,
+} from '#core/decision.ts'
 import type { ProposalClientKind } from '#core/proposalClient.ts'
 import type { SourceAccess } from '#core/sourceAccess.ts'
 
@@ -26,6 +31,14 @@ export type DecidableVerdict = Exclude<ProposalVerdict, typeof INCONCLUSIVE_VERD
 export const PATCH_LAYERS = ['dependency', 'base_image', 'image', 'platform', 'unknown'] as const
 
 export type PatchLayer = (typeof PATCH_LAYERS)[number]
+
+/**
+ * Whether a fix is published today at a layer the operator controls, or the patch waits for an
+ * upstream release
+ */
+export const FIX_AVAILABILITIES = ['available', 'upstream_pending'] as const
+
+export type FixAvailability = (typeof FIX_AVAILABILITIES)[number]
 
 export const PROPOSAL_CONFIDENCES = ['low', 'medium', 'high'] as const
 
@@ -75,6 +88,10 @@ export const PROPOSAL_LIMITS = {
   fixVersion: 200,
   fixChange: 2000,
   fixEffort: 500,
+  waitingFor: WAITING_FOR_MAX_LENGTH,
+  interimAction: 160,
+  interimSteps: 2000,
+  interimCaveats: 2000,
   reviewWhy: 1000,
   unknownItems: 20,
   unknown: 1000,
@@ -98,12 +115,22 @@ export interface ProposalEvidence {
   result: string
 }
 
+/** Advised manual workaround while no upstream fix exists, only for urgent cases */
+export interface ProposalInterim {
+  action: string
+  steps: string | null
+  caveats: string // what it risks and when to revert it
+}
+
 export interface ProposalFix {
   action: string | null // the patch in one line, required for needs_patch and fix_planned
   layer: PatchLayer | null
   fixedVersion: string | null
   change: string | null // image tag, dependency or pull request to change
   effort: string | null
+  availability: FixAvailability | null // null for other verdicts and proposals stored before it existed
+  waitingFor: string | null // only with upstream_pending
+  interim: ProposalInterim | null // only with upstream_pending
 }
 
 export interface ProposalReview {

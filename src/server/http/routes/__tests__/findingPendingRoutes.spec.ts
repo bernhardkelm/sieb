@@ -48,6 +48,8 @@ const pendingApp = async (checksEnabled = true): Promise<ReturnType<typeof creat
       justification: null,
       reason: 'internal only',
       expiresAt: null,
+      upstreamPending: false,
+      waitingFor: null,
     },
     'alice',
     START,

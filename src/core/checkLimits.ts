@@ -13,6 +13,10 @@ export const CHECK_USAGE_WINDOW_DAYS = { last7Days: 7, last30Days: 30 } as const
 /** Longest error text of a check, in code points like textLength */
 export const MAX_CHECK_ERROR_LENGTH = 500
 
+/** Models one check reports and the longest model id kept, in characters */
+export const MAX_CHECK_MODELS = 8
+export const MAX_CHECK_MODEL_LENGTH = 100
+
 /** Longest reply of a check, in code points like textLength */
 export const MAX_CHECK_REPLY_LENGTH = 4000
 

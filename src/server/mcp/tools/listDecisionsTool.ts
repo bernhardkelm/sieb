@@ -39,7 +39,9 @@ const inputSchema = z.object({
   state: z
     .enum(DECISION_FILTERS)
     .optional()
-    .describe('decision state, expiring: active and expiring within 14 days'),
+    .describe(
+      'decision state, expiring: active and expiring within 14 days, upstream_pending: fix_planned waiting for an upstream release',
+    ),
   status: z.enum(DECISION_STATUSES).optional(),
   limit: z.number().int().min(1).max(100).default(50),
 })

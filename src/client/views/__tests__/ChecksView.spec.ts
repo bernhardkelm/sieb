@@ -49,6 +49,7 @@ const DONE = buildCheck({
     cacheCreationTokens: 10_000,
     costUsd: 0.42,
     turns: 8,
+    models: ['claude-opus-5-5'],
   },
   reply: '<img src=x onerror="alert(1)"> Not affected, see <b>proposal</b>.',
 })
@@ -106,7 +107,9 @@ describe('ChecksView', () => {
     expect(done.get('a[href="/checks?finding=7"]').text()).toBe('CVE-2099-10001')
     expect(done.get('a[href="/inbox/proposals/12"]').text()).toBe('Checked · proposal #12')
     expect(done.text()).toContain('3m 07s')
-    expect(done.text()).toContain('12.3K in · 1,104 out · 40K cache · 8 turns')
+    expect(done.text()).toContain('12.3K in · 1,104 out · 40K cache')
+    expect(done.text()).toContain('Modelclaude-opus-5-5')
+    expect(done.text()).toContain('Turns8')
     expect(done.text()).toContain('$0.42 API-equivalent estimate')
     expect(view.get('[data-check-id="1"]').text()).toContain(
       'Timed out: the worker sent no heartbeat',

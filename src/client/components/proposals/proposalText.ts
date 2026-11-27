@@ -1,6 +1,7 @@
 import type { DecisionJustification } from '#core/decision.ts'
 import { patchActionOf } from '#core/patchAction.ts'
 import { isDecidableVerdict, type ProposalState, type ProposalVerdict } from '#core/proposal.ts'
+import { isUpstreamPendingFix } from '#core/proposalFixUpstream.ts'
 import type { ProposalView } from '#core/proposalView.ts'
 import { JUSTIFICATION_LABELS } from '@/format/labels'
 import { proposalClientLabel } from '@/format/proposalClientLabel'
@@ -60,14 +61,16 @@ export const proposalStateLabel = (proposal: Pick<ProposalView, 'state' | 'verdi
   PROPOSAL_STATE_LABELS[proposal.state]
 
 /**
- * Returns whether the review panel shows the What to do section: a patch action or fix steps,
- * never for inconclusive, which lists what is missing in its place.
+ * Returns whether the review panel shows the What to do section: a patch action, fix steps or
+ * an upstream wait, never for inconclusive, which lists what is missing in its place.
  * @param {Pick<ProposalView, 'verdict' | 'fix'>} proposal - Verdict and fix path
  * @returns {boolean} - True when there is something to do
  */
 export const hasWhatToDo = (proposal: Pick<ProposalView, 'verdict' | 'fix'>): boolean =>
   isDecidableVerdict(proposal.verdict) &&
-  (patchActionOf(proposal) !== null || Boolean(proposal.fix?.change))
+  (patchActionOf(proposal) !== null ||
+    Boolean(proposal.fix?.change) ||
+    isUpstreamPendingFix(proposal))
 
 /**
  * Describes how a closed proposal ended.

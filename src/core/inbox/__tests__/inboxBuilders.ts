@@ -44,6 +44,7 @@ export const inboxProposal = (overrides: Partial<InboxProposal> = {}): InboxProp
   verdict: 'not_affected',
   confidence: 'high',
   patchAction: null,
+  upstreamPending: false,
   clientKind: null,
   clientLabel: 'laptop',
   agent: null,

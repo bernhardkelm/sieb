@@ -26,13 +26,15 @@ export const editInitial = (values: AcceptedDecisionValues | null): DecisionForm
         reason: values.reason,
         scope: 'image',
         expiresAt: values.expiresAt,
+        upstreamPending: values.upstreamPending,
+        waitingFor: values.waitingFor,
       }
 
 /**
  * Returns the edits of an accept: the fields the reviewer changed against the proposed values,
  * status and reason always for an inconclusive proposal, which proposes none. An untouched
  * expiry is left out, so the server applies the expiry the proposal gives the chosen status;
- * the justification goes along only with not_affected.
+ * the justification goes along only with not_affected, the upstream fields when they differ.
  * @param {AcceptedDecisionValues | null} proposed - Values accepting without edits writes
  * @param {DecisionFormValue} value - Submitted form values
  * @returns {AcceptEdits} - Changed fields, empty when nothing changed
@@ -57,6 +59,14 @@ export const acceptEdits = (
 
   if (value.expiryTouched) {
     edits.expiresAt = value.expiresAt
+  }
+
+  if (value.upstreamPending !== (proposed?.upstreamPending ?? false)) {
+    edits.upstreamPending = value.upstreamPending
+  }
+
+  if (value.upstreamPending && value.waitingFor !== (proposed?.waitingFor ?? null)) {
+    edits.waitingFor = value.waitingFor
   }
 
   return edits

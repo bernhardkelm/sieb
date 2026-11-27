@@ -91,6 +91,8 @@ export const PROPOSED_VALUES: AcceptedDecisionValues = {
   justification: 'vulnerable_code_not_in_execute_path',
   reason: 'Not affected (high confidence): The vulnerable parser is never called.',
   expiresAt: '2027-05-26T10:00:00.000Z',
+  upstreamPending: false,
+  waitingFor: null,
 }
 
 /**

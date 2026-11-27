@@ -94,6 +94,8 @@ export const useDecisionCommands = (): DecisionCommands => {
               justification: value.justification,
               reason: value.reason,
               expiresAt: value.expiresAt,
+              upstreamPending: value.upstreamPending,
+              waitingFor: value.waitingFor,
             })
           : await updateDecision(existing.id, decisionPatch(existing, value, new Date()))
       const where = value.scope === 'all' ? 'all images' : shortImageName(finding.imageRef)
@@ -163,6 +165,8 @@ export const useDecisionCommands = (): DecisionCommands => {
           justification: value.justification,
           reason: value.reason,
           expiresAt: value.expiresAt,
+          upstreamPending: value.upstreamPending,
+          waitingFor: value.waitingFor,
         })
 
         total.created.push(...result.created)

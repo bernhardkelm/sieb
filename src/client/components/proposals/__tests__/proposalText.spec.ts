@@ -86,7 +86,16 @@ describe('proposalText', () => {
   })
 
   it('shows What to do for a patch action or steps, never for inconclusive', () => {
-    const fix = { action: null, layer: null, fixedVersion: '1.2', change: null, effort: 'small' }
+    const fix = {
+      action: null,
+      layer: null,
+      fixedVersion: '1.2',
+      change: null,
+      effort: 'small',
+      availability: null,
+      waitingFor: null,
+      interim: null,
+    }
 
     expect(hasWhatToDo({ verdict: 'needs_patch', fix: { ...fix, action: 'bump x to 1.2' } })).toBe(
       true,

@@ -41,7 +41,14 @@ export const runClaude = async (
     context.runner,
     {
       command: 'claude',
-      args: claudeArgs(prompt, layout, claim.maxTurns, config.webDomains),
+      args: claudeArgs(
+        prompt,
+        layout,
+        claim.maxTurns,
+        config.webDomains,
+        config.model,
+        config.effort,
+      ),
       cwd: layout.workspace,
       env: claudeEnv(config.credential.kind, config.path, layout),
       stdin: 'ignore',

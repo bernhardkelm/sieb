@@ -23,6 +23,7 @@ import { useFindingPanel } from '@/composables/useFindingPanel'
 import { useHandoff } from '@/composables/useHandoff'
 import { useHandoffHintActions } from '@/composables/useHandoffHintActions'
 import { usePanelDismiss } from '@/composables/usePanelDismiss'
+import { usePanelSeen } from '@/composables/usePanelSeen'
 import { usePanelShortcuts } from '@/composables/usePanelShortcuts'
 import { useFindingDetailStore } from '@/stores/findingDetailStore'
 import { useMcpStore } from '@/stores/mcpStore'
@@ -30,6 +31,7 @@ import { useMcpStore } from '@/stores/mcpStore'
 const { findingId, closeFinding } = useFindingPanel()
 const store = useFindingDetailStore()
 const mcp = useMcpStore()
+const markShown = usePanelSeen()
 const { prompts: handoffPrompts, command: handoffCommand } = useHandoff()
 
 useHandoffHintActions()
@@ -72,6 +74,15 @@ const restoreFocus = (id: string): void => {
  */
 const focusPanel = (): void => {
   panel.value?.focus({ preventScroll: true })
+}
+
+/**
+ * Marks the shown finding seen after a saved decision and focuses the panel again.
+ * @returns {void}
+ */
+const onSaved = (): void => {
+  markShown()
+  focusPanel()
 }
 
 const { onPanelKeydown, onWindowKeydown } = usePanelShortcuts(focusPanel)
@@ -150,7 +161,7 @@ onBeforeUnmount(() => {
       </section>
       <section class="section" aria-labelledby="panel-decision">
         <h3 id="panel-decision" class="section-title">Decision</h3>
-        <FindingDecisions :detail="store.detail" @saved="focusPanel" />
+        <FindingDecisions :detail="store.detail" @saved="onSaved" />
       </section>
       <div :id="decisionActionsId" class="decision-actions" />
       <section v-if="origins.length > 0" class="section" aria-labelledby="panel-found-in">

@@ -8,6 +8,7 @@ import CheckReply from '@/components/checks/CheckReply.vue'
 import RetryCheckButton from '@/components/checks/RetryCheckButton.vue'
 import RelativeTime from '@/components/common/RelativeTime.vue'
 import { costText, usageText } from '@/format/checkResultText'
+import { formatCount } from '@/format/count'
 import { formatElapsed, NO_FAILURE_REASON } from '@/format/checkText'
 
 const props = defineProps<{
@@ -36,6 +37,14 @@ const cost = computed(() => costText(props.check.usage?.costUsd ?? null))
       <div v-if="check.durationMs !== null">
         <dt>Duration</dt>
         <dd>{{ formatElapsed(check.durationMs) }}</dd>
+      </div>
+      <div v-if="check.usage?.models?.length">
+        <dt>Model</dt>
+        <dd>{{ check.usage.models.join(', ') }}</dd>
+      </div>
+      <div v-if="check.usage && check.usage.turns > 0">
+        <dt>Turns</dt>
+        <dd>{{ formatCount(check.usage.turns) }}</dd>
       </div>
       <div v-if="check.usage">
         <dt>Usage</dt>

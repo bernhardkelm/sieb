@@ -1,9 +1,9 @@
 <script setup lang="ts">
+import { isUnseenNew } from '#core/findingRecency.ts'
 import FindingRow from '@/components/finding/FindingRow.vue'
 import type { TreeItem } from '@/components/list/flattenTree'
 import NestedPanel from '@/components/list/NestedPanel.vue'
 import { useNow } from '@/composables/useNow'
-import { isNewFinding } from '@/stores/findingFilters'
 
 defineProps<{
   /** Finding row below an expanded group, or the loading or empty note standing in for them */
@@ -24,7 +24,7 @@ const now = useNow()
     :finding="item.finding"
     :current="currentKey === item.key"
     :checked="false"
-    :is-new="isNewFinding(item.finding.firstSeen, now)"
+    :is-new="isUnseenNew(item.finding, now)"
     :selectable="false"
     show-decision
     :data-row-key="item.key"

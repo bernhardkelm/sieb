@@ -217,13 +217,19 @@ describe('propose_decision', () => {
     expect(missing).toContain('never an override of it')
     expect(missing).toContain('the owner is only a hint')
     expect(missing).toContain('org.opencontainers.image.base.name')
-    expect(missing).toContain('use fix_planned with a review date')
+    expect(missing).toContain(
+      'use fix_planned with availability upstream_pending, waitingFor and a review date',
+    )
     expect(missing).toContain('Manual overrides only as an explicit exception for high risk')
     expect(
       (
         await client.callTool('propose_decision', {
           ...patch,
-          fix: { action: 'dependency: bump xz to 5.6.2', layer: 'dependency' },
+          fix: {
+            action: 'dependency: bump xz to 5.6.2',
+            layer: 'dependency',
+            availability: 'available',
+          },
         })
       ).isError,
     ).toBeUndefined()
@@ -233,6 +239,9 @@ describe('propose_decision', () => {
       fixedVersion: null,
       change: null,
       effort: null,
+      availability: 'available',
+      waitingFor: null,
+      interim: null,
     })
   })
 

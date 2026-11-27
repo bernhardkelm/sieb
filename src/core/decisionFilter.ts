@@ -3,7 +3,7 @@ import type { DecisionView } from '#core/findingView.ts'
 
 export const EXPIRING_WITHIN_DAYS = 14
 
-export const DECISION_FILTERS = [...DECISION_STATES, 'expiring'] as const
+export const DECISION_FILTERS = [...DECISION_STATES, 'expiring', 'upstream_pending'] as const
 
 export type DecisionFilter = (typeof DECISION_FILTERS)[number]
 
@@ -31,8 +31,17 @@ export const isExpiring = (view: FilterableDecision, now: Date): boolean =>
   Date.parse(view.decision.expiresAt) - now.getTime() <= EXPIRING_WITHIN_DAYS * DAY_MS
 
 /**
- * Returns whether a decision matches a filter: its state, or expiring for active decisions
- * that expire soon. Expiring decisions also match active.
+ * Returns whether a decision waits for upstream and is not revoked.
+ * @param {FilterableDecision} view - Decision with its state
+ * @returns {boolean} - True for a non-revoked upstreamPending decision
+ */
+export const isUpstreamPending = (view: FilterableDecision): boolean =>
+  view.decision.upstreamPending && view.effective.state !== 'revoked'
+
+/**
+ * Returns whether a decision matches a filter: its state, expiring for active decisions that
+ * expire soon, or upstream_pending for non-revoked ones waiting for upstream. Expiring decisions
+ * also match active, upstream_pending ones their state.
  * @param {FilterableDecision} view - Decision with its state
  * @param {DecisionFilter} filter - Filter
  * @param {Date} now - Current time
@@ -42,4 +51,10 @@ export const matchesDecisionFilter = (
   view: FilterableDecision,
   filter: DecisionFilter,
   now: Date,
-): boolean => (filter === 'expiring' ? isExpiring(view, now) : view.effective.state === filter)
+): boolean => {
+  if (filter === 'expiring') {
+    return isExpiring(view, now)
+  }
+
+  return filter === 'upstream_pending' ? isUpstreamPending(view) : view.effective.state === filter
+}

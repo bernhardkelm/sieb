@@ -2,7 +2,7 @@ import type { DatabaseSync } from 'node:sqlite'
 
 import { isDecidableVerdict } from '#core/proposal.ts'
 import type { BulkAcceptItem, BulkProposalOutcome } from '#core/proposalBulk.ts'
-import { validateAcceptEdits } from '#core/proposalAccept.ts'
+import { validateAcceptEdits } from '#core/proposalAcceptEdits.ts'
 import { currentDecisionRefs, isProposalOutdated } from '#core/proposalFreshness.ts'
 import { acceptProposal } from '#server/db/acceptProposal.ts'
 import { listDecisionsByVuln } from '#server/db/decisionRepository.ts'

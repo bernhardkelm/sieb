@@ -1,8 +1,10 @@
 <script setup lang="ts">
 import type { ProposalDetail } from '#core/apiTypes.ts'
+import { isUpstreamPendingFix } from '#core/proposalFixUpstream.ts'
 import BaseChip from '@/components/chips/BaseChip.vue'
 import KevChip from '@/components/chips/KevChip.vue'
 import SeverityChip from '@/components/chips/SeverityChip.vue'
+import UpstreamPendingChip from '@/components/chips/UpstreamPendingChip.vue'
 import RelativeTime from '@/components/common/RelativeTime.vue'
 import ConfidenceChip from '@/components/proposals/ConfidenceChip.vue'
 import VerdictChip from '@/components/proposals/VerdictChip.vue'
@@ -38,6 +40,10 @@ defineProps<{
           size="lg"
         />
         <ConfidenceChip :confidence="detail.proposal.confidence" />
+        <UpstreamPendingChip
+          v-if="isUpstreamPendingFix(detail.proposal)"
+          :waiting-for="detail.proposal.fix?.waitingFor ?? null"
+        />
       </div>
     </div>
     <p class="proposer">

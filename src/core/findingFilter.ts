@@ -1,4 +1,4 @@
-import { matchesDecisionStates } from '#core/decisionStateFilter.ts'
+import { matchesDecisionStates, matchesUpstreamPending } from '#core/decisionStateFilter.ts'
 import { matchesExposureFilter } from '#core/exposure.ts'
 import { matchesPending, type PendingIndex } from '#core/findingPending.ts'
 import type { FindingQuery } from '#core/findingQuery.ts'
@@ -70,8 +70,8 @@ const matchesNames = (finding: FilterableFinding, query: FindingQuery): boolean 
   matchesAnyName(finding.workloads.flatMap(workloadNames), query.workloads)
 
 /**
- * Returns whether a finding passes the score, fixable, KEV date, pending and decision state
- * filters.
+ * Returns whether a finding passes the score, fixable, KEV date, pending, decision state and
+ * upstream filters.
  * @param {FilterableFinding} finding - Finding
  * @param {FindingQuery} query - Parsed query
  * @param {FindingFilterContext} context - KEV catalog dates and the pending index
@@ -106,7 +106,10 @@ const matchesFacts = (
     return false
   }
 
-  return matchesDecisionStates(finding, query.decisionState ?? [])
+  return (
+    matchesDecisionStates(finding, query.decisionState ?? []) &&
+    matchesUpstreamPending(finding, query.upstreamPending)
+  )
 }
 
 /**

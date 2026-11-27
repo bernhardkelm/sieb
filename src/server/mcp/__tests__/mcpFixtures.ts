@@ -117,6 +117,8 @@ export const seededToolDeps = (overrides: Partial<McpToolDeps> = {}): McpToolDep
       justification: 'vulnerable_code_not_in_execute_path',
       reason: 'TLS is terminated at the ingress',
       expiresAt: null,
+      upstreamPending: false,
+      waitingFor: null,
     },
     'alice',
     MCP_NOW,

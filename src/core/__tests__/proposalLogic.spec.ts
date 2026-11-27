@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
 import { MAX_REASON_LENGTH } from '#core/decisionFieldReaders.ts'
-import { validateAcceptEdits } from '#core/proposalAccept.ts'
+import { validateAcceptEdits } from '#core/proposalAcceptEdits.ts'
 import {
   currentDecisionRefs,
   isProposalOutdated,
@@ -75,6 +75,9 @@ describe('generateProposalReason', () => {
             fixedVersion: null,
             change: 'bump base image',
             effort: null,
+            availability: null,
+            waitingFor: null,
+            interim: null,
           },
         }),
       ),
@@ -93,6 +96,9 @@ describe('generateProposalReason', () => {
       fixedVersion: '1.1.43-r4',
       change: 'rebuild the image',
       effort: null,
+      availability: null,
+      waitingFor: null,
+      interim: null,
     }
 
     for (const verdict of ['needs_patch', 'fix_planned'] as const) {
@@ -134,6 +140,9 @@ describe('generateProposalReason', () => {
           fixedVersion: null,
           change: 'f'.repeat(2000),
           effort: null,
+          availability: null,
+          waitingFor: null,
+          interim: null,
         },
       }),
     )
@@ -185,6 +194,8 @@ describe('validateAcceptEdits', () => {
           justification: null,
           reason: 'Risk accepted',
           expiresAt: null,
+          upstreamPending: false,
+          waitingFor: null,
         },
         editedFields: ['status', 'reason'],
       },

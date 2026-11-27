@@ -94,7 +94,7 @@ describe('usage texts', () => {
         costUsd: 0.4212,
         turns: 8,
       }),
-    ).toBe('12.3K in · 1,104 out · 40K cache · 8 turns')
+    ).toBe('12.3K in · 1,104 out · 40K cache')
     expect(costText(0.4212)).toBe('$0.42')
     expect(costText(0.0021)).toBe('$0.0021')
     expect(costText(null)).toBeNull()

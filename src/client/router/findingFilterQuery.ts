@@ -17,6 +17,7 @@ export const FILTER_QUERY = {
   newThisWeek: 'new',
   includeResolved: 'resolved',
   pending: 'pending',
+  upstreamPending: 'upstream',
 } as const satisfies Record<keyof FindingFilters, string>
 
 const FLAG_ON = '1'
@@ -105,6 +106,7 @@ export const readFindingFilters = (query: LocationQuery): FindingFilters => {
     newThisWeek: param('newThisWeek') === FLAG_ON,
     includeResolved: param('includeResolved') === FLAG_ON,
     pending: readEntries(param('pending'), readPending),
+    upstreamPending: param('upstreamPending') === FLAG_ON,
   }
 }
 
@@ -123,6 +125,7 @@ export const findingFilterParams = (filters: FindingFilters): Record<string, str
   [FILTER_QUERY.newThisWeek]: flagParam(filters.newThisWeek),
   [FILTER_QUERY.includeResolved]: flagParam(filters.includeResolved),
   [FILTER_QUERY.pending]: listParam(filters.pending),
+  [FILTER_QUERY.upstreamPending]: flagParam(filters.upstreamPending),
 })
 
 /**

@@ -18,6 +18,8 @@ const formValue = (overrides: Partial<DecisionFormValue> = {}): DecisionFormValu
   expiresAt: '2027-05-26T21:59:59.000Z',
   expiryTouched: false,
   reconfirm: false,
+  upstreamPending: false,
+  waitingFor: null,
   ...overrides,
 })
 

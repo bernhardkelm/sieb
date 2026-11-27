@@ -2,6 +2,7 @@ import { ref, type Ref } from 'vue'
 
 import { checkCreateNotice, partialCreateTitle } from '@/format/checkResultText'
 import { useChecksStore } from '@/stores/checksStore'
+import { useFindingSeenStore } from '@/stores/findingSeenStore'
 import { notifyError, notifyNotice, notifySuccess } from '@/toast/toastManager'
 
 export interface AutoCheck {
@@ -17,11 +18,12 @@ const submitting = ref(false)
  * Queues Auto-checks for findings: one submit at a time across the app, split into requests of
  * at most MAX_CHECK_FINDINGS by the store. A toast names the queue position or count and the
  * skipped findings with their reason; a failure stays as an error toast that names the checks
- * queued before it.
+ * queued before it. Queueing marks the findings seen, as acting on them.
  * @returns {AutoCheck} - In-flight state and submit
  */
 export const useAutoCheck = (): AutoCheck => {
   const checks = useChecksStore()
+  const seen = useFindingSeenStore()
 
   /**
    * Queues checks for findings.
@@ -34,6 +36,7 @@ export const useAutoCheck = (): AutoCheck => {
     }
 
     submitting.value = true
+    seen.markSeen(findingIds)
 
     try {
       const result = await checks.create(findingIds)

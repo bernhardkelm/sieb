@@ -34,6 +34,8 @@ export const buildDecision = (overrides: Partial<Decision> = {}): Decision => ({
   justification: null,
   reason: 'not reachable',
   expiresAt: null,
+  upstreamPending: false,
+  waitingFor: null,
   createdBy: 'dev',
   createdAt: '2026-05-01T00:00:00.000Z',
   updatedAt: '2026-05-01T00:00:00.000Z',

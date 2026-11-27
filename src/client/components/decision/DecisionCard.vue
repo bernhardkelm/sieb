@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import type { DecisionView } from '#core/findingView.ts'
 import DecisionStateChip from '@/components/chips/DecisionStateChip.vue'
+import UpstreamPendingChip from '@/components/chips/UpstreamPendingChip.vue'
 import BaseButton from '@/components/common/BaseButton.vue'
 import RelativeTime from '@/components/common/RelativeTime.vue'
 import { countOf } from '@/format/count'
@@ -27,6 +28,10 @@ defineEmits<{ edit: []; revoke: []; reconfirm: [] }>()
         :status="view.decision.status"
         :justification="view.decision.justification"
       />
+      <UpstreamPendingChip
+        v-if="view.decision.upstreamPending"
+        :waiting-for="view.decision.waitingFor"
+      />
       <span class="scope">{{ SCOPE_LABELS[view.decision.scope] }}</span>
       <span v-if="governing" class="governing-label">governs this finding</span>
       <span class="actions">
@@ -47,6 +52,9 @@ defineEmits<{ edit: []; revoke: []; reconfirm: [] }>()
     </p>
     <p v-if="view.decision.justification" class="justification">
       Justification: {{ JUSTIFICATION_LABELS[view.decision.justification] }}
+    </p>
+    <p v-if="view.decision.waitingFor" class="justification">
+      Waiting for: {{ view.decision.waitingFor }}
     </p>
     <p class="reason">{{ view.decision.reason }}</p>
     <p class="meta">

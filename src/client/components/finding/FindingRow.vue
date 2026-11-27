@@ -6,6 +6,7 @@ import ExposureChip from '@/components/chips/ExposureChip.vue'
 import KevChip from '@/components/chips/KevChip.vue'
 import OwnerBadge from '@/components/chips/OwnerBadge.vue'
 import SeverityChip from '@/components/chips/SeverityChip.vue'
+import UpstreamPendingChip from '@/components/chips/UpstreamPendingChip.vue'
 import ImageName from '@/components/common/ImageName.vue'
 import RelativeTime from '@/components/common/RelativeTime.vue'
 import InboxMarker from '@/components/inbox/InboxMarker.vue'
@@ -19,7 +20,7 @@ withDefaults(
     finding: FindingView
     current: boolean
     checked: boolean
-    /** First seen within the last seven days */
+    /** First seen within the last seven days and not seen by the user yet */
     isNew: boolean
     /** Shows the checkbox for bulk selection, lists without bulk actions leave its column empty */
     selectable?: boolean
@@ -56,6 +57,11 @@ const { hidden, classes } = useLabelColumns()
       <span v-if="isNew" class="new">new</span>
       <InboxMarker class="marker" :finding="finding" />
       <FindingCheckChip class="marker" :finding-id="finding.id" />
+      <UpstreamPendingChip
+        v-if="finding.decision?.upstreamPending && finding.effective?.state !== 'revoked'"
+        class="marker"
+        :waiting-for="finding.decision.waitingFor"
+      />
       {{ finding.title ?? '' }}
     </span>
     <span class="image" data-panel-clip><ImageName :image-ref="finding.imageRef" /></span>

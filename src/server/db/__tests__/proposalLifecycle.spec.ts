@@ -43,7 +43,7 @@ describe('proposal lifecycle', () => {
     ).toMatchObject({ ok: true })
   })
 
-  it('reads a fix stored before the patch action existed as one without an action', () => {
+  it('reads a fix stored before the patch action and availability existed as without them', () => {
     const db = seededDatabase(NOW)
     const id = insertProposal(db, {
       ...buildProposalInput({ verdict: 'needs_patch', justification: null }),
@@ -64,6 +64,9 @@ describe('proposal lifecycle', () => {
       fixedVersion: '1.2',
       change: 'bump nginx',
       effort: null,
+      availability: null,
+      waitingFor: null,
+      interim: null,
     })
   })
 

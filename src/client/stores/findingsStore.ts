@@ -22,12 +22,15 @@ import { useInboxStore } from '@/stores/inboxStore'
  */
 export const useFindingsStore = defineStore('findings', () => {
   const now = ref(new Date())
+  const seenLocally = new Set<number>()
   const { items, loading, loaded, error, refresh, ensureLoaded } = useRemoteList(
     () => fetchFindings({ view: 'all', includeResolved: true }),
     () => {
       now.value = new Date()
+      patchSeen(seenLocally)
     },
   )
+  const byId = computed(() => new Map(items.value.map((finding) => [finding.id, finding])))
   const { hidden } = useLabelColumns()
   const filters = ref<FindingFilters>(emptyFilters())
   const inboxStore = useInboxStore()
@@ -82,6 +85,35 @@ export const useFindingsStore = defineStore('findings', () => {
   }
 
   /**
+   * Sets seen on the loaded findings of some ids, leaving the list untouched when none changes.
+   * @param {ReadonlySet<number>} ids - Finding ids
+   * @returns {void}
+   */
+  const patchSeen = (ids: ReadonlySet<number>): void => {
+    if (!items.value.some((finding) => ids.has(finding.id) && finding.seen !== true)) {
+      return
+    }
+
+    items.value = items.value.map((finding) =>
+      ids.has(finding.id) && finding.seen !== true ? { ...finding, seen: true } : finding,
+    )
+  }
+
+  /**
+   * Marks findings seen on the client before the server confirms it; the marks stay applied to
+   * later refetches, so an answer that predates the write does not bring the tag back.
+   * @param {readonly number[]} ids - Finding ids
+   * @returns {void}
+   */
+  const applySeen = (ids: readonly number[]): void => {
+    for (const id of ids) {
+      seenLocally.add(id)
+    }
+
+    patchSeen(new Set(ids))
+  }
+
+  /**
    * Changes some filters.
    * @param {Partial<FindingFilters>} patch - Changed filters
    * @returns {void}
@@ -100,6 +132,7 @@ export const useFindingsStore = defineStore('findings', () => {
 
   return {
     items,
+    byId,
     loading,
     loaded,
     error,
@@ -111,6 +144,7 @@ export const useFindingsStore = defineStore('findings', () => {
     refresh,
     ensureLoaded,
     applyDecision,
+    applySeen,
     setFilters,
     resetFilters,
   }

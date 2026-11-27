@@ -74,3 +74,19 @@ export const matchesDecisionStates = (
 
   return (filters as readonly string[]).includes(state) || (active && filters.includes('active'))
 }
+
+/**
+ * Returns whether a finding passes the upstream filter: true keeps findings whose governing
+ * decision waits for upstream, false the others.
+ * @param {VerdictFields} finding - Finding with its governing decision
+ * @param {boolean | null | undefined} upstreamPending - Filter, null or undefined matches everything
+ * @returns {boolean} - True on a match
+ */
+export const matchesUpstreamPending = (
+  finding: VerdictFields,
+  upstreamPending: boolean | null | undefined,
+): boolean =>
+  upstreamPending === null ||
+  upstreamPending === undefined ||
+  (finding.decision?.upstreamPending === true && finding.effective?.state !== 'revoked') ===
+    upstreamPending

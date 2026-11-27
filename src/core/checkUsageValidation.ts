@@ -1,5 +1,8 @@
 import type { ValidationIssue } from '#core/apiTypes.ts'
 import type { CheckUsage } from '#core/check.ts'
+import { MAX_CHECK_MODEL_LENGTH, MAX_CHECK_MODELS } from '#core/checkLimits.ts'
+
+const MODEL_ID_PATTERN = /^[A-Za-z0-9][A-Za-z0-9._:@/[\]-]*$/
 
 const COUNT_FIELDS = [
   'inputTokens',
@@ -16,6 +19,24 @@ const COUNT_FIELDS = [
  */
 const isCount = (value: unknown): value is number =>
   Number.isSafeInteger(value) && (value as number) >= 0
+
+/**
+ * Keeps the plausible model ids of a raw list: strings of a plain id shape, no duplicates, capped.
+ * @param {unknown} value - Raw list
+ * @returns {string[] | undefined} - Model ids, undefined when the value is no array
+ */
+export const cleanModels = (value: unknown): string[] | undefined => {
+  if (!Array.isArray(value)) {
+    return undefined
+  }
+
+  const ids = value.filter(
+    (id): id is string =>
+      typeof id === 'string' && id.length <= MAX_CHECK_MODEL_LENGTH && MODEL_ID_PATTERN.test(id),
+  )
+
+  return [...new Set(ids)].slice(0, MAX_CHECK_MODELS)
+}
 
 /**
  * Reads the Claude usage of a worker result: null, or an object with non-negative integer counts
@@ -48,6 +69,8 @@ export const readCheckUsage = (value: unknown, errors: ValidationIssue[]): Check
     return null
   }
 
+  const models = cleanModels(raw.models)
+
   return {
     inputTokens: raw.inputTokens as number,
     outputTokens: raw.outputTokens as number,
@@ -55,5 +78,6 @@ export const readCheckUsage = (value: unknown, errors: ValidationIssue[]): Check
     cacheCreationTokens: raw.cacheCreationTokens as number,
     costUsd: cost,
     turns: raw.turns as number,
+    ...(models === undefined ? {} : { models }),
   }
 }

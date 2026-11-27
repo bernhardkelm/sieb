@@ -22,6 +22,8 @@ const INPUT: DecisionInput = {
   justification: null,
   reason: 'behind auth',
   expiresAt: '2026-08-30T12:00:00.000Z',
+  upstreamPending: false,
+  waitingFor: null,
 }
 
 const NOT_AFFECTED: DecisionInput = {
@@ -134,6 +136,8 @@ describe('updateDecision', () => {
         status: 'not_affected',
         reason: 'no shell',
         expiresAt: null,
+        upstreamPending: false,
+        waitingFor: null,
         updatedAt: LATER.toISOString(),
       },
     })
@@ -236,6 +240,8 @@ describe('createBulkDecisions', () => {
         justification: null,
         reason: 'x',
         expiresAt: null,
+        upstreamPending: false,
+        waitingFor: null,
       },
       'dev',
       LATER,

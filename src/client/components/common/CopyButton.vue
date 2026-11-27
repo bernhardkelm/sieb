@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { usePanelAction } from '@/components/finding/panelAction'
 import { useClipboardCopy } from '@/composables/useClipboardCopy'
 
 const props = defineProps<{
@@ -9,13 +10,17 @@ const props = defineProps<{
 }>()
 
 const { copied, copy } = useClipboardCopy()
+const panelAction = usePanelAction()
 
 /**
  * Copies the value to the clipboard, shows the check icon briefly, or raises an error toast.
+ * Inside the finding side panel a copy counts as an action on its finding.
  * @returns {Promise<void>}
  */
 const onClick = async (): Promise<void> => {
-  await copy(props.value)
+  if (await copy(props.value)) {
+    panelAction()
+  }
 }
 </script>
 

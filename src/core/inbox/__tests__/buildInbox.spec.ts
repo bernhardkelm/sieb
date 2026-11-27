@@ -57,6 +57,7 @@ describe('buildInbox proposals', () => {
         verdict: 'not_affected',
         confidence: 'high',
         patchAction: null,
+        upstreamPending: false,
         clientKind: 'claude_app',
         clientLabel: 'claude.ai',
         agent: null,

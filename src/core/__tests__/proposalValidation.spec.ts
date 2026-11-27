@@ -100,20 +100,29 @@ describe('validateProposalInput', () => {
   })
 
   it.each(['needs_patch', 'fix_planned'])('needs a patch action for %s', (verdict) => {
-    const changeOnly = { fixedVersion: '3.0.2', change: 'bump the base image' }
+    const availability = verdict === 'fix_planned' ? { availability: 'available' } : {}
+    const noFix = verdict === 'fix_planned' ? [{ field: 'fix.availability', code: 'required' }] : []
+    const changeOnly = { fixedVersion: '3.0.2', change: 'bump the base image', ...availability }
 
     expect(errorsOf({ verdict, justification: null, fix: null })).toEqual([
+      ...noFix,
       { field: 'fix.action', code: 'required' },
     ])
     expect(errorsOf({ verdict, justification: null, fix: changeOnly })).toEqual([
       { field: 'fix.action', code: 'required' },
     ])
-    expect(errorsOf({ verdict, justification: null, fix: { action: ' ' } })).toEqual([
-      { field: 'fix.action', code: 'required' },
-    ])
-    expect(errorsOf({ verdict, justification: null })).toEqual([])
     expect(
-      errorsOf({ verdict, justification: null, fix: { action: 'no fixed version yet' } }),
+      errorsOf({ verdict, justification: null, fix: { action: ' ', ...availability } }),
+    ).toEqual([{ field: 'fix.action', code: 'required' }])
+    expect(
+      errorsOf({ verdict, justification: null, fix: { action: 'x', ...availability } }),
+    ).toEqual([])
+    expect(
+      errorsOf({
+        verdict,
+        justification: null,
+        fix: { action: 'no fixed version yet', ...availability },
+      }),
     ).toEqual([])
   })
 

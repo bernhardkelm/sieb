@@ -56,6 +56,8 @@ const checkSetup = (): { deps: McpToolDeps; scope: CheckScope; otherFinding: num
       justification: null,
       reason: 'Low risk',
       expiresAt: null,
+      upstreamPending: false,
+      waitingFor: null,
     },
     'alice',
     MCP_NOW,

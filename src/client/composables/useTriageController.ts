@@ -21,12 +21,12 @@ import { useFindingFilterQuery } from '@/composables/useFindingFilterQuery'
 import { useFindingPanel } from '@/composables/useFindingPanel'
 import { useSelectionHandoffKeys } from '@/composables/useSelectionHandoffKeys'
 import { useTriageHintActions } from '@/composables/useTriageHintActions'
+import { useTriageNew } from '@/composables/useTriageNew'
 import { useListCursor } from '@/composables/useListCursor'
 import { useListSort, type ListSort } from '@/composables/useListSort'
-import { useNow } from '@/composables/useNow'
 import { triageActionFor, type TriageAction } from '@/keyboard/triageKeymap'
 import { rowClickIntent } from '@/keyboard/rowClick'
-import { isNewFinding, type FindingFilters } from '@/stores/findingFilters'
+import type { FindingFilters } from '@/stores/findingFilters'
 import { useFindingDetailStore } from '@/stores/findingDetailStore'
 import { useFindingsStore } from '@/stores/findingsStore'
 import { useHandoffSelectionStore } from '@/stores/handoffSelectionStore'
@@ -39,6 +39,7 @@ export interface TriageController {
   sort: ListSort<TriageSortColumn>
   resetSort: () => Promise<void>
   newCount: ComputedRef<number>
+  markAllSeen: () => void
   currentId: Ref<number | null>
   checkedIds: Ref<Set<number>>
   bulkOpen: Ref<boolean>
@@ -69,16 +70,13 @@ export const useTriageController = (focusSearch: () => void): TriageController =
   const store = useFindingsStore()
   const detail = useFindingDetailStore()
   const { findingId, openFinding, closeFinding } = useFindingPanel()
-  const now = useNow()
   const filterQuery = useFindingFilterQuery()
 
   const sort = useListSort(TRIAGE_SORT_COLUMNS)
 
   const findings = computed(() => sortTriage(store.inbox, sort.sort.value))
   const ids = computed(() => findings.value.map((finding) => finding.id))
-  const newCount = computed(
-    () => findings.value.filter((finding) => isNewFinding(finding.firstSeen, now.value)).length,
-  )
+  const { newCount, markAllSeen } = useTriageNew(findings)
   const bulkOpen = ref(false)
   const bulkTargets = ref<BulkTarget[]>([])
   const bulkStatus = ref<DecisionStatus | null>(null)
@@ -239,6 +237,7 @@ export const useTriageController = (focusSearch: () => void): TriageController =
     sort,
     resetSort,
     newCount,
+    markAllSeen,
     currentId: cursor.currentKey,
     checkedIds: cursor.selection.checkedIds,
     bulkOpen,

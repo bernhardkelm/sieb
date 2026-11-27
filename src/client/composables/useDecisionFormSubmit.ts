@@ -2,6 +2,7 @@ import { hasLocalErrors, localFormErrors } from '@/components/decision/decisionF
 import {
   fromDateInput,
   justificationFor,
+  upstreamFor,
   type DecisionFormValue,
 } from '@/components/decision/decisionFormModel'
 import type { DecisionFormErrorState } from '@/composables/useDecisionFormErrors'
@@ -24,8 +25,9 @@ export interface DecisionFormSubmit {
 }
 
 /**
- * Submits the decision form: a missing status, a blank reason or a missing date stops with
- * their messages and focuses the first field in error, a valid input is emitted.
+ * Submits the decision form: a missing status, a blank reason, a missing date or a missing
+ * waiting for text stops with their messages and focuses the status or reason in error, a
+ * valid input is emitted.
  * @param {DecisionFormSubmitOptions} options - Fields, messages, focus targets and the emitter
  * @returns {DecisionFormSubmit} - Submit action and the key handler of the form
  */
@@ -39,12 +41,18 @@ export const useDecisionFormSubmit = (options: DecisionFormSubmitOptions): Decis
   const submit = (): void => {
     const expiresAt = fields.never.value ? null : fromDateInput(fields.expiryDate.value)
     const chosen = fields.status.value
+    const upstream =
+      chosen === null
+        ? { upstreamPending: false, waitingFor: null }
+        : upstreamFor(chosen, fields.upstreamPending.value, fields.waitingFor.value)
 
     errors.local.value = localFormErrors({
       status: chosen,
       reason: fields.reason.value,
       never: fields.never.value,
       expiresAt,
+      upstreamPending: upstream.upstreamPending,
+      waitingFor: upstream.waitingFor ?? '',
     })
 
     if (chosen === null || hasLocalErrors(errors.local.value)) {
@@ -65,6 +73,7 @@ export const useDecisionFormSubmit = (options: DecisionFormSubmitOptions): Decis
       expiresAt,
       expiryTouched: fields.expiryTouched.value,
       reconfirm: options.reconfirmable() && fields.reconfirm.value,
+      ...upstream,
     })
   }
 

@@ -24,6 +24,7 @@ const ALL: FindingQuery = {
   kevAddedSince: null,
   fixable: null,
   pending: [],
+  upstreamPending: null,
 }
 
 describe('parseFindingQuery', () => {

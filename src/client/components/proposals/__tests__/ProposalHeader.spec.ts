@@ -13,6 +13,9 @@ const FIX: ProposalFix = {
   fixedVersion: '1.1.43-r4',
   change: null,
   effort: null,
+  availability: null,
+  waitingFor: null,
+  interim: null,
 }
 
 let wrapper: VueWrapper | null = null

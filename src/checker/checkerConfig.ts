@@ -1,6 +1,7 @@
 import { resolve } from 'node:path'
 
 import { MAX_WORKER_POLL_SECONDS } from '#core/checkLimits.ts'
+import { parseClaudeEffort, type ClaudeEffort } from '#checker/config/claudeEffort.ts'
 import { boundedInt, required, workerUrl } from '#checker/config/configValues.ts'
 import { secretValue, type ReadSecretFile } from '#checker/config/secretValue.ts'
 import { parseWebDomains } from '#checker/config/webDomains.ts'
@@ -22,6 +23,8 @@ export interface CheckerConfig {
   platform: string
   path: string // PATH handed to the tools and to Claude
   webDomains: string[] // hosts WebFetch may reach
+  model: string | null // passed as --model, null keeps the account default
+  effort: ClaudeEffort | null // passed as --effort, null keeps Claude Code's default
 }
 
 export const DEFAULT_WORKDIR = '/work'
@@ -29,6 +32,7 @@ export const DEFAULT_POLL_SECONDS = 10
 export const DEFAULT_IMAGE_MAX_BYTES = 4 * 1024 ** 3
 export const DEFAULT_PLATFORM = 'linux/amd64'
 const DEFAULT_PATH = '/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin'
+export const MODEL_PATTERN = /^[a-z0-9][a-z0-9.\-[\]]{0,63}$/
 const PLATFORM_PATTERN = /^[a-z0-9]+\/[a-z0-9]+(\/[a-z0-9]+)?$/
 const OAUTH_VARIABLE = 'CLAUDE_CODE_OAUTH_TOKEN'
 const API_KEY_VARIABLE = 'ANTHROPIC_API_KEY'
@@ -89,6 +93,12 @@ export const readCheckerConfig = (
     throw new Error(`SIEB_CHECKER_PLATFORM must look like os/arch, got "${platform}"`)
   }
 
+  const model = env.SIEB_CHECKER_MODEL?.trim() || null
+
+  if (model !== null && !MODEL_PATTERN.test(model)) {
+    throw new Error(`SIEB_CHECKER_MODEL must be a model alias or id such as opus, got "${model}"`)
+  }
+
   const workerSecret = secretValue(env, 'SIEB_WORKER_SECRET', readFile)
 
   if (workerSecret === null) {
@@ -114,5 +124,7 @@ export const readCheckerConfig = (
     platform,
     path: env.PATH?.trim() || DEFAULT_PATH,
     webDomains: parseWebDomains(env.SIEB_CHECKER_WEB_DOMAINS),
+    model,
+    effort: parseClaudeEffort(env.SIEB_CHECKER_EFFORT),
   }
 }

@@ -2,6 +2,7 @@ import type { DatabaseSync } from 'node:sqlite'
 
 import { JUSTIFIABLE_STATUS, type Decision, type DecisionPatch } from '#core/decision.ts'
 import { defaultExpiresAt } from '#core/decisionExpiry.ts'
+import { mergeUpstream } from '#core/decisionUpstream.ts'
 import type { ProposalProvenance } from '#core/proposal.ts'
 import { mustGetDecision, type DecisionCommandResult } from '#server/db/decisionCommandResult.ts'
 import { appendDecisionEvent } from '#server/db/decisionEventRepository.ts'
@@ -14,6 +15,8 @@ const DIFF_FIELDS = [
   'justification',
   'reason',
   'expiresAt',
+  'upstreamPending',
+  'waitingFor',
   'severityAtDecision',
   'kevAtDecision',
   'reopenedAt',
@@ -22,7 +25,8 @@ const DIFF_FIELDS = [
 /**
  * Changes a decision. A status change without an explicit expiry resets the expiry to the
  * default of the new status. A status other than not_affected clears the justification, and a
- * justification for a decision that is not not_affected after the patch is refused. Only a
+ * justification for a decision that is not not_affected after the patch is refused, the upstream
+ * fields follow mergeUpstream and a change breaking their rules is refused. Only a
  * patch with reconfirm clears a latched re-open and records new baselines at the current
  * findings; any other edit, a reason fix included, keeps a re-opened decision re-opened. Writes
  * an updated event with reconfirm and the changed fields as [before, after], plus the provenance
@@ -74,11 +78,25 @@ export const updateDecision = (
         : status !== before.status
           ? defaultExpiresAt(status, now)
           : before.expiresAt
+    const upstream = mergeUpstream(before, patch, { status, expiresAt })
+
+    if (!upstream.ok) {
+      return { ok: false, error: 'upstream_invalid', issue: upstream.issue }
+    }
 
     db.prepare(
       `UPDATE decisions SET status = ?, justification = ?, reason = ?, expires_at = ?,
-         updated_at = ? WHERE id = ?`,
-    ).run(status, justification, patch.reason ?? before.reason, expiresAt, at, id)
+         upstream_pending = ?, waiting_for = ?, updated_at = ? WHERE id = ?`,
+    ).run(
+      status,
+      justification,
+      patch.reason ?? before.reason,
+      expiresAt,
+      upstream.value.upstreamPending ? 1 : 0,
+      upstream.value.waitingFor,
+      at,
+      id,
+    )
 
     if (reconfirm) {
       db.prepare('UPDATE decisions SET reopened_at = NULL, reopen_trigger = NULL WHERE id = ?').run(

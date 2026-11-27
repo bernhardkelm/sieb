@@ -7,7 +7,7 @@ import { NOW } from '#core/__tests__/coreBuilders.ts'
 import { buildProposalInput, PROPOSER } from '#core/__tests__/proposalBuilders.ts'
 import type { ProposalInput } from '#core/proposal.ts'
 import type { ExpectedDecisionId } from '#core/proposalFreshness.ts'
-import { validateAcceptEdits } from '#core/proposalAccept.ts'
+import { validateAcceptEdits } from '#core/proposalAcceptEdits.ts'
 import { DEFAULT_PUBLIC_REGISTRIES } from '#core/sourceAccess.ts'
 import { acceptProposal } from '#server/db/acceptProposal.ts'
 import { createDecision } from '#server/db/createDecision.ts'
@@ -186,6 +186,8 @@ describe('acceptProposal', () => {
         justification: null,
         reason: 'later',
         expiresAt: null,
+        upstreamPending: false,
+        waitingFor: null,
       },
       'bob',
       NOW,
@@ -199,6 +201,9 @@ describe('acceptProposal', () => {
         fixedVersion: '1.2',
         change: 'bump nginx',
         effort: null,
+        availability: null,
+        waitingFor: null,
+        interim: null,
       },
     })
     const result = accept(db, id, { reason: 'Patch it' }, [
@@ -247,6 +252,8 @@ describe('acceptProposal', () => {
         justification: null,
         reason: 'x',
         expiresAt: null,
+        upstreamPending: false,
+        waitingFor: null,
       },
       'bob',
       NOW,
@@ -274,6 +281,8 @@ describe('acceptProposal', () => {
         justification: null,
         reason: 'internal only',
         expiresAt: null,
+        upstreamPending: false,
+        waitingFor: null,
       },
       'bob',
       NOW,

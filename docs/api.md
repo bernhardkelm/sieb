@@ -37,6 +37,7 @@ Checked before identity:
 - `justification` is optional and only allowed with status `not_affected`, see
   [Justification](#justification): an unknown value is `invalid`, one next to another status
   `not_allowed`, `null` or omitted means none.
+- `upstreamPending` and `waitingFor` are optional, see [Waiting for upstream](#waiting-for-upstream).
 
 ## Routes
 
@@ -44,14 +45,15 @@ Checked before identity:
 | ---------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `GET /api/health`                  | `{ status, source }`, no Host check                                                                                                                                                                                       |
 | `GET /api/me`                      | `{ username, authMode, version, sourceCodeUrl }`: the acting user, `header` or `oidc` so the client knows whether a 401 means log in again, and the running version with the link to its source code (`SIEB_SOURCE_URL`, otherwise the upstream tag) |
-| `GET /api/findings`                | Findings in triage order, more parameters under [Finding filters](#finding-filters); `view=inbox\|all` (default `all`), `includeResolved`, `q`, `severity`, `exposure`, `owner` (comma lists, `owner` takes free-form owner labels), `newSince`, `kev` (`true` or `1` keeps KEV listed findings only) |
+| `GET /api/findings`                | Findings in triage order, more parameters under [Finding filters](#finding-filters); `view=inbox\|all` (default `all`), `includeResolved`, `q`, `severity`, `exposure`, `owner` (comma lists, `owner` takes free-form owner labels), `newSince`, `kev` (`true` or `1` keeps KEV listed findings only); every finding carries `seen`, see [Seen findings](#seen-findings) |
+| `POST /api/findings/seen`          | Mark findings seen for the acting user, `{ ids: [...] }`, answers `{ ignored }`, see [Seen findings](#seen-findings) |
 | `GET /api/findings/:id`            | Finding detail: instances with where Trivy found the package, see [Found in](#found-in), decisions, history, `kev`, the CISA catalog entry, see [KEV source](#kev-source), and `sourceAccess` of the image, see [Source access](#source-access)                                                                                                            |
 | `GET /api/images`, `GET /api/cves` | Open findings aggregated per image or per CVE, `includeResolved=true` adds resolved ones                                                                                                                                  |
-| `GET /api/decisions`               | Decisions with their state, `state=active\|expiring\|expired\|revoked\|reopened\|fix_planned`                                                                                                                             |
-| `POST /api/decisions`              | Create an image-scoped or all-scope decision, `{ vulnId, scope, imageRef?, status, justification?, reason, expiresAt? }`                                                                                                  |
-| `PATCH /api/decisions/:id`         | Change status, justification, reason or expiry; `reconfirm: true` re-confirms at the current findings                                                                                                                     |
+| `GET /api/decisions`               | Decisions with their state, `state=active\|expiring\|expired\|revoked\|reopened\|fix_planned\|upstream_pending`                                                                                                            |
+| `POST /api/decisions`              | Create an image-scoped or all-scope decision, `{ vulnId, scope, imageRef?, status, justification?, reason, expiresAt?, upstreamPending?, waitingFor? }`                                                                   |
+| `PATCH /api/decisions/:id`         | Change status, justification, reason, expiry, `upstreamPending` or `waitingFor`; `reconfirm: true` re-confirms at the current findings                                                                                    |
 | `POST /api/decisions/:id/revoke`   | Revoke, optional `{ "comment" }`                                                                                                                                                                                          |
-| `POST /api/decisions/bulk`         | `{ vulnId, imageRefs: [...] \| "all-open", status, justification?, reason, expiresAt? }`, images with a decision are skipped with reason `decided`, `expired` or `reopened`, unknown ones with `unknown_finding`          |
+| `POST /api/decisions/bulk`         | `{ vulnId, imageRefs: [...] \| "all-open", status, justification?, reason, expiresAt?, upstreamPending?, waitingFor? }`, images with a decision are skipped with reason `decided`, `expired` or `reopened`, unknown ones with `unknown_finding`          |
 | `GET /api/sync`, `POST /api/sync`  | `{ run, lastFinished, running, kevFeed }`: latest run and the health of the CISA catalog; run a sync and answer the finished run                                                                                          |
 | `GET /api/stats`                   | `{ current, series }`: live overview counts and their history, `range=7d\|30d\|90d` (default `30d`)                                                                                                                       |
 | `GET /api/labels`                  | `{ exposure, owners, kev }`: which optional labels the open findings carry and the KEV source, see [Labels](#labels)                                                                                                      |
@@ -111,6 +113,9 @@ the same filters:
   parameter is ignored.
 - `fixable`: `true`/`1` keeps findings with a known fixed version in a current instance,
   `false`/`0` those without. Every finding carries the boolean `fixable`.
+- `upstreamPending`: `true`/`1` keeps findings whose governing decision waits for upstream (see
+  [Waiting for upstream](#waiting-for-upstream)), `false`/`0` the others. The Triage filter bar
+  offers it as "Waiting for upstream", in the link as `upstream=1`.
 - `pending`: comma list of what waits on an open finding, matched with the rules of the Inbox
   markers against the [Inbox](#inbox) of the acting user (without the items that user marked as
   seen, none for an anonymous read): `proposed` (an open proposal targets its image, several
@@ -144,6 +149,27 @@ counts, with or without one, and `/metrics` is unchanged.
 Schema step 6 adds the nullable column `decisions.justification` with checks for the known values
 and status `not_affected`. Existing decisions keep `null`, no row is rewritten; the step runs on
 the next start like every migration.
+
+## Waiting for upstream
+
+A `fix_planned` decision may wait for an upstream release: `upstreamPending: true` with
+`waitingFor`, at most 160 characters naming the release or image awaited, and an `expiresAt` that
+serves as the review date. Every decision in the list, detail and write answers carries
+`upstreamPending` (`false` by default) and `waitingFor` (`null` unless waiting). Create, patch and
+bulk take both: `upstreamPending` with another status is `not_allowed`, without `waitingFor`
+`waitingFor` `required`, without an expiry `expiresAt` `required`; `waitingFor` without
+`upstreamPending` is `not_allowed`, longer than 160 characters `too_long`, a non-boolean
+`upstreamPending` or non-string `waitingFor` `invalid`. A `PATCH` checks the rules against the
+stored decision after the change, a status leaving `fix_planned` clears both without being asked.
+History records them like any other field. `state=upstream_pending` lists the non-revoked
+decisions waiting for upstream, which also count under their own state. Suppression, `/metrics`,
+the stats and the OpenVEX mapping treat them as any `fix_planned` decision. Accepting a
+`fix_planned` proposal whose `fix.availability` is `upstream_pending` carries it over, see
+[Proposals](#proposals).
+
+Schema step 17 adds `decisions.upstream_pending` (0 or 1, default 0) and the nullable
+`decisions.waiting_for` with checks for the rules above. Existing decisions keep 0 and `null`, no
+row is rewritten.
 
 ## Labels
 
@@ -292,7 +318,7 @@ and `refs`:
 
 | Kind       | Key                                  | `at`         | In the Inbox while                                                                                | Extra fields                                                                                                                         |
 | ---------- | ------------------------------------ | ------------ | ------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------ |
-| `proposal` | `proposal:<id>`                      | `createdAt`  | the proposal is open                                                                              | `refs: { proposalId }`, `imageRefs` (targets, `null` for every image), `verdict`, `confidence`, `patchAction` (`fix.action` of a patch verdict, else `null`), `clientKind`, `clientLabel` and `agent` (see [Proposals](#proposals)), `imageCount` (covered open findings), `currentDecisionIds` (governing decision per target, the `expectedDecisionIds` of an accept), `outdated` (a governing decision changed since filing) |
+| `proposal` | `proposal:<id>`                      | `createdAt`  | the proposal is open                                                                              | `refs: { proposalId }`, `imageRefs` (targets, `null` for every image), `verdict`, `confidence`, `patchAction` (`fix.action` of a patch verdict, else `null`), `upstreamPending` (a `fix_planned` waiting for upstream), `clientKind`, `clientLabel` and `agent` (see [Proposals](#proposals)), `imageCount` (covered open findings), `currentDecisionIds` (governing decision per target, the `expectedDecisionIds` of an accept), `outdated` (a governing decision changed since filing) |
 | `reopened` | `reopened:<decisionId>:<reopenedAt>` | `reopenedAt` | the decision is re-opened, until re-confirmed (`reconfirm: true`, also within an edit) or revoked | `refs: { decisionId, findingId }`, `decisionStatus`, `reopenReason`                                                                  |
 | `expiring` | `expiring:<decisionId>:<expiresAt>`  | `expiresAt`  | the decision is active and expires within 14 days, until extended or marked seen                  | `refs: { decisionId, findingId }`, `decisionStatus`                                                                                  |
 | `kev`      | `kev:<findingId>`                    | `kevSince`   | the open finding became KEV listed within the last 14 days, also when decided, until marked seen  | `refs: { findingId, decisionId }`, `decisionStatus` (governing decision or `null`)                                                   |
@@ -324,6 +350,31 @@ are deleted by the periodic cleanup, after both 14-day windows have passed.
 or its flag turns on, cleared when the flag turns off. Findings KEV listed before 0.2.0 keep
 `null` and do not show as new.
 
+## Seen findings
+
+A finding counts as new for a user while sieb first saw it within the last 7 days (`firstSeen`)
+and that user has not seen it yet; the client shows the "new" tag and the Triage "new" count by
+this rule, the `newSince` filter stays purely time based. Every finding of `GET /api/findings`
+carries `seen`: `true` when the acting user marked it seen, only looked up for findings first seen
+within the 7 days, so older findings and anonymous reads answer `false`. The other routes and the
+MCP tools leave the field out.
+
+`POST /api/findings/seen` needs an identity (401 `{ "error": "unauthorized" }` without one) and
+takes `{ "ids": [...] }`, at most 200 positive integer finding ids (`required`, `invalid`,
+`too_many` on `ids`, `invalid` on `ids.<index>`). It marks the findings first seen within the last
+7 days for the acting user and answers `{ ignored }`, the valid ids it did not mark: unknown
+findings and older ones. Marking again changes nothing visible. The marks are rows of the Inbox
+table `inbox_seen` with the key `finding:<id>`; they do not count towards the 5000 Inbox marks per
+user, each mark drops the user's finding marks whose finding left the 7 days, and the 30-day
+cleanup covers them as well.
+
+The client marks a finding seen once it stays shown in the side panel for 2 seconds (moving the
+cursor on restarts the time, a hidden tab pauses it) or when the user acts on it there: a saved
+decision, a hand-off, a copied value or a queued Auto-check, also one queued for checked rows.
+Triage offers "Mark all as seen" for the new findings of the filtered list. The client drops the
+tag at once and sends the ids in batches once marking pauses for a second; a failed request is
+retried with the next mark, without an error toast.
+
 ## Proposals
 
 Claude files decision proposals through the MCP tool `propose_decision` (scope `sieb:propose`, see
@@ -339,10 +390,12 @@ A proposal (`Proposal` in `src/core/proposal.ts`) carries:
 - Claims: `verdict` (`not_affected`, `accepted`, `fix_planned`, `needs_patch`, `inconclusive`),
   `justification` (OpenVEX, required with `not_affected` only), `summary`, `confidence` (`low`, `medium`,
   `high`), `presence`, `reachability`, `exposure`, `evidence` (`[{ check, method, result }]`),
-  `fix` (`{ action, layer, fixedVersion, change, effort }`, the one-line `action` of at most 160
-  characters required for `needs_patch` and `fix_planned`, `layer` optional: `dependency`,
-  `base_image`, `image`, `platform` or `unknown`; both `null` in proposals stored before they
-  existed), `review`
+  `fix` (`{ action, layer, fixedVersion, change, effort, availability, waitingFor, interim }`, the
+  one-line `action` of at most 160 characters required for `needs_patch` and `fix_planned`,
+  `layer` optional: `dependency`, `base_image`, `image`, `platform` or `unknown`; both `null` in
+  proposals stored before they existed; `availability` (`available` or `upstream_pending`),
+  `waitingFor` and `interim` (`{ action, steps, caveats }`) follow the rules in
+  [mcp.md](mcp.md#waiting-for-upstream), `null` in proposals stored before them), `review`
   (`{ date, why }`, `date` follows the `expiresAt` rules), `unknowns`, `missing` (what is needed
   to decide: 1 to 10 entries of at most 1000 characters with `inconclusive`, `not_allowed` with
   any other verdict, `[]` for them and for proposals stored before schema step 16), `references`
@@ -395,17 +448,19 @@ a decision governing one of its targets was created, changed or revoked since it
   target now and the version of it (`decisionId` and `updatedAt` both `null` for none); send it
   back unchanged as `expectedDecisionIds`. The client sends the entries of its first load of the
   review, not those of a later reload.
-- `decisionValues`: `{ status, justification, reason, expiresAt }` that accepting without edits
-  writes: `needs_patch` becomes `fix_planned`, the reason is generated from verdict, summary, the
+- `decisionValues`: `{ status, justification, reason, expiresAt, upstreamPending, waitingFor }`
+  that accepting without edits writes: `needs_patch` becomes `fix_planned`, a `fix_planned` with
+  `fix.availability` `upstream_pending` waits for upstream with its `waitingFor`, the reason is generated from verdict, summary, the
   first three evidence checks, the fix and the confidence (at most 2000 characters), and the
   expiry is the review date while it lies ahead, else the default of the status. `null` for
   `inconclusive`, which has no status of its own.
 - `kevCatalog`: the CISA catalog entry, `null` for other KEV sources.
 
 `POST /api/proposals/:id/accept` takes
-`{ "expectedDecisionIds": [{ "imageRef", "decisionId", "updatedAt" }], "edits"?: { "status", "justification", "reason", "expiresAt" } }`.
+`{ "expectedDecisionIds": [{ "imageRef", "decisionId", "updatedAt" }], "edits"?: { "status", "justification", "reason", "expiresAt", "upstreamPending", "waitingFor" } }`.
 Edits follow the decision rules (`edits.<field>` with `invalid`, `not_allowed`, `too_long`,
-`in_past`, `too_far`); any other field, such as `scope` or `imageRefs`, is `not_allowed`. In one
+`in_past`, `too_far`, `required`), also for the merged values: a waiting proposal whose review date
+passed needs `edits.expiresAt` (`required`); any other field, such as `scope` or `imageRefs`, is `not_allowed`. In one
 transaction it writes per target image the image-scoped decision, updating and re-confirming an
 existing one, or for scope all the all-scope decision, and answers
 `{ proposal, decisions, supersededIds }` with the written decisions as `DecisionView`. The
@@ -598,7 +653,9 @@ need the acting user. A check is answered as `CheckView` from `src/core/check.ts
 finishedAt, durationMs, error, proposalId, usage, reply, pulledDigest }`. `pulledDigest` is the
 digest the worker reports it exported, `null` when it reported none. `phase` is set on running checks only,
 `position` (1-based) on queued ones only. `reply` is Claude's final reply as untrusted plain text,
-at most 4000 characters, `usage` the token counts, turns and estimated cost the worker reported.
+at most 4000 characters, `usage` the token counts, turns and estimated cost the worker reported, plus `models`, the ids of
+the models that ran, most output tokens first, at most 8 (absent from checks that ended before the
+field existed; a worker result without it is accepted, unknown or malformed ids are dropped).
 
 - `GET /api/checks` answers `{ enabled, workerOnline, running, queued, recent, usage }`: `workerOnline`
   is true when the worker reached sieb within the last 90 seconds, three heartbeat intervals and

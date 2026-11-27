@@ -21,6 +21,8 @@ describe('validateDecisionInput', () => {
         justification: null,
         reason: 'behind auth',
         expiresAt: '2026-08-30T12:00:00.000Z',
+        upstreamPending: false,
+        waitingFor: null,
       },
     })
   })

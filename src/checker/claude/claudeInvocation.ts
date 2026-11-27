@@ -1,5 +1,6 @@
 import type { WorkerClaim } from '#core/check.ts'
 import type { ClaudeCredential } from '#checker/checkerConfig.ts'
+import type { ClaudeEffort } from '#checker/config/claudeEffort.ts'
 import { allowRules, MCP_SERVER_NAME } from '#checker/claude/claudeSettings.ts'
 import { INSPECT_SERVER_NAME } from '#checker/inspect/createInspectServer.ts'
 import { INSPECT_ENTRY } from '#checker/inspect/inspectEntry.ts'
@@ -63,6 +64,8 @@ export const mcpConfig = (
  * @param {CheckLayout} layout - Check paths
  * @param {number} maxTurns - Turn limit of the check
  * @param {string[]} webDomains - Hosts WebFetch may reach
+ * @param {string | null} model - Model alias or id for --model, null keeps the account default
+ * @param {ClaudeEffort | null} effort - Level for --effort, null keeps Claude Code's default
  * @returns {string[]} - Arguments after the claude binary
  */
 export const claudeArgs = (
@@ -70,6 +73,8 @@ export const claudeArgs = (
   layout: CheckLayout,
   maxTurns: number,
   webDomains: string[],
+  model: string | null = null,
+  effort: ClaudeEffort | null = null,
 ): string[] => [
   '-p',
   // a leading dash would be parsed as an option
@@ -91,6 +96,8 @@ export const claudeArgs = (
   allowRules(webDomains).join(','),
   '--disable-slash-commands',
   '--no-session-persistence',
+  ...(model === null ? [] : ['--model', model]),
+  ...(effort === null ? [] : ['--effort', effort]),
 ]
 
 /**

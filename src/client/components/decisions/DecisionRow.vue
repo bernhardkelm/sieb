@@ -2,6 +2,7 @@
 import { computed } from 'vue'
 
 import type { DecisionView } from '#core/findingView.ts'
+import BaseChip from '@/components/chips/BaseChip.vue'
 import DecisionStateChip from '@/components/chips/DecisionStateChip.vue'
 import HintTooltip from '@/components/common/HintTooltip.vue'
 import ImageName from '@/components/common/ImageName.vue'
@@ -12,6 +13,7 @@ import ExpandChevron from '@/components/list/ExpandChevron.vue'
 import ListRow from '@/components/list/ListRow.vue'
 import { useNow } from '@/composables/useNow'
 import { pluralize } from '@/format/count'
+import { UPSTREAM_PENDING_LABEL, waitingForText } from '@/format/upstreamText'
 
 const props = defineProps<{
   view: DecisionView
@@ -25,6 +27,11 @@ const now = useNow()
 
 const why = computed(() => decisionWhy(props.view, now.value))
 const lapsed = computed(() => props.view.effective.state === 'reopened')
+const reasonHint = computed(() =>
+  props.view.decision.upstreamPending
+    ? `${waitingForText(props.view.decision.waitingFor)}. ${props.view.decision.reason}`
+    : props.view.decision.reason,
+)
 </script>
 
 <template>
@@ -47,8 +54,11 @@ const lapsed = computed(() => props.view.effective.state === 'reopened')
       <ImageName :image-ref="view.decision.imageRef" />
     </span>
     <span v-else class="scope all">All images</span>
-    <HintTooltip :text="view.decision.reason">
+    <HintTooltip :text="reasonHint">
       <span class="reason" data-panel-clip>
+        <BaseChip v-if="view.decision.upstreamPending" class="upstream" tone="warning" outline>
+          {{ UPSTREAM_PENDING_LABEL }}
+        </BaseChip>
         <span v-if="why" class="why" :class="{ lapsed }">{{ why }} · </span
         >{{ view.decision.reason }}
       </span>
@@ -101,6 +111,11 @@ const lapsed = computed(() => props.view.effective.state === 'reopened')
 
 .created {
   color: var(--color-text-muted);
+}
+
+.upstream {
+  margin-right: var(--space-1-5);
+  vertical-align: middle;
 }
 
 .why {

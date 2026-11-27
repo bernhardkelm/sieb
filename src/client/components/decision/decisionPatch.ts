@@ -51,7 +51,7 @@ const patchExpiry = (
 /**
  * Builds the change of an existing decision from the form, with only the fields that changed.
  * The justification is sent only while the status is not_affected; a status leaving it lets the
- * server clear the justification.
+ * server clear the justification and the upstream fields, which go along when they changed.
  * @param {Decision} decision - Stored decision
  * @param {DecisionFormValue} value - Submitted form values
  * @param {Date} now - Current time
@@ -75,6 +75,14 @@ export const decisionPatch = (
 
   if (value.reason !== decision.reason) {
     patch.reason = value.reason
+  }
+
+  if (value.upstreamPending !== decision.upstreamPending) {
+    patch.upstreamPending = value.upstreamPending
+  }
+
+  if (value.upstreamPending && value.waitingFor !== decision.waitingFor) {
+    patch.waitingFor = value.waitingFor
   }
 
   if (expiresAt !== undefined) {

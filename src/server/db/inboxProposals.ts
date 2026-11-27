@@ -3,6 +3,7 @@ import type { DatabaseSync } from 'node:sqlite'
 import type { Decision } from '#core/decision.ts'
 import type { InboxProposal } from '#core/inbox/inboxItem.ts'
 import { patchActionOf } from '#core/patchAction.ts'
+import { isUpstreamPendingFix } from '#core/proposalFixUpstream.ts'
 import { currentDecisionRefs, isProposalOutdated } from '#core/proposalFreshness.ts'
 import { listProposals } from '#server/db/proposalRepository.ts'
 
@@ -45,6 +46,7 @@ export const listInboxProposals = (
       verdict: proposal.verdict,
       confidence: proposal.confidence,
       patchAction: patchActionOf(proposal),
+      upstreamPending: isUpstreamPendingFix(proposal),
       clientKind: proposal.clientKind,
       clientLabel: proposal.clientLabel,
       agent: proposal.agent,

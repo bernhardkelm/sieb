@@ -13,6 +13,9 @@ const FIX = {
   fixedVersion: null,
   change: null,
   effort: null,
+  availability: null,
+  waitingFor: null,
+  interim: null,
 }
 
 describe('patch action', () => {

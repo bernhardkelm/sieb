@@ -100,6 +100,11 @@ defineExpose({ focusSearch })
         @update:model-value="set('kev', $event)"
       />
       <ToggleFilter
+        label="Waiting for upstream"
+        :model-value="filters.upstreamPending"
+        @update:model-value="set('upstreamPending', $event)"
+      />
+      <ToggleFilter
         label="New this week"
         :model-value="filters.newThisWeek"
         @update:model-value="set('newThisWeek', $event)"

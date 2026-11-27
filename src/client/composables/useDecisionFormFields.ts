@@ -13,6 +13,9 @@ export interface DecisionFormFields {
   reason: Ref<string>
   scope: Ref<DecisionScope>
   reconfirm: Ref<boolean>
+  /** Whether Waiting for upstream is checked, applies only with fix_planned */
+  upstreamPending: Ref<boolean>
+  waitingFor: Ref<string>
   /** Whether the user changed the expiry, the status default no longer applies */
   expiryTouched: Ref<boolean>
   /** Expiry as YYYY-MM-DD, empty while never is set */
@@ -34,12 +37,16 @@ export const useDecisionFormFields = (initial: DecisionFormInitial): DecisionFor
   const initialReason = initial.reason ?? ''
   const initialScope = initial.scope ?? 'image'
   const initialJustification = initial.justification ?? null
+  const initialUpstream = initial.upstreamPending ?? false
+  const initialWaitingFor = initial.waitingFor ?? ''
 
   const status = ref<DecisionStatus | null>(initialStatus)
   const justification = ref<DecisionJustification | null>(initialJustification)
   const reason = ref(initialReason)
   const scope = ref<DecisionScope>(initialScope)
   const reconfirm = ref(false)
+  const upstreamPending = ref(initialUpstream)
+  const waitingFor = ref(initialWaitingFor)
   const expiryTouched = ref(false)
 
   /**
@@ -70,6 +77,8 @@ export const useDecisionFormFields = (initial: DecisionFormInitial): DecisionFor
       reason.value.trim() !== initialReason.trim() ||
       scope.value !== initialScope ||
       justification.value !== initialJustification ||
+      upstreamPending.value !== initialUpstream ||
+      waitingFor.value.trim() !== initialWaitingFor.trim() ||
       expiryTouched.value ||
       reconfirm.value,
   )
@@ -89,6 +98,8 @@ export const useDecisionFormFields = (initial: DecisionFormInitial): DecisionFor
     reason,
     scope,
     reconfirm,
+    upstreamPending,
+    waitingFor,
     expiryTouched,
     expiryDate,
     never,

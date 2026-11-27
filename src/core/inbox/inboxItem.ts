@@ -27,6 +27,7 @@ export interface InboxProposal {
   verdict: ProposalVerdict
   confidence: ProposalConfidence
   patchAction: string | null // only for needs_patch and fix_planned
+  upstreamPending: boolean // fix_planned whose fix waits for an upstream release
   clientKind: ProposalClientKind | null
   clientLabel: string
   agent: string | null
@@ -59,6 +60,7 @@ export interface ProposalInboxItem extends InboxItemBase {
   verdict: ProposalVerdict
   confidence: ProposalConfidence
   patchAction: string | null // only for needs_patch and fix_planned
+  upstreamPending: boolean // fix_planned whose fix waits for an upstream release
   clientKind: ProposalClientKind | null // null when unknown, then clientLabel and agent describe it
   clientLabel: string // token name, OAuth client label or Auto-check #<id>
   agent: string | null // free label the client gave itself, untrusted

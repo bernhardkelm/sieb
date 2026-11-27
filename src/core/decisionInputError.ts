@@ -7,6 +7,8 @@ export type DecisionField =
   | 'justification'
   | 'reason'
   | 'expiresAt'
+  | 'upstreamPending'
+  | 'waitingFor'
   | 'reconfirm'
   | 'comment'
 

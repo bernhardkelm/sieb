@@ -15,6 +15,9 @@ export const decisionSummarySchema = z.object({
   justification: z.enum(DECISION_JUSTIFICATIONS).nullable().describe('OpenVEX, not_affected only'),
   state: z.enum(DECISION_STATES).describe('active not_affected and accepted mute alerts'),
   expiresAt: z.string().nullable(),
+  upstreamPending: z
+    .boolean()
+    .describe('fix_planned waiting for an upstream release, expiresAt is its review date'),
   createdBy: z.string(),
   createdAt: z.string(),
   updatedAt: z.string(),
@@ -31,13 +34,18 @@ export const decisionSummarySchema = z.object({
   url: z.string(),
   untrusted: z.object({
     reason: z.string().describe('free text written by a sieb user'),
+    waitingFor: z
+      .string()
+      .nullable()
+      .describe('with upstreamPending: the release or image awaited, free text'),
   }),
 })
 
 export type DecisionSummary = z.infer<typeof decisionSummarySchema>
 
 /**
- * Builds the compact summary of a decision, its user-written reason under untrusted.
+ * Builds the compact summary of a decision, its user-written reason and waitingFor under
+ * untrusted.
  * @param {DecisionView} view - Decision with its state
  * @param {string} base - Link base
  * @returns {DecisionSummary} - Summary
@@ -54,6 +62,7 @@ export const toDecisionSummary = (view: DecisionView, base: string): DecisionSum
     justification: decision.justification,
     state: effective.state,
     expiresAt: decision.expiresAt,
+    upstreamPending: decision.upstreamPending,
     createdBy: decision.createdBy,
     createdAt: decision.createdAt,
     updatedAt: decision.updatedAt,
@@ -69,6 +78,6 @@ export const toDecisionSummary = (view: DecisionView, base: string): DecisionSum
         : null,
     openFindings: view.openFindings,
     url: decisionUrl(base, decision.id, effective.state),
-    untrusted: { reason: decision.reason },
+    untrusted: { reason: decision.reason, waitingFor: decision.waitingFor },
   }
 }

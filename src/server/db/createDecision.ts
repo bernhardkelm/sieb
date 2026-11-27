@@ -48,8 +48,9 @@ export const createDecision = (
     const { lastInsertRowid } = db
       .prepare(
         `INSERT INTO decisions (vuln_id, scope, image_ref, status, justification, reason,
-           expires_at, created_by, created_at, updated_at, severity_at_decision, kev_at_decision)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'Unknown', 0)`,
+           expires_at, upstream_pending, waiting_for, created_by, created_at, updated_at,
+           severity_at_decision, kev_at_decision)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'Unknown', 0)`,
       )
       .run(
         input.vulnId,
@@ -59,6 +60,8 @@ export const createDecision = (
         input.justification,
         input.reason,
         input.expiresAt,
+        input.upstreamPending ? 1 : 0,
+        input.waitingFor,
         actor,
         at,
         at,

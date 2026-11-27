@@ -86,6 +86,34 @@ describe('validateWorkerResult', () => {
     )
   })
 
+  it('reads, cleans and caps the models of a usage and accepts none', () => {
+    const usage = {
+      inputTokens: 1,
+      outputTokens: 2,
+      cacheReadTokens: 3,
+      cacheCreationTokens: 4,
+      costUsd: null,
+      turns: 5,
+    }
+    const models = ['opus', 'opus', 'bad id', 7, 'x'.repeat(101), ...'abcdefghij'.split('')]
+    const result = validateWorkerResult({ ...RESULT, usage: { ...usage, models } })
+
+    expect(result.ok && result.value.usage?.models).toEqual([
+      'opus',
+      'a',
+      'b',
+      'c',
+      'd',
+      'e',
+      'f',
+      'g',
+    ])
+    expect(validateWorkerResult({ ...RESULT, usage })).toMatchObject({ value: { usage } })
+    expect(validateWorkerResult({ ...RESULT, usage: { ...usage, models: 'opus' } })).toMatchObject({
+      ok: true,
+    })
+  })
+
   it('needs a status and a duration', () => {
     expect(validateWorkerResult({ durationMs: 1 })).toMatchObject({
       errors: [{ field: 'status', code: 'required' }],

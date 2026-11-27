@@ -7,14 +7,20 @@ import type { CheckCreateResponse, ChecksResponse } from '#core/check.ts'
 import { MAX_CHECK_FINDINGS } from '#core/checkLimits.ts'
 import { buildCheck, buildChecksResponse } from '@/__tests__/checkBuilders'
 import { createChecks, fetchChecks } from '@/api/checksApi'
+import { markFindingsSeen } from '@/api/findingsApi'
 import { useAutoCheck } from '@/composables/useAutoCheck'
 import { useChecksStore } from '@/stores/checksStore'
+import { useFindingSeenStore } from '@/stores/findingSeenStore'
 import { notifyError, notifySuccess } from '@/toast/toastManager'
 
 vi.mock('@/api/checksApi', () => ({
   fetchChecks: vi.fn<() => Promise<ChecksResponse>>(),
   createChecks: vi.fn<(ids: number[]) => Promise<CheckCreateResponse>>(),
   cancelCheck: vi.fn<(id: number) => Promise<void>>(),
+}))
+vi.mock('@/api/findingsApi', () => ({
+  fetchFindings: vi.fn<() => Promise<never>>(() => new Promise(() => {})),
+  markFindingsSeen: vi.fn<typeof markFindingsSeen>(async () => ({ ignored: [] })),
 }))
 vi.mock('@/api/inboxApi', () => ({
   fetchInbox: vi.fn<() => Promise<InboxResponse>>(async () => ({
@@ -104,5 +110,16 @@ describe('useAutoCheck', () => {
 
     expect(await useAutoCheck().submit([1, 2])).toBe(false)
     expect(notifyError).toHaveBeenCalledWith('Could not queue the Auto-check', failure)
+  })
+
+  it('marks the findings seen as soon as their checks are requested', async () => {
+    vi.mocked(createChecks).mockImplementation(queueAll)
+
+    const done = useAutoCheck().submit([3, 4])
+
+    await useFindingSeenStore().flush()
+    await done
+
+    expect(markFindingsSeen).toHaveBeenCalledExactlyOnceWith([3, 4])
   })
 })

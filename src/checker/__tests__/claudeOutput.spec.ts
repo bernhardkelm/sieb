@@ -30,6 +30,7 @@ describe('parseClaudeOutput', () => {
         cacheCreationTokens: 800,
         costUsd: 0.42,
         turns: 7,
+        models: [],
       },
       reply: '**CVE-2099-0001 · nginx:1.27** → not_affected · confidence high',
       isError: false,
@@ -48,9 +49,40 @@ describe('parseClaudeOutput', () => {
       cacheCreationTokens: 0,
       costUsd: null,
       turns: 2,
+      models: [],
     })
     expect(parseClaudeOutput('not json')).toBeNull()
     expect(parseClaudeOutput('[1]')).toBeNull()
+  })
+})
+
+describe('parseClaudeOutput models', () => {
+  const parse = (modelUsage: unknown) =>
+    parseClaudeOutput(JSON.stringify({ num_turns: 1, modelUsage }))?.usage?.models
+
+  it('lists the models by output tokens, most first', () => {
+    expect(
+      parse({
+        'claude-haiku-5': { outputTokens: 10 },
+        'claude-opus-5-5': { outputTokens: 900 },
+        'claude-sonnet-5-5': { outputTokens: 10 },
+      }),
+    ).toEqual(['claude-opus-5-5', 'claude-haiku-5', 'claude-sonnet-5-5'])
+  })
+
+  it('ignores garbage and unknown structure', () => {
+    expect(parse(undefined)).toEqual([])
+    expect(parse([1, 2])).toEqual([])
+    expect(parse('opus')).toEqual([])
+    expect(parse({ 'bad id!': { outputTokens: 1 }, ok: 'x', ['x'.repeat(200)]: {} })).toEqual([
+      'ok',
+    ])
+  })
+
+  it('caps the list', () => {
+    const many = Object.fromEntries(Array.from({ length: 30 }, (_, i) => [`m${i}`, {}]))
+
+    expect(parse(many)).toHaveLength(8)
   })
 })
 
