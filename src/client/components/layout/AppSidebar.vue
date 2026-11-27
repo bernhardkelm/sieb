@@ -1,13 +1,13 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted } from 'vue'
-import { RouterLink, useRoute } from 'vue-router'
+import { useRoute } from 'vue-router'
 
 import KeyHint from '@/components/common/KeyHint.vue'
+import SidebarNav from '@/components/layout/SidebarNav.vue'
 import SourceCodeLink from '@/components/layout/SourceCodeLink.vue'
 import OverviewStats from '@/components/overview/OverviewStats.vue'
-import { formatCount } from '@/format/count'
 import { hintsForRoute } from '@/keyboard/keyboardHints'
-import { NAV_ITEMS } from '@/router/navItems'
+import { useChecksStore } from '@/stores/checksStore'
 import { useHintActionsStore } from '@/stores/hintActionsStore'
 import { useInboxStore } from '@/stores/inboxStore'
 import { useMcpStore } from '@/stores/mcpStore'
@@ -16,34 +16,25 @@ const route = useRoute()
 const actions = useHintActionsStore()
 const mcp = useMcpStore()
 const inbox = useInboxStore()
+const checks = useChecksStore()
 
-const hints = computed(() => hintsForRoute(route.name, mcp.enabled))
+const hints = computed(() => hintsForRoute(route.name, mcp.enabled, checks.enabled))
 
 onMounted(() => {
   inbox.startPolling()
+  checks.startPolling()
 })
 
 onBeforeUnmount(() => {
   inbox.stopPolling()
+  checks.stopPolling()
 })
 </script>
 
 <template>
   <div class="sidebar">
     <p class="wordmark">sieb</p>
-    <nav aria-label="Views">
-      <ul class="nav">
-        <li v-for="item in NAV_ITEMS" :key="item.name">
-          <RouterLink class="link" :to="{ name: item.name }" :aria-keyshortcuts="item.shortcut">
-            <span class="label">{{ item.label }}</span>
-            <span v-if="item.badge === 'inbox' && inbox.counts.total > 0" class="badge">
-              {{ formatCount(inbox.counts.total) }}<span class="visually-hidden">&nbsp;open</span>
-            </span>
-            <KeyHint class="shortcut" decorative :keys="[item.shortcut]" />
-          </RouterLink>
-        </li>
-      </ul>
-    </nav>
+    <SidebarNav />
     <OverviewStats class="overview" />
     <div class="foot">
       <ul class="hints" aria-label="Keyboard shortcuts">
@@ -77,6 +68,7 @@ onBeforeUnmount(() => {
   flex-direction: column;
   gap: var(--space-4);
   height: 100vh;
+  height: 100dvh;
   overflow-y: auto;
   padding: var(--space-3) var(--space-2);
   border-right: var(--border-width) solid var(--color-border);
@@ -88,55 +80,6 @@ onBeforeUnmount(() => {
   font-size: var(--font-size-lg);
   font-weight: var(--font-weight-semibold);
   line-height: var(--control-height);
-}
-
-.nav {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-0-5);
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-
-.link {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  height: var(--control-height);
-  padding: 0 var(--space-2);
-  border-radius: var(--radius);
-  color: var(--color-text-muted);
-  font-weight: var(--font-weight-medium);
-  text-decoration: none;
-}
-
-.label {
-  margin-right: auto;
-}
-
-.badge {
-  min-width: calc(var(--space-base) * 5);
-  margin-right: var(--space-2);
-  padding: 0 var(--space-1-5);
-  border-radius: var(--radius-pill);
-  background: var(--color-accent);
-  color: var(--color-on-accent);
-  font-size: var(--font-size-xs);
-  font-weight: var(--font-weight-semibold);
-  font-variant-numeric: tabular-nums;
-  line-height: calc(var(--space-base) * 4.5);
-  text-align: center;
-}
-
-.link:hover {
-  background: var(--color-hover);
-  color: var(--color-text);
-}
-
-.link.router-link-active {
-  background: var(--color-selected);
-  color: var(--color-text);
 }
 
 .foot {
@@ -214,42 +157,8 @@ onBeforeUnmount(() => {
 
   .wordmark,
   .overview,
-  .foot,
-  .shortcut {
+  .foot {
     display: none;
-  }
-
-  .nav {
-    flex-direction: row;
-    gap: var(--space-1);
-  }
-
-  .nav li {
-    flex: 1;
-    min-width: 0;
-  }
-
-  .label {
-    margin-right: 0;
-  }
-
-  .badge {
-    margin: 0 0 0 var(--space-1);
-  }
-
-  .link {
-    justify-content: center;
-    height: var(--bottom-nav-height);
-    border-radius: 0;
-    box-shadow: inset 0 var(--border-width-strong) 0 transparent;
-    font-size: var(--font-size-sm);
-    text-align: center;
-  }
-
-  .link.router-link-active {
-    background: transparent;
-    box-shadow: inset 0 var(--border-width-strong) 0 var(--color-accent);
-    color: var(--color-accent);
   }
 }
 </style>

@@ -61,6 +61,13 @@ describe('readMetricsInput', () => {
       lastSync: { finishedAt: NOW.toISOString(), ok: true },
       findingsOpen: 3,
       decisionStates: { active: 1, fix_planned: 1, expired: 0, reopened: 0, revoked: 0 },
+      checks: {
+        open: { queued: 0, running: 0 },
+        finished: { done: 0, failed: 0, cancelled: 0 },
+        durationSecondsSum: 0,
+        durationCount: 0,
+        workerOnline: null,
+      },
     })
     expect(renderMetrics(input)).toContain(
       `sieb_suppressed{vuln_id="CVE-2025-1000",image_ref="${NGINX}"} 1`,

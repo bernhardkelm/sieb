@@ -147,6 +147,32 @@ Claude Code stores the header, and with it the token, in plain text in `~/.claud
 token into a project `.mcp.json` and never commit one that contains it. A token acts as you, so
 treat it like a password, and revoke it in the dialog when a machine is lost or the token leaked.
 
+### Auto-check tokens
+
+An [Auto-check](auto-check.md) runs with a token sieb mints for the requester when the worker
+claims the check, named `Auto-check #<id>` with read and propose access. It is no personal token:
+the token dialog does not list it, it does not count against the 20 live tokens, it cannot be
+revoked there (cancel the check on the Checks page instead), and it does not count as the user's
+Claude connection. sieb deletes it when the check ends, and it stops working as soon as the check
+no longer runs.
+
+The token reaches only its check's finding, that finding's CVE and image:
+
+| Tool | For a check token |
+| --- | --- |
+| `get_finding` | Only the check's finding, by `findingId` or by its `vulnId` and `imageRef` |
+| `check_vulnerability` | Only the check's CVE |
+| `get_image` | Only the check's image |
+| `list_decisions` | Only decisions of the check's CVE; `package`, `image` and the other filters narrow those |
+| `list_my_proposals` | Only the proposals this check filed |
+| `propose_decision` | Only the check's finding: `findingId`, or `vulnId` with `imageRefs` naming exactly its image; never `all` |
+| `search_findings`, `get_overview` | Not listed, like `propose_decision` for a read-only token |
+
+Anything else answers a tool error naming what the token reaches, and the server instructions
+tell Claude about the limit. A proposal of a check never replaces the requester's own open
+proposal for the same target, nor the other way round, and neither counts against the other's
+limits: each check has its own rate bucket and holds its own open proposal.
+
 ### Switching from a token to the connector
 
 A configured `Authorization` header turns off OAuth for that server entry, and with both entries
@@ -169,12 +195,18 @@ else on the origin the request reached sieb at.
 | --- | --- |
 | `get_overview` | "How are we doing?": open, inbox, KEV, public, by severity, not affected, accepted, fix planned, re-opened, the Inbox counts of the connected user (`inboxItems`: proposals, re-opened, expiring, new KEV), the last successful sync, the KEV source and catalog health, and who is connected (`connectedAs`: actor, via, client, `scopes` and `canPropose`) |
 | `check_vulnerability` | "Does CVE-X affect us?": every scanned image and workload carrying it with package, installed and fixed version, `foundIn` (paths, package type and PURL from Trivy), exposure, owner and governing decision, KEV details, images it was found in before; when absent, says so with the time of the last sync |
-| `search_findings` | Questions across findings, with the [finding filters](api.md#finding-filters) plus `groupBy` (`none`, `cve`, `image`, `namespace`, `package`) for counts per group, `limit` (at most 50, default 20) and `offset`, and the `total` |
+| `search_findings` | Questions across findings, with the [finding filters](api.md#finding-filters) (`pending` against the connected user's Inbox) plus `groupBy` (`none`, `cve`, `image`, `namespace`, `package`) for counts per group, `limit` (at most 50, default 20) and `offset`, and the `total` |
 | `get_finding` | One finding by `findingId`, or by `vulnId` and `imageRef`: instances per workload and container, `foundIn` (paths, package type and PURL from Trivy), every decision covering it with history, KEV details |
 | `get_image` | One image: owner, exposure, risk counts, workloads and its open findings |
 | `list_decisions` | Earlier verdicts on the same CVE, package or image, filtered by state or status, newest first |
 | `list_my_proposals` | The proposals filed for the connected sieb user, newest first, with state, resolution, outdated flag, reject reason (under `untrusted`) and review URL; `state` (default `all`), `vulnId`, `limit`, `offset` |
 | `propose_decision` | Only with `sieb:propose`: files a structured decision proposal, see [Proposals](#proposals) |
+
+`get_finding`, `check_vulnerability`, `get_image` and `search_findings` (when it lists findings)
+carry one `exposureNote` per result: the meaning of each
+[exposure tier](prometheus-rules.md#exposure-tiers) present in it, unknown included, followed by
+the caveat that exposure describes the network entry only. It is null when nothing in the result
+carries an exposure label. The triage prompt spells out the same tiers in its exposure step.
 
 Example questions:
 
@@ -226,10 +258,40 @@ The target is a `findingId` on its own, or a `vulnId` with `imageRefs` (tag or d
 matched case-insensitively) or `all: true` for every image; `findingId` together with `vulnId`,
 `imageRefs` or `all` is refused. Each target image needs an open finding. The
 claims are structured: `verdict` (`not_affected` with an OpenVEX `justification`, `accepted`,
-`fix_planned`, or `needs_patch`, a fix planned with a concrete `fix.change`), `summary`,
+`fix_planned`, or `needs_patch`, a fix planned with a concrete patch), `summary`,
 `confidence`, `presence`, `reachability`, `exposure`, `evidence` (`check`, `method`, `result`),
-`fix`, `review` (date and why, the date becomes the proposed expiry), `unknowns`, `references`
-(http(s) only), `agent` and `evidenceBasis`. `evidenceBasis` is required and must be honest:
+`fix` (`action`, `fixedVersion`, `change`, `effort`), `review` (date and why, the date becomes the
+proposed expiry), `unknowns`, `references` (http(s) only), `agent` and `evidenceBasis`.
+
+`needs_patch` and `fix_planned` require `fix.action`: one line of at most 160 characters with
+the step the operator can take now, with exact versions. Claude works out which layer ships the
+vulnerable component and whether a fix is published at that layer, then names the step at the
+closest layer the operator controls that pulls in an available fix, starting with the layer:
+
+| Layer (`fix.layer`) | Ships the component | Action |
+| --- | --- | --- |
+| `dependency` | lockfile, `go.mod`, requirements, a package installed explicitly in the Dockerfile | bump it to the fixed version, "dependency: bump golang.org/x/text to v0.39.0" |
+| `base_image` | an OS package or runtime inherited from `FROM` | rebuild on a newer base tag or digest with the fix, "base image: rebuild on alpine:3.24.4 (libxslt 1.1.43-r4)"; else upgrade the package in the Dockerfile (`apk upgrade <package>`) when the distro has it; else wait for the base image or distro |
+| `image` | a third-party image | bump to a newer published tag or digest with the fix; else wait for upstream |
+| `platform` | a component a distribution such as k3s deploys and manages | upgrade the platform to a release that bundles the fix; else wait, "k3s: wait for a release bundling metrics-server v0.9.1"; never override the bundled component |
+
+`fix.layer` is optional and may also be `unknown`. Claude finds the layer from sieb's facts (Found
+in paths, package type and class, os-pkgs versus language packages, the PURL, installed and fixed
+version, the owner only as a hint), for an own image from its Dockerfile and lockfiles, and from
+image config labels such as `org.opencontainers.image.base.name`, and checks on release pages and
+registries that the fixed version, tag or platform release exists today. When no layer the
+operator controls has a fix, the action says what to wait for ("no fixed version yet, watch
+<advisory>" when there is none at all) and the verdict is `fix_planned` with a review date, or
+`accepted` or `not_affected` where the evidence supports it. Manual overrides come up only as an
+explicit exception for a high risk, KEV listed and reachable. A missing action is refused with
+this guidance; the full rule is in the `fix.action` description and the triage prompt.
+
+The review panel shows the layer and the action under the verdict, with a copy button for the
+version, tag or digest it names; Inbox rows show the action after the verdict chip, and the
+decision reason generated on accept starts with it. `fix.change` holds the details, such as the
+pull request. Proposals stored before `fix.action` existed have neither action nor layer.
+
+`evidenceBasis` is required and must be honest:
 `advisory` (advisory and sieb data), `upstream_source`, `image`, `own_source` (the repository
 that builds the image) or `runtime`. For a private image Claude cannot inspect, the basis is
 `advisory` and the confidence low or medium, and a `not_affected` resting on `advisory` alone is
@@ -239,7 +301,8 @@ The answer is `{ proposalId, url, replacedProposalId?, note }`, `url` being
 `<base>/inbox/proposals/<id>`, where the proposal is reviewed; Claude ends its answer with it. A
 new proposal from the same user for the same target replaces the open one (`replacedProposalId`).
 A user holds at most 200 open proposals, and `propose_decision` takes at most 30 valid calls per
-hour and sieb user, across all of the user's tokens and OAuth clients. Every proposal, accept and
+hour and sieb user, across all of the user's tokens and OAuth clients. Proposals of an Auto-check
+count apart, see [Auto-check tokens](#auto-check-tokens). Every proposal, accept and
 reject writes a server log line.
 
 The reviewer accepts as proposed, edits status, justification, reason and expiry before
@@ -275,19 +338,20 @@ connector name) or as `/mcp__sieb__triage_finding` for a server added with a tok
 
 The server instructions and the triage prompt ask Claude for a fixed reply. The server
 instructions stay below 4,096 characters per variant, since Claude Code cuts them off there. For
-one finding, at most five lines and nothing else unless asked:
+one finding, at most four lines and nothing else unless asked:
 
 ```text
-**CVE-2025-1234 · ghcr.io/example/app** → needs_patch · confidence high
-Why: libexample 1.2.0 is installed and its vulnerable parser handles every request body.
+**CVE-2025-1234 · ghcr.io/example/app** → needs_patch: upgrade libexample to 1.2.1 · confidence high
+Why: libexample 1.2.0 is installed and its parser handles every request body.
 Checked: advisory, image · Not checked: runtime
-Fix: upgrade libexample to 1.2.1 in the base image
 Proposal: https://sieb.example.com/inbox/proposals/42
 ```
 
 The first line always contains the word "confidence" and carries the OpenVEX justification in
-parentheses for `not_affected`. Why is one sentence of at most 25 words, Checked and Not checked
-are comma-separated `evidenceBasis` keywords, Fix is one line or "none needed". Without
+parentheses for `not_affected`; for `needs_patch` and `fix_planned` it carries the exact patch
+action after a colon, also in the Verdict column of a table, so there is no separate Fix line.
+Why is one sentence of at most 25 words, Checked and Not checked are comma-separated
+`evidenceBasis` keywords. Without
 `sieb:propose` the last line is copied verbatim: "No proposal filed: this connection is read-only
 (token or connector needs sieb:propose)." Several triaged findings become a table with the
 columns Finding, Verdict, Conf. and Proposal, one row per finding, followed by one summary line
@@ -346,6 +410,19 @@ a note on how to connect, until sieb saw an MCP request of yours through the con
 last 30 days or you hold a live API token (your name in the top bar, **API tokens**). With OAuth
 configured the note names the connector first. Copying the prompt always works.
 
+In Triage the hand-off also takes the checked rows. With rows checked and focus on the list,
+`Shift+H`, `h` and `y` act on the selection, as do the sidebar hints and the buttons of the
+selection bar on touch and narrow screens; inside the open panel the keys stay with the panel
+finding. Several findings go into one prompt: a header, one line per CVE with its finding ids and
+images (findings of the same CVE share a line, and one `propose_decision` with `vulnId` and
+`imageRefs` may cover them), then the same instructions as for one finding, with the reply format
+for several findings. The Claude Code variant adds the repository sentence only when every image is
+your own, naming the repository when they share one; the `claude` command exists only when they
+are own images of one repository. A link drops the image names when the full prompt is too long
+and is unavailable once even that exceeds the 800 encoded characters, with the reason naming how
+many findings would fit; copying still works with the full prompt, which lists at most 50
+findings. The selection stays checked after a hand-off, so you can still decide it in bulk.
+
 ## What Claude can and cannot do
 
 Claude can read findings, images, decisions, KEV details and the overview, run the triage prompt
@@ -368,7 +445,7 @@ effect when you accept it in sieb.
 - Personal tokens are `sieb_` plus 32 random bytes. sieb stores only their sha-256 hash and a
   short prefix to recognise them, shows the secret once with `Cache-Control: no-store`, never logs
   it, and compares hashes in constant time. Each user holds at most 20 live tokens and only sees
-  and revokes their own; every create and revoke is logged with owner, name, id and scope.
+  and revokes their own, the internal [Auto-check tokens](#auto-check-tokens) aside; every create and revoke is logged with owner, name, id and scope.
   Revoked and expired tokens stop working at once; their owner can delete them from the token
   list (one by one or with "Clear inactive"), otherwise the periodic cleanup deletes them after 90
   days. Proposals keep their attribution after a token is deleted, and token ids are never reused.
@@ -379,6 +456,9 @@ effect when you accept it in sieb.
   exact audience, and a token without `sieb:read` in its `scope` claim gets 403. `preferred_username` must be 1 to 256 characters without
   control or invisible format characters. With `SIEB_OAUTH_REQUIRED_GROUP` the `groups` claim
   must contain the group, else 403.
+- The token of an Auto-check is bound to its check and reaches only that finding, CVE and image,
+  so Claude steered by text in a checked image cannot read the rest of the inventory nor file
+  proposals for other targets, see [Auto-check tokens](#auto-check-tokens).
 - Advisory text (titles, scanner links, CISA KEV descriptions and notes), the user-written
   decision reasons and history values, and proposal summaries and reject reasons reach Claude
   under an `untrusted` key, and the server
@@ -391,8 +471,8 @@ effect when you accept it in sieb.
 
 `/mcp` never uses the UI login, so removing someone from the identity provider does not stop
 their personal tokens by itself. In oidc mode, a login refused because the user lacks
-`SIEB_OIDC_REQUIRED_GROUP` deletes all their sessions and revokes all their live tokens (logged),
-but only once they try to log in. Tokens without an expiry, from before expiry became mandatory,
+`SIEB_OIDC_REQUIRED_GROUP` deletes all their sessions, fails their open Auto-checks and revokes
+all their live tokens (logged), but only once they try to log in. Tokens without an expiry, from before expiry became mandatory,
 no longer work at all. Revoke them in the token dialog before the account goes, or revoke every live token of a
 user in the database:
 

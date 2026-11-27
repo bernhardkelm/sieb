@@ -7,6 +7,8 @@
   width: var(--panel-width);
   max-width: 100%;
   height: calc(100vh - var(--topbar-height) - var(--nav-inset));
+  height: calc(100dvh - var(--topbar-height) - var(--nav-inset));
+  padding-right: env(safe-area-inset-right, 0px);
   overflow-y: auto;
   overscroll-behavior: contain;
   border-left: var(--border-width) solid var(--color-border);
@@ -30,25 +32,12 @@
     var(--shadow-panel);
 }
 
-@media (max-width: 639px) {
+/* landscape phones: full height over the top bar and the bottom navigation */
+@media (max-height: 499px) {
   .side-panel {
-    inset: 0;
-    width: 100%;
+    top: 0;
+    height: 100vh;
     height: 100dvh;
-    border-left: 0;
-    box-shadow: none;
-  }
-
-  .side-panel:focus-visible {
-    box-shadow: inset 0 0 0 var(--border-width-strong) var(--color-focus);
-  }
-
-  .header {
-    padding: var(--space-2) var(--space-3) var(--space-2) var(--space-4);
-  }
-
-  .vuln-id {
-    font-size: var(--font-size-lg);
   }
 }
 
@@ -64,10 +53,15 @@
   background: var(--color-surface);
 }
 
+/* an id never breaks at its hyphens, a title too long for the header ends in an ellipsis */
 .vuln-id {
   flex: 0 1 auto;
+  min-width: 0;
+  overflow: hidden;
   font-family: var(--font-mono);
   font-size: var(--font-size-md);
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .body {
@@ -75,6 +69,11 @@
   flex-direction: column;
   gap: var(--space-6);
   padding: var(--space-4);
+}
+
+/* holds the decision Save bar without a box, so sticky can lift it anywhere within the body */
+.decision-actions {
+  display: contents;
 }
 
 .section {
@@ -103,4 +102,24 @@
   gap: var(--space-2);
   padding: var(--space-4);
   color: var(--color-text-muted);
+}
+
+@media (max-width: 639px) {
+  .side-panel {
+    inset: 0;
+    width: 100%;
+    height: 100vh;
+    height: 100dvh;
+    border-left: 0;
+    box-shadow: none;
+  }
+
+  .side-panel:focus-visible {
+    box-shadow: inset 0 0 0 var(--border-width-strong) var(--color-focus);
+  }
+
+  .header {
+    gap: var(--space-1);
+    padding: var(--space-2) var(--space-3) var(--space-2) var(--space-4);
+  }
 }

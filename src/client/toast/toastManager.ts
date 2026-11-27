@@ -72,3 +72,13 @@ export const notifyWithAction = (
 ): void => {
   toast.add({ id, title, description, type: 'foreground', duration: 8000, actionProps: action })
 }
+
+/**
+ * Shows a neutral toast, such as an action that ran but changed nothing.
+ * @param {string} title - Short message
+ * @param {string} description - Optional detail
+ * @returns {void}
+ */
+export const notifyNotice = (title: string, description?: string): void => {
+  toast.add({ title, description, type: 'foreground', duration: 8000 })
+}

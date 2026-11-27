@@ -19,6 +19,7 @@ describe('readFindingFilters', () => {
         kev: '1',
         new: '1',
         resolved: '1',
+        pending: 'Proposed,reopened,kev,checking,untouched',
         finding: '12',
       }),
     ).toEqual({
@@ -29,6 +30,7 @@ describe('readFindingFilters', () => {
       kev: true,
       newThisWeek: true,
       includeResolved: true,
+      pending: ['proposed', 'reopened', 'kev', 'checking', 'untouched'],
     })
   })
 
@@ -40,8 +42,9 @@ describe('readFindingFilters', () => {
         owner: `self,${'x'.repeat(65)}`,
         kev: 'yes',
         new: ['1', '1'],
+        pending: 'later,kev,,kev,expiring',
       }),
-    ).toEqual({ ...emptyFilters(), severity: ['Critical'], owner: ['self'] })
+    ).toEqual({ ...emptyFilters(), severity: ['Critical'], owner: ['self'], pending: ['kev'] })
     expect(readFindingFilters({})).toEqual(emptyFilters())
   })
 })
@@ -53,6 +56,7 @@ describe('findingFilterParams', () => {
       q: 'libssl',
       severity: ['Critical' as const, 'High' as const],
       kev: true,
+      pending: ['reopened' as const, 'untouched' as const],
     }
     const params = findingFilterParams(filters)
 
@@ -64,6 +68,7 @@ describe('findingFilterParams', () => {
       kev: '1',
       new: null,
       resolved: null,
+      pending: 'reopened,untouched',
     })
     expect(sameFindingFilters(readFindingFilters(findingFilterQuery(filters)), filters)).toBe(true)
   })

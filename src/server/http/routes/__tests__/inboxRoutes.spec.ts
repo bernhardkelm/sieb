@@ -242,6 +242,7 @@ describe('inbox routes', () => {
       imageRefs: [NGINX],
       verdict: 'not_affected',
       confidence: 'medium',
+      patchAction: null,
       imageCount: 1,
     })
   })

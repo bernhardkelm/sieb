@@ -1,8 +1,8 @@
 import { createPinia, setActivePinia } from 'pinia'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { fetchMcpInfo } from '@/api/tokensApi'
-import { useMcpStore } from '@/stores/mcpStore'
+import { REFRESH_THROTTLE_MS, useMcpStore } from '@/stores/mcpStore'
 
 vi.mock('@/api/tokensApi', () => ({
   fetchMcpInfo: vi.fn<typeof fetchMcpInfo>(),
@@ -11,6 +11,10 @@ vi.mock('@/api/tokensApi', () => ({
 beforeEach(() => {
   setActivePinia(createPinia())
   vi.mocked(fetchMcpInfo).mockReset()
+})
+
+afterEach(() => {
+  vi.useRealTimers()
 })
 
 describe('mcpStore', () => {
@@ -103,5 +107,32 @@ describe('mcpStore', () => {
     await store.refresh()
 
     expect(store.connected).toBe(true)
+  })
+
+  it('skips a throttled refresh shortly after the last request', async () => {
+    vi.useFakeTimers()
+    vi.mocked(fetchMcpInfo).mockResolvedValue({
+      enabled: true,
+      mcpUrl: null,
+      oauth: true,
+      claude: null,
+    })
+
+    const store = useMcpStore()
+
+    await store.load()
+    await store.refreshThrottled()
+    expect(fetchMcpInfo).toHaveBeenCalledOnce()
+
+    vi.advanceTimersByTime(REFRESH_THROTTLE_MS - 1)
+    await store.refreshThrottled()
+    expect(fetchMcpInfo).toHaveBeenCalledOnce()
+
+    vi.advanceTimersByTime(1)
+    await store.refreshThrottled()
+    expect(fetchMcpInfo).toHaveBeenCalledTimes(2)
+
+    await store.refresh()
+    expect(fetchMcpInfo).toHaveBeenCalledTimes(3)
   })
 })

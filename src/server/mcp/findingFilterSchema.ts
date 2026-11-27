@@ -2,6 +2,7 @@ import { z } from 'zod'
 
 import { DECISION_STATE_FILTERS } from '#core/decisionStateFilter.ts'
 import { EXPOSURE_FILTERS } from '#core/exposure.ts'
+import { PENDING_FILTERS } from '#core/findingPending.ts'
 import type { FindingQuery } from '#core/findingQuery.ts'
 import { OWNER_MAX_LENGTH } from '#core/owner.ts'
 import { NAME_PATTERN_MAX_LENGTH } from '#core/queryParamReaders.ts'
@@ -44,7 +45,7 @@ export const findingFilterShape = {
     .array(z.enum(EXPOSURE_FILTERS))
     .optional()
     .describe(
-      'public, gated (behind auth), internal, or unknown for findings without exposure label',
+      'public, gated (behind an SSO proxy or IP allowlist), internal, or unknown for findings without exposure label',
     ),
   owner: z
     .array(z.string().trim().min(1).max(OWNER_MAX_LENGTH))
@@ -59,6 +60,12 @@ export const findingFilterShape = {
     .optional()
     .describe('added to the CISA KEV catalog on or after, needs the cisa KEV source'),
   fixable: z.boolean().optional().describe('true: a fixed version is known, false: none is'),
+  pending: z
+    .array(z.enum(PENDING_FILTERS))
+    .optional()
+    .describe(
+      'what waits on the finding in your Inbox: proposed (open proposal), reopened (governing decision re-opened), kev (new KEV listing), checking (queued or running Auto-check), untouched (none of these)',
+    ),
   view: z
     .enum(['inbox', 'all'])
     .default('all')
@@ -95,4 +102,5 @@ export const toFindingQuery = (input: FindingFilterInput): FindingQuery => ({
     ? new Date(Date.parse(input.kevAddedSince)).toISOString().slice(0, 10)
     : null,
   fixable: input.fixable ?? null,
+  pending: input.pending,
 })

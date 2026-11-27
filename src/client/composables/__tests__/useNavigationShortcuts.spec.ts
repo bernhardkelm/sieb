@@ -2,10 +2,12 @@ import { flushPromises } from '@vue/test-utils'
 import { afterEach, describe, expect, it } from 'vitest'
 import { defineComponent } from 'vue'
 
+import { buildChecksResponse } from '@/__tests__/checkBuilders'
 import { mountWithRouter, type RoutedMount } from '@/__tests__/mountWithRouter'
 import { useNavigationShortcuts } from '@/composables/useNavigationShortcuts'
 import { NAV_ITEMS } from '@/router/navItems'
 import { ROUTE_NAMES } from '@/router/routeNames'
+import { useChecksStore } from '@/stores/checksStore'
 
 const Host = defineComponent({
   setup: () => {
@@ -22,14 +24,27 @@ afterEach(() => {
 })
 
 describe('useNavigationShortcuts', () => {
-  it('orders the views Triage, Inbox, By image, By CVE, Decisions on the keys 1 to 5', () => {
+  it('orders the views Triage, Inbox, By image, By CVE, Decisions, Checks on the keys 1 to 6', () => {
     expect(NAV_ITEMS.map((item) => [item.shortcut, item.label])).toEqual([
       ['1', 'Triage'],
       ['2', 'Inbox'],
       ['3', 'By image'],
       ['4', 'By CVE'],
       ['5', 'Decisions'],
+      ['6', 'Checks'],
     ])
+  })
+
+  it('reaches the Checks view on 6 only while Auto-check is on', async () => {
+    mounted = await mountWithRouter(Host, '/images')
+    window.dispatchEvent(new KeyboardEvent('keydown', { key: '6', bubbles: true }))
+    await flushPromises()
+    expect(mounted.router.currentRoute.value.name).toBe(ROUTE_NAMES.IMAGES)
+
+    useChecksStore().response = buildChecksResponse()
+    window.dispatchEvent(new KeyboardEvent('keydown', { key: '6', bubbles: true }))
+    await flushPromises()
+    expect(mounted.router.currentRoute.value.name).toBe(ROUTE_NAMES.CHECKS)
   })
 
   it.each([

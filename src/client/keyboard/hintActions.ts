@@ -16,6 +16,7 @@ export type HintActionId =
   | 'handoff'
   | 'handoffCommand'
   | 'markSeen'
+  | 'autoCheck'
 
 export interface HintAction {
   /** Runs what the shortcut key runs */

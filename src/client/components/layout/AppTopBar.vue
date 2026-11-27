@@ -6,6 +6,7 @@ import SyncControl from '@/components/layout/SyncControl.vue'
 import OverviewSheet from '@/components/overview/OverviewSheet.vue'
 import ThemeToggle from '@/components/layout/ThemeToggle.vue'
 import UserMenu from '@/components/layout/UserMenu.vue'
+import { useMcpFocusRefresh } from '@/composables/useMcpFocusRefresh'
 import { useSyncShortcut } from '@/composables/useSyncShortcut'
 import { useMcpStore } from '@/stores/mcpStore'
 import { useMeStore } from '@/stores/meStore'
@@ -19,6 +20,7 @@ const mcp = useMcpStore()
 const title = computed(() => route.meta.title ?? 'sieb')
 
 useSyncShortcut()
+useMcpFocusRefresh()
 
 onMounted(() => {
   void sync.startPolling()

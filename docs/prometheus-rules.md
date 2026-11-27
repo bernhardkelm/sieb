@@ -28,7 +28,7 @@ The rules below are examples. Adapt names, registries and the exposure source to
 | `severity` | no | `Critical`, `High`, `Medium`, `Low`, `Unknown` (case-insensitive), default `Unknown` |
 | `vuln_score` | no | CVSS base score |
 | `severity_source` | no | Set only on re-rated series, shown as the re-rating source next to the severity, e.g. `cvss` |
-| `exposure` | no | `public`, `gated` (behind authentication) or `internal` (case-insensitive). Missing or unrecognised means unknown |
+| `exposure` | no | `public`, `gated` or `internal` (case-insensitive), see [Exposure tiers](#exposure-tiers). Missing or unrecognised means unknown |
 | `owner` | no | Free-form text. `self` marks your own images and sorts first, every other value is shown as it is, sorted alphabetically. Missing means no owner |
 
 Series without one of the required labels are skipped. A sync fails, and resolves nothing, when
@@ -45,6 +45,23 @@ or lost Prometheus data.
   characters, other values count as no owner. The owner filter offers the values present in the
   open findings. While no open finding has an `owner` label, sieb hides the owner column and
   filter.
+
+### Exposure tiers
+
+Label each workload by how it can be reached from outside the cluster, not by how its app
+authenticates. sieb shows these meanings in the exposure tooltip and the finding panel, and hands
+them to Claude in the triage prompt and as `exposureNote` in tool results.
+
+| Tier | Meaning |
+| --- | --- |
+| `public` | Reachable from the internet with no gate in front; the app's own login does not count. Remote unauthenticated exploitation is possible if the vulnerable code handles request input |
+| `gated` | Not directly reachable from the internet: a gate in front of the app (forward-auth or SSO proxy, IP allowlist) restricts who can reach it at all; the app's own login does not count, that stays `public`. An attacker first has to pass the gate (a valid login at the proxy, an allowed source address, or a flaw in the gate); the app's pre-auth flaws are out of reach for everyone else |
+| `internal` | No route from outside the cluster, reachable only from inside (other pods, nodes). Exploitation needs a foothold in the cluster (lateral movement, SSRF), within the limits of network policies |
+| unknown | No exposure label, treat the workload as possibly reachable |
+
+Exposure describes the network entry only. It does not lower the risk of flaws triggered by
+processed data (uploaded or fetched files, feeds, parsed images or archives), or of tools that
+never run in the request path.
 
 ### Minimal rule
 
@@ -290,3 +307,34 @@ finding alerts again. Warn before that happens:
 The `present_over_time` gate keeps the alert silent until sieb has been scraped once. It resolves 7
 days after the last scrape, delete the rule when sieb is removed for good. Add the annotation that
 accepted findings may alert again after 6h.
+
+## Auto-check alerts
+
+With [Auto-check](api.md#auto-check) on, sieb also exports the check queue, see
+[Metrics](api.md#metrics). `sieb_check_worker_online` exists only while `SIEB_CHECKS_ENABLED` is
+on, so the first alert stays silent on installs without Auto-check. The second catches a queue
+that does not move, for example a worker that polls but cannot claim:
+
+```yaml
+- alert: SiebCheckWorkerOffline
+  expr: sieb_check_worker_online == 0
+  for: 15m
+  labels:
+    severity: warning
+
+- alert: SiebChecksStuck
+  expr: |
+    sieb_checks_open{state="queued"} > 0
+    and on ()
+    sieb_checks_open{state="running"} == 0
+  for: 1h
+  labels:
+    severity: warning
+```
+
+Neither fires while sieb itself is not scraped, [SiebDown](#siebdown) covers that. The worker
+runs one check at a time, so a long queue alone does not fire `SiebChecksStuck` as long as a check
+is running. The average run time over a window comes from the summary, for example
+`increase(sieb_check_duration_seconds_sum[7d]) / increase(sieb_check_duration_seconds_count[7d])`,
+and the failed checks of a week from
+`increase(sieb_checks_finished_total{status="failed"}[7d])`.

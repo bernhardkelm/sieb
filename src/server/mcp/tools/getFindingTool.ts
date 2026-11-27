@@ -2,11 +2,14 @@ import type { McpServer } from '@modelcontextprotocol/server'
 import { z } from 'zod'
 
 import { DECISION_EVENT_TYPES } from '#core/decisionEvent.ts'
+import { exposureNote } from '#core/exposureMeaning.ts'
 import { currentInstances, distinctPackageVersions } from '#core/instance.ts'
 import { withoutImageTag } from '#core/nameMatch.ts'
 import { cveUrl, imageUrl, linkBase } from '#core/siebLinks.ts'
 import { listFindingsByVuln } from '#server/db/findingRepository.ts'
 import { getFindingDetail } from '#server/db/findingViews.ts'
+import { outsideCheckText } from '#server/mcp/checkScope.ts'
+import type { CheckScope } from '#server/mcp/mcpCaller.ts'
 import type { McpToolDeps } from '#server/mcp/mcpToolDeps.ts'
 import { READ_ONLY_TOOL, toolError, toolResult } from '#server/mcp/toolResult.ts'
 import {
@@ -19,6 +22,7 @@ import {
 } from '#server/mcp/views/advisoryFacts.ts'
 import { instanceRowSchema, toInstanceRow } from '#server/mcp/views/affectedImage.ts'
 import { decisionSummarySchema, toDecisionSummary } from '#server/mcp/views/decisionSummary.ts'
+import { exposureNoteSchema } from '#server/mcp/views/exposureNote.ts'
 import { findingRowSchema, toFindingRow } from '#server/mcp/views/findingRow.ts'
 import { foundInSchema, toFoundIn } from '#server/mcp/views/foundIn.ts'
 
@@ -57,6 +61,7 @@ const outputSchema = z.object({
       }),
     )
     .describe('history of those decisions, oldest first'),
+  exposureNote: exposureNoteSchema,
   kevSource: kevSourceSchema,
   kevNote: kevNoteSchema,
   kevCatalog: kevFactsSchema,
@@ -93,18 +98,24 @@ const findFindingId = ({ db }: McpToolDeps, vulnId: string, imageRef: string): n
 }
 
 /**
- * Registers get_finding: one finding with instances, decisions, history and KEV details.
+ * Registers get_finding: one finding with instances, decisions, history and KEV details. A
+ * check caller may only read its own finding.
  * @param {McpServer} server - MCP server
  * @param {McpToolDeps} deps - Database, clock, KEV source and link base
+ * @param {CheckScope | null} scope - Check scope of an Auto-check caller, else null
  * @returns {void}
  */
-export const registerGetFindingTool = (server: McpServer, deps: McpToolDeps): void => {
+export const registerGetFindingTool = (
+  server: McpServer,
+  deps: McpToolDeps,
+  scope: CheckScope | null = null,
+): void => {
   server.registerTool(
     'get_finding',
     {
       title: 'Get a finding',
       description:
-        'Reads one finding (a CVE in one image) by findingId, or by vulnId plus imageRef: its instances per workload and container with package versions, where Trivy found the package, every decision covering it with reasons and history, the KEV source with CISA KEV details when it is cisa, and links.',
+        'Reads one finding (a CVE in one image) by findingId, or by vulnId plus imageRef: its instances per workload and container with package versions, where Trivy found the package, what its exposure tier means, every decision covering it with reasons and history, the KEV source with CISA KEV details when it is cisa, and links.',
       inputSchema,
       outputSchema,
       annotations: READ_ONLY_TOOL,
@@ -113,6 +124,10 @@ export const registerGetFindingTool = (server: McpServer, deps: McpToolDeps): vo
       const id =
         input.findingId ??
         (input.vulnId && input.imageRef ? findFindingId(deps, input.vulnId, input.imageRef) : null)
+
+      if (scope !== null && id !== scope.findingId) {
+        return toolError(outsideCheckText(scope))
+      }
 
       if (id === null) {
         return toolError(
@@ -137,6 +152,7 @@ export const registerGetFindingTool = (server: McpServer, deps: McpToolDeps): vo
           ...toFindingRow(finding, distinctPackageVersions(current), base, deps.publicRegistries),
           lastSeen: finding.lastSeen,
         },
+        exposureNote: exposureNote([finding.exposure]),
         foundIn: toFoundIn(current),
         instances: instances.slice(0, MAX_INSTANCES).map((instance) => ({
           ...toInstanceRow(instance),

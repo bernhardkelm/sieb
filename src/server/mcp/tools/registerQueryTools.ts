@@ -12,7 +12,8 @@ import { registerSearchFindingsTool } from '#server/mcp/tools/searchFindingsTool
 
 /**
  * Registers the read-only query tools, available with the sieb:read scope, list_my_proposals
- * included.
+ * included. The token of an Auto-check gets neither search_findings nor get_overview, and the
+ * other tools answer only for its finding, CVE and image.
  * @param {McpServer} server - MCP server of one request
  * @param {McpToolDeps} deps - Database, clock, KEV source and link base
  * @param {McpCaller} caller - Authenticated caller
@@ -23,11 +24,14 @@ export const registerQueryTools = (
   deps: McpToolDeps,
   caller: McpCaller,
 ): void => {
-  registerSearchFindingsTool(server, deps)
-  registerCheckVulnerabilityTool(server, deps)
-  registerGetFindingTool(server, deps)
-  registerGetImageTool(server, deps)
-  registerListDecisionsTool(server, deps)
-  registerGetOverviewTool(server, deps, caller)
+  if (caller.check === null) {
+    registerSearchFindingsTool(server, deps, caller.actor)
+    registerGetOverviewTool(server, deps, caller)
+  }
+
+  registerCheckVulnerabilityTool(server, deps, caller.check)
+  registerGetFindingTool(server, deps, caller.check)
+  registerGetImageTool(server, deps, caller.check)
+  registerListDecisionsTool(server, deps, caller.check)
   registerListMyProposalsTool(server, deps, caller)
 }

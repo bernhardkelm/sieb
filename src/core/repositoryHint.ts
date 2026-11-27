@@ -20,7 +20,7 @@ const PATH_SEGMENT = /^[a-z0-9]+(?:[._-][a-z0-9]+)*$/
  * @param {string} imageRef - Image ref, possibly with :tag or @digest
  * @returns {string} - Registry and repository
  */
-const repositoryOf = (imageRef: string): string => {
+export const repositoryOf = (imageRef: string): string => {
   const withoutDigest = imageRef.split('@')[0] ?? ''
   const slash = withoutDigest.lastIndexOf('/')
   const colon = withoutDigest.lastIndexOf(':')

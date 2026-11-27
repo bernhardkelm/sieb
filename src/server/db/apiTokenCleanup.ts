@@ -1,7 +1,7 @@
 import type { DatabaseSync } from 'node:sqlite'
 
 import { isTokenLive, type ApiToken } from '#core/apiToken.ts'
-import { getOwnToken, listOwnTokens } from '#server/db/apiTokenRepository.ts'
+import { getUserToken, listOwnTokens } from '#server/db/apiTokenRepository.ts'
 import { inTransaction } from '#server/db/inTransaction.ts'
 
 /** Revoked and expired token rows stay listed this long, then the cleanup deletes them */
@@ -44,7 +44,7 @@ export const revokeLiveTokensOf = (
  * @param {string} owner - Acting user, who must own the token
  * @param {number} id - Token id
  * @param {Date} now - Time the liveness is checked at
- * @returns {DeleteTokenResult} - Deleted token, not_found for unknown and foreign ids, token_live while it still authenticates
+ * @returns {DeleteTokenResult} - Deleted token, not_found for unknown, foreign and check token ids, token_live while it still authenticates
  */
 export const deleteOwnInactiveToken = (
   db: DatabaseSync,
@@ -53,7 +53,7 @@ export const deleteOwnInactiveToken = (
   now: Date,
 ): DeleteTokenResult =>
   inTransaction(db, () => {
-    const token = getOwnToken(db, owner, id)
+    const token = getUserToken(db, owner, id)
 
     if (token === null) {
       return { ok: false, error: 'not_found' }

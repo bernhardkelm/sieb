@@ -1,6 +1,7 @@
 import type { McpServer } from '@modelcontextprotocol/server'
 import { z } from 'zod'
 
+import { exposureNote } from '#core/exposureMeaning.ts'
 import { FINDING_GROUP_KEYS, groupFindings, type FindingGroupKey } from '#core/findingGroups.ts'
 import { SEVERITIES } from '#core/severity.ts'
 import { cveUrl, imageUrl, linkBase } from '#core/siebLinks.ts'
@@ -9,6 +10,7 @@ import { findingFilterShape, toFindingQuery } from '#server/mcp/findingFilterSch
 import { searchFindings } from '#server/mcp/findingSearch.ts'
 import type { McpToolDeps } from '#server/mcp/mcpToolDeps.ts'
 import { READ_ONLY_TOOL, toolResult } from '#server/mcp/toolResult.ts'
+import { exposureNoteSchema } from '#server/mcp/views/exposureNote.ts'
 import { findingRowSchema, toFindingRow } from '#server/mcp/views/findingRow.ts'
 import { lastSyncSchema, readLastSync } from '#server/mcp/views/lastSync.ts'
 
@@ -34,6 +36,11 @@ const outputSchema = z.object({
   limit: z.number().int(),
   findings: z.array(findingRowSchema).optional(),
   groups: z.array(groupSchema).optional(),
+  exposureNote: exposureNoteSchema
+    .optional()
+    .describe(
+      'with findings: meaning of their exposure tiers plus what exposure does not cover, null when none carries an exposure label',
+    ),
   notes: z.array(z.string()),
   lastSync: lastSyncSchema,
 })
@@ -64,12 +71,18 @@ const groupUrl = (base: string, by: FindingGroupKey, key: string): string | null
 }
 
 /**
- * Registers search_findings: filtered findings in inbox order, or counts per group.
+ * Registers search_findings: filtered findings in inbox order, or counts per group; pending
+ * reads the Inbox of the connected user.
  * @param {McpServer} server - MCP server
  * @param {McpToolDeps} deps - Database, clock, KEV source and link base
+ * @param {string} actor - sieb user of the caller
  * @returns {void}
  */
-export const registerSearchFindingsTool = (server: McpServer, deps: McpToolDeps): void => {
+export const registerSearchFindingsTool = (
+  server: McpServer,
+  deps: McpToolDeps,
+  actor: string,
+): void => {
   server.registerTool(
     'search_findings',
     {
@@ -82,7 +95,7 @@ export const registerSearchFindingsTool = (server: McpServer, deps: McpToolDeps)
     },
     (input) => {
       const base = linkBase(deps.baseUrl)
-      const { findings, notes } = searchFindings(deps, toFindingQuery(input))
+      const { findings, notes } = searchFindings(deps, toFindingQuery(input), actor)
       const page = {
         offset: input.offset,
         limit: input.limit,
@@ -113,6 +126,7 @@ export const registerSearchFindingsTool = (server: McpServer, deps: McpToolDeps)
       return toolResult({
         total: findings.length,
         ...page,
+        exposureNote: exposureNote(shown.map((finding) => finding.exposure)),
         findings: shown.map((finding) =>
           toFindingRow(finding, versions.get(finding.id) ?? [], base, deps.publicRegistries),
         ),

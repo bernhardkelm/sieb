@@ -82,7 +82,7 @@ defineExpose({ focusSearch })
       :placeholder="placeholder"
       @update:model-value="set('q', $event)"
     />
-    <div class="controls">
+    <div class="controls scroll-row">
       <!-- view controls such as the sort menu, first -->
       <slot />
       <MultiSelectFilter
@@ -108,30 +108,26 @@ defineExpose({ focusSearch })
   </div>
 </template>
 
+<style scoped src="@/components/layout/scrollRow.css"></style>
+
 <style scoped>
 .aggregate-filter-bar {
   display: flex;
+  flex: 1 1 auto;
   flex-wrap: wrap;
   align-items: center;
   gap: var(--space-2);
+  min-width: 0;
 }
 
 .controls {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: var(--space-2);
+  flex: 1 1 0;
 }
 
 @media (max-width: 639px) {
-  .aggregate-filter-bar {
-    flex: 1 1 100%;
-    min-width: 0;
-  }
-
+  .aggregate-filter-bar,
   .controls {
     flex: 1 1 100%;
-    min-width: 0;
   }
 }
 </style>

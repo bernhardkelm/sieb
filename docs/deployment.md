@@ -180,6 +180,24 @@ port then answers `/metrics` with 404 `{ "error": "not_found" }`. It is required
 mode, where leaving it unset keeps `/metrics` on the main port. The metrics listener keeps the
 `Host` exemption of `/metrics`, so Prometheus can scrape it by pod IP.
 
+## Auto-check
+
+Auto-check is off by default. With `SIEB_CHECKS_ENABLED=true`, which needs `SIEB_MCP_ENABLED` and
+`SIEB_PUBLIC_URL`, sieb opens an extra listener on `SIEB_WORKER_PORT` (for example 3101) that
+serves only the worker routes behind `SIEB_WORKER_SECRET`. The worker, `sieb-checker`, is a
+separate Deployment of its own image without cluster access. For sieb itself:
+
+- pass `SIEB_WORKER_SECRET` as an environment variable from a Secret; sieb has no `_FILE`
+  variant, the worker reads the same value from `SIEB_WORKER_SECRET_FILE`;
+- add the worker port to the Service, for example as port `worker` with `targetPort` 3101, and
+  never route it through an Ingress;
+- allow the worker pod on that port in sieb's [NetworkPolicy](#networkpolicy);
+- keep `/mcp` on `SIEB_PUBLIC_URL` reachable from the worker, which files its proposal there.
+
+The worker settings, its security model, the Claude credential and the manifests are in
+[auto-check.md](auto-check.md), the routes and rules in [api.md](api.md#auto-check), and example
+alerts in [prometheus-rules.md](prometheus-rules.md#auto-check-alerts).
+
 ## Kubernetes
 
 Example manifests, adapt namespace, hostname, storage and the labels of your Prometheus and ingress

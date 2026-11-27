@@ -178,6 +178,63 @@ describe('propose_decision', () => {
     ).toContain('imageRefs or all')
   })
 
+  it('tells the model what a missing patch action has to name and stores a given one', async () => {
+    const deps = seededToolDeps()
+    const client = await connect(['sieb:read', 'sieb:propose'], deps)
+    const patch = {
+      vulnId: KEV_CVE,
+      imageRefs: [AUTHENTIK],
+      ...CLAIMS,
+      verdict: 'fix_planned',
+      justification: undefined,
+    }
+    const tool = (await client.listTools()).find(
+      (candidate) => candidate.name === 'propose_decision',
+    )
+    const fix = (tool?.inputSchema.properties?.fix ?? {}) as {
+      properties?: { action?: { description?: string }; layer?: { enum?: string[] } }
+    }
+    const missing = errorText(
+      await client.callTool('propose_decision', { ...patch, fix: { change: 'bump xz' } }),
+    )
+
+    expect(fix.properties?.action?.description).toContain(
+      'required for needs_patch and fix_planned',
+    )
+    expect(fix.properties?.layer?.enum).toEqual([
+      'dependency',
+      'base_image',
+      'image',
+      'platform',
+      'unknown',
+    ])
+    expect(missing).toContain('fix.action: required for needs_patch and fix_planned')
+    expect(missing).toContain(
+      'the closest layer the operator controls that pulls in a published fix',
+    )
+    expect(missing).toContain('"base image: rebuild on <tag or digest> (<package> <version>)"')
+    expect(missing).toContain('never an override of it')
+    expect(missing).toContain('the owner is only a hint')
+    expect(missing).toContain('org.opencontainers.image.base.name')
+    expect(missing).toContain('use fix_planned with a review date')
+    expect(missing).toContain('Manual overrides only as an explicit exception for high risk')
+    expect(
+      (
+        await client.callTool('propose_decision', {
+          ...patch,
+          fix: { action: 'dependency: bump xz to 5.6.2', layer: 'dependency' },
+        })
+      ).isError,
+    ).toBeUndefined()
+    expect(getProposal(deps.db, 1)?.fix).toEqual({
+      action: 'dependency: bump xz to 5.6.2',
+      layer: 'dependency',
+      fixedVersion: null,
+      change: null,
+      effort: null,
+    })
+  })
+
   it('refuses a findingId combined with another target and names an unknown one alone', async () => {
     const client = await connect(['sieb:read', 'sieb:propose'])
 
@@ -202,7 +259,7 @@ describe('propose_decision', () => {
       ...CLAIMS,
       verdict: 'needs_patch',
       justification: undefined,
-      fix: { change: 'bump xz' },
+      fix: { action: 'upgrade xz to 5.6.2', change: 'bump xz' },
     }
 
     for (let call = 0; call < PROPOSE_RATE_LIMIT; call += 1) {
@@ -225,7 +282,7 @@ describe('propose_decision', () => {
       ...CLAIMS,
       verdict: 'needs_patch',
       justification: undefined,
-      fix: { change: 'bump xz' },
+      fix: { action: 'upgrade xz to 5.6.2', change: 'bump xz' },
     }
 
     for (let call = 0; call < PROPOSE_RATE_LIMIT; call += 1) {

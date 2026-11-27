@@ -10,8 +10,10 @@ import { matchesAnyName, withoutImageTag } from '#core/nameMatch.ts'
 import { linkBase } from '#core/siebLinks.ts'
 import { listFindingSummaries } from '#server/db/findingRepository.ts'
 import { listDecisionViews } from '#server/db/findingViews.ts'
+import { isCheckVuln, outsideCheckText } from '#server/mcp/checkScope.ts'
+import type { CheckScope } from '#server/mcp/mcpCaller.ts'
 import type { McpToolDeps } from '#server/mcp/mcpToolDeps.ts'
-import { READ_ONLY_TOOL, toolResult } from '#server/mcp/toolResult.ts'
+import { READ_ONLY_TOOL, toolError, toolResult } from '#server/mcp/toolResult.ts'
 import { decisionSummarySchema, toDecisionSummary } from '#server/mcp/views/decisionSummary.ts'
 
 const MAX_PACKAGES = 5
@@ -83,12 +85,18 @@ const matchesCovered = (
 }
 
 /**
- * Registers list_decisions: earlier verdicts on a CVE, package or image.
+ * Registers list_decisions: earlier verdicts on a CVE, package or image. A check caller only
+ * sees the decisions of its own CVE, its package and image filters narrow those.
  * @param {McpServer} server - MCP server
  * @param {McpToolDeps} deps - Database, clock and link base
+ * @param {CheckScope | null} scope - Check scope of an Auto-check caller, else null
  * @returns {void}
  */
-export const registerListDecisionsTool = (server: McpServer, deps: McpToolDeps): void => {
+export const registerListDecisionsTool = (
+  server: McpServer,
+  deps: McpToolDeps,
+  scope: CheckScope | null = null,
+): void => {
   server.registerTool(
     'list_decisions',
     {
@@ -99,7 +107,12 @@ export const registerListDecisionsTool = (server: McpServer, deps: McpToolDeps):
       outputSchema,
       annotations: READ_ONLY_TOOL,
     },
-    (input) => {
+    (raw) => {
+      if (scope !== null && raw.vulnId !== undefined && !isCheckVuln(scope, raw.vulnId)) {
+        return toolError(outsideCheckText(scope))
+      }
+
+      const input = scope === null ? raw : { ...raw, vulnId: scope.vulnId }
       const now = deps.clock()
       const base = linkBase(deps.baseUrl)
       const byVuln = groupBy(listFindingSummaries(deps.db), (finding) => finding.vulnId)

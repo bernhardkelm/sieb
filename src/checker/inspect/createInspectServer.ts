@@ -1,0 +1,95 @@
+import { McpServer, type ToolAnnotations } from '@modelcontextprotocol/server'
+import { z } from 'zod'
+
+import { OBJDUMP_MODES, READELF_MODES, SYMBOL_PATTERN } from '#checker/inspect/inspectArgs.ts'
+import type { InspectHandlers } from '#checker/inspect/inspectHandlers.ts'
+
+/** Name of the inspect server in the MCP config, its tools are mcp__inspect__<tool> */
+export const INSPECT_SERVER_NAME = 'inspect'
+
+const READ_ONLY: ToolAnnotations = { readOnlyHint: true, openWorldHint: false }
+const path = z
+  .string()
+  .min(1)
+  .max(4096)
+  .describe('file in the workspace, relative to it (for example image/usr/bin/curl) or absolute')
+
+/**
+ * Creates the inspect MCP server: read-only binary and archive inspection on workspace files.
+ * @param {InspectHandlers} handlers - Tool handlers bound to the workspace
+ * @returns {McpServer} - Server, connected to stdio by the entry point
+ */
+export const createInspectServer = (handlers: InspectHandlers): McpServer => {
+  const server = new McpServer({ name: INSPECT_SERVER_NAME, version: '1.0.0' })
+  const tool = { annotations: READ_ONLY }
+
+  server.registerTool(
+    'strings',
+    {
+      ...tool,
+      title: 'Printable strings',
+      description:
+        'Runs strings -a on a file: printable strings of at least minLength characters, optionally only lines containing pattern (plain text, or an extended regular expression with regex true).',
+      inputSchema: z.object({
+        path,
+        minLength: z.number().int().min(3).max(64).optional().describe('default 6'),
+        pattern: z.string().min(1).max(200).optional(),
+        regex: z.boolean().optional(),
+        ignoreCase: z.boolean().optional(),
+      }),
+    },
+    (input) => handlers.strings(input),
+  )
+  server.registerTool(
+    'readelf',
+    {
+      ...tool,
+      title: 'ELF details',
+      description:
+        'Runs readelf on an ELF file in one view: header, sections, segments, dynamic (NEEDED libraries, RPATH), symbols, dynamic_symbols, notes (build id, ABI) or versions.',
+      inputSchema: z.object({
+        path,
+        mode: z.enum(Object.keys(READELF_MODES) as [keyof typeof READELF_MODES]),
+      }),
+    },
+    (input) => handlers.readelf(input),
+  )
+  server.registerTool(
+    'objdump',
+    {
+      ...tool,
+      title: 'Object file details',
+      description:
+        'Runs objdump on an object file: private_headers, section_headers, or disassemble_symbol with a symbol name to check whether and how a function is compiled in.',
+      inputSchema: z.object({
+        path,
+        mode: z.enum(OBJDUMP_MODES),
+        symbol: z.string().regex(SYMBOL_PATTERN).optional(),
+      }),
+    },
+    (input) => handlers.objdump(input),
+  )
+  server.registerTool(
+    'unzip_list',
+    {
+      ...tool,
+      title: 'Archive listing',
+      description: 'Lists the entries of a zip, jar, war or wheel archive without extracting it.',
+      inputSchema: z.object({ path }),
+    },
+    (input) => handlers.unzip_list(input),
+  )
+  server.registerTool(
+    'jq',
+    {
+      ...tool,
+      title: 'JSON query',
+      description:
+        'Runs a jq filter on a .json file of the workspace, for example inventory.json or image-config.json.',
+      inputSchema: z.object({ path, filter: z.string().min(1).max(500) }),
+    },
+    (input) => handlers.jq(input),
+  )
+
+  return server
+}

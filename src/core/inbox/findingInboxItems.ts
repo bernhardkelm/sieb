@@ -1,5 +1,5 @@
-import type { InboxItem, InboxKind } from '#core/inbox/inboxItem.ts'
 import type { FindingView } from '#core/findingView.ts'
+import type { InboxItem, InboxKind } from '#core/inbox/inboxItem.ts'
 
 /** Finding fields that decide which Inbox items concern it */
 export type InboxFindingTarget = Pick<FindingView, 'id' | 'vulnId' | 'imageRef'> & {

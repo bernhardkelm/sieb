@@ -2,14 +2,18 @@ import type { McpServer } from '@modelcontextprotocol/server'
 import { z } from 'zod'
 
 import { EXPOSURES } from '#core/exposure.ts'
+import { exposureNote } from '#core/exposureMeaning.ts'
 import { aggregateImages } from '#core/imageAggregation.ts'
 import { withoutImageTag } from '#core/nameMatch.ts'
 import { SEVERITIES } from '#core/severity.ts'
 import { imageUrl, linkBase } from '#core/siebLinks.ts'
 import { listFindingViews } from '#server/db/findingViews.ts'
 import { listCurrentVersions } from '#server/db/findingVersions.ts'
+import { isCheckImage, outsideCheckText } from '#server/mcp/checkScope.ts'
+import type { CheckScope } from '#server/mcp/mcpCaller.ts'
 import type { McpToolDeps } from '#server/mcp/mcpToolDeps.ts'
 import { READ_ONLY_TOOL, toolError, toolResult } from '#server/mcp/toolResult.ts'
+import { exposureNoteSchema } from '#server/mcp/views/exposureNote.ts'
 import { findingRowSchema, toFindingRow } from '#server/mcp/views/findingRow.ts'
 import { lastSyncSchema, readLastSync } from '#server/mcp/views/lastSync.ts'
 
@@ -34,6 +38,7 @@ const outputSchema = z.object({
     .array(findingRowSchema)
     .describe(`open findings in inbox order, at most ${MAX_FINDINGS}`),
   totalOpen: z.number().int().describe('open findings including not affected ones'),
+  exposureNote: exposureNoteSchema,
   lastSync: lastSyncSchema,
 })
 
@@ -47,23 +52,33 @@ const inputSchema = z.object({
 })
 
 /**
- * Registers get_image: one image's risk counts plus its open findings.
+ * Registers get_image: one image's risk counts plus its open findings. A check caller may only
+ * read its own image.
  * @param {McpServer} server - MCP server
  * @param {McpToolDeps} deps - Database, clock and link base
+ * @param {CheckScope | null} scope - Check scope of an Auto-check caller, else null
  * @returns {void}
  */
-export const registerGetImageTool = (server: McpServer, deps: McpToolDeps): void => {
+export const registerGetImageTool = (
+  server: McpServer,
+  deps: McpToolDeps,
+  scope: CheckScope | null = null,
+): void => {
   server.registerTool(
     'get_image',
     {
       title: 'Get an image',
       description:
-        'Reads one image: owner, exposure, risk counts by severity, KEV, inbox, not affected and accepted counts, workloads, and its open findings in inbox order.',
+        'Reads one image: owner, exposure with what its tiers mean, risk counts by severity, KEV, inbox, not affected and accepted counts, workloads, and its open findings in inbox order.',
       inputSchema,
       outputSchema,
       annotations: READ_ONLY_TOOL,
     },
     ({ imageRef }) => {
+      if (scope !== null && !isCheckImage(scope, imageRef)) {
+        return toolError(outsideCheckText(scope))
+      }
+
       const wanted = withoutImageTag(imageRef).toLowerCase()
       const findings = listFindingViews(deps.db, deps.clock(), { includeResolved: false }).filter(
         (finding) => finding.imageRef.toLowerCase() === wanted,
@@ -102,6 +117,7 @@ export const registerGetImageTool = (server: McpServer, deps: McpToolDeps): void
           toFindingRow(finding, versions.get(finding.id) ?? [], base, deps.publicRegistries),
         ),
         totalOpen: findings.length,
+        exposureNote: exposureNote(findings.map((finding) => finding.exposure)),
         lastSync: readLastSync(deps.db),
       })
     },

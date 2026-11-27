@@ -10,6 +10,7 @@ import OwnerBadge from '@/components/chips/OwnerBadge.vue'
 import SeverityChip from '@/components/chips/SeverityChip.vue'
 import SourceAccessBadge from '@/components/chips/SourceAccessBadge.vue'
 import RelativeTime from '@/components/common/RelativeTime.vue'
+import ExposureMeaning from '@/components/finding/ExposureMeaning.vue'
 import { vulnLinks } from '#core/vulnLinks.ts'
 import { useLabelsStore } from '@/stores/labelsStore'
 
@@ -44,6 +45,7 @@ const links = computed(() =>
       <span class="score">{{ finding.score === null ? 'no score' : `CVSS ${finding.score}` }}</span>
       <BaseChip v-if="finding.resolvedAt !== null" outline>resolved</BaseChip>
     </div>
+    <ExposureMeaning v-if="labels.showExposure" :exposure="finding.exposure" />
     <p class="image mono">{{ finding.imageRef }}</p>
     <dl class="times">
       <div>

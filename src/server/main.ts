@@ -2,6 +2,7 @@ import { serve } from '@hono/node-server'
 
 import { readAppVersion } from '#server/appVersion.ts'
 import { startAuthCleanup } from '#server/auth/authCleanup.ts'
+import { startChecks } from '#server/checks/startChecks.ts'
 import { systemClock } from '#server/clock.ts'
 import { readConfig } from '#server/config.ts'
 import { readKevCatalogIds } from '#server/db/kevCatalogRepository.ts'
@@ -18,7 +19,8 @@ import { createSyncService } from '#server/sync/syncService.ts'
 /**
  * Opens the database, starts the sync scheduler, the KEV catalog refreshes and the HTTP server
  * with the configuration from the environment, plus the /metrics listener with
- * SIEB_METRICS_PORT and the session and token cleanup, seeds synthetic stats history after
+ * SIEB_METRICS_PORT, the /worker listener and timeout sweep with SIEB_CHECKS_ENABLED and the
+ * session and token cleanup, seeds synthetic stats history after
  * the first mock sync, and shuts all of it down on SIGINT and SIGTERM.
  * @returns {void}
  */
@@ -28,6 +30,7 @@ const main = (): void => {
   const db = openDatabase(config.dbPath)
   const source = createSource(config, clock, () => readKevCatalogIds(db))
   const sync = createSyncService({ db, source, clock })
+  const checks = startChecks({ config, db, clock })
   const app = createApp({
     source: config.source,
     kevSource: config.kevSource,
@@ -48,6 +51,7 @@ const main = (): void => {
     metricsOnMainPort: config.metricsPort === null,
     publicRegistries: config.publicRegistries,
     sourceCodeUrl: config.sourceCodeUrl,
+    checks: checks?.context ?? null,
   })
 
   const server = serve({ fetch: app.fetch, hostname: config.host, port: config.port }, (info) => {
@@ -68,6 +72,7 @@ const main = (): void => {
               clock,
               kevSource: config.kevSource,
               allowedHosts: config.allowedHosts,
+              checks: checks?.context ?? null,
             }).fetch,
             hostname: config.host,
             port: config.metricsPort,
@@ -115,6 +120,7 @@ const main = (): void => {
     scheduler.stop()
     kevCatalog?.stop()
     authCleanup.stop()
+    checks?.stop()
     metricsServer?.close()
     server.close(() => {
       db.close()

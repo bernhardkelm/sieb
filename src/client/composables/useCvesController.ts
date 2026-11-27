@@ -2,18 +2,17 @@ import { computed, onMounted, ref, type ComputedRef, type Ref } from 'vue'
 
 import type { CveAggregate } from '#core/cveAggregation.ts'
 import type { FindingView } from '#core/findingView.ts'
-import { groupBy } from '#core/groupBy.ts'
 import { countHiddenCves, filterCves } from '@/components/cves/cveFilters'
 import { CVE_SORT_COLUMNS, sortCves, type CveSortColumn } from '@/components/cves/cveSort'
-import { summarizeDecisions } from '@/components/cves/decisionSummary'
-import type { BulkTarget } from '@/components/decision/bulkTargets'
 import {
   emptyAggregateFilters,
   withoutHiddenAggregateColumns,
   type AggregateFilters,
 } from '@/components/filters/aggregateFilters'
 import { useCursorList } from '@/composables/useCursorList'
+import { useCveDecisionDialogs, type CveDecisionDialogs } from '@/composables/useCveDecisionDialogs'
 import { useCveHintActions } from '@/composables/useCveHintActions'
+import { useCveOpenFindings } from '@/composables/useCveOpenFindings'
 import { useExpandedGroup } from '@/composables/useExpandedGroup'
 import { useLabelColumns } from '@/composables/useLabelColumns'
 import { useListSort, type ListSort } from '@/composables/useListSort'
@@ -22,7 +21,7 @@ import { CVE_QUERY } from '@/router/routeNames'
 import { useCvesStore } from '@/stores/cvesStore'
 import { useFindingsStore } from '@/stores/findingsStore'
 
-export interface CvesController {
+export interface CvesController extends Omit<CveDecisionDialogs, 'anyOpen'> {
   filters: Ref<AggregateFilters>
   cves: ComputedRef<CveAggregate[]>
   hiddenCount: ComputedRef<number>
@@ -32,13 +31,7 @@ export interface CvesController {
   expandedFindings: ComputedRef<FindingView[]>
   summaries: ComputedRef<Map<string, string>>
   currentKey: Ref<string | null>
-  bulkOpen: Ref<boolean>
-  bulkTargets: Ref<BulkTarget[]>
-  decideOpen: Ref<boolean>
-  decideCve: Ref<CveAggregate | null>
   select: (key: string) => void
-  openBulk: (vulnId: string) => void
-  openDecideAll: (vulnId: string) => void
 }
 
 /**
@@ -54,10 +47,8 @@ export const useCvesController = (focusSearch: () => void): CvesController => {
   const store = useCvesStore()
   const findings = useFindingsStore()
   const filters = ref(emptyAggregateFilters())
-  const bulkOpen = ref(false)
-  const bulkTargets = ref<BulkTarget[]>([])
-  const decideOpen = ref(false)
-  const decideCve = ref<CveAggregate | null>(null)
+  const dialogs = useCveDecisionDialogs(() => store.items)
+  const { openBulk, openDecideAll } = dialogs
 
   const { hidden } = useLabelColumns()
   const applied = computed(() => withoutHiddenAggregateColumns(filters.value, hidden.value))
@@ -66,16 +57,7 @@ export const useCvesController = (focusSearch: () => void): CvesController => {
 
   const cves = computed(() => sortCves(filterCves(store.items, applied.value), sort.sort.value))
   const hiddenCount = computed(() => countHiddenCves(store.items, applied.value))
-  const openByCve = computed(() =>
-    groupBy(
-      findings.items.filter((finding) => finding.resolvedAt === null),
-      (finding) => finding.vulnId,
-    ),
-  )
-  const summaries = computed(
-    () =>
-      new Map([...openByCve.value].map(([vulnId, group]) => [vulnId, summarizeDecisions(group)])),
-  )
+  const { openByCve, summaries } = useCveOpenFindings()
   const expanded = useExpandedGroup(CVE_QUERY)
   const expandedFindings = computed(() =>
     expanded.value.value === null ? [] : (openByCve.value.get(expanded.value.value) ?? []),
@@ -102,33 +84,13 @@ export const useCvesController = (focusSearch: () => void): CvesController => {
       : (findings.items.find((finding) => finding.id === id)?.vulnId ?? null)
   }
 
-  /**
-   * Opens the bulk dialog for every open image of a CVE.
-   * @param {string} vulnId - Vuln id
-   * @returns {void}
-   */
-  const openBulk = (vulnId: string): void => {
-    bulkTargets.value = [{ vulnId, imageRefs: 'all-open' }]
-    bulkOpen.value = true
-  }
-
-  /**
-   * Opens the dialog deciding a CVE for all images, including images that show up later.
-   * @param {string} vulnId - Vuln id
-   * @returns {void}
-   */
-  const openDecideAll = (vulnId: string): void => {
-    decideCve.value = store.items.find((cve) => cve.vulnId === vulnId) ?? null
-    decideOpen.value = decideCve.value !== null
-  }
-
   const cursor = useCursorList({
     keys,
     activateGroup: expanded.toggle,
     close: () => expanded.collapse(cursor.focusKey),
     expanded: () => expanded.value.value,
     focusSearch,
-    paused: () => bulkOpen.value || decideOpen.value,
+    paused: dialogs.anyOpen,
     viewKey: (event, _scope, currentKey) => {
       const vulnId = vulnIdOf(currentKey)
 
@@ -184,10 +146,10 @@ export const useCvesController = (focusSearch: () => void): CvesController => {
     expandedFindings,
     summaries,
     currentKey: cursor.currentKey,
-    bulkOpen,
-    bulkTargets,
-    decideOpen,
-    decideCve,
+    bulkOpen: dialogs.bulkOpen,
+    bulkTargets: dialogs.bulkTargets,
+    decideOpen: dialogs.decideOpen,
+    decideCve: dialogs.decideCve,
     select: cursor.select,
     openBulk,
     openDecideAll,

@@ -2,6 +2,7 @@ import type { ValidationIssue } from '#core/apiTypes.ts'
 import { DECISION_SCOPES, type DecisionJustification, type DecisionScope } from '#core/decision.ts'
 import { readJustification } from '#core/decisionFieldReaders.ts'
 import type { DecisionInputError } from '#core/decisionInputError.ts'
+import { isPatchVerdict } from '#core/patchAction.ts'
 import {
   EVIDENCE_BASES,
   PROPOSAL_CONFIDENCES,
@@ -90,7 +91,8 @@ const readProposalJustification = (
 /**
  * Validates a proposal: target, verdict with its justification, the structured claims with
  * their caps, references as http(s) URLs and a non-empty evidence basis. Free text loses
- * control and bidirectional formatting characters; needs_patch needs a fix change.
+ * control and bidirectional formatting characters; needs_patch and fix_planned need a patch
+ * action.
  * @param {RawInput} raw - Raw input
  * @param {Date} now - Current time, for the review date
  * @returns {ProposalValidated<ProposalInput>} - Validated input or the list of errors
@@ -132,11 +134,12 @@ export const validateProposalInput = (
   }
 
   if (
-    verdict === 'needs_patch' &&
-    (fix === null || fix.change === null) &&
-    !errors.some((e) => e.field === 'fix.change')
+    verdict !== null &&
+    isPatchVerdict(verdict) &&
+    (fix === null || fix.action === null) &&
+    !errors.some((e) => e.field === 'fix.action')
   ) {
-    errors.push({ field: 'fix.change', code: 'required' })
+    errors.push({ field: 'fix.action', code: 'required' })
   }
 
   const input = {

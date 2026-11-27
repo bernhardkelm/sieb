@@ -1,7 +1,9 @@
 // @vitest-environment node
 import { describe, expect, it } from 'vitest'
 
-import { insertToken, listOwnTokens } from '#server/db/apiTokenRepository.ts'
+import { listOwnTokens } from '#server/db/apiTokenRepository.ts'
+import { REFUSED_REQUESTER_ERROR } from '#server/db/failChecksOf.ts'
+import { insertToken } from '#server/db/storeApiToken.ts'
 import { hashSessionId } from '#server/db/sessionRepository.ts'
 
 import { IDP_CLIENT_ID } from './fakeOidcProvider.ts'
@@ -289,6 +291,10 @@ describe('GET /auth/callback', () => {
       },
       new Date(test.now.ms),
     )
+    test.deps.db.exec(
+      `INSERT INTO checks (finding_id, vuln_id, image_ref, requested_by, created_at)
+       VALUES (1, 'CVE-1', 'img/a', 'mallory', 't')`,
+    )
     test.idp.claims = { preferred_username: 'mallory', groups: ['sieb-users'] }
     const { session: before } = await logIn(test)
     const tokensBefore = await send(test.app, '/api/tokens', { headers: sessionHeaders(before) })
@@ -311,6 +317,10 @@ describe('GET /auth/callback', () => {
       '[sieb] ended 1 sessions and revoked 1 api tokens of mallory, not in the required group',
     )
     expect(listOwnTokens(test.deps.db, 'mallory')[0]).toMatchObject({ revokedBy: 'sieb' })
+    expect(test.deps.db.prepare('SELECT state, error FROM checks').get()).toEqual({
+      state: 'failed',
+      error: REFUSED_REQUESTER_ERROR,
+    })
     expect(admitted.status).toBe(302)
   })
 

@@ -12,12 +12,8 @@ import {
   hashTokenSecret,
   isTokenSecret,
 } from '#server/auth/tokenSecrets.ts'
-import {
-  findTokenByHash,
-  insertToken,
-  listOwnTokens,
-  revokeOwnToken,
-} from '#server/db/apiTokenRepository.ts'
+import { findTokenByHash, listOwnTokens, revokeOwnToken } from '#server/db/apiTokenRepository.ts'
+import { insertToken } from '#server/db/storeApiToken.ts'
 import { MEMORY_DB, openDatabase } from '#server/db/openDatabase.ts'
 
 const NOW = new Date('2026-06-01T12:00:00.000Z')
@@ -108,7 +104,7 @@ describe('personal token verifier', () => {
       scopes: ['sieb:read', 'sieb:propose'],
       expiresAt: Date.parse('2026-07-01T00:00:00.000Z') / 1000,
       resource: RESOURCE,
-      extra: { actor: 'alice', via: 'token', tokenId: id, clientLabel: 'laptop' },
+      extra: { actor: 'alice', via: 'token', tokenId: id, clientLabel: 'laptop', check: null },
     })
     expect(listOwnTokens(db, 'alice')[0]?.lastUsedAt).toBe(NOW.toISOString())
 

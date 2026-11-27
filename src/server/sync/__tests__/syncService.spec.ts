@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest'
 
 import { createDecision } from '#server/db/createDecision.ts'
 import { listDecisionEvents } from '#server/db/decisionEventRepository.ts'
-import { countOpenFindings } from '#server/db/findingRepository.ts'
+import { listOpenFindings } from '#server/db/findingRepository.ts'
 import { MEMORY_DB, openDatabase } from '#server/db/openDatabase.ts'
 import { startSyncRun } from '#server/db/syncRunRepository.ts'
 import { createSyncService } from '#server/sync/syncService.ts'
@@ -32,7 +32,7 @@ describe('createSyncService', () => {
       error: 'kubectl timed out',
       counts: null,
     })
-    expect(countOpenFindings(db)).toBe(1)
+    expect(listOpenFindings(db).length).toBe(1)
     expect(sync.latestRun()?.id).toBe(2)
   })
 
@@ -146,7 +146,7 @@ describe('createSyncService', () => {
       BEGIN SELECT RAISE(ABORT, 'disk full'); END`)
 
     expect(await sync.syncNow()).toMatchObject({ status: 'failed', error: 'disk full' })
-    expect(countOpenFindings(db)).toBe(0)
+    expect(listOpenFindings(db).length).toBe(0)
     expect(lines.some((line) => line.includes('failed: disk full'))).toBe(true)
   })
 

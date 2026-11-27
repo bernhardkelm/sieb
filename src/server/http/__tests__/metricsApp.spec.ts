@@ -5,6 +5,7 @@ import { join } from 'node:path'
 
 import { afterAll, describe, expect, it } from 'vitest'
 
+import { checkFixture } from '#server/checks/__tests__/checkFixtures.ts'
 import { createApp } from '#server/http/createApp.ts'
 import { createMetricsApp } from '#server/http/metricsApp.ts'
 
@@ -31,6 +32,28 @@ describe('createMetricsApp', () => {
     expect(await metrics.text()).toContain('sieb_')
     expect(api.status).toBe(404)
     expect(foreign.status).toBe(403)
+  })
+})
+
+describe('Auto-check series', () => {
+  it('adds the worker gauge only with a check context, on both listeners', async () => {
+    const { db, context } = checkFixture()
+    const { kevSource } = testAppDeps()
+    const { clock } = context
+    const off = await createMetricsApp({ db, clock, kevSource }).request('/metrics')
+    const offText = await off.text()
+
+    expect(offText).toContain('sieb_checks_open{state="queued"} 0\n')
+    expect(offText).not.toContain('sieb_check_worker_online')
+
+    const separate = createMetricsApp({ db, clock, kevSource, checks: context })
+    const main = createApp(testAppDeps({ db, clock, checks: context }))
+
+    expect(await (await separate.request('/metrics')).text()).toContain(
+      'sieb_check_worker_online 0\n',
+    )
+    context.presence.seen(context.clock())
+    expect(await (await main.request('/metrics')).text()).toContain('sieb_check_worker_online 1\n')
   })
 })
 

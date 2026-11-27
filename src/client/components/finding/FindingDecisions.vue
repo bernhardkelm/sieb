@@ -66,7 +66,11 @@ const { revokeTarget, revoking, reconfirming } = cards
     <p v-if="draftDirty" class="paused">
       Unsaved draft: j, k and Esc wait until you save or cancel.
     </p>
-    <BaseButton v-else-if="!imageDecision" class="add" @click="mode = { kind: 'create' }">
+    <BaseButton
+      v-else-if="!imageDecision && !showForm"
+      class="add"
+      @click="mode = { kind: 'create' }"
+    >
       Decide for this image only
     </BaseButton>
     <RevokeDialog

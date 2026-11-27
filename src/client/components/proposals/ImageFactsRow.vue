@@ -26,7 +26,7 @@ defineProps<{
     <div class="chips">
       <SeverityChip v-if="image.severity" :severity="image.severity" :score="image.score" />
       <KevChip v-if="image.kev" />
-      <ExposureChip v-if="image.exposure" :exposure="image.exposure" />
+      <ExposureChip v-if="image.exposure" :exposure="image.exposure" focusable />
       <SourceAccessBadge :access="image.sourceAccess" />
       <BaseChip v-if="!image.open" outline>resolved</BaseChip>
     </div>

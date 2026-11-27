@@ -24,6 +24,7 @@ export interface InboxProposal {
   createdAt: string
   verdict: ProposalVerdict
   confidence: ProposalConfidence
+  patchAction: string | null // only for needs_patch and fix_planned
 }
 
 /** Open finding as the Inbox needs it */
@@ -50,6 +51,7 @@ export interface ProposalInboxItem extends InboxItemBase {
   imageRefs: string[] | null // target images, null targets every affected image
   verdict: ProposalVerdict
   confidence: ProposalConfidence
+  patchAction: string | null // only for needs_patch and fix_planned
   imageCount: number // open findings the proposal covers
 }
 

@@ -43,6 +43,7 @@ export const inboxProposal = (overrides: Partial<InboxProposal> = {}): InboxProp
   createdAt: fromNow(-DAY_MS),
   verdict: 'not_affected',
   confidence: 'high',
+  patchAction: null,
   ...overrides,
 })
 

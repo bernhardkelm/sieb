@@ -43,6 +43,30 @@ describe('proposal lifecycle', () => {
     ).toMatchObject({ ok: true })
   })
 
+  it('reads a fix stored before the patch action existed as one without an action', () => {
+    const db = seededDatabase(NOW)
+    const id = insertProposal(db, {
+      ...buildProposalInput({ verdict: 'needs_patch', justification: null }),
+      ...PROPOSER,
+      sourceAccess: [],
+      basisDecisions: [],
+      createdAt: NOW.toISOString(),
+    })
+
+    db.prepare('UPDATE decision_proposals SET fix = ? WHERE id = ?').run(
+      JSON.stringify({ fixedVersion: '1.2', change: 'bump nginx', effort: null }),
+      id,
+    )
+
+    expect(getProposal(db, id)?.fix).toEqual({
+      action: null,
+      layer: null,
+      fixedVersion: '1.2',
+      change: 'bump nginx',
+      effort: null,
+    })
+  })
+
   it('supersedes proposals whose findings all resolved in a sync', () => {
     const db = seededDatabase(NOW)
     const proposal = (imageRefs: string[] | null): number => {

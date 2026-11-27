@@ -1,0 +1,83 @@
+# syntax=docker/dockerfile:1
+# sieb-checker: the Auto-check worker. At runtime it needs only the MCP server SDK and zod for
+# the inspect server, the rest is Node built-ins.
+
+# node:26.13.0-alpine3.24, pinned by its multi-platform index digest
+ARG NODE_IMAGE=node:26.13.0-alpine3.24@sha256:8996bb5821d62a8fd9bb27c1cb07462f3fdce6e47d640c6a881ead0b064ce216
+
+# pure JavaScript packages, installed once on the build platform from the lockfile
+FROM --platform=$BUILDPLATFORM ${NODE_IMAGE} AS deps
+WORKDIR /app
+COPY package.json package-lock.json ./
+RUN npm ci --omit=dev --ignore-scripts
+
+# downloads run on the build platform, TARGETARCH picks the binaries of the target platform
+FROM --platform=$BUILDPLATFORM ${NODE_IMAGE} AS tools
+ARG TARGETARCH
+ARG CRANE_VERSION=0.22.1
+ARG CRANE_SHA256_AMD64=0ab7a1d6932a213aed964ce97666c3077fe691c8606413674a8b3e0b9ec4cda0
+ARG CRANE_SHA256_ARM64=898c0cff975f898a33e8c4580bdafb0e7c02c7faa33374e946762f97c4ab7110
+ARG SYFT_VERSION=1.57.2
+ARG SYFT_SHA256_AMD64=ad92bd3ec1b94a3df01d4d0aec199afa9c42b72e86da436ff5f837914d32706b
+ARG SYFT_SHA256_ARM64=8efe605309c98798e1ee0cffdcf8c05ca26819b4cd44c0b03650f1e963e9bdb6
+# dist.integrity of @anthropic-ai/claude-code-linux-<arch>-musl in the npm registry
+ARG CLAUDE_CODE_VERSION=2.1.326
+ARG CLAUDE_CODE_INTEGRITY_AMD64=sha512-Gnd/9lghe4q2CX9mzPgz8db9GngP6KHx/q1V6wepDM2CG1pQSwgrvzrs8M5Z8KmbSrun1Fgd1d6InedeZeMZ/w==
+ARG CLAUDE_CODE_INTEGRITY_ARM64=sha512-IB793mtG7aA1m4WxwQabigUD4sHDEcXu9lRltZITLQCPzBdGFlWINxdSCnk9TVWAv0Bb5eyirxyPI9WMER0wiA==
+RUN set -eu; \
+    case "$TARGETARCH" in \
+      amd64) crane_arch=x86_64; claude_arch=x64; crane_sha256=$CRANE_SHA256_AMD64; \
+        syft_sha256=$SYFT_SHA256_AMD64; claude_integrity=$CLAUDE_CODE_INTEGRITY_AMD64 ;; \
+      arm64) crane_arch=arm64; claude_arch=arm64; crane_sha256=$CRANE_SHA256_ARM64; \
+        syft_sha256=$SYFT_SHA256_ARM64; claude_integrity=$CLAUDE_CODE_INTEGRITY_ARM64 ;; \
+      *) echo "unsupported TARGETARCH $TARGETARCH" >&2; exit 1 ;; \
+    esac; \
+    wget -qO /tmp/crane.tar.gz \
+      "https://github.com/google/go-containerregistry/releases/download/v${CRANE_VERSION}/go-containerregistry_Linux_${crane_arch}.tar.gz"; \
+    echo "${crane_sha256}  /tmp/crane.tar.gz" | sha256sum -c -; \
+    wget -qO /tmp/syft.tar.gz \
+      "https://github.com/anchore/syft/releases/download/v${SYFT_VERSION}/syft_${SYFT_VERSION}_linux_${TARGETARCH}.tar.gz"; \
+    echo "${syft_sha256}  /tmp/syft.tar.gz" | sha256sum -c -; \
+    wget -qO /tmp/claude.tgz \
+      "https://registry.npmjs.org/@anthropic-ai/claude-code-linux-${claude_arch}-musl/-/claude-code-linux-${claude_arch}-musl-${CLAUDE_CODE_VERSION}.tgz"; \
+    actual="$(node -e 'const { createHash } = require("node:crypto"); \
+      const data = require("node:fs").readFileSync("/tmp/claude.tgz"); \
+      process.stdout.write(`sha512-${createHash("sha512").update(data).digest("base64")}`)')"; \
+    if [ "$actual" != "$claude_integrity" ]; then \
+      echo "Claude Code tarball integrity mismatch: $actual" >&2; exit 1; \
+    fi; \
+    mkdir /out; \
+    tar -xzf /tmp/crane.tar.gz -C /out crane; \
+    tar -xzf /tmp/syft.tar.gz -C /out syft; \
+    tar -xzf /tmp/claude.tgz -C /tmp package/claude; \
+    mv /tmp/package/claude /out/claude
+
+FROM ${NODE_IMAGE}
+# fuzzy pins (~) hold the upstream version and admit Alpine's security rebuilds (-rN), a new
+# upstream version fails the build until it is bumped here; ca-certificates follows the branch.
+# bash is required by Claude Code on Alpine, tar is GNU tar for the extraction flags, binutils,
+# jq and unzip back the inspect tools, tini reaps the orphans of killed process groups
+RUN apk add --no-cache \
+      bash~5.3.9 \
+      binutils~2.45.1 \
+      ca-certificates \
+      file~5.47 \
+      git~2.54.1 \
+      jq~1.8.2 \
+      tar~1.35 \
+      tini~0.19.0 \
+      unzip~6.0
+COPY --from=tools /out/crane /out/syft /out/claude /usr/local/bin/
+ENV NODE_ENV=production \
+    SIEB_CHECKER_WORKDIR=/work
+WORKDIR /app
+COPY package.json ./
+COPY --from=deps /app/node_modules/@modelcontextprotocol ./node_modules/@modelcontextprotocol
+COPY --from=deps /app/node_modules/zod ./node_modules/zod
+# all of core: the worker imports its shared limits and validators as values
+COPY src/core ./src/core
+COPY src/checker ./src/checker
+RUN mkdir /work && chown node:node /work
+VOLUME /work
+USER node
+ENTRYPOINT ["/sbin/tini", "--", "node", "src/checker/main.ts"]

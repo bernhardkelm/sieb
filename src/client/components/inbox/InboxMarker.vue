@@ -3,7 +3,7 @@ import { computed } from 'vue'
 import { RouterLink } from 'vue-router'
 
 import HintTooltip from '@/components/common/HintTooltip.vue'
-import type { InboxFindingTarget } from '@/components/inbox/findingInboxItems'
+import type { InboxFindingTarget } from '#core/inbox/findingInboxItems.ts'
 import { inboxItemRoute } from '@/components/inbox/inboxItems'
 import { useNow } from '@/composables/useNow'
 import { inboxMarkerHint, inboxMarkerLabel } from '@/format/inboxMarkerText'

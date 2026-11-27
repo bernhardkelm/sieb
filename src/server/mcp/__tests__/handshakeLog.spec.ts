@@ -71,6 +71,7 @@ describe('handshakeLogLine', () => {
           tokenId: 3,
           clientLabel: 'laptop',
           scopes: ['sieb:read'],
+          check: null,
         },
         { method: 'initialize', clientName: 'claude-code\nforged' },
       ),
@@ -79,7 +80,14 @@ describe('handshakeLogLine', () => {
     )
     expect(
       handshakeLogLine(
-        { actor: 'alice', via: 'oauth', tokenId: null, clientLabel: 'claude.ai', scopes: [] },
+        {
+          actor: 'alice',
+          via: 'oauth',
+          tokenId: null,
+          clientLabel: 'claude.ai',
+          scopes: [],
+          check: null,
+        },
         { method: 'server/discover', clientName: null },
       ),
     ).toBe('[sieb] MCP server/discover by alice via oauth (claude.ai), scopes none')

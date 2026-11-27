@@ -121,7 +121,13 @@ export const createJwtVerifier =
       throw new OAuthError(OAuthErrorCode.InsufficientScope, 'Caller is not in the required group')
     }
 
-    const extra: Omit<McpCaller, 'scopes'> = { actor, via: 'oauth', tokenId: null, clientLabel }
+    const extra: Omit<McpCaller, 'scopes'> = {
+      actor,
+      via: 'oauth',
+      tokenId: null,
+      clientLabel,
+      check: null,
+    }
 
     return {
       token,

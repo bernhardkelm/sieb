@@ -6,6 +6,14 @@ export type McpScope = (typeof MCP_SCOPES)[number]
 /** How a caller authenticated: a personal sieb token or an authentik OAuth access token */
 export type McpAuthVia = 'token' | 'oauth'
 
+/** The running Auto-check a check token is bound to: its finding, CVE and image */
+export interface CheckScope {
+  checkId: number
+  findingId: number
+  vulnId: string
+  imageRef: string // stored image ref of the finding, without tag
+}
+
 /** Authenticated caller of an MCP request, built from the bearer token's AuthInfo */
 export interface McpCaller {
   actor: string // sieb username the caller acts for, token owner or preferred_username
@@ -13,6 +21,7 @@ export interface McpCaller {
   tokenId: number | null // personal token id, null for OAuth
   clientLabel: string // token name or the configured OAuth client label
   scopes: McpScope[]
+  check: CheckScope | null // set for the token of a running Auto-check, which reaches only that check
 }
 
 /**

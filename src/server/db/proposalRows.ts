@@ -64,6 +64,25 @@ const parsed = <T>(text: string): T => JSON.parse(text) as T
 const parsedOrNull = <T>(text: string | null): T | null => (text === null ? null : parsed<T>(text))
 
 /**
+ * Parses the fix column, a fix stored before the patch action existed reads as without one.
+ * @param {string | null} text - Column value
+ * @returns {ProposalFix | null} - Fix, null for NULL
+ */
+const storedFix = (text: string | null): ProposalFix | null => {
+  const fix = parsedOrNull<Partial<ProposalFix>>(text)
+
+  return fix === null
+    ? null
+    : {
+        action: fix.action ?? null,
+        layer: fix.layer ?? null,
+        fixedVersion: fix.fixedVersion ?? null,
+        change: fix.change ?? null,
+        effort: fix.effort ?? null,
+      }
+}
+
+/**
  * Maps a decision_proposals row to the domain type, the CHECK constraints guarantee the literals.
  * @param {ProposalRow} row - Row
  * @returns {Proposal} - Proposal
@@ -81,7 +100,7 @@ export const toProposal = (row: ProposalRow): Proposal => ({
   reachability: row.reachability,
   exposure: row.exposure,
   evidence: parsed<ProposalEvidence[]>(row.evidence),
-  fix: parsedOrNull<ProposalFix>(row.fix),
+  fix: storedFix(row.fix),
   review: parsedOrNull<ProposalReview>(row.review),
   unknowns: parsed<string[]>(row.unknowns),
   references: parsed<string[]>(row.refs),

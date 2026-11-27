@@ -2,15 +2,18 @@ import { useRouter } from 'vue-router'
 
 import { useWindowKeydown } from '@/composables/useWindowKeydown'
 import { isShortcutEvent, shortcutScope } from '@/keyboard/keyboardTarget'
-import { NAV_ITEMS } from '@/router/navItems'
+import { navItemsFor } from '@/router/navItems'
+import { useChecksStore } from '@/stores/checksStore'
 
 /**
  * Navigates to a view when its single-key shortcut from NAV_ITEMS is pressed outside text entries,
- * keeping the open finding panel closed on the new view.
+ * keeping the open finding panel closed on the new view. The Checks key works only while
+ * Auto-check is on, as the sidebar lists the view only then.
  * @returns {void}
  */
 export const useNavigationShortcuts = (): void => {
   const router = useRouter()
+  const checks = useChecksStore()
 
   /**
    * Handles a global keydown.
@@ -22,7 +25,7 @@ export const useNavigationShortcuts = (): void => {
       return
     }
 
-    const item = NAV_ITEMS.find((candidate) => candidate.shortcut === event.key)
+    const item = navItemsFor(checks.enabled).find((candidate) => candidate.shortcut === event.key)
 
     if (!item) {
       return

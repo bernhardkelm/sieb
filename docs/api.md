@@ -66,7 +66,10 @@ Checked before identity:
 | `POST /api/tokens/:id/revoke`      | Revoke an own token                                                                                                                                                                                                       |
 | `DELETE /api/tokens/:id`           | Delete an own revoked or expired token, answers 204                                                                                                                                                                       |
 | `POST /api/tokens/cleanup`         | Delete all own revoked and expired tokens, answers `{ deleted }`                                                                                                                                                          |
-| `GET /api/mcp-info`                | `{ enabled, mcpUrl, oauth, claude }`: whether MCP is on, the endpoint URL, whether OAuth is configured and whether Claude reaches sieb for the acting user                                                               |
+| `GET /api/mcp-info`                | `{ enabled, mcpUrl, oauth, claude, checksEnabled }`: whether MCP is on, the endpoint URL, whether OAuth is configured, whether Claude reaches sieb for the acting user and whether Auto-check is on                      |
+| `GET /api/checks`                  | `{ enabled, workerOnline, running, queued, recent, usage }`: the Auto-check queue and its usage, see [Auto-check](#auto-check) |
+| `POST /api/checks`                 | Queue checks, `{ findingIds: [...] }`, answers `{ queued, skipped }` |
+| `DELETE /api/checks/:id`           | Cancel a queued or running check, answers 204 |
 
 ## Login (oidc mode)
 
@@ -106,12 +109,21 @@ the same filters:
   parameter is ignored.
 - `fixable`: `true`/`1` keeps findings with a known fixed version in a current instance,
   `false`/`0` those without. Every finding carries the boolean `fixable`.
+- `pending`: comma list of what waits on an open finding, matched with the rules of the Inbox
+  markers against the [Inbox](#inbox) of the acting user (without the items that user marked as
+  seen, none for an anonymous read): `proposed` (an open proposal targets its image, several
+  images including it or every image), `reopened` (its governing decision is re-opened), `kev`
+  (its new KEV listing is in the Inbox), `checking` (a queued or running Auto-check, ignored
+  while Auto-check is off) and `untouched` (none of these). Expiring decisions do not count, and
+  resolved findings count as untouched. The Triage filter bar offers it as "Pending", in the
+  link as `pending=proposed,reopened,kev,checking,untouched`.
 
 An invalid value answers 400 `invalid` for its field.
 
 `search_findings` names two of them differently, `text` for `q` and `firstSeenSince` for
 `newSince`, takes the lists as JSON arrays of at most 50 entries and `text` up to 200 characters,
-and adds `groupBy`, `limit` and `offset`, see [mcp.md](mcp.md#tools).
+and adds `groupBy`, `limit` and `offset`, see [mcp.md](mcp.md#tools). Its `pending` reads the
+Inbox of the connected user and adds a note when it ignores `checking`.
 
 ## Justification
 
@@ -255,6 +267,12 @@ always the case in oidc mode.
   the next sync on.
 - `sieb_last_sync_timestamp_seconds`, `sieb_last_sync_success` (0/1), `sieb_findings_open`, and
   `sieb_decisions{state}` per decision state.
+- [Auto-check](#auto-check), read from the checks table: `sieb_checks_open{state}` (gauge,
+  `queued` and `running`), `sieb_checks_finished_total{status}` (counter, `done`, `failed` and
+  `cancelled`, every check that ever ended) and `sieb_check_duration_seconds` (summary without
+  quantiles, `_sum` and `_count` over the done and failed checks). With `SIEB_CHECKS_ENABLED`
+  also `sieb_check_worker_online` (0/1, the worker reached sieb within the last 90 seconds).
+  Example alerts are in [prometheus-rules.md](prometheus-rules.md#auto-check-alerts).
 
 ## Inbox
 
@@ -272,7 +290,7 @@ and `refs`:
 
 | Kind       | Key                                  | `at`         | In the Inbox while                                                                                | Extra fields                                                                                                                         |
 | ---------- | ------------------------------------ | ------------ | ------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------ |
-| `proposal` | `proposal:<id>`                      | `createdAt`  | the proposal is open                                                                              | `refs: { proposalId }`, `imageRefs` (targets, `null` for every image), `verdict`, `confidence`, `imageCount` (covered open findings) |
+| `proposal` | `proposal:<id>`                      | `createdAt`  | the proposal is open                                                                              | `refs: { proposalId }`, `imageRefs` (targets, `null` for every image), `verdict`, `confidence`, `patchAction` (`fix.action` of a patch verdict, else `null`), `imageCount` (covered open findings) |
 | `reopened` | `reopened:<decisionId>:<reopenedAt>` | `reopenedAt` | the decision is re-opened, until re-confirmed (`reconfirm: true`, also within an edit) or revoked | `refs: { decisionId, findingId }`, `decisionStatus`, `reopenReason`                                                                  |
 | `expiring` | `expiring:<decisionId>:<expiresAt>`  | `expiresAt`  | the decision is active and expires within 14 days, until extended or marked seen                  | `refs: { decisionId, findingId }`, `decisionStatus`                                                                                  |
 | `kev`      | `kev:<findingId>`                    | `kevSince`   | the open finding became KEV listed within the last 14 days, also when decided, until marked seen  | `refs: { findingId, decisionId }`, `decisionStatus` (governing decision or `null`)                                                   |
@@ -319,7 +337,10 @@ A proposal (`Proposal` in `src/core/proposal.ts`) carries:
 - Claims: `verdict` (`not_affected`, `accepted`, `fix_planned`, `needs_patch`), `justification`
   (OpenVEX, required with `not_affected` only), `summary`, `confidence` (`low`, `medium`,
   `high`), `presence`, `reachability`, `exposure`, `evidence` (`[{ check, method, result }]`),
-  `fix` (`{ fixedVersion, change, effort }`, `change` required for `needs_patch`), `review`
+  `fix` (`{ action, layer, fixedVersion, change, effort }`, the one-line `action` of at most 160
+  characters required for `needs_patch` and `fix_planned`, `layer` optional: `dependency`,
+  `base_image`, `image`, `platform` or `unknown`; both `null` in proposals stored before they
+  existed), `review`
   (`{ date, why }`, `date` follows the `expiresAt` rules), `unknowns`, `references` (http(s) URLs
   only) and `evidenceBasis`, at least one of `advisory`, `upstream_source`, `image`,
   `own_source`, `runtime`. Free text loses control, bidirectional formatting and invisible
@@ -338,7 +359,9 @@ A proposal (`Proposal` in `src/core/proposal.ts`) carries:
   a sync).
 
 Rules: a user holds one open proposal per target (CVE, scope and image set), a new one replaces the
-old (`replaced`), and at most 200 open proposals. Accepting supersedes the other open proposals
+old (`replaced`), and at most 200 open proposals. Proposals an [Auto-check](#auto-check) files
+count apart: each check holds its own open proposal per target, it never replaces the user's own
+proposal nor the other way round, and it does not count against the 200. Accepting supersedes the other open proposals
 whose target overlaps (`other_accepted`). A sync supersedes a proposal once none of its images has
 an open finding left (`finding_resolved`).
 
@@ -441,6 +464,8 @@ of the secret. `lastUsedAt` is `null` until first use and written at most once a
 `expiresAt` is `null` only for tokens created before expiry became mandatory, which are no
 longer accepted.
 
+- The token a running [Auto-check](#auto-check) holds is internal: it is not listed, does not count
+  against the cap below, and revoke and delete answer 404 for it; cancelling the check ends it.
 - `GET /api/tokens` lists every token of the user, revoked and expired ones included, newest
   first.
 - `POST /api/tokens` takes `{ "name", "scope", "expiresAt" }` and answers 201
@@ -469,15 +494,16 @@ The secret is `sieb_` and 32 random bytes in base64url; sieb stores only its sha
 create, revoke and delete writes a log line with owner, name, id and scope, never the secret;
 `POST /api/tokens/cleanup` writes one line per deleted token.
 
-`GET /api/mcp-info` answers `{ "enabled": boolean, "mcpUrl": string | null, "oauth": boolean, "claude": … }`
+`GET /api/mcp-info` answers `{ "enabled": boolean, "mcpUrl": string | null, "oauth": boolean, "claude": …, "checksEnabled": boolean }`
 whether MCP is on or off: `mcpUrl` is the absolute endpoint URL (on `SIEB_PUBLIC_URL`, else on the
-origin of the request), `null` while disabled, and `oauth` is true when MCP is on and OAuth is
-configured. The client hides the token dialog, the hand-off button and its keys while `enabled`
+origin of the request), `null` while disabled, `oauth` is true when MCP is on and OAuth is
+configured, and `checksEnabled` mirrors `SIEB_CHECKS_ENABLED`, see [Auto-check](#auto-check). The client hides the token dialog, the hand-off button and its keys while `enabled`
 is false. The answer carries `Cache-Control: no-store`.
 
 `claude` is `null` while MCP is off or the request has no user, else
 `{ "connected": boolean, "activeTokens": number, "oauthLastSeenAt": string | null }` for the acting
-user: `activeTokens` counts the personal tokens that are neither revoked nor expired,
+user: `activeTokens` counts the personal tokens that are neither revoked nor expired, the token
+of a running Auto-check left out,
 `oauthLastSeenAt` is the last MCP request authenticated through OAuth, of any age, and `connected`
 is true with at least one active token or an OAuth request within the last 30 days. The client
 disables the deep-link hand-off and the `claude` command while `connected` is false.
@@ -486,6 +512,121 @@ Schema step 11 adds the table `mcp_connections` (`username`, `via` of `token` or
 `last_seen_at`), one row per user and kind. Every authenticated `/mcp` request past the rate limit
 updates it, at most once per user and kind every five minutes through an in-memory throttle; a
 failed write is logged and does not fail the request.
+
+## Auto-check
+
+With `SIEB_CHECKS_ENABLED=true` (needs `SIEB_MCP_ENABLED`, `SIEB_PUBLIC_URL`, `SIEB_WORKER_PORT`
+and `SIEB_WORKER_SECRET`), users queue findings for a headless Claude Code run. A separate worker
+process polls sieb on its own listener, investigates one check at a time and files a normal
+proposal through [`/mcp`](#mcp-endpoint) with a short-lived token of the requester bound to the
+check. sieb
+never gets cluster access for this; how the worker runs is described in
+[auto-check.md](auto-check.md).
+
+A check is `queued`, `running`, `done`, `failed` or `cancelled`; queued and running count as open.
+A running check has a `phase` of `preparing`, `investigating` or `reporting`. Rules:
+
+- Only open findings whose image has source access `public` (see [Source access](#source-access))
+  can be queued, each finding has at most one open check.
+- At most 500 checks are open at once, a guard against accidental floods; there is no daily limit.
+- The worker claims checks oldest first, at most one check runs at a time.
+- A running check without a heartbeat for 2 minutes, or running longer than
+  `SIEB_CHECK_TIMEOUT_SECONDS` plus one minute, fails with an error saying so. sieb evaluates this
+  on every claim, heartbeat and read of `/api/checks` and every 30 seconds.
+- A queued check fails without starting when, by the time it is claimed, its finding is gone or
+  resolved, its image is no longer public, or sieb knows neither a digest nor a tag of the scanned
+  image: sieb never hands out a bare image ref, which would pull `latest`.
+- With `SIEB_AUTH=oidc`, when sieb refuses a login because the user lost the required group, it
+  also fails that user's open checks and deletes the running check's token. sieb cannot see a
+  removal at the identity provider before that login, nor any removal in forward-auth mode: a
+  check queued by such a user still runs until it ends or someone cancels it.
+- Any signed-in user may cancel any check. sieb is built for one team sharing one queue, and the
+  owner of an install is the default user; the cancelling user is logged.
+
+### Client routes
+
+The routes answer `Cache-Control: no-store`; writes follow the [Request rules](#request-rules) and
+need the acting user. A check is answered as `CheckView` from `src/core/check.ts`:
+`{ id, findingId, vulnId, imageRef, requestedBy, state, phase, position, createdAt, startedAt,
+finishedAt, durationMs, error, proposalId, usage, reply, pulledDigest }`. `pulledDigest` is the
+digest the worker reports it exported, `null` when it reported none. `phase` is set on running checks only,
+`position` (1-based) on queued ones only. `reply` is Claude's final reply as untrusted plain text,
+at most 4000 characters, `usage` the token counts, turns and estimated cost the worker reported.
+
+- `GET /api/checks` answers `{ enabled, workerOnline, running, queued, recent, usage }`: `workerOnline`
+  is true when the worker reached sieb within the last 90 seconds, three heartbeat intervals and
+  more than the longest idle poll of 60 seconds, `queued` lists the queue in
+  claim order, `recent` at most 50 ended checks, newest first. `usage` sums the checks of all
+  users that ended within the last 7 and 30 days as `{ last7Days, last30Days }`, each
+  `CheckUsageWindow` `{ days, checks, withUsage, inputTokens, outputTokens, cacheTokens, costUsd,
+  averageDurationMs }`: `checks` counts done, failed and cancelled checks, `withUsage` those
+  whose worker reported usage, the token sums and `costUsd` cover those, and
+  `averageDurationMs` the done and failed checks with a duration. `costUsd` is the sum of the
+  API-equivalent estimates `claude -p` reports (billed with an API key, counted against plan limits with a subscription), and `null`
+  when no check in the window reported one; `averageDurationMs` is `null` without such a check.
+- `POST /api/checks` takes `{ "findingIds": [...] }`, 1 to 100 positive integers (`required`,
+  `invalid`, `too_many`), repeated ids count once. It answers
+  `{ "queued": [...], "skipped": [{ "findingId", "reason" }] }`, with the reasons `not_found`,
+  `resolved`, `not_public`, `already_open` and `queue_full`, checked in this order. The first
+  three come from `findingCheckBlocker` in `src/core/checkEligibility.ts`, which the claim and
+  the client use as well.
+  The Retry action on a failed or cancelled check, on the Checks page and in the finding panel,
+  sends this request again for the check's finding.
+- `DELETE /api/checks/:id` cancels a queued or running check of any user and answers 204. A running check's
+  token is deleted at once and the worker's next heartbeat gets 409. An ended check answers 409
+  `{ "error": "check_finished" }`, an unknown id 404.
+
+While `SIEB_CHECKS_ENABLED` is off, `GET /api/checks` answers
+`{ "enabled": false, "workerOnline": false, "running": null, "queued": [], "recent": [], "usage": null }` and
+every write 404 `{ "error": "checks_disabled" }`.
+
+### Worker routes
+
+Served only on `SIEB_WORKER_PORT`, the main port answers 404 for `/worker`. Every request needs
+`Authorization: Bearer <SIEB_WORKER_SECRET>`, compared in constant time, else 401
+`{ "error": "unauthorized" }`. There is no `Host` check on this listener, the worker reaches it by
+service name and the secret is the defence. Bodies are JSON of at most 32 KiB (413 otherwise) and
+are validated against the types in `src/core/check.ts` (400 `validation` otherwise).
+
+- `POST /worker/claim` answers 200 `WorkerClaim`, or 204 without a body while a check runs or the
+  queue is empty. A claim carries `checkId`, `findingId`, `vulnId`, `imageRef` and `imageDigest`,
+  `prompt` (the chat hand-off prompt plus a note that nobody answers questions; the worker
+  appends its workspace layout), `mcpUrl` (`/mcp` on `SIEB_PUBLIC_URL`), `token`,
+  `timeoutSeconds` and `maxTurns`. With a digest of the most recently seen open instance,
+  `imageRef` is `repository@digest` and `imageDigest` that digest. Without one, `imageRef` is
+  `repository:tag` and `imageDigest` is `null`: the tag may have moved since the scan, the prompt
+  says so, and the worker resolves and reports the digest it pulled.
+- `POST /worker/checks/:id/heartbeat` takes `{ "phase" }` and answers 204, or 409
+  `{ "error": "check_not_running" }` once the check was cancelled or timed out, which tells the
+  worker to stop.
+- `POST /worker/checks/:id/result` takes
+  `{ "status": "done" | "failed", "error", "durationMs", "usage", "reply", "pulledDigest" }` and
+  answers 204, 409 for a check that is no longer running, 404 for an unknown one. `error` is cut
+  to 500 and `reply` to 4000 characters, counted in code points (`capText` in
+  `src/core/checkLimits.ts`, which also holds the bounds of the timeout and the turns).
+  `pulledDigest` is optional, an `algorithm:hex` digest.
+
+`token` is a token of the requester named `Auto-check #<id>` with scope `propose`, minted on
+claim outside the 20 live token cap and the user-facing lifetimes, and expiring 10 minutes after
+`SIEB_CHECK_TIMEOUT_SECONDS`. It is bound to its check: on `/mcp` it reaches only the check's
+finding, CVE and image (see [mcp.md](mcp.md#auto-check-tokens)) and stops working once the check
+no longer runs. It is hidden from the requester's [tokens](#tokens) and Claude connection. The
+claim answer is the only place its secret appears. When the check ends, by result, cancel or
+timeout, sieb links the newest proposal filed with the token as `proposalId`, then deletes the
+token. The proposal keeps its attribution, and the
+token id is never handed out again. Each claim, end and timeout writes one log line, each minted
+and deleted token the usual token log line, none with the secret.
+
+Schema step 13 adds the table `checks` (`finding_id`, `vuln_id`, `image_ref`, `requested_by`,
+`state`, `phase`, `created_at`, `started_at`, `finished_at`, `heartbeat_at`, `token_id`,
+`proposal_id`, `error`, `duration_ms`, `usage` as JSON, `reply`) with checks on state and phase,
+a unique index for one open check per finding, one for the single running check, an index of
+the open checks and one of the ended checks by `finished_at`.
+
+Schema step 14 adds `api_tokens.check_id`, which marks the token of a check (unique), and
+`decision_proposals.check_id`, which marks proposals filed with it; both are filled from
+`checks.token_id` for existing rows. The unique index of open proposals per target and proposer
+includes `check_id`. It also adds `checks.pulled_digest`.
 
 ## MCP endpoint
 
@@ -512,7 +653,8 @@ over streamable HTTP, stateless and with JSON answers instead of event streams. 
 
 On top, `propose_decision` accepts at most 30 valid calls per hour and sieb user, shared by all of
 the user's tokens and OAuth clients, beyond that the tool answers an error result and files
-nothing.
+nothing. Each Auto-check has a bucket of its own, so a check never uses up its requester's
+quota.
 
 Only `POST` carries MCP messages; an authenticated `GET` or `DELETE`, the session operations of
 the transport, answers 405 with `Allow: POST`. While MCP is off `/mcp` answers 404 `{ "error": "not_found" }`.

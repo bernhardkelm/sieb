@@ -10,13 +10,15 @@ import type {
 } from '#core/apiTypes.ts'
 import { displayPrefixOf, generateTokenSecret, hashTokenSecret } from '#server/auth/tokenSecrets.ts'
 import { deleteInactiveTokensOf, deleteOwnInactiveToken } from '#server/db/apiTokenCleanup.ts'
-import { insertToken, listOwnTokens, revokeOwnToken } from '#server/db/apiTokenRepository.ts'
+import { listOwnTokens, revokeOwnToken } from '#server/db/apiTokenRepository.ts'
+import { insertToken } from '#server/db/storeApiToken.ts'
 import type { AppEnv } from '#server/http/AppEnv.ts'
 import { requireActor } from '#server/http/identity.ts'
 import { parseId } from '#server/http/pathParams.ts'
 import { INVALID_BODY, readObjectBody } from '#server/http/requestBody.ts'
 import { notFound, validationFailed } from '#server/http/responses.ts'
 import type { RouteDeps } from '#server/http/RouteDeps.ts'
+import { tokenLogLine } from '#server/tokenLogLine.ts'
 
 export type TokenRouteDeps = RouteDeps & { log: (message: string) => void }
 
@@ -35,16 +37,6 @@ export const toTokenView = (token: ApiToken): ApiTokenView => ({
   lastUsedAt: token.lastUsedAt,
   revokedAt: token.revokedAt,
 })
-
-/**
- * Formats the log line of a token change, never with the secret.
- * @param {string} change - What happened
- * @param {ApiToken} token - Token
- * @returns {string} - Log line
- */
-const tokenLogLine = (change: string, token: ApiToken): string =>
-  `[sieb] api token ${change}: owner=${JSON.stringify(token.owner)} ` +
-  `name=${JSON.stringify(token.name)} id=${token.id} scope=${token.scope}`
 
 /**
  * Creates the personal token routes of the acting user: GET / lists them, POST / creates one

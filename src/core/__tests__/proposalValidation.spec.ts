@@ -36,7 +36,12 @@ describe('validateProposalInput', () => {
         evidenceBasis: ['image', 'advisory'],
         references: ['https://example.org/a'],
         review: { date: '2026-09-01T23:59:59.999Z', why: 'next base image release' },
-        fix: { fixedVersion: '3.0.2', change: 'bump the base image', effort: 'small' },
+        fix: {
+          action: 'upgrade openssl to 3.0.2',
+          fixedVersion: '3.0.2',
+          change: 'bump the base image',
+          effort: 'small',
+        },
         agent: 'Claude Code',
       },
     })
@@ -94,11 +99,57 @@ describe('validateProposalInput', () => {
     expect(errorsOf({ verdict: 'accepted', justification: null })).toEqual([])
   })
 
-  it('needs a fix change for needs_patch', () => {
-    expect(errorsOf({ verdict: 'needs_patch', justification: null, fix: null })).toEqual([
-      { field: 'fix.change', code: 'required' },
+  it.each(['needs_patch', 'fix_planned'])('needs a patch action for %s', (verdict) => {
+    const changeOnly = { fixedVersion: '3.0.2', change: 'bump the base image' }
+
+    expect(errorsOf({ verdict, justification: null, fix: null })).toEqual([
+      { field: 'fix.action', code: 'required' },
     ])
-    expect(errorsOf({ verdict: 'needs_patch', justification: null })).toEqual([])
+    expect(errorsOf({ verdict, justification: null, fix: changeOnly })).toEqual([
+      { field: 'fix.action', code: 'required' },
+    ])
+    expect(errorsOf({ verdict, justification: null, fix: { action: ' ' } })).toEqual([
+      { field: 'fix.action', code: 'required' },
+    ])
+    expect(errorsOf({ verdict, justification: null })).toEqual([])
+    expect(
+      errorsOf({ verdict, justification: null, fix: { action: 'no fixed version yet' } }),
+    ).toEqual([])
+  })
+
+  it('takes an optional patch layer from the known ones', () => {
+    const fix = { action: 'base image: rebuild on alpine:3.24.4 (libxslt 1.1.43-r4)' }
+
+    expect(
+      validateProposalInput(buildRawProposal({ fix: { ...fix, layer: 'base_image' } }), NOW),
+    ).toMatchObject({ ok: true, value: { fix: { layer: 'base_image' } } })
+    expect(validateProposalInput(buildRawProposal({ fix }), NOW)).toMatchObject({
+      ok: true,
+      value: { fix: { layer: null } },
+    })
+    expect(errorsOf({ fix: { ...fix, layer: 'kernel' } })).toEqual([
+      { field: 'fix.layer', code: 'invalid' },
+    ])
+  })
+
+  it('does not need a patch action for not_affected and accepted', () => {
+    expect(errorsOf({ fix: null })).toEqual([])
+    expect(errorsOf({ verdict: 'accepted', justification: null, fix: null })).toEqual([])
+  })
+
+  it('keeps the patch action on one line within its cap', () => {
+    const result = validateProposalInput(
+      buildRawProposal({ fix: { action: 'upgrade libxslt\nto 1.1.43-r4' } }),
+      NOW,
+    )
+
+    expect(result).toMatchObject({
+      ok: true,
+      value: { fix: { action: 'upgrade libxslt to 1.1.43-r4', fixedVersion: null } },
+    })
+    expect(errorsOf({ fix: { action: 'x'.repeat(PROPOSAL_LIMITS.fixAction + 1) } })).toEqual([
+      { field: 'fix.action', code: 'too_long' },
+    ])
   })
 
   it('enforces the caps of text and lists', () => {

@@ -41,6 +41,7 @@ export const proposalItem = (
   imageRefs: null,
   verdict: 'not_affected',
   confidence: 'high',
+  patchAction: null,
   imageCount: 3,
   ...overrides,
 })

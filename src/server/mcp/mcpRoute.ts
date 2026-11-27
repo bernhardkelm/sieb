@@ -31,6 +31,7 @@ export interface McpRouteDeps extends RouteDeps {
   log: (message: string) => void
   jwtKeys?: JWTVerifyGetKey // replaces the discovered issuer key set, for tests
   publicRegistries: readonly string[] // registries whose images count as public for source access
+  checksEnabled?: boolean // Auto-check on, search_findings then reads the open checks for pending
 }
 
 /**
@@ -105,7 +106,9 @@ export const createMcpRoute = (deps: McpRouteDeps): Handler<AppEnv> => {
       return c.json<ErrorBody>({ error: 'rate_limited' }, 429)
     }
 
-    recordConnection(caller)
+    if (caller.check === null) {
+      recordConnection(caller)
+    }
 
     const handshake = await readHandshake(c.req.raw)
 

@@ -58,6 +58,12 @@ export const routes: RouteRecordRaw[] = [
     meta: { title: 'Decisions' },
   },
   {
+    path: '/checks',
+    name: ROUTE_NAMES.CHECKS,
+    component: () => import('@/views/ChecksView.vue'),
+    meta: { title: 'Checks' },
+  },
+  {
     path: '/:pathMatch(.*)*',
     redirect: { name: ROUTE_NAMES.TRIAGE, params: {} },
   },

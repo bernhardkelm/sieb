@@ -193,7 +193,13 @@ describe('acceptProposal', () => {
     const id = propose(db, {
       verdict: 'needs_patch',
       justification: null,
-      fix: { fixedVersion: '1.2', change: 'bump nginx', effort: null },
+      fix: {
+        action: 'upgrade nginx to 1.2',
+        layer: null,
+        fixedVersion: '1.2',
+        change: 'bump nginx',
+        effort: null,
+      },
     })
     const result = accept(db, id, { reason: 'Patch it' }, [
       { imageRef: NGINX, decisionId: 1, updatedAt: NOW.toISOString() },

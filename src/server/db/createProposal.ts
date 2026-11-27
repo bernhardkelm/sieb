@@ -23,31 +23,34 @@ import {
 
 export interface CreateProposalContext {
   proposer: ProposalProposer
+  checkId?: number | null // Auto-check whose token files it, null or absent for every other caller
   publicRegistries: readonly string[]
   now: Date
 }
 
 /**
- * Finds the open proposal of a proposer for the same target.
+ * Finds the open proposal the new one replaces for the same target: for an Auto-check the one
+ * that check filed, else the proposer's own one that no Auto-check filed.
  * @param {DatabaseSync} db - Open database
  * @param {ProposalInput} input - New proposal
- * @param {string} proposedBy - Proposing user
+ * @param {{ proposedBy: string; checkId: number | null }} origin - Proposer and check
  * @returns {Proposal | null} - Open proposal to replace, null when none
  */
 const findReplaced = (
   db: DatabaseSync,
   input: ProposalInput,
-  proposedBy: string,
+  { proposedBy, checkId }: { proposedBy: string; checkId: number | null },
 ): Proposal | null =>
-  listProposals(db, { state: 'open', vulnId: input.vulnId, proposedBy }).find(
+  listProposals(db, { state: 'open', vulnId: input.vulnId, proposedBy, checkId }).find(
     (open) => open.scope === input.scope && proposalTargetKey(open) === proposalTargetKey(input),
   ) ?? null
 
 /**
  * Files a proposal. Every target image needs an open finding of the vulnerability, scope all at
  * least one. The proposal records the source access of its images and the decisions governing
- * its targets, replaces the open proposal of the same proposer for the same target, and is
- * refused once the proposer holds MAX_OPEN_PROPOSALS others. Nothing about suppression changes.
+ * its targets and replaces the open proposal of the same origin for the same target, see
+ * findReplaced. A user's own proposal is refused once they hold MAX_OPEN_PROPOSALS others; an
+ * Auto-check only ever targets its finding and holds one. Nothing about suppression changes.
  * @param {DatabaseSync} db - Open database
  * @param {ProposalInput} input - Validated proposal
  * @param {CreateProposalContext} context - Proposer, public registries and current time
@@ -56,7 +59,7 @@ const findReplaced = (
 export const createProposal = (
   db: DatabaseSync,
   input: ProposalInput,
-  { proposer, publicRegistries, now }: CreateProposalContext,
+  { proposer, checkId = null, publicRegistries, now }: CreateProposalContext,
 ): CreateProposalResult =>
   inTransaction(db, () => {
     const open = new Map(
@@ -70,9 +73,12 @@ export const createProposal = (
       return { ok: false, error: 'unknown_finding', imageRefs: missing }
     }
 
-    const replaced = findReplaced(db, input, proposer.proposedBy)
+    const replaced = findReplaced(db, input, { proposedBy: proposer.proposedBy, checkId })
 
-    if (countOpenProposals(db, proposer.proposedBy) - (replaced ? 1 : 0) >= MAX_OPEN_PROPOSALS) {
+    if (
+      checkId === null &&
+      countOpenProposals(db, proposer.proposedBy) - (replaced ? 1 : 0) >= MAX_OPEN_PROPOSALS
+    ) {
       return { ok: false, error: 'too_many_proposals' }
     }
 
@@ -90,16 +96,20 @@ export const createProposal = (
       })
     }
 
-    const id = insertProposal(db, {
-      ...input,
-      ...proposer,
-      sourceAccess: images.map((imageRef) => ({
-        imageRef,
-        access: sourceAccess(imageRef, open.get(imageRef)?.owner ?? null, publicRegistries),
-      })),
-      basisDecisions: currentDecisionRefs(input, listDecisionsByVuln(db, input.vulnId)),
-      createdAt: at,
-    })
+    const id = insertProposal(
+      db,
+      {
+        ...input,
+        ...proposer,
+        sourceAccess: images.map((imageRef) => ({
+          imageRef,
+          access: sourceAccess(imageRef, open.get(imageRef)?.owner ?? null, publicRegistries),
+        })),
+        basisDecisions: currentDecisionRefs(input, listDecisionsByVuln(db, input.vulnId)),
+        createdAt: at,
+      },
+      checkId,
+    )
     const proposal = getProposal(db, id)
 
     if (!proposal) {

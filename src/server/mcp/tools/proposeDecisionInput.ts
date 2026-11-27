@@ -1,8 +1,10 @@
 import { z } from 'zod'
 
 import { DECISION_JUSTIFICATIONS } from '#core/decision.ts'
+import { PATCH_ACTION_HINT } from '#core/patchAction.ts'
 import {
   EVIDENCE_BASES,
+  PATCH_LAYERS,
   PROPOSAL_CONFIDENCES,
   PROPOSAL_LIMITS as LIMITS,
   PROPOSAL_VERDICTS,
@@ -31,7 +33,9 @@ export const proposeDecisionInput = z.object({
     .optional()
     .describe('with vulnId: images of the CVE, tag or digest is ignored'),
   all: z.boolean().optional().describe('with vulnId: every image, an all-scope decision'),
-  verdict: z.enum(PROPOSAL_VERDICTS).describe('needs_patch becomes fix_planned with the fix path'),
+  verdict: z
+    .enum(PROPOSAL_VERDICTS)
+    .describe('needs_patch becomes fix_planned with the patch action'),
   justification: z
     .enum(DECISION_JUSTIFICATIONS)
     .optional()
@@ -59,10 +63,17 @@ export const proposeDecisionInput = z.object({
     .optional(),
   fix: z
     .object({
+      action: text(LIMITS.fixAction)
+        .optional()
+        .describe(`required for needs_patch and fix_planned: ${PATCH_ACTION_HINT}`),
+      layer: z
+        .enum(PATCH_LAYERS)
+        .optional()
+        .describe('layer that ships the vulnerable component, where the action applies'),
       fixedVersion: text(LIMITS.fixVersion).optional(),
       change: text(LIMITS.fixChange)
         .optional()
-        .describe('image tag, dependency or pull request, required for needs_patch'),
+        .describe('details: image tag, dependency or pull request to change'),
       effort: text(LIMITS.fixEffort).optional(),
     })
     .optional(),

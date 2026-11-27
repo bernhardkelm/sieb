@@ -23,6 +23,7 @@ const ALL: FindingQuery = {
   decisionState: [],
   kevAddedSince: null,
   fixable: null,
+  pending: [],
 }
 
 describe('parseFindingQuery', () => {

@@ -77,7 +77,7 @@ describe('jwtVerifier', () => {
       scopes: ['sieb:read'],
       expiresAt: NOW_S + 300,
       resource: RESOURCE,
-      extra: { actor: 'alice', via: 'oauth', tokenId: null, clientLabel: 'claude.ai' },
+      extra: { actor: 'alice', via: 'oauth', tokenId: null, clientLabel: 'claude.ai', check: null },
     })
   })
 

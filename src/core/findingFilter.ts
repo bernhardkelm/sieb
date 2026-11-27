@@ -1,11 +1,13 @@
 import { matchesDecisionStates } from '#core/decisionStateFilter.ts'
 import { matchesExposureFilter } from '#core/exposure.ts'
+import { matchesPending, type PendingIndex } from '#core/findingPending.ts'
 import type { FindingQuery } from '#core/findingQuery.ts'
 import type { FindingView } from '#core/findingView.ts'
 import { matchesAnyName, withoutImageTag, workloadNames } from '#core/nameMatch.ts'
 
 type FilterableFinding = Pick<
   FindingView,
+  | 'id'
   | 'vulnId'
   | 'imageRef'
   | 'title'
@@ -28,6 +30,7 @@ type FilterableFinding = Pick<
 /** Data some filters need beyond the finding itself */
 export interface FindingFilterContext {
   kevDatesAdded: ReadonlyMap<string, string> | null // CISA date_added per CVE, null without the cisa catalog, kevAddedSince is then ignored
+  pending?: PendingIndex | null // Inbox items and open checks, without them pending is ignored
 }
 
 const NO_CONTEXT: FindingFilterContext = { kevDatesAdded: null }
@@ -67,10 +70,11 @@ const matchesNames = (finding: FilterableFinding, query: FindingQuery): boolean 
   matchesAnyName(finding.workloads.flatMap(workloadNames), query.workloads)
 
 /**
- * Returns whether a finding passes the score, fixable, decision state and KEV date filters.
+ * Returns whether a finding passes the score, fixable, KEV date, pending and decision state
+ * filters.
  * @param {FilterableFinding} finding - Finding
  * @param {FindingQuery} query - Parsed query
- * @param {FindingFilterContext} context - KEV catalog dates
+ * @param {FindingFilterContext} context - KEV catalog dates and the pending index
  * @returns {boolean} - True when every given filter matches
  */
 const matchesFacts = (
@@ -98,6 +102,10 @@ const matchesFacts = (
     }
   }
 
+  if (context.pending && !matchesPending(finding, query.pending ?? [], context.pending)) {
+    return false
+  }
+
   return matchesDecisionStates(finding, query.decisionState ?? [])
 }
 
@@ -107,7 +115,7 @@ const matchesFacts = (
  * filter drops findings without that label, unless the exposure filter selects unknown.
  * @param {FilterableFinding} finding - Finding
  * @param {FindingQuery} query - Parsed query
- * @param {FindingFilterContext} context - KEV catalog dates, kevAddedSince is ignored without
+ * @param {FindingFilterContext} context - KEV catalog dates and pending index, the filters reading them are ignored without
  * @returns {boolean} - True when the finding is listed
  */
 export const matchesFindingQuery = (
@@ -150,7 +158,7 @@ export const matchesFindingQuery = (
  * Filters findings by a query, keeping their order.
  * @param {readonly T[]} findings - Findings, usually in inbox order
  * @param {FindingQuery} query - Parsed query
- * @param {FindingFilterContext} context - KEV catalog dates, kevAddedSince is ignored without
+ * @param {FindingFilterContext} context - KEV catalog dates and pending index, the filters reading them are ignored without
  * @returns {T[]} - Matching findings
  */
 export const filterFindings = <T extends FilterableFinding>(

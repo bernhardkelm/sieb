@@ -1,10 +1,20 @@
 import { mount, type VueWrapper } from '@vue/test-utils'
 import { createPinia, setActivePinia } from 'pinia'
 import { afterEach, describe, expect, it, vi } from 'vitest'
+import { nextTick } from 'vue'
 
+import { visibleText } from '@/__tests__/visibleText'
 import TriageSelectionBar from '@/components/triage/TriageSelectionBar.vue'
 import type { HintActionId } from '@/keyboard/hintActions'
+import { NOT_AVAILABLE_REASON } from '@/keyboard/hintActions'
 import { useHintActionsStore } from '@/stores/hintActionsStore'
+import { notifyNotice } from '@/toast/toastManager'
+
+vi.mock('@/toast/toastManager', () => ({
+  notifyError: vi.fn<(title: string, error: unknown) => void>(),
+  notifySuccess: vi.fn<(title: string, description?: string) => void>(),
+  notifyNotice: vi.fn<(title: string, description?: string) => void>(),
+}))
 
 let wrapper: VueWrapper | null = null
 
@@ -37,7 +47,8 @@ const mountBar = (count: number): VueWrapper => {
  * @returns {HTMLButtonElement} - Button
  */
 const buttonOf = (bar: VueWrapper, label: string): HTMLButtonElement =>
-  bar.findAll('button').find((button) => button.text() === label)!.element as HTMLButtonElement
+  bar.findAll('button').find((button) => visibleText(button.element) === label)!
+    .element as HTMLButtonElement
 
 describe('TriageSelectionBar', () => {
   it('shows only with checked rows', async () => {
@@ -73,6 +84,7 @@ describe('TriageSelectionBar', () => {
       ),
       refocus,
     })
+    await nextTick()
 
     buttonOf(bar, label).click()
     await vi.waitFor(() => expect(ran).toEqual([id]))
@@ -93,6 +105,26 @@ describe('TriageSelectionBar', () => {
     expect(buttonOf(bar, 'Accept').getAttribute('aria-disabled')).toBe('true')
     expect(buttonOf(bar, 'Clear').hasAttribute('aria-disabled')).toBe(false)
   })
+
+  it.each(['Select all', 'Accept', 'Not affected', 'Fix planned'])(
+    'keeps blocked %s focusable, describes the reason and names it in a toast on a tap',
+    (label) => {
+      vi.mocked(notifyNotice).mockClear()
+      const bar = mountBar(1)
+      const blocked = buttonOf(bar, label)
+      const reason = document.getElementById(blocked.getAttribute('aria-describedby')!)
+
+      expect(blocked.hasAttribute('tabindex')).toBe(false)
+      expect(reason?.textContent).toBe(NOT_AVAILABLE_REASON)
+      expect(reason?.hidden).toBe(true)
+
+      blocked.focus()
+      expect(document.activeElement).toBe(blocked)
+
+      blocked.click()
+      expect(notifyNotice).toHaveBeenCalledWith('Not available', NOT_AVAILABLE_REASON)
+    },
+  )
 
   it('moves focus between the buttons with the arrow keys', async () => {
     const bar = mountBar(1)

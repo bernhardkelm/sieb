@@ -35,6 +35,7 @@ export const TEST_CALLER: McpCaller = {
   tokenId: 1,
   clientLabel: 'laptop',
   scopes: ['sieb:read'],
+  check: null,
 }
 
 /**

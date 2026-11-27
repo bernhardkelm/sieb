@@ -1,5 +1,6 @@
-import type { FindingListView, FindingQuery } from '#core/findingQuery.ts'
 import type { ExposureFilter } from '#core/exposure.ts'
+import type { PendingFilter } from '#core/findingPending.ts'
+import type { FindingListView, FindingQuery } from '#core/findingQuery.ts'
 import type { Severity } from '#core/severity.ts'
 import type { LabelColumn } from '@/composables/useLabelColumns'
 
@@ -16,6 +17,7 @@ export interface FindingFilters {
   newThisWeek: boolean
   kev: boolean
   includeResolved: boolean
+  pending: PendingFilter[]
 }
 
 /**
@@ -30,6 +32,7 @@ export const emptyFilters = (): FindingFilters => ({
   newThisWeek: false,
   kev: false,
   includeResolved: false,
+  pending: [],
 })
 
 /**
@@ -91,6 +94,7 @@ export const toFindingQuery = (
     owner: applied.owner,
     newSince: applied.newThisWeek ? newSince(now) : null,
     kev: applied.kev,
+    pending: applied.pending,
   }
 }
 
@@ -113,6 +117,7 @@ export const hasActiveFilters = (
     applied.owner.length > 0 ||
     applied.newThisWeek ||
     applied.kev ||
-    applied.includeResolved
+    applied.includeResolved ||
+    applied.pending.length > 0
   )
 }

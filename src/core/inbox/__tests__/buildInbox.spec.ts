@@ -25,7 +25,13 @@ describe('buildInbox proposals', () => {
       findings,
       proposals: [
         inboxProposal({ id: 7, imageRefs: [NGINX], createdAt: fromNow(-DAY_MS) }),
-        inboxProposal({ id: 8, imageRefs: null, createdAt: fromNow(-2 * DAY_MS) }),
+        inboxProposal({
+          id: 8,
+          imageRefs: null,
+          createdAt: fromNow(-2 * DAY_MS),
+          verdict: 'needs_patch',
+          patchAction: 'upgrade libssl3 to 3.0.2',
+        }),
       ],
     })
 
@@ -44,6 +50,7 @@ describe('buildInbox proposals', () => {
         imageRefs: [NGINX],
         verdict: 'not_affected',
         confidence: 'high',
+        patchAction: null,
         imageCount: 1,
       },
       expect.objectContaining({
@@ -53,6 +60,7 @@ describe('buildInbox proposals', () => {
         severity: 'Critical',
         kev: true,
         title: 'libssl overflow',
+        patchAction: 'upgrade libssl3 to 3.0.2',
         imageCount: 2,
       }),
     ])

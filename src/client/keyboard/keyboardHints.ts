@@ -9,6 +9,8 @@ export interface KeyboardHint {
   action?: HintActionId
   /** Shown only with the Claude integration switched on */
   mcp?: boolean
+  /** Shown only with Auto-check switched on */
+  checks?: boolean
 }
 
 const TREE: KeyboardHint = { keys: ['←', '→'], label: 'Collapse, expand' }
@@ -40,6 +42,7 @@ export const KEYBOARD_HINTS: Record<RouteName, KeyboardHint[]> = {
     { keys: ['⇧', 'H'], label: 'Open in Claude', action: 'handoffOpen', mcp: true },
     { keys: ['h'], label: 'Copy for Claude', action: 'handoff', mcp: true },
     { keys: ['y'], label: 'Copy claude command', action: 'handoffCommand', mcp: true },
+    { keys: ['⇧', 'C'], label: 'Auto-check', action: 'autoCheck', mcp: true, checks: true },
   ],
   [ROUTE_NAMES.IMAGES]: [TREE, SEARCH, SYNC],
   [ROUTE_NAMES.CVES]: [
@@ -58,15 +61,21 @@ export const KEYBOARD_HINTS: Record<RouteName, KeyboardHint[]> = {
     SEARCH,
     SYNC,
   ],
+  [ROUTE_NAMES.CHECKS]: [SYNC],
 }
 
 /**
  * Returns the shortcut hints of a view.
  * @param {unknown} routeName - Name of the current route
  * @param {boolean} mcpEnabled - Whether the Claude integration is on, its hints are left out otherwise
+ * @param {boolean} checksEnabled - Whether Auto-check is on, its hint is left out otherwise
  * @returns {KeyboardHint[]} - Hints, the Inbox ones for unknown routes
  */
-export const hintsForRoute = (routeName: unknown, mcpEnabled = false): KeyboardHint[] =>
+export const hintsForRoute = (
+  routeName: unknown,
+  mcpEnabled = false,
+  checksEnabled = false,
+): KeyboardHint[] =>
   (KEYBOARD_HINTS[routeName as RouteName] ?? KEYBOARD_HINTS[ROUTE_NAMES.INBOX]).filter(
-    (hint) => mcpEnabled || !hint.mcp,
+    (hint) => (mcpEnabled || !hint.mcp) && (checksEnabled || !hint.checks),
   )

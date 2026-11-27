@@ -68,6 +68,16 @@ src/
     sync/          snapshot upsert, sync service and scheduler
     metrics/       reads the values /metrics renders
     mcp/           /mcp endpoint, its guards, OAuth metadata, server instructions, triage prompt, tools/
+  checker/   Auto-check worker sieb-checker, its own process and image (#checker/*)
+    main.ts        reads the config and runs the poll loop
+    config/        value parsers, secrets from files, the WebFetch host list
+    api/           worker API client and claim validation
+    check/         poll loop with backoff, one check run, heartbeat, workspace wipe
+    workspace/     check paths, crane export through the tar filter, symlink containment, inventory
+    tar/           streaming tar rewriter that drops unsafe entries before extraction
+    claude/        claude -p arguments, environment, permission settings, prompt, output parsing
+    inspect/       stdio MCP server with the read-only binary tools Claude gets instead of a shell
+    process/       process runner with process groups, captured runs with timeout and abort
   client/    Vue 3 SPA (@/*)
     assets/        main.css composes tokens.css and base.css
     api/           typed fetch helpers, one module per API resource
@@ -92,7 +102,7 @@ collides with a real CVE, and the KEV entry of a mock CVE is described from its 
 
 - TypeScript everywhere. Only erasable syntax (no enums, no parameter properties) and explicit
   `import type`, since the server runs through type stripping.
-- Imports use the aliases `#core/*`, `#server/*` and `#scripts/*` (with `.ts` extension) or `@/` in
+- Imports use the aliases `#core/*`, `#server/*`, `#checker/*` and `#scripts/*` (with `.ts` extension) or `@/` in
   the client, never `../`. No barrel files.
 - `src/core` stays free of IO so both sides can use it and it stays easy to test.
 - One concern per file, roughly 150 lines at most. Directories are camelCase, files with a single

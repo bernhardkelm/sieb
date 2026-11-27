@@ -3,6 +3,7 @@ import type { DecisionJustification, DecisionScope, DecisionStatus } from '#core
 import type { DecisionEventType } from '#core/decisionEvent.ts'
 import type { DecisionState, ReopenReason } from '#core/effectiveDecision.ts'
 import type { Exposure, ExposureFilter } from '#core/exposure.ts'
+import type { PendingFilter } from '#core/findingPending.ts'
 import { SELF_OWNER } from '#core/owner.ts'
 
 export const TOKEN_SCOPE_LABELS: Record<ApiTokenScope, string> = {
@@ -48,6 +49,14 @@ export const EXPOSURE_FILTER_LABELS: Record<ExposureFilter, string> = {
   unknown: 'Unknown',
 }
 
+export const PENDING_FILTER_LABELS: Record<PendingFilter, string> = {
+  proposed: 'Proposed',
+  reopened: 'Re-opened',
+  kev: 'New KEV',
+  checking: 'Checking',
+  untouched: 'Untouched',
+}
+
 /**
  * Returns the display label of a free-form owner, "Own" for self.
  * @param {string} owner - Owner label
@@ -91,6 +100,8 @@ const ERROR_MESSAGES: Record<string, string> = {
   token_live: 'This token is still active, revoke it first.',
   proposal_conflict: 'The decisions changed since Claude proposed this. Review again.',
   proposal_closed: 'This proposal was already accepted, rejected or replaced.',
+  check_finished: 'This check finished in the meantime.',
+  checks_disabled: 'Auto-check is switched off on this server.',
 }
 
 /**

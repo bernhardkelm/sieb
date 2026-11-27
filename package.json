@@ -12,6 +12,7 @@
   "imports": {
     "#core/*": "./src/core/*",
     "#server/*": "./src/server/*",
+    "#checker/*": "./src/checker/*",
     "#scripts/*": "./scripts/*"
   },
   "scripts": {

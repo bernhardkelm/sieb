@@ -2,6 +2,7 @@ import { HANDOFF_CLIENTS, handoffLink } from '#core/handoffLinks.ts'
 import type { HandoffPrompts } from '#core/handoffPrompt.ts'
 import { useClipboardCopy } from '@/composables/useClipboardCopy'
 import type { HandoffPreference } from '@/format/handoffTargets'
+import { openDeepLink } from '@/router/deepLinkNavigation'
 import { notifySuccess, notifyWithAction } from '@/toast/toastManager'
 
 export interface HandoffOpen {
@@ -9,16 +10,8 @@ export interface HandoffOpen {
   copyPrompt: (prompt: string) => Promise<boolean>
   /** Opens a client with its prompt prefilled, or copies the chat prompt for the copy preference */
   open: (preference: HandoffPreference, prompts: HandoffPrompts) => void
-}
-
-/**
- * Opens a hand-off deep link without leaving sieb, a custom scheme goes to the operating system
- * instead of replacing the page.
- * @param {string} link - Deep link
- * @returns {void}
- */
-const openLink = (link: string): void => {
-  window.location.assign(link)
+  /** Opens a deep link, the toast action runs the copy fallback in case nothing opens */
+  openLink: (link: string, copyFallback: () => unknown) => void
 }
 
 /**
@@ -45,6 +38,28 @@ export const useHandoffOpen = (): HandoffOpen => {
   }
 
   /**
+   * Opens a deep link and offers the copy fallback in a toast, since nothing may handle it.
+   * @param {string} link - Deep link
+   * @param {() => unknown} copyFallback - Copies the prompt instead
+   * @returns {void}
+   */
+  const openLink = (link: string, copyFallback: () => unknown): void => {
+    openDeepLink(link)
+    notifyWithAction(
+      'handoff-open',
+      'Opening Claude…',
+      'If nothing happens, copy the prompt instead.',
+      {
+        label: 'Copy prompt',
+        altText: 'Copy the prompt with h',
+        onClick: () => {
+          void copyFallback()
+        },
+      },
+    )
+  }
+
+  /**
    * Opens the client of a preference with the prompt of its client kind, or copies the prompt
    * for copy, the chat one, and for prompts too long for a link.
    * @param {HandoffPreference} preference - Client or copy
@@ -55,25 +70,13 @@ export const useHandoffOpen = (): HandoffOpen => {
     const prompt = prompts[preference === 'copy' ? 'chat' : HANDOFF_CLIENTS[preference]]
     const link = preference === 'copy' ? null : handoffLink(preference, prompt)
 
-    if (link === null) {
+    if (preference === 'copy' || link === null) {
       void copyWithToast(prompt, preference === 'copy' ? undefined : 'Too long for a link, copied')
       return
     }
 
-    openLink(link)
-    notifyWithAction(
-      'handoff-open',
-      'Opening Claude…',
-      'If nothing happens, copy the prompt instead.',
-      {
-        label: 'Copy prompt',
-        altText: 'Copy the prompt with h',
-        onClick: () => {
-          void copyWithToast(prompt)
-        },
-      },
-    )
+    openLink(link, () => copyWithToast(prompt))
   }
 
-  return { copyPrompt: (prompt) => copyWithToast(prompt), open }
+  return { copyPrompt: (prompt) => copyWithToast(prompt), open, openLink }
 }

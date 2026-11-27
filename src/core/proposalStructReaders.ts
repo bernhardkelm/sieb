@@ -2,6 +2,7 @@ import type { ValidationIssue } from '#core/apiTypes.ts'
 import { readExpiry } from '#core/decisionFieldReaders.ts'
 import type { DecisionInputError } from '#core/decisionInputError.ts'
 import {
+  PATCH_LAYERS,
   PROPOSAL_LIMITS as LIMITS,
   type ProposalEvidence,
   type ProposalFix,
@@ -10,6 +11,7 @@ import {
 import {
   isHttpUrl,
   isPlainObject,
+  readProposalEnum,
   readProposalList,
   readProposalText,
 } from '#core/proposalTextReaders.ts'
@@ -54,7 +56,8 @@ export const readEvidence = (
 }
 
 /**
- * Reads the fix path: fixed version, what to change and rough effort, each optional.
+ * Reads the fix path: the one-line patch action with its layer, fixed version, what to change
+ * and rough effort, each optional here.
  * @param {unknown} value - Raw fix
  * @param {ValidationIssue[]} errors - Collected errors, appended to
  * @returns {ProposalFix | null} - Fix, null when absent, empty or invalid
@@ -70,6 +73,11 @@ export const readFix = (value: unknown, errors: ValidationIssue[]): ProposalFix 
   }
 
   const fix: ProposalFix = {
+    action: readProposalText(value.action, 'fix.action', { max: LIMITS.fixAction }, errors),
+    layer:
+      value.layer === undefined || value.layer === null
+        ? null
+        : readProposalEnum(value.layer, PATCH_LAYERS, 'fix.layer', errors),
     fixedVersion: readProposalText(
       value.fixedVersion,
       'fix.fixedVersion',

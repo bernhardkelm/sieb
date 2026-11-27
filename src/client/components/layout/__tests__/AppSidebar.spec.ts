@@ -5,6 +5,7 @@ import { ref } from 'vue'
 import { createMemoryHistory, createRouter } from 'vue-router'
 
 import type { InboxResponse } from '#core/apiTypes.ts'
+import type { ChecksResponse } from '#core/check.ts'
 import { kevItem, proposalItem } from '@/__tests__/inboxItemBuilders'
 import { fetchInbox } from '@/api/inboxApi'
 import AppSidebar from '@/components/layout/AppSidebar.vue'
@@ -16,6 +17,9 @@ import { useMeStore } from '@/stores/meStore'
 
 vi.mock('@/api/inboxApi', () => ({
   fetchInbox: vi.fn<() => Promise<InboxResponse>>(() => new Promise(() => {})),
+}))
+vi.mock('@/api/checksApi', () => ({
+  fetchChecks: vi.fn<() => Promise<ChecksResponse>>(() => new Promise(() => {})),
 }))
 
 let wrapper: VueWrapper | null = null
@@ -185,6 +189,20 @@ describe('AppSidebar navigation', () => {
     ])
     expect(links[1]!.get('.badge').text()).toBe('2\u00a0open')
     expect(sidebar.findAll('.badge')).toHaveLength(1)
+  })
+
+  it('gives every view a decorative icon and keeps the full label as name next to a short one', async () => {
+    const sidebar = await mountSidebar('/images')
+    const links = sidebar.findAll('.nav .link')
+
+    expect(links.every((link) => link.find('svg[aria-hidden="true"] path').exists())).toBe(true)
+    expect(
+      links.map((link) => link.find('.short-label').exists() && link.get('.short-label').text()),
+    ).toEqual([false, false, 'Images', 'CVEs', false])
+    expect(links[2]!.get('.short-label').attributes('aria-hidden')).toBe('true')
+    expect(links[2]!.get('.label').text()).toBe('By image')
+    expect(links[2]!.attributes('aria-current')).toBe('page')
+    expect(links.filter((link) => link.attributes('aria-current') !== undefined)).toHaveLength(1)
   })
 
   it('ends with the running version and the link to its source code', async () => {

@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type { FindingView } from '#core/findingView.ts'
+import FindingCheckChip from '@/components/checks/FindingCheckChip.vue'
 import DecisionStateChip from '@/components/chips/DecisionStateChip.vue'
 import ExposureChip from '@/components/chips/ExposureChip.vue'
 import KevChip from '@/components/chips/KevChip.vue'
@@ -49,10 +50,12 @@ const { hidden, classes } = useLabelColumns()
     <span class="vuln-id" data-panel-clip>
       {{ finding.vulnId }}
       <InboxMarker class="mid-only" :finding="finding" />
+      <FindingCheckChip class="mid-only" :finding-id="finding.id" />
     </span>
     <span class="title wide-only" data-panel-clip>
       <span v-if="isNew" class="new">new</span>
       <InboxMarker class="marker" :finding="finding" />
+      <FindingCheckChip class="marker" :finding-id="finding.id" />
       {{ finding.title ?? '' }}
     </span>
     <span class="image" data-panel-clip><ImageName :image-ref="finding.imageRef" /></span>

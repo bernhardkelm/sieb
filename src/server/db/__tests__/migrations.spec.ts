@@ -24,6 +24,7 @@ describe('openDatabase', () => {
     expect(schemaVersion(db)).toBe(MIGRATIONS.length)
     expect(tables).toEqual([
       'api_tokens',
+      'checks',
       'decision_baselines',
       'decision_events',
       'decision_proposals',

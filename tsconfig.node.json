@@ -6,6 +6,7 @@
     "eslint.config.*",
     "scripts/**/*",
     "src/server/**/*",
+    "src/checker/**/*",
     "src/core/**/*"
   ],
   "compilerOptions": {

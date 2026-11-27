@@ -26,7 +26,10 @@ as `sieb_suppressed{vuln_id, image_ref}`. Your Prometheus alert rules drop the s
   in the navigation; expiring and KEV items can be marked as seen
 - Triage list of the undecided open findings, ranked by KEV listing, optional exposure and
   severity, with views per image, per CVE and per decision; optional free-form owner labels put
-  your own images first
+  your own images first. A "Pending" filter keeps the findings with an open proposal, a re-opened
+  decision, a new KEV listing or a queued or running Auto-check, or those with none of these
+- Exposure tiers `public`, `gated` and `internal`, with their meaning in the exposure tooltip and
+  the finding panel and handed to Claude, see [exposure tiers](docs/prometheus-rules.md#exposure-tiers)
 - KEV listing from the CISA Known Exploited Vulnerabilities catalog, fetched daily with date
   added, due date, ransomware use and required action in the finding panel; alternatively from a
   Prometheus query, or switched off. A KEV toggle in the filter bar keeps only KEV listed findings
@@ -50,7 +53,16 @@ as `sieb_suppressed{vuln_id, image_ref}`. Your Prometheus alert rules drop the s
   findings, images and decisions and, with `sieb:propose`, files verdicts as proposals you accept
   or reject, and a hand-off button
   (`Shift+H`, `h`, `y`) opens a finding in Claude Code (desktop, terminal or VS Code) or Claude
-  chat with the prompt prefilled, never sent, or copies it, see [docs/mcp.md](docs/mcp.md)
+  chat with the prompt prefilled, never sent, or copies it; in Triage it hands off all checked
+  rows in one prompt, see [docs/mcp.md](docs/mcp.md). Proposals that mean patching name the
+  patch action at the layer that ships the fix (dependency, base image, image or platform), with
+  a copy button for the target version or digest
+- Optional Auto-check, off by default: queue findings on public images from the finding panel or
+  for the checked rows in Triage, and a separate worker investigates one at a time with headless
+  Claude Code in a throwaway copy of the image, without a shell or cluster access, and files a
+  proposal to the Inbox. The Checks page shows the running check, the queue, recent checks with
+  Claude's reply and a Retry action, and the usage of the last 7 and 30 days; a toast tells you
+  when one of your checks ends. See [docs/auto-check.md](docs/auto-check.md)
 - Single Node process with an embedded SQLite file, no external database
 - Fully keyboard driven: shortcuts per view, clickable in the sidebar, and `a`, `n` or `f` decide
   all checked rows in one dialog. The Inbox, Triage and tree lists are virtualized, phones get a bottom tab bar
@@ -134,6 +146,11 @@ variables inline as above.
 | `SIEB_OAUTH_CLIENT_LABEL` | `Claude` | Client name of OAuth callers in logs and tool results, shared by the Claude apps and Claude Code through the connector |
 | `SIEB_PUBLIC_REGISTRIES` | `docker.io`, `index.docker.io`, `registry-1.docker.io`, `mirror.gcr.io`, `ghcr.io`, `quay.io`, `registry.k8s.io`, `gcr.io`, `public.ecr.aws`, `mcr.microsoft.com`, `cgr.dev` | Comma list of registry hosts whose images count as public for the source access Claude sees; own images (owner `self`) are always private, images of other registries unknown, see [source access](docs/api.md#source-access) |
 | `SIEB_SOURCE_URL` | upstream tag | http(s) URL of the source code the UI links next to the version (AGPL), for forks; unset links `https://github.com/bernhardkelm/sieb/tree/<version>` |
+| `SIEB_CHECKS_ENABLED` | `false` | `true` or `1` turns on Auto-check: users queue findings on public images, a separate worker runs headless Claude Code and files a proposal, see [Auto-check](docs/api.md#auto-check); needs `SIEB_MCP_ENABLED` and `SIEB_PUBLIC_URL` |
+| `SIEB_WORKER_PORT` | empty | Auto-check: port of the listener serving only the worker routes, required when on, must differ from `SIEB_PORT` and `SIEB_METRICS_PORT` |
+| `SIEB_WORKER_SECRET` | empty | Auto-check: bearer secret the worker sends, at least 32 characters without whitespace, required when on, never logged; sieb reads it from this variable only, the worker also takes `SIEB_WORKER_SECRET_FILE` |
+| `SIEB_CHECK_TIMEOUT_SECONDS` | `1200` | Auto-check: time limit of one check in seconds, 1 to 14400; its token expires 10 minutes later |
+| `SIEB_CHECK_MAX_TURNS` | `60` | Auto-check: turn limit handed to Claude Code, 1 to 500 |
 
 `NODE_ENV=production` and the `incluster` source refuse the mock source and disable the dev user.
 `SIEB_AUTH=oidc` needs `SIEB_OIDC_ISSUER`, `SIEB_OIDC_CLIENT_ID`, `SIEB_OIDC_CLIENT_SECRET`,
@@ -141,6 +158,8 @@ variables inline as above.
 from `SIEB_OAUTH_CLIENT_ID`.
 The built client in `dist/` is served whenever `dist/index.html` exists. The `SIEB_OAUTH_*`
 variables are ignored while `SIEB_MCP_ENABLED` is off.
+`SIEB_CHECKS_ENABLED=true` refuses to start without `SIEB_MCP_ENABLED`, `SIEB_PUBLIC_URL`,
+`SIEB_WORKER_PORT` and `SIEB_WORKER_SECRET`.
 
 ## How silencing works
 
@@ -162,6 +181,7 @@ up to 6h. Rules, timing and a `SiebDown` alert: [docs/prometheus-rules.md](docs/
 - [docs/deployment.md](docs/deployment.md): container image, authentication modes, metrics port, Kubernetes manifests, security notes
 - [docs/api.md](docs/api.md): HTTP API, finding filters, login routes, decision re-opening, metrics, tokens and the MCP endpoint
 - [docs/mcp.md](docs/mcp.md): the claude.ai connector, personal tokens, MCP tools, hand-off, security model
+- [docs/auto-check.md](docs/auto-check.md): the Auto-check worker, its security model, the Claude credential (API key or subscription token), worker settings, alerts and Kubernetes manifests
 - [CONTRIBUTING.md](CONTRIBUTING.md): development setup, scripts, code layout, releasing
 - [SECURITY.md](SECURITY.md): reporting a vulnerability, scope
 

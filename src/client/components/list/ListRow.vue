@@ -40,6 +40,7 @@ const selected = computed(() => (treegrid ? props.current : props.checked))
   height: var(--row-height);
   padding: 0 var(--space-4);
   border-bottom: var(--border-width) solid var(--color-border);
+  overflow-x: clip;
   cursor: default;
   scroll-margin-block: calc(var(--row-height) * 2);
 }

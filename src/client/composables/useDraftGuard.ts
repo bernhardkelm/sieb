@@ -1,6 +1,7 @@
 import { onScopeDispose, ref, type Ref } from 'vue'
 import { useRouter } from 'vue-router'
 
+import { isDeepLinkUnload } from '@/router/deepLinkNavigation'
 import { leavesFinding } from '@/router/findingNavigation'
 
 export interface DraftGuard {
@@ -53,12 +54,13 @@ export const useDraftGuard = (dirty: () => boolean): DraftGuard => {
   })
 
   /**
-   * Asks the browser to confirm closing or reloading the tab while the draft is dirty.
+   * Asks the browser to confirm closing or reloading the tab while the draft is dirty, not for
+   * a deep link that hands the page's work to Claude and leaves the page in place.
    * @param {BeforeUnloadEvent} event - Unload event
    * @returns {void}
    */
   const onBeforeUnload = (event: BeforeUnloadEvent): void => {
-    if (dirty()) {
+    if (dirty() && !isDeepLinkUnload()) {
       event.preventDefault()
     }
   }

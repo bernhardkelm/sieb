@@ -18,7 +18,7 @@ export interface FindingFilterQuery {
 
 /**
  * Keeps the finding filters of a list view in the query (`q`, `sev`, `exp`, `owner`, `kev`,
- * `new`, `resolved`), so reload and links keep them. The query is the source: every navigation
+ * `new`, `resolved`, `pending`), so reload and links keep them. The query is the source: every navigation
  * of the view reads it into the findings store, ignoring unknown values. A change updates the
  * store at once, so typing stays responsive, and replaces the history entry, keeping every other
  * param such as `finding` and `sort`.

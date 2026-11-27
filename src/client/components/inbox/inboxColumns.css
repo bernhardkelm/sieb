@@ -90,6 +90,26 @@
   }
 }
 
+/* scope and detail share the rest; age and confidence stay in the item view, the age repeats the detail of expiring and KEV items */
+@container (min-width: 641px) and (max-width: 900px) {
+  .inbox-row,
+  .inbox-row.no-kev {
+    --row-columns: var(--checkbox-size) calc(var(--space-base) * 22) calc(var(--space-base) * 15)
+      calc(var(--space-base) * 8) calc(var(--space-base) * 34) minmax(0, 1fr) minmax(0, 1fr)
+      calc(var(--space-base) * 12);
+  }
+
+  .inbox-row.no-kev {
+    --row-columns: var(--checkbox-size) calc(var(--space-base) * 22) calc(var(--space-base) * 15)
+      calc(var(--space-base) * 34) minmax(0, 1fr) minmax(0, 1fr) calc(var(--space-base) * 12);
+  }
+
+  .at,
+  .detail :deep(.confidence-chip) {
+    display: none;
+  }
+}
+
 /* two lines: kind, severity, CVE and age above, scope, detail and the button below */
 /* the Seen button and s replace the checkbox on narrow lists */
 @container (max-width: 640px) {

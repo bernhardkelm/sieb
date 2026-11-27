@@ -4,18 +4,21 @@ import { computed, ref } from 'vue'
 import type { Decision } from '#core/decision.ts'
 import { leavesInbox, type EffectiveDecision } from '#core/effectiveDecision.ts'
 import { filterFindings } from '#core/findingFilter.ts'
+import { buildPendingIndex } from '#core/findingPending.ts'
 import type { FindingListView } from '#core/findingQuery.ts'
 import type { FindingView } from '#core/findingView.ts'
 import { fetchFindings } from '@/api/findingsApi'
 import { useLabelColumns } from '@/composables/useLabelColumns'
 import { useRemoteList } from '@/composables/useRemoteList'
+import { useChecksStore } from '@/stores/checksStore'
 import { emptyFilters, toFindingQuery, type FindingFilters } from '@/stores/findingFilters'
+import { useInboxStore } from '@/stores/inboxStore'
 
 /**
  * Holds every finding, resolved ones included, and the shared filters. Lists are filtered on the
  * client with the core filter, so typing in the search narrows instantly; filters on hidden label
- * columns are ignored. Refetches whenever the
- * data version moves, see useRemoteList.
+ * columns are ignored, the pending filter reads the Inbox and the open checks of their stores.
+ * Refetches whenever the data version moves, see useRemoteList.
  */
 export const useFindingsStore = defineStore('findings', () => {
   const now = ref(new Date())
@@ -27,6 +30,14 @@ export const useFindingsStore = defineStore('findings', () => {
   )
   const { hidden } = useLabelColumns()
   const filters = ref<FindingFilters>(emptyFilters())
+  const inboxStore = useInboxStore()
+  const checks = useChecksStore()
+  const pendingIndex = computed(() =>
+    buildPendingIndex(
+      inboxStore.items,
+      checks.enabled ? checks.open.map((check) => check.findingId) : null,
+    ),
+  )
 
   /**
    * Returns the findings of a list view that pass the filters.
@@ -34,7 +45,10 @@ export const useFindingsStore = defineStore('findings', () => {
    * @returns {FindingView[]} - Findings in inbox order
    */
   const list = (view: FindingListView): FindingView[] =>
-    filterFindings(items.value, toFindingQuery(filters.value, view, now.value, hidden.value))
+    filterFindings(items.value, toFindingQuery(filters.value, view, now.value, hidden.value), {
+      kevDatesAdded: null,
+      pending: filters.value.pending.length > 0 ? pendingIndex.value : null,
+    })
 
   const inbox = computed(() => list('inbox'))
   const inboxTotal = computed(() => items.value.filter((finding) => finding.inInbox).length)

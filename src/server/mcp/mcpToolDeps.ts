@@ -7,4 +7,5 @@ export interface McpToolDeps extends RouteDeps {
   publicRegistries: readonly string[] // registries whose images count as public for source access
   log: (message: string) => void
   proposalLimiter: RateLimiter // propose_decision calls per caller, shared by every request
+  checksEnabled?: boolean // Auto-check on, pending checking then reads the open checks
 }

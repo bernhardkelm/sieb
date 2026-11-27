@@ -69,7 +69,13 @@ describe('generateProposalReason', () => {
             { check: 'callers', method: 'grep', result: 'none\nfound' },
             { check: 'flags', method: 'ps', result: 'off' },
           ],
-          fix: { fixedVersion: null, change: 'bump base image', effort: null },
+          fix: {
+            action: null,
+            layer: null,
+            fixedVersion: null,
+            change: 'bump base image',
+            effort: null,
+          },
         }),
       ),
     ).toBe(
@@ -78,6 +84,39 @@ describe('generateProposalReason', () => {
         'Fix: bump base image\n' +
         'Confidence medium, evidence basis image.',
     )
+  })
+
+  it('starts with the patch action for a patch verdict, the summary below', () => {
+    const fix = {
+      action: 'upgrade libxslt to 1.1.43-r4 (rebuild on the current base)',
+      layer: null,
+      fixedVersion: '1.1.43-r4',
+      change: 'rebuild the image',
+      effort: null,
+    }
+
+    for (const verdict of ['needs_patch', 'fix_planned'] as const) {
+      const reason = generateProposalReason(
+        buildProposalInput({ verdict, justification: null, evidence: [], fix }),
+      )
+
+      expect(reason.split('\n').slice(0, 2)).toEqual([
+        `${verdict === 'needs_patch' ? 'Needs patch' : 'Fix planned'}: upgrade libxslt to 1.1.43-r4 (rebuild on the current base)`,
+        'The vulnerable parser is never called.',
+      ])
+      expect(reason).toContain('Fix: rebuild the image')
+    }
+
+    expect(
+      generateProposalReason(
+        buildProposalInput({ verdict: 'accepted', justification: null, evidence: [], fix }),
+      ).startsWith('Accepted: The vulnerable parser is never called.\n'),
+    ).toBe(true)
+    expect(
+      generateProposalReason(
+        buildProposalInput({ verdict: 'needs_patch', justification: null, evidence: [] }),
+      ).startsWith('Needs patch: The vulnerable parser is never called.\n'),
+    ).toBe(true)
   })
 
   it('stays within the reason limit and keeps the confidence line', () => {
@@ -89,7 +128,13 @@ describe('generateProposalReason', () => {
           method: 'm',
           result: 'r'.repeat(2000),
         })),
-        fix: { fixedVersion: null, change: 'f'.repeat(2000), effort: null },
+        fix: {
+          action: null,
+          layer: null,
+          fixedVersion: null,
+          change: 'f'.repeat(2000),
+          effort: null,
+        },
       }),
     )
 

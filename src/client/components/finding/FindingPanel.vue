@@ -1,13 +1,16 @@
 <script setup lang="ts">
-import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { computed, nextTick, onBeforeUnmount, onMounted, provide, ref, useId, watch } from 'vue'
 
 import { currentInstances } from '#core/instance.ts'
 import { packageOrigins } from '#core/packageOrigin.ts'
+import AutoCheckButton from '@/components/checks/AutoCheckButton.vue'
+import FindingCheckLine from '@/components/checks/FindingCheckLine.vue'
 import BaseButton from '@/components/common/BaseButton.vue'
 import CloseButton from '@/components/common/CloseButton.vue'
 import CopyButton from '@/components/common/CopyButton.vue'
 import LoadingSpinner from '@/components/common/LoadingSpinner.vue'
 import DecisionHistory from '@/components/decision/DecisionHistory.vue'
+import { STICKY_ACTIONS_TARGET } from '@/components/decision/stickyActionsTarget'
 import FindingDecisions from '@/components/finding/FindingDecisions.vue'
 import FindingHeader from '@/components/finding/FindingHeader.vue'
 import FoundIn from '@/components/finding/FoundIn.vue'
@@ -15,6 +18,7 @@ import HandoffButton from '@/components/finding/HandoffButton.vue'
 import InstanceTable from '@/components/finding/InstanceTable.vue'
 import KevDetails from '@/components/finding/KevDetails.vue'
 import FindingInboxLine from '@/components/inbox/FindingInboxLine.vue'
+import { useAutoCheckHintActions } from '@/composables/useAutoCheckHintActions'
 import { useFindingPanel } from '@/composables/useFindingPanel'
 import { useHandoff } from '@/composables/useHandoff'
 import { useHandoffHintActions } from '@/composables/useHandoffHintActions'
@@ -29,6 +33,11 @@ const mcp = useMcpStore()
 const { prompts: handoffPrompts, command: handoffCommand } = useHandoff()
 
 useHandoffHintActions()
+useAutoCheckHintActions()
+
+const decisionActionsId = useId()
+
+provide(STICKY_ACTIONS_TARGET, `#${decisionActionsId}`)
 
 const panel = ref<HTMLElement | null>(null)
 const origins = computed(() =>
@@ -124,6 +133,7 @@ onBeforeUnmount(() => {
         :prompts="handoffPrompts"
         :command="handoffCommand"
       />
+      <AutoCheckButton v-if="store.detail" />
       <LoadingSpinner v-if="store.loading" />
       <CloseButton label="Close panel" @click="closeFinding" />
     </header>
@@ -133,6 +143,7 @@ onBeforeUnmount(() => {
         :source-access="mcp.enabled ? store.detail.sourceAccess : null"
       />
       <FindingInboxLine :finding="store.detail.finding" />
+      <FindingCheckLine :finding-id="store.detail.finding.id" />
       <section v-if="store.detail.kev" class="section" aria-labelledby="panel-kev">
         <h3 id="panel-kev" class="section-title">Known exploited</h3>
         <KevDetails :details="store.detail.kev" />
@@ -141,6 +152,7 @@ onBeforeUnmount(() => {
         <h3 id="panel-decision" class="section-title">Decision</h3>
         <FindingDecisions :detail="store.detail" @saved="focusPanel" />
       </section>
+      <div :id="decisionActionsId" class="decision-actions" />
       <section v-if="origins.length > 0" class="section" aria-labelledby="panel-found-in">
         <h3 id="panel-found-in" class="section-title">Found in</h3>
         <FoundIn :origins="origins" />

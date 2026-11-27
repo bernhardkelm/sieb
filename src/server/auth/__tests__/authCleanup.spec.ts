@@ -3,7 +3,8 @@ import { describe, expect, it, vi } from 'vitest'
 
 import { buildProposalInput, PROPOSER } from '#core/__tests__/proposalBuilders.ts'
 import { startAuthCleanup } from '#server/auth/authCleanup.ts'
-import { insertToken, listOwnTokens } from '#server/db/apiTokenRepository.ts'
+import { listOwnTokens } from '#server/db/apiTokenRepository.ts'
+import { insertToken } from '#server/db/storeApiToken.ts'
 import {
   deleteStaleTokens,
   revokeLiveTokensOf,

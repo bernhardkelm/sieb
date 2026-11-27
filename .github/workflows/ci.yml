@@ -70,8 +70,10 @@ jobs:
       - uses: docker/setup-buildx-action@v4
 
       # image references must be lower case, the repository owner may not be
-      - name: Resolve the image name
-        run: echo "IMAGE=ghcr.io/${GITHUB_REPOSITORY,,}" >> "$GITHUB_ENV"
+      - name: Resolve the image names
+        run: |
+          echo "IMAGE=ghcr.io/${GITHUB_REPOSITORY,,}" >> "$GITHUB_ENV"
+          echo "CHECKER_IMAGE=ghcr.io/${GITHUB_REPOSITORY_OWNER,,}/sieb-checker" >> "$GITHUB_ENV"
 
       - if: env.PUBLISH == 'true'
         uses: docker/login-action@v4
@@ -105,3 +107,57 @@ jobs:
           annotations: ${{ steps.meta.outputs.annotations }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
+
+      # the Auto-check worker, built for the runner first so its startup checks run before a push
+      - uses: docker/build-push-action@v7
+        with:
+          context: .
+          file: Dockerfile.checker
+          platforms: linux/amd64
+          load: true
+          tags: sieb-checker:ci
+          cache-from: type=gha,scope=checker
+
+      # the module graph loads, the config check refuses to start, the inspect server answers
+      - name: Smoke test the checker image
+        run: |
+          set -euo pipefail
+          run=(docker run --rm --read-only --cap-drop ALL --security-opt no-new-privileges)
+          refusal="$("${run[@]}" sieb-checker:ci 2>&1 || true)"
+          echo "$refusal"
+          grep -qx '\[sieb-checker\] SIEB_WORKER_URL is required' <<<"$refusal"
+          "${run[@]}" --entrypoint claude sieb-checker:ci --version
+          tools="$(printf '%s\n' \
+            '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-06-18","capabilities":{},"clientInfo":{"name":"ci","version":"1"}}}' \
+            '{"jsonrpc":"2.0","method":"notifications/initialized"}' \
+            '{"jsonrpc":"2.0","id":2,"method":"tools/list"}' \
+            | "${run[@]}" -i --entrypoint node sieb-checker:ci src/checker/inspect/inspectMain.ts /app)"
+          for tool in strings readelf objdump unzip_list jq; do
+            grep -q "\"name\":\"$tool\"" <<<"$tools"
+          done
+
+      # same tag rules and platforms as the main image, its own cache scope
+      - id: checker-meta
+        uses: docker/metadata-action@v6
+        with:
+          images: ${{ env.CHECKER_IMAGE }}
+          tags: |
+            type=edge,branch=main
+            type=sha
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=semver,pattern={{major}},enable=${{ !startsWith(github.ref, 'refs/tags/0.') }}
+          flavor: |
+            latest=auto
+
+      - uses: docker/build-push-action@v7
+        with:
+          context: .
+          file: Dockerfile.checker
+          platforms: linux/amd64,linux/arm64
+          push: ${{ env.PUBLISH == 'true' }}
+          tags: ${{ steps.checker-meta.outputs.tags }}
+          labels: ${{ steps.checker-meta.outputs.labels }}
+          annotations: ${{ steps.checker-meta.outputs.annotations }}
+          cache-from: type=gha,scope=checker
+          cache-to: type=gha,scope=checker,mode=max

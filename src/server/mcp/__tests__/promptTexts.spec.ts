@@ -1,6 +1,7 @@
 // @vitest-environment node
 import { describe, expect, it } from 'vitest'
 
+import { EXPOSURE_CAVEAT, EXPOSURE_MEANINGS } from '#core/exposureMeaning.ts'
 import { READ_ONLY_PROPOSAL_LINE } from '#core/handoffPrompt.ts'
 import { serverInstructions } from '#server/mcp/serverInstructions.ts'
 import { triageWorkflow } from '#server/mcp/triagePromptText.ts'
@@ -8,15 +9,15 @@ import { triageWorkflow } from '#server/mcp/triagePromptText.ts'
 const LONG_REPORT = /report back|in this structure|report your findings/i
 
 const SKELETON = [
-  'One finding: at most 5 lines, nothing else unless asked:',
+  'One finding: at most 4 lines, nothing else unless asked:',
   '**<CVE> · <image>** → <verdict> (<OpenVEX justification, not_affected only>) · confidence <low|medium|high>',
   'Why: <one sentence, the decisive argument>',
   'Checked: <keywords> · Not checked: <keywords>',
-  'Fix: <one line, or "none needed">',
 ]
 
 const BLOCK_RULES =
-  'The first line contains the word "confidence". Why has at most 25 words. Checked and Not' +
+  'The first line contains "confidence"; needs_patch and fix_planned add ": <exact patch' +
+  ' action>", also in tables. Why has at most 25 words. Checked and Not' +
   ' checked hold only comma-separated keywords: advisory, upstream_source, image, own_source,' +
   ' runtime; sieb data counts as advisory.'
 
@@ -28,7 +29,7 @@ const PLAIN =
   ' No table, no verdict block.'
 
 const MIXED =
-  'Find, then triage: the first line answers the question, at most 3 bullets, then the 5-line' +
+  'Find, then triage: the first line answers the question, at most 3 bullets, then the 4-line' +
   ' block of the triaged finding. No paragraphs, no other table.'
 
 const EMPTY_SEARCH =
@@ -48,7 +49,10 @@ const expectReplyFormat = (text: string, proposalLine: string): void => {
   expect(text).toContain(
     `Reply in the sieb format.\n${SKELETON.join('\n')}\n${proposalLine}\n${BLOCK_RULES}`,
   )
-  expect(text).toContain('**CVE-2025-1234 · ghcr.io/example/app** → needs_patch · confidence high')
+  expect(text).toContain(
+    '**CVE-2025-1234 · ghcr.io/example/app** → needs_patch: upgrade libexample to 1.2.1 · confidence high',
+  )
+  expect(text).not.toContain('Fix:')
   expect(text).toContain(TABLE)
   expect(text).not.toMatch(LONG_REPORT)
   expect(text).not.toMatch(/[\u2013\u2014]/u)
@@ -61,7 +65,7 @@ describe('serverInstructions', () => {
     expect(text).toContain('Never ask whether you should file one')
     expect(text).toContain('Put the detail into the proposal fields (presence, reachability,')
     expect(text).toContain('fix, review, unknowns, references), not into the chat')
-    expect(text).toContain('propose needs_patch, or fix_planned with the target version')
+    expect(text).toContain('with an upgrade as the fix: propose needs_patch or fix_planned.')
     expect(text).toContain('the client has disabled the tool')
     expectReplyFormat(text, 'Proposal: <url propose_decision returns>')
     expect(text).toContain('Proposal: https://sieb.example.com/inbox/proposals/42')
@@ -155,12 +159,50 @@ describe('triageWorkflow', () => {
     expect(text).not.toContain(MIXED)
   })
 
+  it('asks for the patch step at the closest layer that pulls in a published fix', () => {
+    const text = triageWorkflow(true)
+
+    expect(text).toContain(
+      '8. Fix path: for needs_patch and fix_planned the patch action: find which layer ships the' +
+        ' vulnerable component and whether a fix is published at that layer, then name the step' +
+        ' at the closest layer the operator controls that pulls in an available fix',
+    )
+    for (const layer of ['dependency', 'base_image', 'image', 'platform']) {
+      expect(text).toContain(`   - ${layer} (`)
+    }
+    expect(text).toContain('"base image: rebuild on alpine:3.24.4 (libxslt 1.1.43-r4)"')
+    expect(text).toContain('"k3s: wait for a release bundling metrics-server v0.9.1"')
+    expect(text).toContain('"dependency: bump golang.org/x/text to v0.39.0"')
+    expect(text).toContain('Never suggest overriding the bundled component.')
+    expect(text).toContain('the owner only as a hint')
+    expect(text).toContain('org.opencontainers.image.base.name')
+    expect(text).toContain('Manual overrides only as an explicit exception for high risk')
+    expect(triageWorkflow(false)).toContain(
+      'No fix published at any layer the operator controls: the action says what to wait for and' +
+        ' the verdict is fix_planned with a review date, not needs_patch',
+    )
+    expect(text).not.toContain('owner not self')
+  })
+
   it('ends in the same reply format with the read-only line for a read-only connection', () => {
     const text = triageWorkflow(false)
 
     expect(text).toContain('propose_decision is not available')
     expect(text).not.toContain('File your verdict with propose_decision')
     expectReplyFormat(text, READ_ONLY_PROPOSAL_LINE)
+  })
+
+  it('defines every exposure tier and the network entry caveat in the exposure step', () => {
+    for (const canPropose of [true, false]) {
+      const text = triageWorkflow(canPropose)
+
+      expect(text).toContain('5. Exposure: how the workload is exposed')
+      expect(text).toContain('exposureNote in tool results')
+      for (const tier of ['public', 'gated', 'internal', 'unknown'] as const) {
+        expect(text).toContain(`   - ${tier}: ${EXPOSURE_MEANINGS[tier]}`)
+      }
+      expect(text).toContain(`   ${EXPOSURE_CAVEAT}\n6. Evidence`)
+    }
   })
 
   it('prefers needs_patch over not_affected for an unreachable but present vulnerability', () => {

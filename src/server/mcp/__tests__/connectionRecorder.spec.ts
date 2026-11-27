@@ -19,6 +19,7 @@ const OAUTH_ALICE: McpCaller = {
   tokenId: null,
   clientLabel: 'claude.ai',
   scopes: ['sieb:read'],
+  check: null,
 }
 const TOKEN_ALICE: McpCaller = { ...OAUTH_ALICE, via: 'token', tokenId: 1, clientLabel: 'laptop' }
 const OAUTH_BOB: McpCaller = { ...OAUTH_ALICE, actor: 'bob' }

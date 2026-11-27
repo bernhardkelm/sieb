@@ -26,7 +26,12 @@ export const buildRawProposal = (
   reachability: 'Only the CLI uses the parser.',
   exposure: 'Internal only.',
   evidence: [{ check: 'callers of the parser', method: 'grep -r parse_x src/', result: 'none' }],
-  fix: { fixedVersion: '3.0.2', change: 'bump the base image', effort: 'small' },
+  fix: {
+    action: 'upgrade openssl to 3.0.2',
+    fixedVersion: '3.0.2',
+    change: 'bump the base image',
+    effort: 'small',
+  },
   review: { date: '2026-09-01', why: 'next base image release' },
   unknowns: ['runtime flags'],
   references: ['https://example.org/advisory'],

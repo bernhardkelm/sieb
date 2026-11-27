@@ -1,7 +1,9 @@
 import { describe, expect, it } from 'vitest'
 
+import type { CheckMetrics } from '#core/checkMetricsText.ts'
 import { countDecisionStates } from '#core/decisionStates.ts'
-import { escapeLabelValue, renderMetrics } from '#core/metricsText.ts'
+import { escapeLabelValue } from '#core/metricsFormat.ts'
+import { renderMetrics } from '#core/metricsText.ts'
 import { collectSuppressions } from '#core/suppressions.ts'
 import { resolveTriage } from '#core/triage.ts'
 
@@ -12,6 +14,13 @@ const REDIS = 'index.docker.io/library/redis'
 const POSTGRES = 'index.docker.io/library/postgres'
 const GRAFANA = 'index.docker.io/grafana/grafana'
 const NO_DECISIONS = { active: 0, fix_planned: 0, expired: 0, reopened: 0, revoked: 0 }
+const NO_CHECKS: CheckMetrics = {
+  open: { queued: 0, running: 0 },
+  finished: { done: 0, failed: 0, cancelled: 0 },
+  durationSecondsSum: 0,
+  durationCount: 0,
+  workerOnline: null,
+}
 
 describe('escapeLabelValue', () => {
   it('escapes backslash, double quote and newline', () => {
@@ -91,6 +100,7 @@ describe('renderMetrics', () => {
       lastSync: { finishedAt: '2026-06-01T12:00:00.000Z', ok: true },
       findingsOpen: 42,
       decisionStates: { ...NO_DECISIONS, active: 3 },
+      checks: NO_CHECKS,
     })
 
     expect(text).toContain('# TYPE sieb_suppressed gauge\n')
@@ -101,7 +111,7 @@ describe('renderMetrics', () => {
     expect(text).toContain('sieb_findings_open 42\n')
     expect(text).toContain('sieb_decisions{state="active"} 3\n')
     expect(text).toContain('sieb_decisions{state="revoked"} 0\n')
-    expect(text.match(/^# HELP /gm)).toHaveLength(5)
+    expect(text.match(/^# HELP /gm)).toHaveLength(8)
     expect(text.endsWith('\n')).toBe(true)
   })
 
@@ -111,6 +121,7 @@ describe('renderMetrics', () => {
       lastSync: null,
       findingsOpen: 0,
       decisionStates: NO_DECISIONS,
+      checks: NO_CHECKS,
     })
 
     expect(text).not.toMatch(/^sieb_last_sync_timestamp_seconds /m)

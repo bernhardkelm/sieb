@@ -1,10 +1,15 @@
 import type { DecisionJustification, DecisionScope, DecisionStatus } from '#core/decision.ts'
 import type { SourceAccess } from '#core/sourceAccess.ts'
 
-/** Verdict of a proposal, needs_patch becomes fix_planned with the fix path on accept */
+/** Verdict of a proposal, needs_patch becomes fix_planned with the patch action on accept */
 export const PROPOSAL_VERDICTS = ['not_affected', 'accepted', 'fix_planned', 'needs_patch'] as const
 
 export type ProposalVerdict = (typeof PROPOSAL_VERDICTS)[number]
+
+/** Layer that ships the vulnerable component, where the patch action applies */
+export const PATCH_LAYERS = ['dependency', 'base_image', 'image', 'platform', 'unknown'] as const
+
+export type PatchLayer = (typeof PATCH_LAYERS)[number]
 
 export const PROPOSAL_CONFIDENCES = ['low', 'medium', 'high'] as const
 
@@ -50,6 +55,7 @@ export const PROPOSAL_LIMITS = {
   evidenceCheck: 500,
   evidenceMethod: 1000,
   evidenceResult: 2000,
+  fixAction: 160,
   fixVersion: 200,
   fixChange: 2000,
   fixEffort: 500,
@@ -75,6 +81,8 @@ export interface ProposalEvidence {
 }
 
 export interface ProposalFix {
+  action: string | null // the patch in one line, required for needs_patch and fix_planned
+  layer: PatchLayer | null
   fixedVersion: string | null
   change: string | null // image tag, dependency or pull request to change
   effort: string | null

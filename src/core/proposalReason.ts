@@ -1,4 +1,5 @@
 import { MAX_REASON_LENGTH } from '#core/decisionFieldReaders.ts'
+import { patchActionOf } from '#core/patchAction.ts'
 import type { ProposalClaims, ProposalVerdict } from '#core/proposal.ts'
 
 const VERDICT_LABELS: Record<ProposalVerdict, string> = {
@@ -37,8 +38,9 @@ const oneLine = (text: string): string => text.replaceAll(/\s+/gu, ' ').trim()
 
 /**
  * Generates the reason of the decision a proposal becomes: the verdict with its justification
- * and the summary, the first evidence checks with their results, the fix path when one is
- * given, and the confidence with the evidence basis, at most MAX_REASON_LENGTH characters.
+ * and the summary, for a patch verdict the verdict with its patch action first, the first
+ * evidence checks with their results, the fix path when one is given, and the confidence with
+ * the evidence basis, at most MAX_REASON_LENGTH characters.
  * @param {ReasonClaims} claims - Validated claims of the proposal
  * @returns {string} - Decision reason, editable before accepting
  */
@@ -46,7 +48,10 @@ export const generateProposalReason = (claims: ReasonClaims): string => {
   const verdict = claims.justification
     ? `${VERDICT_LABELS[claims.verdict]} (${claims.justification})`
     : VERDICT_LABELS[claims.verdict]
-  const lines = [`${verdict}: ${oneLine(claims.summary)}`]
+  const action = patchActionOf(claims)
+  const lines = action
+    ? [`${verdict}: ${oneLine(action)}`, oneLine(claims.summary)]
+    : [`${verdict}: ${oneLine(claims.summary)}`]
   const evidence = claims.evidence
     .slice(0, KEY_EVIDENCE)
     .map((item) => shorten(oneLine(`${item.check}: ${item.result}`), EVIDENCE_PART_LENGTH))

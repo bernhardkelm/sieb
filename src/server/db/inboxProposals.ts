@@ -1,6 +1,7 @@
 import type { DatabaseSync } from 'node:sqlite'
 
 import type { InboxProposal } from '#core/inbox/inboxItem.ts'
+import { patchActionOf } from '#core/patchAction.ts'
 import { listProposals } from '#server/db/proposalRepository.ts'
 
 /**
@@ -16,4 +17,5 @@ export const listInboxProposals = (db: DatabaseSync): InboxProposal[] =>
     createdAt: proposal.createdAt,
     verdict: proposal.verdict,
     confidence: proposal.confidence,
+    patchAction: patchActionOf(proposal),
   }))

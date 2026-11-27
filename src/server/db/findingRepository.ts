@@ -147,11 +147,3 @@ export const listOpenFindings = (db: DatabaseSync): Finding[] =>
       .prepare('SELECT * FROM findings WHERE resolved_at IS NULL ORDER BY id')
       .all() as unknown as FindingRow[]
   ).map(toFinding)
-
-/**
- * Counts the findings not resolved by the latest successful sync.
- * @param {DatabaseSync} db - Open database
- * @returns {number} - Open findings
- */
-export const countOpenFindings = (db: DatabaseSync): number =>
-  Number(db.prepare('SELECT COUNT(*) AS n FROM findings WHERE resolved_at IS NULL').get()?.n ?? 0)

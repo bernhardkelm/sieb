@@ -24,13 +24,3 @@ export const readLastSync = (db: DatabaseSync): LastSync => {
 
   return run?.finishedAt ? { finishedAt: run.finishedAt, fetchedAt: run.fetchedAt } : null
 }
-
-/**
- * Describes the freshness of sieb's data for answers about absence.
- * @param {LastSync} lastSync - Latest successful sync
- * @returns {string} - Time of the data, or that no sync succeeded yet
- */
-export const asOfText = (lastSync: LastSync): string =>
-  lastSync
-    ? `as of the last successful sync at ${lastSync.finishedAt}`
-    : 'and sieb has not completed a successful sync yet'

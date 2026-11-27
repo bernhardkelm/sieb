@@ -4,6 +4,7 @@ import { join, resolve } from 'node:path'
 import type { AuthMode } from '#core/apiTypes.ts'
 import type { KevSourceKind } from '#core/kev.ts'
 import type { SourceKind } from '#core/types.ts'
+import { readCheckConfig, type CheckConfig } from '#server/checkConfigValues.ts'
 import {
   parseBoolean,
   parseHostList,
@@ -64,6 +65,7 @@ export interface ServerConfig {
   oauth: OAuthConfig | null // null accepts personal tokens only on /mcp, always null while MCP is off
   publicRegistries: string[] // registry hosts whose images count as public for source access
   sourceCodeUrl: string | null // source code link of a fork, null links the upstream release tag
+  checks: CheckConfig | null // Auto-check queue and worker listener, null while SIEB_CHECKS_ENABLED is off
 }
 
 /**
@@ -118,7 +120,8 @@ const parseQueries = (env: Record<string, string | undefined>): SourceQueries =>
  * dist/index.html exists. OAuth for /mcp needs the public URL and is ignored while MCP is off.
  * SIEB_AUTH=oidc needs the OIDC client, the public URL and the metrics port, and never uses the
  * dev user, not even outside production. Its client must differ from the MCP OAuth client, whose
- * access tokens /mcp accepts by audience.
+ * access tokens /mcp accepts by audience. SIEB_CHECKS_ENABLED needs MCP, the public URL, the
+ * worker port and the worker secret.
  * @param {Record<string, string | undefined>} env - Environment
  * @param {string} cwd - Directory relative paths resolve against
  * @returns {ServerConfig} - Validated configuration
@@ -177,5 +180,6 @@ export const readConfig = (env: Record<string, string | undefined>, cwd: string)
     oauth,
     publicRegistries: parseRegistryList(env.SIEB_PUBLIC_REGISTRIES),
     sourceCodeUrl: parseSourceCodeUrl(env.SIEB_SOURCE_URL),
+    checks: readCheckConfig(env, { mcpEnabled, publicUrl, port, metricsPort }),
   }
 }

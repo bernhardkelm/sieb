@@ -5,6 +5,7 @@ import type { HandoffTarget } from '#core/handoffLinks.ts'
 import type { HandoffPrompts } from '#core/handoffPrompt.ts'
 import HandoffMenu from '@/components/finding/HandoffMenu.vue'
 import { useClipboardCopy } from '@/composables/useClipboardCopy'
+import { useConnectionPoll } from '@/composables/useConnectionPoll'
 import { useHandoffOpen } from '@/composables/useHandoffOpen'
 import { HANDOFF_OPTIONS } from '@/format/handoffTargets'
 import { useHandoffTargetStore } from '@/stores/handoffTargetStore'
@@ -25,6 +26,8 @@ const { open } = useHandoffOpen()
 const label = computed(() => HANDOFF_OPTIONS[targets.preferred].action)
 
 const primaryBlockedBy = computed(() => (targets.preferred === 'copy' ? null : mcp.connectReason))
+
+useConnectionPoll(() => targets.preferred !== 'copy')
 
 /**
  * Runs the default action: copies the prompt with the check icon as feedback, or opens the

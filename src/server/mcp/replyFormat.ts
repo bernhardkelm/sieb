@@ -1,12 +1,11 @@
 import { READ_ONLY_PROPOSAL_LINE } from '#core/handoffPrompt.ts'
 
-const EXAMPLE_HEAD = `**CVE-2025-1234 · ghcr.io/example/app** → needs_patch · confidence high
-Why: libexample 1.2.0 is installed and its vulnerable parser handles every request body.
-Checked: advisory, image · Not checked: runtime
-Fix: upgrade libexample to 1.2.1 in the base image`
+const EXAMPLE_HEAD = `**CVE-2025-1234 · ghcr.io/example/app** → needs_patch: upgrade libexample to 1.2.1 · confidence high
+Why: libexample 1.2.0 is installed and its parser handles every request body.
+Checked: advisory, image · Not checked: runtime`
 
 const BLOCK_RULES =
-  'The first line contains the word "confidence". Why has at most 25 words. Checked and Not checked hold only comma-separated keywords: advisory, upstream_source, image, own_source, runtime; sieb data counts as advisory.'
+  'The first line contains "confidence"; needs_patch and fix_planned add ": <exact patch action>", also in tables. Why has at most 25 words. Checked and Not checked hold only comma-separated keywords: advisory, upstream_source, image, own_source, runtime; sieb data counts as advisory.'
 
 /**
  * Returns the sieb reply format for one finding, with the proposal line of the connection.
@@ -18,11 +17,10 @@ const singleFinding = (canPropose: boolean): string => {
   const example = canPropose ? 'Proposal: https://sieb.example.com/inbox/proposals/42' : proposal
   const verbatim = canPropose ? '' : ' Copy the last line verbatim.'
 
-  return `One finding: at most 5 lines, nothing else unless asked:
+  return `One finding: at most 4 lines, nothing else unless asked:
 **<CVE> · <image>** → <verdict> (<OpenVEX justification, not_affected only>) · confidence <low|medium|high>
 Why: <one sentence, the decisive argument>
 Checked: <keywords> · Not checked: <keywords>
-Fix: <one line, or "none needed">
 ${proposal}
 ${BLOCK_RULES}${verbatim}
 Example:
@@ -41,7 +39,7 @@ const severalFindings = (canPropose: boolean): string =>
     : `Several triaged findings: a table | Finding | Verdict | Conf. | Proposal | with "none" as proposal, then the line "${READ_ONLY_PROPOSAL_LINE}"`
 
 const QUESTIONS = `Plain questions, "does CVE-X affect us" across many images included: the answer in the first line, at most 3 bullets with counts and names, then the sieb link. No table, no verdict block.
-Find, then triage: the first line answers the question, at most 3 bullets, then the 5-line block of the triaged finding. No paragraphs, no other table.
+Find, then triage: the first line answers the question, at most 3 bullets, then the 4-line block of the triaged finding. No paragraphs, no other table.
 A filtered search returning 0: the first line says so before you widen it and names the widened filter ("None with exposure public; widened to all exposures:").`
 
 /**

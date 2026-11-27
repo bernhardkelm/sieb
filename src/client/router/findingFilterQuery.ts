@@ -1,6 +1,7 @@
 import type { LocationQuery } from 'vue-router'
 
 import { isExposureFilter, type ExposureFilter } from '#core/exposure.ts'
+import { isPendingFilter, type PendingFilter } from '#core/findingPending.ts'
 import { isOwner } from '#core/owner.ts'
 import { SEVERITIES, type Severity } from '#core/severity.ts'
 import { readQueryParam } from '@/router/queryParam'
@@ -15,6 +16,7 @@ export const FILTER_QUERY = {
   kev: 'kev',
   newThisWeek: 'new',
   includeResolved: 'resolved',
+  pending: 'pending',
 } as const satisfies Record<keyof FindingFilters, string>
 
 const FLAG_ON = '1'
@@ -51,6 +53,17 @@ const readExposure = (entry: string): ExposureFilter | null => {
   const value = entry.toLowerCase()
 
   return isExposureFilter(value) ? value : null
+}
+
+/**
+ * Reads a pending filter entry case-insensitively.
+ * @param {string} entry - Param entry
+ * @returns {PendingFilter | null} - Option, null for other entries
+ */
+const readPending = (entry: string): PendingFilter | null => {
+  const value = entry.toLowerCase()
+
+  return isPendingFilter(value) ? value : null
 }
 
 /**
@@ -91,6 +104,7 @@ export const readFindingFilters = (query: LocationQuery): FindingFilters => {
     kev: param('kev') === FLAG_ON,
     newThisWeek: param('newThisWeek') === FLAG_ON,
     includeResolved: param('includeResolved') === FLAG_ON,
+    pending: readEntries(param('pending'), readPending),
   }
 }
 
@@ -108,6 +122,7 @@ export const findingFilterParams = (filters: FindingFilters): Record<string, str
   [FILTER_QUERY.kev]: flagParam(filters.kev),
   [FILTER_QUERY.newThisWeek]: flagParam(filters.newThisWeek),
   [FILTER_QUERY.includeResolved]: flagParam(filters.includeResolved),
+  [FILTER_QUERY.pending]: listParam(filters.pending),
 })
 
 /**

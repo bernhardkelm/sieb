@@ -5,8 +5,8 @@ import { useHandoffTargetStore } from '@/stores/handoffTargetStore'
 import { useMcpStore } from '@/stores/mcpStore'
 import { notifySuccess } from '@/toast/toastManager'
 
-export interface PanelHandoff {
-  handoff: Handoff
+/** Hand-off actions of the keys and hints, for the panel finding or the checked rows */
+export interface HandoffActions {
   /** Why the prompt cannot be handed off, null while it can */
   promptBlockedBy: () => string | null
   /** Why the default action cannot run: no prompt, or a deep link while Claude cannot reach sieb */
@@ -17,6 +17,10 @@ export interface PanelHandoff {
   copyCommand: () => Promise<boolean>
   /** Runs the default hand-off action, false while it is blocked */
   openPreferred: () => boolean
+}
+
+export interface PanelHandoff extends HandoffActions {
+  handoff: Handoff
 }
 
 /**

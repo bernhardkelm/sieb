@@ -137,6 +137,7 @@ export interface McpInfoResponse {
   mcpUrl: string | null // absolute URL of the MCP endpoint, null while disabled
   oauth: boolean // whether claude.ai connectors can sign in through OAuth, false while disabled
   claude: ClaudeConnection | null // acting user's connection, null while disabled or anonymous
+  checksEnabled?: boolean // SIEB_CHECKS_ENABLED, always sent by this server, absent counts as off
 }
 
 /** Whether Claude can reach sieb for the acting user */
@@ -216,11 +217,6 @@ export interface ProposalAcceptResponse {
   proposal: ProposalView
   decisions: DecisionView[] // created or updated decisions
   supersededIds: number[] // other open proposals for an overlapping target
-}
-
-/** Body of POST /api/proposals/:id/reject */
-export interface ProposalRejectRequest {
-  reason: string // 1 to 2000 characters
 }
 
 /** Answer of POST /api/proposals/:id/reject */

@@ -31,6 +31,9 @@ const status = computed(() => {
     <template v-if="item.kind === 'proposal'">
       <VerdictChip :verdict="item.verdict" />
       <ConfidenceChip :confidence="item.confidence" />
+      <span v-if="item.patchAction" class="patch" :title="item.patchAction">
+        {{ item.patchAction }}
+      </span>
     </template>
     <BaseChip v-else-if="item.kind === 'reopened'" tone="danger">
       {{ REOPEN_LABELS[item.reopenReason] }}
@@ -60,7 +63,9 @@ const status = computed(() => {
   font-weight: var(--font-weight-medium);
 }
 
-.status {
+.status,
+.patch {
+  min-width: 0;
   overflow: hidden;
   color: var(--color-text-muted);
   font-size: var(--font-size-sm);

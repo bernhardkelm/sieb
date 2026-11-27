@@ -9,7 +9,7 @@ import type {
   ApiTokenView,
   McpInfoResponse,
 } from '#core/apiTypes.ts'
-import { insertToken } from '#server/db/apiTokenRepository.ts'
+import { insertToken } from '#server/db/storeApiToken.ts'
 import { getProposal, insertProposal } from '#server/db/proposalRepository.ts'
 import { createApp, type AppDeps } from '#server/http/createApp.ts'
 
@@ -380,7 +380,13 @@ describe('mcp-info route', () => {
 
     expect(await requestJson<McpInfoResponse>(configured, '/api/mcp-info')).toEqual({
       status: 200,
-      body: { enabled: true, mcpUrl: 'https://sieb.example.com/mcp', oauth: false, claude: null },
+      body: {
+        enabled: true,
+        mcpUrl: 'https://sieb.example.com/mcp',
+        oauth: false,
+        claude: null,
+        checksEnabled: false,
+      },
     })
     expect(
       (
@@ -394,7 +400,13 @@ describe('mcp-info route', () => {
           },
         )
       ).body,
-    ).toEqual({ enabled: true, mcpUrl: 'https://localhost:5173/mcp', oauth: false, claude: null })
+    ).toEqual({
+      enabled: true,
+      mcpUrl: 'https://localhost:5173/mcp',
+      oauth: false,
+      claude: null,
+      checksEnabled: false,
+    })
   })
 
   it('reports OAuth when configured and nothing while disabled', async () => {
@@ -412,10 +424,11 @@ describe('mcp-info route', () => {
       mcpUrl: 'https://sieb.example.com/mcp',
       oauth: true,
       claude: null,
+      checksEnabled: false,
     })
     expect(
       (await requestJson(tokenApp({ publicUrl, oauth, mcpEnabled: false }).app, '/api/mcp-info'))
         .body,
-    ).toEqual({ enabled: false, mcpUrl: null, oauth: false, claude: null })
+    ).toEqual({ enabled: false, mcpUrl: null, oauth: false, claude: null, checksEnabled: false })
   })
 })

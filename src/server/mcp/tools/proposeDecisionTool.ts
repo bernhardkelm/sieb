@@ -1,10 +1,13 @@
 import type { McpServer, ToolAnnotations } from '@modelcontextprotocol/server'
 import { z } from 'zod'
 
+import type { ValidationIssue } from '#core/apiTypes.ts'
 import { proposalReviewUrl } from '#core/inbox/inboxLinks.ts'
+import { PATCH_ACTION_HINT } from '#core/patchAction.ts'
 import { validateProposalInput } from '#core/proposalValidation.ts'
 import { linkBase } from '#core/siebLinks.ts'
 import { createProposal } from '#server/db/createProposal.ts'
+import { checkTargetError } from '#server/mcp/checkScope.ts'
 import type { McpCaller } from '#server/mcp/mcpCaller.ts'
 import type { McpToolDeps } from '#server/mcp/mcpToolDeps.ts'
 import { resolveProposalTarget } from '#server/mcp/proposalTarget.ts'
@@ -34,9 +37,29 @@ const outputSchema = z.object({
 })
 
 /**
+ * Describes one validation problem, a missing patch action with what to name in it.
+ * @param {ValidationIssue} error - Validation problem
+ * @returns {string} - Field and code, with the hint for fix.action required
+ */
+const problemText = ({ field, code }: ValidationIssue): string =>
+  field === 'fix.action' && code === 'required'
+    ? `fix.action: required for needs_patch and fix_planned, ${PATCH_ACTION_HINT}`
+    : `${field ?? 'input'}: ${code}`
+
+/**
+ * Returns the rate bucket of a caller: one per sieb user, shared by all of that user's tokens
+ * and OAuth clients, and one per Auto-check, so a check never uses up its requester's quota.
+ * @param {McpCaller} caller - Authenticated caller
+ * @returns {string} - Limiter key
+ */
+const rateKeyOf = (caller: McpCaller): string =>
+  caller.check === null ? `propose:${caller.actor}` : `propose:check:${caller.check.checkId}`
+
+/**
  * Registers propose_decision, only for callers with sieb:propose: files a structured proposal a
  * human accepts, edits or rejects in sieb. At most PROPOSE_RATE_LIMIT valid calls per hour and
- * sieb user, shared by all of that user's tokens and OAuth clients; each one is logged.
+ * rate bucket, see rateKeyOf; each one is logged. An Auto-check may only propose for its own
+ * finding.
  * @param {McpServer} server - MCP server
  * @param {McpToolDeps} deps - Database, clock, registries, logger, limiter and link base
  * @param {McpCaller} caller - Authenticated caller, the proposer
@@ -60,6 +83,12 @@ export const registerProposeDecisionTool = (
     (input) => {
       const now = deps.clock()
       const { findingId, vulnId, imageRefs, all, ...claims } = input
+      const outside = checkTargetError(caller.check, { findingId, vulnId, imageRefs, all })
+
+      if (outside !== null) {
+        return toolError(outside)
+      }
+
       const resolved = resolveProposalTarget(deps, { findingId, vulnId, imageRefs, all })
 
       if (!resolved.ok) {
@@ -69,12 +98,12 @@ export const registerProposeDecisionTool = (
       const validated = validateProposalInput({ ...claims, ...resolved.target }, now)
 
       if (!validated.ok) {
-        const problems = validated.errors.map((error) => `${error.field ?? 'input'}: ${error.code}`)
+        const problems = validated.errors.map(problemText)
 
         return toolError(`invalid proposal, fix and retry: ${problems.join('; ')}`)
       }
 
-      const retryAfter = deps.proposalLimiter.hit(`propose:${caller.actor}`, now.getTime())
+      const retryAfter = deps.proposalLimiter.hit(rateKeyOf(caller), now.getTime())
 
       if (retryAfter !== null) {
         return toolError(`proposal limit reached, retry in ${retryAfter} seconds`)
@@ -87,6 +116,7 @@ export const registerProposeDecisionTool = (
           tokenId: caller.tokenId,
           clientLabel: caller.clientLabel,
         },
+        checkId: caller.check?.checkId ?? null,
         publicRegistries: deps.publicRegistries,
         now,
       })

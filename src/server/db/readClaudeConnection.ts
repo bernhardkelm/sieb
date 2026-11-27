@@ -10,7 +10,8 @@ export const OAUTH_CONNECTION_WINDOW_MS = 30 * 24 * 60 * 60 * 1000
 
 /**
  * Reads whether Claude can reach sieb for a user: with at least one live personal token, or
- * with an OAuth authenticated MCP request within OAUTH_CONNECTION_WINDOW_MS.
+ * with an OAuth authenticated MCP request within OAUTH_CONNECTION_WINDOW_MS. The token of a
+ * running Auto-check is no connection of the user and does not count.
  * @param {DatabaseSync} db - Open database
  * @param {string} username - sieb user
  * @param {Date} now - Current time

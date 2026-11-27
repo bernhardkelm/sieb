@@ -27,14 +27,6 @@ export const findingIdOfItem = (item: InboxItem): number | null =>
   item.kind === 'proposal' ? null : item.refs.findingId
 
 /**
- * Returns the proposal an item opens in the review panel.
- * @param {InboxItem} item - Item
- * @returns {number | null} - Proposal id, null for the other kinds
- */
-export const proposalIdOfItem = (item: InboxItem): number | null =>
-  item.kind === 'proposal' ? item.refs.proposalId : null
-
-/**
  * Returns the Inbox key of a proposal item.
  * @param {number} proposalId - Proposal id
  * @returns {string} - Item key

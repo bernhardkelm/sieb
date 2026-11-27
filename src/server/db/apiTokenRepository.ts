@@ -1,62 +1,15 @@
 import type { DatabaseSync } from 'node:sqlite'
 
+import type { ApiToken } from '#core/apiToken.ts'
 import {
-  MAX_LIVE_TOKENS,
-  type ApiToken,
-  type ApiTokenInput,
-  type ApiTokenScope,
-} from '#core/apiToken.ts'
-import { inTransaction } from '#server/db/inTransaction.ts'
+  toToken,
+  withoutHash,
+  type ApiTokenRow,
+  type StoredApiToken,
+} from '#server/db/apiTokenRows.ts'
 
 /** last_used_at is written at most once per this interval, so every MCP request is not a write */
 export const TOUCH_INTERVAL_MS = 60 * 1000
-
-interface ApiTokenRow {
-  id: number
-  owner: string
-  name: string
-  scope: string
-  token_prefix: string
-  token_hash: string
-  created_at: string
-  expires_at: string | null
-  last_used_at: string | null
-  revoked_at: string | null
-  revoked_by: string | null
-}
-
-/** Stored token with its hash, for the bearer verifier only */
-export type StoredApiToken = ApiToken & { hash: string }
-
-export type InsertTokenResult =
-  | { ok: true; token: ApiToken }
-  | { ok: false; error: 'too_many_tokens' }
-
-/**
- * Maps an api_tokens row to the domain type.
- * @param {ApiTokenRow} row - Row
- * @returns {StoredApiToken} - Token with its hash
- */
-const toToken = (row: ApiTokenRow): StoredApiToken => ({
-  id: row.id,
-  owner: row.owner,
-  name: row.name,
-  scope: row.scope as ApiTokenScope,
-  prefix: row.token_prefix,
-  createdAt: row.created_at,
-  expiresAt: row.expires_at,
-  lastUsedAt: row.last_used_at,
-  revokedAt: row.revoked_at,
-  revokedBy: row.revoked_by,
-  hash: row.token_hash,
-})
-
-/**
- * Drops the hash of a stored token.
- * @param {StoredApiToken} stored - Token with hash
- * @returns {ApiToken} - Token
- */
-const withoutHash = ({ hash: _hash, ...token }: StoredApiToken): ApiToken => token
 
 /**
  * Reads one token of an owner.
@@ -74,58 +27,24 @@ export const getOwnToken = (db: DatabaseSync, owner: string, id: number): ApiTok
 }
 
 /**
- * Stores a new token unless its owner already holds MAX_LIVE_TOKENS live tokens. Its id lies
- * above every token id and every proposal's token_id, so the id of a deleted token that proposals
- * still name is never handed out again.
+ * Reads one personal token of an owner, never the token of a check, which only the check's end
+ * revokes and deletes.
  * @param {DatabaseSync} db - Open database
- * @param {{ owner: string; input: ApiTokenInput; prefix: string; hash: string }} token - Owner, validated input, display prefix and secret hash
- * @param {Date} now - Creation time
- * @returns {InsertTokenResult} - Stored token or the refusal
+ * @param {string} owner - Owner
+ * @param {number} id - Token id
+ * @returns {ApiToken | null} - Token, null when missing, owned by someone else or a check token
  */
-export const insertToken = (
-  db: DatabaseSync,
-  {
-    owner,
-    input,
-    prefix,
-    hash,
-  }: { owner: string; input: ApiTokenInput; prefix: string; hash: string },
-  now: Date,
-): InsertTokenResult =>
-  inTransaction(db, () => {
-    const at = now.toISOString()
-    const live = db
-      .prepare(
-        `SELECT COUNT(*) AS n FROM api_tokens
-         WHERE owner = ? AND revoked_at IS NULL AND expires_at > ?`,
-      )
-      .get(owner, at)?.n
+export const getUserToken = (db: DatabaseSync, owner: string, id: number): ApiToken | null => {
+  const row = db
+    .prepare('SELECT * FROM api_tokens WHERE id = ? AND owner = ? AND check_id IS NULL')
+    .get(id, owner) as ApiTokenRow | undefined
 
-    if (Number(live) >= MAX_LIVE_TOKENS) {
-      return { ok: false, error: 'too_many_tokens' }
-    }
-
-    const { lastInsertRowid } = db
-      .prepare(
-        `INSERT INTO api_tokens
-           (id, owner, name, scope, token_prefix, token_hash, created_at, expires_at)
-         VALUES ((SELECT COALESCE(MAX(id), 0) + 1 FROM (
-           SELECT MAX(id) AS id FROM api_tokens
-           UNION ALL SELECT MAX(token_id) FROM decision_proposals
-         )), ?, ?, ?, ?, ?, ?, ?)`,
-      )
-      .run(owner, input.name, input.scope, prefix, hash, at, input.expiresAt)
-    const token = getOwnToken(db, owner, Number(lastInsertRowid))
-
-    if (token === null) {
-      throw new Error(`api token ${lastInsertRowid} vanished`)
-    }
-
-    return { ok: true, token }
-  })
+  return row ? withoutHash(toToken(row)) : null
+}
 
 /**
- * Lists the tokens of an owner, revoked and expired ones included, newest first.
+ * Lists the personal tokens of an owner, revoked and expired ones included, newest first. Check
+ * tokens are internal and left out.
  * @param {DatabaseSync} db - Open database
  * @param {string} owner - Owner
  * @returns {ApiToken[]} - Tokens
@@ -133,7 +52,10 @@ export const insertToken = (
 export const listOwnTokens = (db: DatabaseSync, owner: string): ApiToken[] =>
   (
     db
-      .prepare('SELECT * FROM api_tokens WHERE owner = ? ORDER BY created_at DESC, id DESC')
+      .prepare(
+        `SELECT * FROM api_tokens WHERE owner = ? AND check_id IS NULL
+         ORDER BY created_at DESC, id DESC`,
+      )
       .all(owner) as unknown as ApiTokenRow[]
   ).map((row) => withoutHash(toToken(row)))
 
@@ -152,12 +74,13 @@ export const findTokenByHash = (db: DatabaseSync, hash: string): StoredApiToken 
 }
 
 /**
- * Revokes a token of its owner; revoking it again keeps the first revocation.
+ * Revokes a personal token of its owner; revoking it again keeps the first revocation. Check
+ * tokens are refused, cancelling the check ends them.
  * @param {DatabaseSync} db - Open database
  * @param {string} owner - Acting user, who must own the token
  * @param {number} id - Token id
  * @param {Date} now - Revocation time
- * @returns {ApiToken | null} - Revoked token, null when missing or owned by someone else
+ * @returns {ApiToken | null} - Revoked token, null when missing, owned by someone else or a check token
  */
 export const revokeOwnToken = (
   db: DatabaseSync,
@@ -167,10 +90,10 @@ export const revokeOwnToken = (
 ): ApiToken | null => {
   db.prepare(
     `UPDATE api_tokens SET revoked_at = ?, revoked_by = ?
-     WHERE id = ? AND owner = ? AND revoked_at IS NULL`,
+     WHERE id = ? AND owner = ? AND revoked_at IS NULL AND check_id IS NULL`,
   ).run(now.toISOString(), owner, id, owner)
 
-  return getOwnToken(db, owner, id)
+  return getUserToken(db, owner, id)
 }
 
 /**

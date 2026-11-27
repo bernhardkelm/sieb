@@ -1,4 +1,12 @@
-import { computed, onMounted, ref, type ComputedRef, type Ref, type WritableComputedRef } from 'vue'
+import {
+  computed,
+  onMounted,
+  onScopeDispose,
+  ref,
+  type ComputedRef,
+  type Ref,
+  type WritableComputedRef,
+} from 'vue'
 
 import type { DecisionStatus } from '#core/decision.ts'
 import type { FindingView } from '#core/findingView.ts'
@@ -11,6 +19,7 @@ import {
 import { useCursorRefocus } from '@/composables/useCursorRefocus'
 import { useFindingFilterQuery } from '@/composables/useFindingFilterQuery'
 import { useFindingPanel } from '@/composables/useFindingPanel'
+import { useSelectionHandoffKeys } from '@/composables/useSelectionHandoffKeys'
 import { useTriageHintActions } from '@/composables/useTriageHintActions'
 import { useListCursor } from '@/composables/useListCursor'
 import { useListSort, type ListSort } from '@/composables/useListSort'
@@ -20,6 +29,7 @@ import { rowClickIntent } from '@/keyboard/rowClick'
 import { isNewFinding, type FindingFilters } from '@/stores/findingFilters'
 import { useFindingDetailStore } from '@/stores/findingDetailStore'
 import { useFindingsStore } from '@/stores/findingsStore'
+import { useHandoffSelectionStore } from '@/stores/handoffSelectionStore'
 
 export interface TriageController {
   /** Filter bar state, kept in the query */
@@ -72,6 +82,7 @@ export const useTriageController = (focusSearch: () => void): TriageController =
   const bulkOpen = ref(false)
   const bulkTargets = ref<BulkTarget[]>([])
   const bulkStatus = ref<DecisionStatus | null>(null)
+  const handoffKey = useSelectionHandoffKeys()
 
   /**
    * Opens the bulk dialog for targets, with a status preselected or none.
@@ -150,15 +161,22 @@ export const useTriageController = (focusSearch: () => void): TriageController =
 
       if (action !== null) {
         run(action)
+        return true
       }
 
-      return action !== null
+      return handoffKey(event, scope)
     },
   })
 
   const refocusCursor = useCursorRefocus(cursor.currentKey, rowOf)
 
   useTriageHintActions({ run, cursor, ids })
+
+  onScopeDispose(
+    useHandoffSelectionStore().register(() =>
+      findings.value.filter((finding) => cursor.selection.checkedIds.value.has(finding.id)),
+    ),
+  )
 
   /**
    * Handles a click on a row: Shift checks the range from the anchor, Cmd or Ctrl checks or

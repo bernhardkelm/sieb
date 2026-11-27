@@ -1,9 +1,10 @@
 import { flushPromises } from '@vue/test-utils'
-import { afterEach, describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import { defineComponent, h, ref } from 'vue'
 
 import { mountWithRouter, type RoutedMount } from '@/__tests__/mountWithRouter'
 import { useDraftGuard, type DraftGuard } from '@/composables/useDraftGuard'
+import { DEEP_LINK_UNLOAD_WINDOW_MS, openDeepLink } from '@/router/deepLinkNavigation'
 
 const dirty = ref(false)
 let guard: DraftGuard
@@ -33,6 +34,17 @@ const mountGuard = async (): Promise<RoutedMount> => {
  */
 const shownFinding = (routed: RoutedMount): unknown =>
   routed.router.currentRoute.value.query.finding
+
+/**
+ * Dispatches a cancelable beforeunload event.
+ * @returns {Event} - Dispatched event
+ */
+const unload = (): Event => {
+  const event = new Event('beforeunload', { cancelable: true })
+
+  window.dispatchEvent(event)
+  return event
+}
 
 afterEach(() => {
   mounted?.wrapper.unmount()
@@ -130,17 +142,6 @@ describe('useDraftGuard', () => {
   it('asks the browser before the tab closes with a dirty draft only', async () => {
     await mountGuard()
 
-    /**
-     * Dispatches a cancelable beforeunload event.
-     * @returns {Event} - Dispatched event
-     */
-    const unload = (): Event => {
-      const event = new Event('beforeunload', { cancelable: true })
-
-      window.dispatchEvent(event)
-      return event
-    }
-
     expect(unload().defaultPrevented).toBe(false)
 
     dirty.value = true
@@ -149,5 +150,23 @@ describe('useDraftGuard', () => {
     mounted?.wrapper.unmount()
     mounted = null
     expect(unload().defaultPrevented).toBe(false)
+  })
+
+  it('stays quiet for the beforeunload of a deep link and asks again afterwards', async () => {
+    await mountGuard()
+    vi.useFakeTimers({ toFake: ['Date'] })
+    vi.stubGlobal('location', { ...window.location, assign: vi.fn<(url: string) => void>() })
+    dirty.value = true
+
+    try {
+      openDeepLink('claude://code/new?q=Triage')
+      expect(unload().defaultPrevented).toBe(false)
+
+      vi.advanceTimersByTime(DEEP_LINK_UNLOAD_WINDOW_MS)
+      expect(unload().defaultPrevented).toBe(true)
+    } finally {
+      vi.unstubAllGlobals()
+      vi.useRealTimers()
+    }
   })
 })

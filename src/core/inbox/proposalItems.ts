@@ -55,6 +55,7 @@ export const proposalItems = (
       imageRefs: proposal.imageRefs,
       verdict: proposal.verdict,
       confidence: proposal.confidence,
+      patchAction: proposal.patchAction,
       imageCount: covered.length,
     }
   })

@@ -3,7 +3,9 @@ import type { Hono } from 'hono'
 import type { AuthMode, BuildInfo } from '#core/apiTypes.ts'
 import type { HealthResponse, SourceKind } from '#core/types.ts'
 import type { AppEnv } from '#server/http/AppEnv.ts'
+import type { CheckContext } from '#server/checks/checkContext.ts'
 import type { RouteDeps } from '#server/http/RouteDeps.ts'
+import { createCheckRoutes, createChecksDisabledRoutes } from '#server/http/routes/checkRoutes.ts'
 import { createBulkDecisionRoutes } from '#server/http/routes/bulkDecisionRoutes.ts'
 import { createCveRoutes } from '#server/http/routes/cveRoutes.ts'
 import { createDecisionRoutes } from '#server/http/routes/decisionRoutes.ts'
@@ -29,12 +31,14 @@ export interface ApiRouteSetup extends RouteDeps {
   oauthEnabled: boolean // MCP accepts OAuth tokens besides personal ones
   publicRegistries: readonly string[] // registries whose images count as public
   build: BuildInfo // version and source code link /api/me answers
+  checks: CheckContext | null // Auto-check context, null serves the disabled stand-in
 }
 
 /**
- * Mounts the health check and the resource routers under /api, the token routes only with MCP.
+ * Mounts the health check and the resource routers under /api, the token routes only with MCP
+ * and the check routes only with checks.
  * @param {Hono<AppEnv>} app - App, after the /api guards are mounted
- * @param {ApiRouteSetup} setup - Route dependencies, data source, sync service, auth mode, logger, MCP settings, public registries, build info
+ * @param {ApiRouteSetup} setup - Route dependencies, data source, sync service, auth mode, logger, MCP settings, public registries, build info, check context
  * @returns {void}
  */
 export const useApiRoutes = (
@@ -52,13 +56,17 @@ export const useApiRoutes = (
     oauthEnabled,
     publicRegistries,
     build,
+    checks,
   }: ApiRouteSetup,
 ): void => {
   const deps = { db, clock, kevSource }
 
   app.get('/api/health', (c) => c.json<HealthResponse>({ status: 'ok', source }))
   app.route('/api/me', createMeRoutes(authMode, build))
-  app.route('/api/findings', createFindingRoutes({ ...deps, publicRegistries }))
+  app.route(
+    '/api/findings',
+    createFindingRoutes({ ...deps, publicRegistries, checksEnabled: checks !== null }),
+  )
   app.route('/api/images', createImageRoutes(deps))
   app.route('/api/cves', createCveRoutes(deps))
   app.route('/api/decisions/bulk', createBulkDecisionRoutes(deps))
@@ -73,7 +81,18 @@ export const useApiRoutes = (
     mcpEnabled ? createTokenRoutes({ ...deps, log }) : createMcpDisabledRoutes(),
   )
   app.route(
+    '/api/checks',
+    checks === null ? createChecksDisabledRoutes() : createCheckRoutes(checks),
+  )
+  app.route(
     '/api/mcp-info',
-    createMcpInfoRoutes({ db, clock, enabled: mcpEnabled, publicUrl, oauth: oauthEnabled }),
+    createMcpInfoRoutes({
+      db,
+      clock,
+      enabled: mcpEnabled,
+      publicUrl,
+      oauth: oauthEnabled,
+      checksEnabled: checks !== null,
+    }),
   )
 }

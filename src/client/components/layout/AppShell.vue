@@ -5,6 +5,7 @@ import { useRoute } from 'vue-router'
 import FindingPanel from '@/components/finding/FindingPanel.vue'
 import AppSidebar from '@/components/layout/AppSidebar.vue'
 import AppTopBar from '@/components/layout/AppTopBar.vue'
+import { useCheckFinishToasts } from '@/composables/useCheckFinishToasts'
 import { useDocumentTitle } from '@/composables/useDocumentTitle'
 import { useNavigationShortcuts } from '@/composables/useNavigationShortcuts'
 import { useLabelsStore } from '@/stores/labelsStore'
@@ -15,6 +16,7 @@ const main = ref<HTMLElement | null>(null)
 
 useNavigationShortcuts()
 useDocumentTitle()
+useCheckFinishToasts()
 
 onMounted(() => {
   void labels.ensureLoaded()

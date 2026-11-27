@@ -53,7 +53,8 @@ const inputSchema = z.object({
 
 /**
  * Registers list_my_proposals: the proposals filed for the caller's sieb user, with their
- * outcome and reject reasons, so a rejected proposal is not filed again.
+ * outcome and reject reasons, so a rejected proposal is not filed again. A check caller only
+ * sees the proposals of its own token.
  * @param {McpServer} server - MCP server
  * @param {McpToolDeps} deps - Database and link base
  * @param {McpCaller} caller - Authenticated caller
@@ -79,6 +80,7 @@ export const registerListMyProposalsTool = (
       const wanted = input.vulnId?.toLowerCase()
       const items = listProposalItems(deps.db, {
         proposedBy: caller.actor,
+        ...(caller.check === null ? {} : { checkId: caller.check.checkId }),
         ...(input.state === 'all' ? {} : { state: input.state }),
       }).filter((item) => wanted === undefined || item.proposal.vulnId.toLowerCase() === wanted)
 

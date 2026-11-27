@@ -97,7 +97,13 @@ defineExpose({ focusReason, setStatus })
 </script>
 
 <template>
-  <form class="decision-form" novalidate @submit.prevent="submit" @keydown="onKeydown">
+  <form
+    :id="`${id}-form`"
+    class="decision-form"
+    novalidate
+    @submit.prevent="submit"
+    @keydown="onKeydown"
+  >
     <StatusFields
       ref="statusFields"
       v-model:status="status"
@@ -136,6 +142,7 @@ defineExpose({ focusReason, setStatus })
       :submitting="submitting"
       :submit-label="submitLabel"
       :sticky="stickyActions"
+      :form-id="`${id}-form`"
       @cancel="emit('cancel')"
     />
   </form>

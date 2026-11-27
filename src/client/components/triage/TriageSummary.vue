@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import SelectionAutoCheckButton from '@/components/checks/SelectionAutoCheckButton.vue'
 import BaseButton from '@/components/common/BaseButton.vue'
 import ListSummary from '@/components/list/ListSummary.vue'
 
@@ -33,6 +34,14 @@ defineEmits<{ bulk: []; resetSort: [] }>()
       >
         Decide {{ checkedCount }} selected
       </BaseButton>
+      <SelectionAutoCheckButton
+        v-if="checkedCount > 0"
+        :as="BaseButton"
+        class="bulk-button"
+        variant="ghost"
+      >
+        Auto-check {{ checkedCount }} selected
+      </SelectionAutoCheckButton>
     </template>
   </ListSummary>
 </template>
@@ -44,6 +53,12 @@ defineEmits<{ bulk: []; resetSort: [] }>()
 
 kbd {
   font-size: var(--font-size-xs);
+}
+
+.bulk-button[aria-disabled='true'] {
+  color: var(--color-text-subtle);
+  cursor: default;
+  opacity: 0.55;
 }
 
 @media (hover: none) and (pointer: coarse) {

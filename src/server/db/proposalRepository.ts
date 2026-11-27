@@ -18,6 +18,7 @@ export interface ProposalListFilter {
   state?: ProposalState // absent lists every state
   vulnId?: string
   proposedBy?: string
+  checkId?: number | null // proposals of one Auto-check, null for those of no check
 }
 
 export interface ProposalResolutionWrite {
@@ -54,18 +55,25 @@ export const getProposal = (db: DatabaseSync, id: number): Proposal | null => {
 /**
  * Lists proposals matching a filter.
  * @param {DatabaseSync} db - Open database
- * @param {ProposalListFilter} filter - State, vulnerability and proposer, each optional
+ * @param {ProposalListFilter} filter - State, vulnerability, proposer and check, each optional
  * @returns {Proposal[]} - Proposals, newest first
  */
 export const listProposals = (db: DatabaseSync, filter: ProposalListFilter = {}): Proposal[] => {
   const conditions: string[] = []
   const values: SQLInputValue[] = []
-  const columns = { state: 'state', vulnId: 'vuln_id', proposedBy: 'proposed_by' } as const
+  const columns = {
+    state: 'state',
+    vulnId: 'vuln_id',
+    proposedBy: 'proposed_by',
+    checkId: 'check_id',
+  } as const
 
   for (const [key, column] of Object.entries(columns)) {
     const value = filter[key as keyof ProposalListFilter]
 
-    if (value !== undefined) {
+    if (value === null) {
+      conditions.push(`${column} IS NULL`)
+    } else if (value !== undefined) {
       conditions.push(`${column} = ?`)
       values.push(value)
     }
@@ -80,7 +88,8 @@ export const listProposals = (db: DatabaseSync, filter: ProposalListFilter = {})
 }
 
 /**
- * Counts the open proposals of a proposer.
+ * Counts the open proposals a user filed through their own tokens and connectors; proposals of
+ * their Auto-checks do not count.
  * @param {DatabaseSync} db - Open database
  * @param {string} proposedBy - Proposing user
  * @returns {number} - Open proposals
@@ -89,7 +98,8 @@ export const countOpenProposals = (db: DatabaseSync, proposedBy: string): number
   Number(
     db
       .prepare(
-        "SELECT COUNT(*) AS n FROM decision_proposals WHERE proposed_by = ? AND state = 'open'",
+        `SELECT COUNT(*) AS n FROM decision_proposals
+         WHERE proposed_by = ? AND state = 'open' AND check_id IS NULL`,
       )
       .get(proposedBy)?.n ?? 0,
   )
@@ -98,16 +108,21 @@ export const countOpenProposals = (db: DatabaseSync, proposedBy: string): number
  * Stores a new open proposal.
  * @param {DatabaseSync} db - Open database
  * @param {NewProposal} proposal - Validated proposal with proposer, snapshots and time
+ * @param {number | null} checkId - Auto-check whose token filed it, else null
  * @returns {number} - Proposal id
  */
-export const insertProposal = (db: DatabaseSync, proposal: NewProposal): number => {
+export const insertProposal = (
+  db: DatabaseSync,
+  proposal: NewProposal,
+  checkId: number | null = null,
+): number => {
   const { lastInsertRowid } = db
     .prepare(
       `INSERT INTO decision_proposals (vuln_id, scope, image_refs, target_key, verdict,
          justification, summary, confidence, presence, reachability, exposure, evidence, fix,
          review, unknowns, refs, evidence_basis, source_access, proposed_by, proposed_via,
-         token_id, client_label, agent, basis_decisions, created_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+         token_id, client_label, agent, basis_decisions, created_at, check_id)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     )
     .run(
       proposal.vulnId,
@@ -135,6 +150,7 @@ export const insertProposal = (db: DatabaseSync, proposal: NewProposal): number 
       proposal.agent,
       JSON.stringify(proposal.basisDecisions),
       proposal.createdAt,
+      checkId,
     )
 
   return Number(lastInsertRowid)

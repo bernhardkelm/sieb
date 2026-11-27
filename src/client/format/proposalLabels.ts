@@ -1,5 +1,6 @@
 import type {
   EvidenceBasis,
+  PatchLayer,
   ProposalConfidence,
   ProposalResolution,
   ProposalState,
@@ -12,6 +13,14 @@ export const VERDICT_LABELS: Record<ProposalVerdict, string> = {
   accepted: 'Accepted',
   fix_planned: 'Fix planned',
   needs_patch: 'Needs patch',
+}
+
+export const PATCH_LAYER_LABELS: Record<PatchLayer, string> = {
+  dependency: 'Dependency',
+  base_image: 'Base image',
+  image: 'Image',
+  platform: 'Platform',
+  unknown: 'Layer unknown',
 }
 
 export const CONFIDENCE_LABELS: Record<ProposalConfidence, string> = {

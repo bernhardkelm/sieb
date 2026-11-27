@@ -2,11 +2,17 @@
 import { computed, ref } from 'vue'
 
 import FilterResetButton from '@/components/filters/FilterResetButton.vue'
-import { EXPOSURE_OPTIONS, ownerOptions, SEVERITY_OPTIONS } from '@/components/filters/labelOptions'
+import {
+  EXPOSURE_OPTIONS,
+  ownerOptions,
+  pendingOptions,
+  SEVERITY_OPTIONS,
+} from '@/components/filters/labelOptions'
 import MultiSelectFilter from '@/components/filters/MultiSelectFilter.vue'
 import SearchInput from '@/components/filters/SearchInput.vue'
 import ToggleFilter from '@/components/filters/ToggleFilter.vue'
 import { useLabelColumns } from '@/composables/useLabelColumns'
+import { useChecksStore } from '@/stores/checksStore'
 import { emptyFilters, hasActiveFilters, type FindingFilters } from '@/stores/findingFilters'
 import { useLabelsStore } from '@/stores/labelsStore'
 
@@ -22,6 +28,8 @@ const filters = defineModel<FindingFilters>('filters', { required: true })
 
 const labels = useLabelsStore()
 const owners = computed(() => ownerOptions(labels.owners))
+const checks = useChecksStore()
+const pending = computed(() => pendingOptions(checks.enabled))
 const { hidden } = useLabelColumns()
 
 const search = ref<InstanceType<typeof SearchInput> | null>(null)
@@ -56,7 +64,7 @@ defineExpose({ focusSearch })
       placeholder="Search CVE, image, package, workload"
       @update:model-value="set('q', $event)"
     />
-    <div class="controls">
+    <div class="controls scroll-row">
       <!-- view controls such as the sort menu, first -->
       <slot />
       <MultiSelectFilter
@@ -78,6 +86,12 @@ defineExpose({ focusSearch })
         :options="owners"
         :model-value="filters.owner"
         @update:model-value="set('owner', $event)"
+      />
+      <MultiSelectFilter
+        label="Pending"
+        :options="pending"
+        :model-value="filters.pending"
+        @update:model-value="set('pending', $event)"
       />
       <ToggleFilter
         v-if="labels.showKev"
@@ -104,30 +118,26 @@ defineExpose({ focusSearch })
   </div>
 </template>
 
+<style scoped src="@/components/layout/scrollRow.css"></style>
+
 <style scoped>
 .filter-bar {
   display: flex;
+  flex: 1 1 auto;
   flex-wrap: wrap;
   align-items: center;
   gap: var(--space-2);
+  min-width: 0;
 }
 
 .controls {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: var(--space-2);
+  flex: 1 1 0;
 }
 
 @media (max-width: 639px) {
-  .filter-bar {
-    flex: 1 1 100%;
-    min-width: 0;
-  }
-
+  .filter-bar,
   .controls {
     flex: 1 1 100%;
-    min-width: 0;
   }
 }
 </style>

@@ -14,7 +14,8 @@ import { registerTriagePrompt } from '#server/mcp/triagePrompt.ts'
  * Creates the MCP server of one request: the read-only query tools for the caller, with the
  * sieb:propose scope also propose_decision, and the triage prompt, with the server instructions
  * that explain sieb to the model, for Claude Code with the hint to look for the repository of an
- * own image. Links use the origin of the resource the token was verified for.
+ * own image. The token of an Auto-check gets the tools bound to its check, see registerQueryTools.
+ * Links use the origin of the resource the token was verified for.
  * @param {Omit<McpToolDeps, 'baseUrl'>} deps - Database, clock, KEV source, registries, logger and proposal limiter
  * @param {AuthInfo} authInfo - Verified token information of the request
  * @param {string} version - sieb version reported in serverInfo
@@ -29,7 +30,13 @@ export const createMcpServer = (
   const proposing = canPropose(caller)
   const server = new McpServer(
     { name: 'sieb', version },
-    { instructions: serverInstructions(proposing, isClaudeCodeClient(authInfo)) },
+    {
+      instructions: serverInstructions(
+        proposing,
+        isClaudeCodeClient(authInfo),
+        caller.check !== null,
+      ),
+    },
   )
   const toolDeps: McpToolDeps = {
     db: deps.db,
@@ -38,6 +45,7 @@ export const createMcpServer = (
     publicRegistries: deps.publicRegistries,
     log: deps.log,
     proposalLimiter: deps.proposalLimiter,
+    checksEnabled: deps.checksEnabled ?? false,
     baseUrl: baseUrlFromAuthInfo(authInfo),
   }
 

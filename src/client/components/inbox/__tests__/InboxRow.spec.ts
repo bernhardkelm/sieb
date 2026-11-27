@@ -69,6 +69,17 @@ describe('InboxRow', () => {
     expect(row.find('.seen-button').exists()).toBe(false)
   })
 
+  it('shows the patch action of a patch verdict after the chips as muted text', () => {
+    const action = 'upgrade libxslt to 1.1.43-r4 (rebuild on the current base)'
+    const row = mountRow(
+      proposalItem(1, { verdict: 'needs_patch', confidence: 'medium', patchAction: action }),
+    )
+    const patch = row.get('.detail .patch')
+
+    expect(detail(row)).toBe(`Needs patch Medium confidence ${action}`)
+    expect(patch.attributes('title')).toBe(action)
+  })
+
   it('shows a re-opened decision with its reason and status', () => {
     const row = mountRow(reopenedItem(2, { reopenReason: 'kev_listed' }))
 

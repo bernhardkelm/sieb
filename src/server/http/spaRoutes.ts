@@ -9,13 +9,13 @@ export const IMMUTABLE_CACHE = 'public, max-age=31536000, immutable'
 export const REVALIDATE_CACHE = 'no-cache'
 
 /**
- * Returns whether a request path is a client route: not an API, login, metrics, MCP or well-known path, not a hashed
+ * Returns whether a request path is a client route: not an API, login, metrics, MCP, worker or well-known path, not a hashed
  * asset and no file extension in the last segment, so missing files stay 404.
  * @param {string} path - Request path
  * @returns {boolean} - True for client routes like /inbox or /cves
  */
 export const isClientRoute = (path: string): boolean => {
-  const reserved = ['/api', '/auth', '/metrics', '/assets', '/mcp', '/.well-known']
+  const reserved = ['/api', '/auth', '/metrics', '/assets', '/mcp', '/worker', '/.well-known']
 
   if (reserved.some((prefix) => path === prefix || path.startsWith(`${prefix}/`))) {
     return false

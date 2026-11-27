@@ -8,15 +8,18 @@ import {
 } from '#server/auth/oidc/authCookies.ts'
 import { logSafe } from '#server/logSafe.ts'
 import type { OidcAuthDeps } from '#server/auth/oidc/OidcAuthDeps.ts'
+import { endLogLines } from '#server/checks/checkLogLines.ts'
 import { revokeLiveTokensOf } from '#server/db/apiTokenCleanup.ts'
+import { failChecksOf, REFUSED_REQUESTER_ERROR } from '#server/db/failChecksOf.ts'
 import { createSession, deleteSession, deleteSessionsOf } from '#server/db/sessionRepository.ts'
 
 const HOUR_MS = 60 * 60 * 1000
 
 /**
  * Ends all access of a user the identity provider no longer admits to sieb: deletes every
- * session of the username, clears the session cookie and revokes the live personal tokens,
- * since neither a session nor /mcp asks the identity provider again.
+ * session of the username, clears the session cookie, fails the user's open Auto-checks and
+ * revokes the live personal tokens, since neither a session, /mcp nor a claim asks the identity
+ * provider again.
  * @param {Context<AppEnv>} c - Request context
  * @param {Pick<OidcAuthDeps, 'db' | 'clock' | 'log' | 'cookies'>} deps - Database, clock, logger, cookies
  * @param {string} username - Refused user
@@ -28,7 +31,14 @@ export const revokeAccessOfRefused = (
   username: string,
 ): void => {
   const sessions = deleteSessionsOf(db, username)
+  const checks = failChecksOf(db, username, REFUSED_REQUESTER_ERROR, clock())
   const tokens = revokeLiveTokensOf(db, username, clock(), 'sieb')
+
+  for (const ended of checks) {
+    for (const line of endLogLines(ended, 'requester refused')) {
+      log(line)
+    }
+  }
 
   clearSessionCookie(c, cookies)
   if (sessions > 0 || tokens > 0) {

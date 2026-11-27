@@ -1,6 +1,7 @@
 import type { ValidationIssue } from '#core/apiTypes.ts'
 import { isDecisionStateFilter, type DecisionStateFilter } from '#core/decisionStateFilter.ts'
 import { isExposureFilter, type ExposureFilter } from '#core/exposure.ts'
+import { isPendingFilter, type PendingFilter } from '#core/findingPending.ts'
 import { isOwner } from '#core/owner.ts'
 import {
   readList,
@@ -37,6 +38,7 @@ export interface FindingQuery {
   decisionState?: DecisionStateFilter[]
   kevAddedSince?: string | null // YYYY-MM-DD, CISA date_added on or after it, needs the cisa catalog
   fixable?: boolean | null // true: a current instance has a fixed version, false: none has
+  pending?: PendingFilter[] // what waits on the finding in the acting user's Inbox or as an open check
 }
 
 export type FindingQueryResult =
@@ -58,7 +60,7 @@ const isSeverity = (value: unknown): value is Severity =>
  * free-form owner labels (no commas, at most OWNER_MAX_LENGTH characters), exposure takes the
  * exposure labels and unknown for findings without one, booleans accept true
  * and 1 (includeResolved, kev; fixable also false and 0), newSince and kevAddedSince take any
- * parseable timestamp, minScore a number from 0 to 10.
+ * parseable timestamp, minScore a number from 0 to 10, pending the options of PENDING_FILTERS.
  * @param {RawQuery} raw - Query parameters
  * @returns {FindingQueryResult} - Parsed query or the list of errors
  */
@@ -89,6 +91,7 @@ export const parseFindingQuery = (raw: RawQuery): FindingQueryResult => {
     decisionState: readList(raw.decisionState, isDecisionStateFilter, 'decisionState', errors),
     kevAddedSince: readTimestamp(raw.kevAddedSince, 'kevAddedSince', errors)?.slice(0, 10) ?? null,
     fixable: readOptionalBoolean(raw.fixable, 'fixable', errors),
+    pending: readList(raw.pending, isPendingFilter, 'pending', errors),
   }
 
   return errors.length > 0 ? { ok: false, errors } : { ok: true, value }

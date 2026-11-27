@@ -24,7 +24,7 @@ export type HandoffPrompts = Readonly<Record<HandoffClient, string>>
  * @param {string} text - Raw value
  * @returns {string} - Single-line value
  */
-const oneLine = (text: string): string => text.replaceAll(/[\p{Cc}\s]+/gu, ' ').trim()
+export const oneLine = (text: string): string => text.replaceAll(/[\p{Cc}\s]+/gu, ' ').trim()
 
 /**
  * Returns the affected package names, from the open instances unless every instance is

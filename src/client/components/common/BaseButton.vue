@@ -32,7 +32,7 @@ withDefaults(
   transition: background-color var(--duration-fast) var(--ease);
 }
 
-.base-button:hover:not(:disabled) {
+.base-button:hover:not(:disabled, [aria-disabled='true']) {
   background: var(--color-hover);
 }
 
@@ -46,7 +46,7 @@ withDefaults(
   color: var(--color-on-accent);
 }
 
-.primary:hover:not(:disabled) {
+.primary:hover:not(:disabled, [aria-disabled='true']) {
   background: color-mix(in srgb, var(--color-accent) 88%, var(--ink));
 }
 
@@ -61,7 +61,7 @@ withDefaults(
   color: var(--paper);
 }
 
-.danger:hover:not(:disabled) {
+.danger:hover:not(:disabled, [aria-disabled='true']) {
   background: color-mix(in srgb, var(--color-danger) 88%, var(--ink));
 }
 
@@ -75,7 +75,7 @@ withDefaults(
   font-size: var(--font-size-sm);
 }
 
-.ghost:hover:not(:disabled) {
+.ghost:hover:not(:disabled, [aria-disabled='true']) {
   color: var(--color-text);
 }
 
