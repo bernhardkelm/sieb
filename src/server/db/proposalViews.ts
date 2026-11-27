@@ -19,6 +19,7 @@ import {
   listProposals,
   type ProposalListFilter,
 } from '#server/db/proposalRepository.ts'
+import { relatedFindingFacts } from '#server/db/relatedFindingFacts.ts'
 
 export interface ProposalViewContext {
   now: Date
@@ -101,7 +102,8 @@ const toImageFacts = (
 
 /**
  * Reads a proposal with sieb's own facts per image, the current decisions, what accepting it
- * without edits writes and the CISA catalog entry, for the review panel.
+ * without edits writes, the CISA catalog entry and the facts on its related findings, for the
+ * review panel.
  * @param {DatabaseSync} db - Open database
  * @param {number} id - Proposal id
  * @param {ProposalViewContext} context - Time, public registries and KEV source
@@ -118,13 +120,16 @@ export const getProposalDetail = (
     return null
   }
 
-  const findings = listFindingViews(db, context.now).filter((f) => f.vulnId === proposal.vulnId)
+  const all = listFindingViews(db, context.now)
+  const findings = all.filter((finding) => finding.vulnId === proposal.vulnId)
+  const relatedIds = new Set(proposal.relatedFindings.map((entry) => entry.findingId))
+  const related = all.filter((finding) => relatedIds.has(finding.id))
   const decisions = listDecisionViewsByVuln(db, proposal.vulnId, context.now)
   const images = proposal.imageRefs ?? targetFindings(proposal, findings).map((f) => f.imageRef)
   const byImage = new Map(findings.map((finding) => [finding.imageRef, finding]))
   const versions = listCurrentVersions(
     db,
-    findings.map((finding) => finding.id),
+    [...findings, ...related].map((finding) => finding.id),
   )
   const current = currentDecisionRefs(
     proposal,
@@ -144,5 +149,10 @@ export const getProposalDetail = (
     currentDecisionIds: current,
     decisionValues: proposalDecisionValues(proposal, context.now),
     kevCatalog: context.kevDetails ? getKevDetails(db, proposal.vulnId) : null,
+    related: relatedFindingFacts(proposal.relatedFindings, {
+      findings: new Map(related.map((finding) => [finding.id, finding])),
+      versions,
+      publicRegistries: context.publicRegistries,
+    }),
   }
 }

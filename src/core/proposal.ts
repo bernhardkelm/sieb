@@ -101,6 +101,9 @@ export const PROPOSAL_LIMITS = {
   reference: 2000,
   agent: 100,
   rejectReason: 2000,
+  relatedFindings: 50,
+  relatedNote: 1000, // as an unknown
+  relatedReason: 1000, // as the summary
 } as const
 
 /** Open proposals one user may hold at a time */
@@ -163,8 +166,16 @@ export interface ProposalClaims {
   evidenceBasis: EvidenceBasis[]
 }
 
+/** Another open finding Claude verified shares the cause of the verdict, decided separately */
+export interface ProposalRelatedFinding {
+  findingId: number
+  note: string | null
+}
+
 export interface ProposalInput extends ProposalTarget, ProposalClaims {
   agent: string | null // free label of the client, e.g. Claude Code
+  relatedFindings: ProposalRelatedFinding[] // never decided by an accept of the proposal
+  relatedReason: string | null // the shared cause, only with relatedFindings
 }
 
 /** Who filed a proposal, from the MCP caller */

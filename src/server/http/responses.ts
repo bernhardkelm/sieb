@@ -55,6 +55,9 @@ export const commandRefused = (
     case 'unknown_finding': {
       return validationFailed(c, [{ field: findingField, code: 'unknown_finding' }])
     }
+    case 'invalid_related': {
+      return validationFailed(c, result.issues ?? [])
+    }
     case 'justification_not_allowed': {
       return validationFailed(c, [{ field: 'justification', code: 'not_allowed' }])
     }

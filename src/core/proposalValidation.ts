@@ -9,6 +9,7 @@ import {
   type ProposalInput,
 } from '#core/proposal.ts'
 import { applyFixAvailability } from '#core/proposalFixUpstream.ts'
+import { readRelatedFindings, readRelatedReason } from '#core/proposalRelatedReaders.ts'
 import { readEvidence, readFix, readReferences, readReview } from '#core/proposalStructReaders.ts'
 import { readProposalEnum, readProposalList, readProposalText } from '#core/proposalTextReaders.ts'
 import { readMissing, readProposalJustification } from '#core/proposalVerdictReaders.ts'
@@ -59,7 +60,8 @@ const readImageRefs = (
  * their caps, references as http(s) URLs and a non-empty evidence basis. Free text loses
  * control and bidirectional formatting characters; needs_patch and fix_planned need a patch
  * action, inconclusive needs the list of what is missing to decide, which no other verdict
- * may carry; applyFixAvailability holds the rules of an upstream_pending fix.
+ * may carry; applyFixAvailability holds the rules of an upstream_pending fix. Related findings
+ * are read by readRelatedFindings, their database rules apply on create.
  * @param {RawInput} raw - Raw input
  * @param {Date} now - Current time, for the review date
  * @returns {ProposalValidated<ProposalInput>} - Validated input or the list of errors
@@ -142,6 +144,8 @@ export const validateProposalInput = (
     references: readReferences(raw.references, errors),
     evidenceBasis: [...new Set(evidenceBasis)],
     agent: readProposalText(raw.agent, 'agent', { max: LIMITS.agent }, errors),
+    relatedFindings: readRelatedFindings(raw.relatedFindings, errors),
+    relatedReason: readRelatedReason(raw.relatedReason, raw.relatedFindings, errors),
   }
 
   if (

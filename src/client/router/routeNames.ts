@@ -10,6 +10,8 @@ export const ROUTE_NAMES = {
 
 export type RouteName = (typeof ROUTE_NAMES)[keyof typeof ROUTE_NAMES]
 
+export const HOME_ROUTE: RouteName = ROUTE_NAMES.TRIAGE // where / and the wordmark lead
+
 export const FINDING_QUERY = 'finding' // query param that opens the finding side panel on any view
 export const IMAGE_QUERY = 'image' // expanded image on the by-image view
 export const CVE_QUERY = 'cve' // expanded CVE on the by-CVE view

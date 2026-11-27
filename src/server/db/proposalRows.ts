@@ -7,6 +7,7 @@ import type {
   ProposalDecisionRef,
   ProposalEvidence,
   ProposalFix,
+  ProposalRelatedFinding,
   ProposalResolution,
   ProposalReview,
   ProposalSourceAccess,
@@ -50,6 +51,8 @@ export interface ProposalRow {
   created_at: string
   resolved_at: string | null
   resolved_by: string | null
+  related_findings: string
+  related_reason: string | null
 }
 
 /**
@@ -114,6 +117,8 @@ export const toProposal = (row: ProposalRow): Proposal => ({
   references: parsed<string[]>(row.refs),
   evidenceBasis: parsed<EvidenceBasis[]>(row.evidence_basis),
   agent: row.agent,
+  relatedFindings: parsed<ProposalRelatedFinding[]>(row.related_findings),
+  relatedReason: row.related_reason,
   sourceAccess: parsed<ProposalSourceAccess[]>(row.source_access),
   proposedBy: row.proposed_by,
   proposedVia: row.proposed_via as ProposalVia,

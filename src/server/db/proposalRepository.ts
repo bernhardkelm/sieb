@@ -122,8 +122,8 @@ export const insertProposal = (
          justification, summary, confidence, presence, reachability, exposure, evidence, fix,
          review, unknowns, missing, refs, evidence_basis, source_access, proposed_by,
          proposed_via, token_id, client_label, client_kind, agent, basis_decisions, created_at,
-         check_id)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+         check_id, related_findings, related_reason)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     )
     .run(
       proposal.vulnId,
@@ -154,6 +154,8 @@ export const insertProposal = (
       JSON.stringify(proposal.basisDecisions),
       proposal.createdAt,
       checkId,
+      JSON.stringify(proposal.relatedFindings),
+      proposal.relatedReason,
     )
 
   return Number(lastInsertRowid)

@@ -3,19 +3,21 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { defineComponent, h } from 'vue'
 
 import { buildFindingView } from '#core/__tests__/coreBuilders.ts'
-import { fetchFindings } from '@/api/findingsApi'
+import { fetchFindings, markFindingsSeen } from '@/api/findingsApi'
 import { mountWithRouter, type RoutedMount } from '@/__tests__/mountWithRouter'
 import { useHandoffHintActions } from '@/composables/useHandoffHintActions'
 import { useTriageController, type TriageController } from '@/composables/useTriageController'
 import { NO_FINDING_REASON } from '@/composables/useHandoff'
+import { useFindingSeenStore } from '@/stores/findingSeenStore'
 import { useHandoffTargetStore } from '@/stores/handoffTargetStore'
 import { useHintActionsStore } from '@/stores/hintActionsStore'
 import { useMcpStore } from '@/stores/mcpStore'
-import { notifyNotice, notifySuccess } from '@/toast/toastManager'
+import { notifyNotice, notifySuccess, notifyWithAction } from '@/toast/toastManager'
 
 vi.mock('@/api/findingsApi', () => ({
   fetchFindings: vi.fn<typeof fetchFindings>(),
   fetchFindingDetail: vi.fn<() => Promise<never>>(() => new Promise(() => {})),
+  markFindingsSeen: vi.fn<typeof markFindingsSeen>(async () => ({ ignored: [] })),
 }))
 vi.mock('@/toast/toastManager', () => ({
   notifyError: vi.fn<(title: string, error: unknown) => void>(),
@@ -131,6 +133,19 @@ describe('selection hand-off keys', () => {
     expect(controller.checkedIds.value.size).toBe(5)
   })
 
+  it('marks the checked findings seen on copy and on open', async () => {
+    await mountTriage(3)
+    const seen = vi.spyOn(useFindingSeenStore(), 'markSeen')
+
+    await check(2)
+    await press('h')
+    expect(seen).toHaveBeenLastCalledWith([1, 2])
+
+    seen.mockClear()
+    await press('H', document.body, { shiftKey: true })
+    expect(seen).toHaveBeenCalledWith([1, 2])
+  })
+
   it('opens the default client with the whole selection on Shift+H', async () => {
     await mountTriage(3)
     await check(3)
@@ -139,6 +154,12 @@ describe('selection hand-off keys', () => {
     expect(assign).toHaveBeenCalledOnce()
     expect(decodeURIComponent(assign.mock.calls[0]![0])).toMatch(
       /^claude:\/\/code\/new\?q=Triage these sieb findings.*\n#3 /su,
+    )
+    expect(notifyWithAction).toHaveBeenCalledWith(
+      'handoff-open',
+      'Opening Claude with 3 findings…',
+      'If nothing happens, copy the prompt instead.',
+      expect.anything(),
     )
   })
 

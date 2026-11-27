@@ -294,6 +294,16 @@ describe('triageWorkflow', () => {
     expect(text).toContain('Not urgent: no interim, the operator waits.')
   })
 
+  it('lists verified findings of the same cause in relatedFindings instead of more proposals', () => {
+    expect(triageWorkflow(true)).toContain(
+      '- Same cause: when other open findings on the same image (get_image) or of the same' +
+        ' package share the root cause, check each against its own CVE and version and list the' +
+        ' confirmed ones in relatedFindings with a note each and relatedReason; do not file' +
+        ' separate proposals for them.',
+    )
+    expect(triageWorkflow(false)).not.toContain('relatedFindings')
+  })
+
   it('ends in the same reply format with the read-only line for a read-only connection', () => {
     const text = triageWorkflow(false)
 

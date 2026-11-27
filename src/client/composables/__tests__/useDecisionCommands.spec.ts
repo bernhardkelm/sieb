@@ -11,10 +11,11 @@ import {
   revokeDecision,
   updateDecision,
 } from '@/api/decisionsApi'
-import { fetchFindings } from '@/api/findingsApi'
+import { fetchFindings, markFindingsSeen } from '@/api/findingsApi'
 import type { DecisionFormValue } from '@/components/decision/decisionFormModel'
 import { useDecisionCommands } from '@/composables/useDecisionCommands'
 import { useDataVersionStore } from '@/stores/dataVersionStore'
+import { useFindingSeenStore } from '@/stores/findingSeenStore'
 import { useFindingsStore } from '@/stores/findingsStore'
 import { notifyError, notifySuccess } from '@/toast/toastManager'
 
@@ -26,6 +27,7 @@ vi.mock('@/api/decisionsApi', () => ({
 }))
 vi.mock('@/api/findingsApi', () => ({
   fetchFindings: vi.fn<typeof fetchFindings>(),
+  markFindingsSeen: vi.fn<typeof markFindingsSeen>(async () => ({ ignored: [] })),
 }))
 vi.mock('@/toast/toastManager', () => ({
   notifyError: vi.fn<(title: string, error: unknown) => void>(),
@@ -149,6 +151,24 @@ describe('useDecisionCommands', () => {
     expect(store.items.map((finding) => finding.inInbox)).toEqual([false, true])
     expect(useDataVersionStore().version).toBe(1)
     expect(notifyError).toHaveBeenCalledWith('Bulk decision incomplete', failure)
+  })
+
+  it('marks the findings of created bulk decisions seen', async () => {
+    const store = await loadFindings([
+      buildFindingView({ id: 1, vulnId: 'CVE-A', imageRef: NGINX }),
+      buildFindingView({ id: 2, vulnId: 'CVE-A', imageRef: REDIS }),
+      buildFindingView({ id: 3, vulnId: 'CVE-B', imageRef: NGINX }),
+    ])
+    const seen = vi.spyOn(useFindingSeenStore(), 'markSeen')
+
+    vi.mocked(createBulkDecisions).mockResolvedValue({
+      created: [written({ id: 7, vulnId: 'CVE-A', imageRef: NGINX })],
+      skipped: [],
+    })
+    await useDecisionCommands().bulkDecide([{ vulnId: 'CVE-A', imageRefs: [NGINX] }], VALUE)
+
+    expect(seen).toHaveBeenCalledWith([1])
+    expect(store.items.length).toBe(3)
   })
 
   it('keeps findings with their own image decision out of an all-scope decision', async () => {

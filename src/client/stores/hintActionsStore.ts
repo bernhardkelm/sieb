@@ -6,6 +6,7 @@ import {
   type HintAction,
   type HintActionId,
   type HintActions,
+  type HintBulk,
 } from '@/keyboard/hintActions'
 
 export interface HintRegistration {
@@ -56,6 +57,13 @@ export const useHintActionsStore = defineStore('hintActions', () => {
   }
 
   /**
+   * Returns the checked items an action acts on.
+   * @param {HintActionId} id - Action id
+   * @returns {HintBulk | null} - Count and noun, null while it acts on the cursor row or nothing registered it
+   */
+  const bulkOf = (id: HintActionId): HintBulk | null => actionOf(id)?.bulk?.() ?? null
+
+  /**
    * Runs an action unless it is blocked, after focusing the cursor row of the view so dialogs
    * return focus there and the next key press acts on the list.
    * @param {HintActionId} id - Action id
@@ -80,5 +88,5 @@ export const useHintActionsStore = defineStore('hintActions', () => {
     return true
   }
 
-  return { register, reasonOf, run }
+  return { register, reasonOf, bulkOf, run }
 })

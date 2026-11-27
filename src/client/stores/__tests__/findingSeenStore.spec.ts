@@ -126,4 +126,52 @@ describe('findingSeenStore', () => {
 
     expect(seenStates()).toEqual([[1, true]])
   })
+
+  describe('page hide', () => {
+    /**
+     * Sets the visibility state and dispatches visibilitychange.
+     * @param {DocumentVisibilityState} state - New state
+     * @returns {void}
+     */
+    const setVisibility = (state: DocumentVisibilityState): void => {
+      vi.spyOn(document, 'visibilityState', 'get').mockReturnValue(state)
+      document.dispatchEvent(new Event('visibilitychange'))
+    }
+
+    afterEach(() => {
+      vi.restoreAllMocks()
+    })
+
+    it('flushes pending marks with keepalive when the page is hidden, nothing after', async () => {
+      useFindingSeenStore().markSeen([1, 2])
+      setVisibility('visible')
+      expect(markFindingsSeen).not.toHaveBeenCalled()
+
+      setVisibility('hidden')
+      expect(vi.mocked(markFindingsSeen).mock.calls).toEqual([[[1, 2], true]])
+
+      await vi.advanceTimersByTimeAsync(SEEN_FLUSH_MS * 2)
+      expect(markFindingsSeen).toHaveBeenCalledOnce()
+    })
+
+    it('flushes on pagehide, one keepalive request per chunk', () => {
+      const ids = Array.from({ length: MAX_SEEN_FINDINGS + 5 }, (_, index) => index + 1)
+
+      useFindingSeenStore().markSeen(ids)
+      window.dispatchEvent(new Event('pagehide'))
+
+      expect(vi.mocked(markFindingsSeen).mock.calls).toEqual([
+        [ids.slice(0, MAX_SEEN_FINDINGS), true],
+        [ids.slice(MAX_SEEN_FINDINGS), true],
+      ])
+    })
+
+    it('stays silent when the keepalive request fails', () => {
+      vi.mocked(markFindingsSeen).mockRejectedValueOnce(new Error('offline'))
+      useFindingSeenStore().markSeen([1])
+
+      expect(() => window.dispatchEvent(new Event('pagehide'))).not.toThrow()
+      expect(notifyError).not.toHaveBeenCalled()
+    })
+  })
 })

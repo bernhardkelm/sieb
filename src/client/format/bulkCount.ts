@@ -16,6 +16,8 @@ export interface BulkNoun {
   plural?: string
 }
 
+export const FINDING_NOUN: BulkNoun = { singular: 'finding' }
+
 export interface BulkLabel {
   /** Visible label, such as "Accept 4" */
   text: string

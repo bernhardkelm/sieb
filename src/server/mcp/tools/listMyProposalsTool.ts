@@ -32,6 +32,10 @@ const proposalRowSchema = z.object({
   resolvedAt: z.string().nullable(),
   resolvedBy: z.string().nullable(),
   decisionIds: z.array(z.number().int()).describe('decisions written by the accept'),
+  relatedFindings: z
+    .number()
+    .int()
+    .describe('other findings you listed as sharing the cause, the human decides them apart'),
   url: z.string(),
   untrusted: z.object({
     summary: z.string(),
@@ -103,6 +107,7 @@ export const registerListMyProposalsTool = (
             resolvedAt: proposal.resolvedAt,
             resolvedBy: proposal.resolvedBy,
             decisionIds: proposal.decisionIds,
+            relatedFindings: proposal.relatedFindings.length,
             url: proposalReviewUrl(base, proposal.id),
             untrusted: { summary: proposal.summary, rejectReason: proposal.resolutionNote },
           })),

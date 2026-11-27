@@ -65,5 +65,7 @@ export const buildProposalInput = (overrides: Partial<ProposalInput> = {}): Prop
   references: [],
   evidenceBasis: ['image'],
   agent: null,
+  relatedFindings: [],
+  relatedReason: null,
   ...overrides,
 })

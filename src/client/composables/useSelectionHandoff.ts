@@ -1,6 +1,7 @@
 import { computed, type ComputedRef } from 'vue'
 
 import { HANDOFF_CLIENTS, handoffLink } from '#core/handoffLinks.ts'
+import { listedFindings } from '#core/multiHandoffPrompt.ts'
 import { selectionHandoffTexts } from '#core/selectionHandoff.ts'
 import { useClipboardCopy } from '@/composables/useClipboardCopy'
 import { useHandoffOpen } from '@/composables/useHandoffOpen'
@@ -12,7 +13,9 @@ import {
   commandReason,
   copiedToast,
   linkReason,
+  openingTitle,
 } from '@/format/selectionHandoffText'
+import { useFindingSeenStore } from '@/stores/findingSeenStore'
 import { useHandoffSelectionStore } from '@/stores/handoffSelectionStore'
 import { useHandoffTargetStore } from '@/stores/handoffTargetStore'
 import { useMcpStore } from '@/stores/mcpStore'
@@ -36,11 +39,20 @@ export interface SelectionHandoff extends HandoffActions {
 export const useSelectionHandoff = (): SelectionHandoff => {
   const selection = useHandoffSelectionStore()
   const targets = useHandoffTargetStore()
+  const seen = useFindingSeenStore()
   const mcp = useMcpStore()
   const { copy } = useClipboardCopy()
   const { openLink } = useHandoffOpen()
 
   const texts = computed(() => selectionHandoffTexts(selection.findings))
+
+  /**
+   * Marks the findings the hand-off lists as seen.
+   * @returns {void}
+   */
+  const markListedSeen = (): void => {
+    seen.markSeen(listedFindings(selection.findings).map((finding) => finding.id))
+  }
 
   /**
    * Returns why the prompt cannot be handed off.
@@ -81,6 +93,7 @@ export const useSelectionHandoff = (): SelectionHandoff => {
       return false
     }
 
+    markListedSeen()
     const { title, description } = copiedToast(current, 'prompt')
 
     notifySuccess(title, description)
@@ -102,6 +115,7 @@ export const useSelectionHandoff = (): SelectionHandoff => {
       return false
     }
 
+    markListedSeen()
     const { title, description } = copiedToast(current, 'claude command')
 
     notifySuccess(title, description)
@@ -126,7 +140,8 @@ export const useSelectionHandoff = (): SelectionHandoff => {
     if (link === null) {
       void copyPrompt()
     } else {
-      openLink(link, copyPrompt)
+      markListedSeen()
+      openLink(link, copyPrompt, openingTitle(current))
     }
 
     return true

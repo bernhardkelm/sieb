@@ -16,6 +16,8 @@ const props = defineProps<{
   targets: BulkTarget[]
   /** Preselected status, none is selected when absent */
   status?: DecisionStatus | null
+  /** Starting form values such as status, justification and reason, over the status above */
+  prefill?: DecisionFormInitial | null
 }>()
 
 const open = defineModel<boolean>('open', { required: true })
@@ -27,9 +29,11 @@ const form = ref<InstanceType<typeof DecisionForm> | null>(null)
 const error = ref<unknown>(null)
 const submitting = ref(false)
 
-const initial = computed<DecisionFormInitial>(() =>
-  props.status ? { scope: 'image', status: props.status } : { scope: 'image' },
-)
+const initial = computed<DecisionFormInitial>(() => ({
+  ...(props.status ? { status: props.status } : {}),
+  ...props.prefill,
+  scope: 'image',
+}))
 
 const allOpen = computed(
   () => props.targets.length === 1 && props.targets[0]?.imageRefs === 'all-open',

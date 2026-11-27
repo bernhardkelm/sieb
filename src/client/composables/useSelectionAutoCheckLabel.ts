@@ -1,9 +1,7 @@
 import { computed, type ComputedRef } from 'vue'
 
 import { useSelectionAutoCheck } from '@/composables/useSelectionAutoCheck'
-import { bulkLabel } from '@/format/bulkCount'
-import { OPEN_SKIP_REASON } from '@/format/checkBlockReason'
-import { useHandoffSelectionStore } from '@/stores/handoffSelectionStore'
+import { bulkLabel, FINDING_NOUN } from '@/format/bulkCount'
 
 export interface SelectionAutoCheckLabel {
   /** Visible label, such as "Auto-check 4" */
@@ -11,8 +9,6 @@ export interface SelectionAutoCheckLabel {
   /** Accessible label, and the partial tooltip while the check is not blocked */
   attrs: ComputedRef<Record<string, string>>
 }
-
-const NOUN = { singular: 'finding' }
 
 /**
  * Labels the Auto-check of the checked rows with the number of findings it queues, rows with an
@@ -22,19 +18,8 @@ const NOUN = { singular: 'finding' }
  */
 export const useSelectionAutoCheckLabel = (): SelectionAutoCheckLabel => {
   const autoCheck = useSelectionAutoCheck()
-  const selection = useHandoffSelectionStore()
 
-  const labels = computed(() =>
-    bulkLabel(
-      'Auto-check',
-      {
-        affected: autoCheck.count.value,
-        selected: selection.findingIds.length,
-        skipped: [OPEN_SKIP_REASON],
-      },
-      NOUN,
-    ),
-  )
+  const labels = computed(() => bulkLabel('Auto-check', autoCheck.bulkCount.value, FINDING_NOUN))
 
   const attrs = computed<Record<string, string>>(() => {
     const { ariaLabel, partial } = labels.value

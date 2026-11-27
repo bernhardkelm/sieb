@@ -165,7 +165,7 @@ The token reaches only its check's finding, that finding's CVE and image:
 | `get_image` | Only the check's image |
 | `list_decisions` | Only decisions of the check's CVE; `package`, `image` and the other filters narrow those |
 | `list_my_proposals` | Only the proposals this check filed |
-| `propose_decision` | Only the check's finding: `findingId`, or `vulnId` with `imageRefs` naming exactly its image; never `all` |
+| `propose_decision` | Only the check's finding: `findingId`, or `vulnId` with `imageRefs` naming exactly its image; never `all`; `relatedFindings` only on its image |
 | `search_findings`, `get_overview` | Not listed, like `propose_decision` for a read-only token |
 
 Anything else answers a tool error naming what the token reaches, and the server instructions
@@ -199,7 +199,7 @@ else on the origin the request reached sieb at.
 | `get_finding` | One finding by `findingId`, or by `vulnId` and `imageRef`: instances per workload and container, `foundIn` (paths, package type and PURL from Trivy), every decision covering it with history, KEV details |
 | `get_image` | One image: owner, exposure, risk counts, workloads and its open findings |
 | `list_decisions` | Earlier verdicts on the same CVE, package or image, filtered by state (also `expiring` and `upstream_pending`) or status, newest first |
-| `list_my_proposals` | The proposals filed for the connected sieb user, newest first, with state, resolution, outdated flag, reject reason (under `untrusted`) and review URL; `state` (default `all`), `vulnId`, `limit`, `offset` |
+| `list_my_proposals` | The proposals filed for the connected sieb user, newest first, with state, resolution, outdated flag, the number of `relatedFindings`, reject reason (under `untrusted`) and review URL; `state` (default `all`), `vulnId`, `limit`, `offset` |
 | `propose_decision` | Only with `sieb:propose`: files a structured decision proposal, see [Proposals](#proposals) |
 
 The decisions of `get_finding` and `list_decisions` carry `upstreamPending` (a `fix_planned`
@@ -270,7 +270,8 @@ command, file:line, tool call or URL, `result`), `fix` (`action`, `layer`, `fixe
 `waitingFor`, `interim`, see [Waiting for upstream](#waiting-for-upstream)), `review` (date and
 why, the date becomes the proposed expiry), `unknowns` (only what Claude's access could not
 check, each with the reason), `missing` (with `inconclusive` only), `references` (http(s) links
-Claude actually read), `agent` and `evidenceBasis`.
+Claude actually read), `agent`, `evidenceBasis`, and `relatedFindings` with `relatedReason`, other
+open findings of the same cause (see [Same cause](#same-cause)).
 
 `needs_patch` and `fix_planned` require `fix.action`: one line of at most 160 characters with
 the step the operator can take now, with exact versions. Claude works out which layer ships the
@@ -385,6 +386,32 @@ the usual block reasons; otherwise it is the hand-off button. **Dismiss** reject
 which Claude reads back through `list_my_proposals`. A plain accept, Cmd+Enter or an accept
 without a status edit is refused with 409 `not_acceptable`.
 
+### Same cause
+
+One root cause often covers several findings: a Go module recorded as a pseudo-version
+(`v0.0.0-<date>-<commit>`) sorts below every release, so Trivy reports every advisory of that
+module on the image. Claude files one proposal for the finding it checked and lists the other open
+findings it verified to share the cause in `relatedFindings`, `[{ findingId, note? }]`, at most 50,
+each `note` at most 1,000 characters, with `relatedReason`, the shared cause in one sentence of at
+most 1,000 characters. Each one is checked against its own CVE and version, never guessed, and
+gets no proposal of its own. Every related finding must be open (`unknown_finding`), not part of
+the target (`is_target`) and listed once (`duplicate`); `relatedReason` without related findings
+is `not_allowed`. Any open finding counts for a personal token or connector; an Auto-check lists
+only findings on its own image (`outside_image`), which `get_image` lists. Each refusal comes with
+a hint, as `invalid proposal, fix and retry: relatedFindings.<n>.findingId: <hint>`.
+
+Accepting the proposal decides only its target, never a related finding. The review panel shows
+**Same cause, N more findings** under What to do, or under the evidence when there is none: the
+shared reason, then per finding its CVE linking to the finding panel, image, package and installed
+version, current decision state and Claude's note. **Decide N the same way** opens the bulk
+decision dialog for the related findings that are still open and undecided, prefilled with the
+proposal's status, justification, expiry and upstream fields and the reason "Same cause as proposal
+#<id>: <relatedReason>" (the summary when there is no reason); the reviewer confirms there. An
+inconclusive proposal has no verdict to repeat, the button is blocked. **Auto-check N** queues
+checks for the same findings, with the block reasons of the selection Auto-check, findings with an
+open check skipped. Decided and resolved findings are marked as such and skipped by both actions,
+the tooltip names how many of the listed findings an action covers.
+
 ## Triage prompt and hand-off
 
 The MCP prompt `triage_finding` takes a `findingId` or a `vulnId` and walks Claude through an
@@ -396,7 +423,9 @@ proposal fields, the chat answer stays in the reply format below. Vulnerable cod
 in the workload (a copy no running process loads, such as a package manager's bundled dependency,
 or a module that is not loaded) is `not_affected` with `vulnerable_code_not_in_execute_path`, even
 when an upgrade exists. Vulnerable code that runs but is practically unreachable, with an upgrade
-as the fix, is `needs_patch` or `fix_planned`, not `not_affected`. Without `sieb:propose` the prompt ends in the same short reply, which says that no
+as the fix, is `needs_patch` or `fix_planned`, not `not_affected`. Other open findings on the
+same image or of the same package that share the root cause go into `relatedFindings` after their
+own check, not into separate proposals. Without `sieb:propose` the prompt ends in the same short reply, which says that no
 proposal was filed because the connection is read-only. In Claude Code it appears as
 `/mcp__claude_ai_sieb__triage_finding` through the connector (the middle part follows the
 connector name) or as `/mcp__sieb__triage_finding` for a server added with a token.
@@ -490,8 +519,8 @@ configured the note names the connector first. Copying the prompt always works.
 
 In Triage the hand-off also takes the checked rows. With rows checked and focus on the list,
 `Shift+H`, `h` and `y` act on the selection, as do the sidebar hints and the buttons of the
-selection bar on touch and narrow screens; inside the open panel the keys stay with the panel
-finding. Several findings go into one prompt: a header, one line per CVE with its finding ids and
+selection bar on touch and narrow screens, both naming the number of findings they carry; inside
+the open panel the keys stay with the panel finding. Several findings go into one prompt: a header, one line per CVE with its finding ids and
 images (findings of the same CVE share a line, and one `propose_decision` with `vulnId` and
 `imageRefs` may cover them), then the same instructions as for one finding, with the reply format
 for several findings. The Claude Code variant adds the repository sentence only when every image is

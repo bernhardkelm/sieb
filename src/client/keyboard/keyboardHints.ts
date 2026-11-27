@@ -5,6 +5,8 @@ import { ROUTE_NAMES, type RouteName } from '@/router/routeNames'
 export interface KeyboardHint {
   keys: string[]
   label: string
+  /** Label with `{n}` where the count of checked items goes, the count follows the label when absent */
+  template?: string
   /** Action a click on the hint runs, absent for hints shown as text only */
   action?: HintActionId
   /** Shown only with the Claude integration switched on */
@@ -43,9 +45,27 @@ export const KEYBOARD_HINTS: Record<RouteName, KeyboardHint[]> = {
     { keys: [MODIFIER_KEY, 'A'], label: 'Select all', action: 'selectAll' },
     SEARCH,
     SYNC,
-    { keys: ['⇧', 'H'], label: 'Open in Claude', action: 'handoffOpen', mcp: true },
-    { keys: ['h'], label: 'Copy for Claude', action: 'handoff', mcp: true },
-    { keys: ['y'], label: 'Copy claude command', action: 'handoffCommand', mcp: true },
+    {
+      keys: ['⇧', 'H'],
+      label: 'Open in Claude',
+      template: 'Open {n} in Claude',
+      action: 'handoffOpen',
+      mcp: true,
+    },
+    {
+      keys: ['h'],
+      label: 'Copy for Claude',
+      template: 'Copy {n} for Claude',
+      action: 'handoff',
+      mcp: true,
+    },
+    {
+      keys: ['y'],
+      label: 'Copy claude command',
+      template: 'Copy claude command for {n}',
+      action: 'handoffCommand',
+      mcp: true,
+    },
     { keys: ['⇧', 'C'], label: 'Auto-check', action: 'autoCheck', mcp: true, checks: true },
   ],
   [ROUTE_NAMES.IMAGES]: [TREE, SEARCH, SYNC],

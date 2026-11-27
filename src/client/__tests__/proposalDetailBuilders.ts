@@ -111,6 +111,7 @@ export const buildProposalDetail = (overrides: Partial<ProposalDetail> = {}): Pr
   currentDecisionIds: [{ imageRef: IMAGE, decisionId: null, updatedAt: null }],
   decisionValues: PROPOSED_VALUES,
   kevCatalog: null,
+  related: [],
   ...overrides,
 })
 

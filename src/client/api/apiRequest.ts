@@ -25,14 +25,24 @@ const errorBody = async (
  * @param {string} url - API path with query string
  * @param {string} method - HTTP method
  * @param {unknown} body - JSON body, left out when undefined
+ * @param {boolean} keepalive - Lets the request outlive the page, for a flush while it unloads
  * @returns {Promise<T>} - Parsed answer, undefined for 204
  * @throws {ApiError} - For any status outside 2xx
  */
-export const apiRequest = async <T>(url: string, method = 'GET', body?: unknown): Promise<T> => {
+export const apiRequest = async <T>(
+  url: string,
+  method = 'GET',
+  body?: unknown,
+  keepalive = false,
+): Promise<T> => {
   const init: RequestInit = { method, headers: { Accept: 'application/json' } }
 
   if (!SAFE_METHODS.includes(method)) {
     init.headers = { Accept: 'application/json', 'Content-Type': 'application/json' }
+  }
+
+  if (keepalive) {
+    init.keepalive = true
   }
 
   if (body !== undefined) {

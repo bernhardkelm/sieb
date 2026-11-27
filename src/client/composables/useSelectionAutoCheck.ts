@@ -1,7 +1,8 @@
 import { computed, type ComputedRef } from 'vue'
 
 import { useAutoCheck } from '@/composables/useAutoCheck'
-import { selectionCheckReason } from '@/format/checkBlockReason'
+import { allOf, type BulkCount } from '@/format/bulkCount'
+import { OPEN_SKIP_REASON, queueRoomReason, selectionCheckReason } from '@/format/checkBlockReason'
 import { useChecksStore } from '@/stores/checksStore'
 import { useHandoffSelectionStore } from '@/stores/handoffSelectionStore'
 import { notifyNotice } from '@/toast/toastManager'
@@ -11,7 +12,9 @@ export interface SelectionAutoCheck {
   active: ComputedRef<boolean>
   /** Checked rows a run queues, those without an open check */
   count: ComputedRef<number>
-  /** Why the checked rows cannot be checked now, null while some can */
+  /** Checked rows a run queues out of the checked ones, rows with an open check skipped */
+  bulkCount: ComputedRef<BulkCount>
+  /** Why the checked rows cannot be checked now, null while all of them fit into the queue */
   blockedBy: ComputedRef<string | null>
   /** Queues checks of the checked rows without an open check, false while blocked */
   run: () => Promise<boolean>
@@ -22,23 +25,32 @@ export interface SelectionAutoCheck {
 /**
  * Queues Auto-checks for the checked rows of the active list, read from the selection store the
  * hand-off uses. Rows with an open check are left out before the request; the server skips
- * private images and names them in the toast.
+ * private images and names them in the toast. A selection with more checks than the queue has
+ * room for is blocked as a whole, the room counted from the open checks of the checks store.
+ * @param {() => readonly number[]} source - Finding ids to check instead of the checked rows
  * @returns {SelectionAutoCheck} - Whether rows are checked, block reason and run
  */
-export const useSelectionAutoCheck = (): SelectionAutoCheck => {
+export const useSelectionAutoCheck = (source?: () => readonly number[]): SelectionAutoCheck => {
   const checks = useChecksStore()
   const selection = useHandoffSelectionStore()
   const { submitting, submit } = useAutoCheck()
+  const findingIds = computed(() => (source ? source() : selection.findingIds))
 
-  const candidates = computed(() =>
-    selection.findingIds.filter((id) => checks.openFor(id) === null),
+  const candidates = computed(() => findingIds.value.filter((id) => checks.openFor(id) === null))
+  const blockedBy = computed(
+    () =>
+      selectionCheckReason(
+        { enabled: checks.enabled, workerOnline: checks.workerOnline },
+        candidates.value.length,
+      ) ?? queueRoomReason(checks.open.length, candidates.value.length),
   )
-  const blockedBy = computed(() =>
-    selectionCheckReason(
-      { enabled: checks.enabled, workerOnline: checks.workerOnline },
-      candidates.value.length,
-    ),
-  )
+  const bulkCount = computed<BulkCount>(() => {
+    const selected = findingIds.value.length
+
+    return candidates.value.length < selected
+      ? { affected: candidates.value.length, selected, skipped: [OPEN_SKIP_REASON] }
+      : allOf(selected)
+  })
 
   /**
    * Queues the checks unless blocked or a request is in flight.
@@ -66,8 +78,9 @@ export const useSelectionAutoCheck = (): SelectionAutoCheck => {
   }
 
   return {
-    active: computed(() => selection.findingIds.length > 0),
+    active: computed(() => findingIds.value.length > 0),
     count: computed(() => candidates.value.length),
+    bulkCount,
     blockedBy,
     run,
     runOrExplain,

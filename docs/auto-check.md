@@ -53,8 +53,9 @@ worker port to sieb's Service, for example as port `worker` with `targetPort` 31
 - **Queueing.** The Auto-check button in the finding panel, or `Shift+C`, queues the panel's
   finding; in Triage the selection bar and `Shift+C` queue the checked rows, sent in requests of
   at most 100 findings. The button names the reason when it cannot queue, for example a private
-  image, a resolved finding or an offline worker. A toast reports the queued findings and the
-  skipped ones with their reason.
+  image, a resolved finding or an offline worker. The queue holds at most 500 open checks: a
+  selection whose checks do not all fit is not queued at all, the button names the room left.
+  A toast reports the queued findings and the skipped ones with their reason.
 - **Checks page.** The Checks page (key `6`, in the navigation while Auto-check is on, with the
   open checks as a badge) shows the running check with its phase, the queue in claim order, and
   the 50 most recent ended checks with requester, duration, the checked images (tag and short

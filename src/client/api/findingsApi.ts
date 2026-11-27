@@ -30,7 +30,8 @@ export const fetchFindingDetail = (id: number): Promise<FindingDetailResponse> =
 /**
  * Marks findings seen for the acting user, the server ignores unknown and older findings.
  * @param {number[]} ids - Finding ids, at most MAX_SEEN_FINDINGS
+ * @param {boolean} keepalive - Lets the request outlive the page
  * @returns {Promise<FindingsSeenResponse>} - Ids that were not marked
  */
-export const markFindingsSeen = (ids: number[]): Promise<FindingsSeenResponse> =>
-  apiRequest(`${FINDINGS_URL}/seen`, 'POST', { ids } satisfies FindingsSeenRequest)
+export const markFindingsSeen = (ids: number[], keepalive = false): Promise<FindingsSeenResponse> =>
+  apiRequest(`${FINDINGS_URL}/seen`, 'POST', { ids } satisfies FindingsSeenRequest, keepalive)

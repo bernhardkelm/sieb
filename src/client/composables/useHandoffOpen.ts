@@ -11,7 +11,7 @@ export interface HandoffOpen {
   /** Opens a client with its prompt prefilled, or copies the chat prompt for the copy preference */
   open: (preference: HandoffPreference, prompts: HandoffPrompts) => void
   /** Opens a deep link, the toast action runs the copy fallback in case nothing opens */
-  openLink: (link: string, copyFallback: () => unknown) => void
+  openLink: (link: string, copyFallback: () => unknown, title?: string) => void
 }
 
 /**
@@ -41,22 +41,18 @@ export const useHandoffOpen = (): HandoffOpen => {
    * Opens a deep link and offers the copy fallback in a toast, since nothing may handle it.
    * @param {string} link - Deep link
    * @param {() => unknown} copyFallback - Copies the prompt instead
+   * @param {string} title - Toast title
    * @returns {void}
    */
-  const openLink = (link: string, copyFallback: () => unknown): void => {
+  const openLink = (link: string, copyFallback: () => unknown, title = 'Opening Claude…'): void => {
     openDeepLink(link)
-    notifyWithAction(
-      'handoff-open',
-      'Opening Claude…',
-      'If nothing happens, copy the prompt instead.',
-      {
-        label: 'Copy prompt',
-        altText: 'Copy the prompt with h',
-        onClick: () => {
-          void copyFallback()
-        },
+    notifyWithAction('handoff-open', title, 'If nothing happens, copy the prompt instead.', {
+      label: 'Copy prompt',
+      altText: 'Copy the prompt with h',
+      onClick: () => {
+        void copyFallback()
       },
-    )
+    })
   }
 
   /**

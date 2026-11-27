@@ -1,5 +1,7 @@
 import type { CheckView } from '#core/check.ts'
+import { MAX_OPEN_CHECKS } from '#core/checkLimits.ts'
 import type { SourceAccess } from '#core/sourceAccess.ts'
+import { formatCount } from '@/format/count'
 
 export const CHECKS_OFF_REASON = 'Auto-check is not switched on for this sieb.'
 export const WORKER_OFFLINE_REASON = 'The Auto-check worker is offline, try again once it polls.'
@@ -73,3 +75,30 @@ export const selectionCheckReason = (
   availability: CheckAvailability,
   withoutOpen: number,
 ): string | null => availabilityReason(availability) ?? (withoutOpen === 0 ? ALL_OPEN_REASON : null)
+
+/**
+ * Returns why the queue has no room for the checks of the checked rows. The server refuses to
+ * hold more than MAX_OPEN_CHECKS queued and running checks, so the selection is queued whole or
+ * not at all.
+ * @param {number} open - Queued and running checks
+ * @param {number} eligible - Checks the selection would queue
+ * @param {number} max - Open checks the queue holds
+ * @returns {string | null} - Reason, null while every check fits
+ */
+export const queueRoomReason = (
+  open: number,
+  eligible: number,
+  max: number = MAX_OPEN_CHECKS,
+): string | null => {
+  const room = Math.max(0, max - open)
+
+  if (eligible <= room) {
+    return null
+  }
+
+  if (room === 0) {
+    return `The queue is full (${formatCount(max)} open checks).`
+  }
+
+  return `The queue holds at most ${formatCount(max)} checks: ${formatCount(open)} ${open === 1 ? 'is' : 'are'} open, so at most ${formatCount(room)} more fit. Select fewer findings.`
+}

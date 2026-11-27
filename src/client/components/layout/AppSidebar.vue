@@ -1,12 +1,14 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted } from 'vue'
-import { useRoute } from 'vue-router'
+import { RouterLink, useRoute } from 'vue-router'
 
 import KeyHint from '@/components/common/KeyHint.vue'
 import SidebarNav from '@/components/layout/SidebarNav.vue'
 import SourceCodeLink from '@/components/layout/SourceCodeLink.vue'
 import OverviewStats from '@/components/overview/OverviewStats.vue'
+import { hintView } from '@/keyboard/hintView'
 import { hintsForRoute } from '@/keyboard/keyboardHints'
+import { HOME_ROUTE } from '@/router/routeNames'
 import { useChecksStore } from '@/stores/checksStore'
 import { useHintActionsStore } from '@/stores/hintActionsStore'
 import { useInboxStore } from '@/stores/inboxStore'
@@ -18,7 +20,13 @@ const mcp = useMcpStore()
 const inbox = useInboxStore()
 const checks = useChecksStore()
 
-const hints = computed(() => hintsForRoute(route.name, mcp.enabled, checks.enabled))
+const hints = computed(() =>
+  hintsForRoute(route.name, mcp.enabled, checks.enabled).map((hint) =>
+    hint.action
+      ? hintView(hint, actions.reasonOf(hint.action), actions.bulkOf(hint.action))
+      : hintView(hint, null, null),
+  ),
+)
 
 onMounted(() => {
   inbox.startPolling()
@@ -33,27 +41,30 @@ onBeforeUnmount(() => {
 
 <template>
   <div class="sidebar">
-    <p class="wordmark">sieb</p>
+    <RouterLink class="wordmark" :to="{ name: HOME_ROUTE }" aria-label="sieb, home"
+      >sieb</RouterLink
+    >
     <SidebarNav />
     <OverviewStats class="overview" />
     <div class="foot">
       <ul class="hints" aria-label="Keyboard shortcuts">
-        <li v-for="hint in hints" :key="hint.label">
+        <li v-for="view in hints" :key="view.hint.label">
           <button
-            v-if="hint.action"
+            v-if="view.hint.action"
             type="button"
             class="hint action"
-            :aria-disabled="actions.reasonOf(hint.action) !== null || undefined"
-            :tabindex="actions.reasonOf(hint.action) !== null ? -1 : undefined"
-            :title="actions.reasonOf(hint.action) ?? undefined"
-            @click="actions.run(hint.action)"
+            :aria-disabled="view.blockedBy !== null || undefined"
+            :tabindex="view.blockedBy !== null ? -1 : undefined"
+            :title="view.title"
+            @click="actions.run(view.hint.action)"
           >
-            <KeyHint :keys="hint.keys" />
-            <span>{{ hint.label }}</span>
+            <KeyHint :keys="view.hint.keys" />
+            <span v-if="view.ariaLabel" class="visually-hidden">{{ view.ariaLabel }}</span>
+            <span :aria-hidden="view.ariaLabel ? 'true' : undefined">{{ view.text }}</span>
           </button>
           <span v-else class="hint">
-            <KeyHint :keys="hint.keys" />
-            <span>{{ hint.label }}</span>
+            <KeyHint :keys="view.hint.keys" />
+            <span>{{ view.text }}</span>
           </span>
         </li>
       </ul>
@@ -76,10 +87,14 @@ onBeforeUnmount(() => {
 }
 
 .wordmark {
+  align-self: flex-start;
   padding: 0 var(--space-2);
+  border-radius: var(--radius);
+  color: inherit;
   font-size: var(--font-size-lg);
   font-weight: var(--font-weight-semibold);
   line-height: var(--control-height);
+  text-decoration: none;
 }
 
 .foot {

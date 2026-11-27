@@ -9,6 +9,8 @@ import { useFindingsStore } from '@/stores/findingsStore'
 /** Quiet time after the last mark before the marks go to the server */
 export const SEEN_FLUSH_MS = 1000
 
+let detachHideListeners: (() => void) | undefined
+
 /**
  * Marks findings seen for the acting user: the findings store drops their "new" tag at once,
  * the ids go to POST /api/findings/seen in batches once marking pauses for SEEN_FLUSH_MS. A
@@ -62,6 +64,44 @@ export const useFindingSeenStore = defineStore('findingSeen', () => {
     flushing = send()
     await flushing
     flushing = null
+  }
+
+  /**
+   * Sends the pending ids without waiting while the page goes away, one keepalive request per
+   * chunk. Failures stay silent, the page is gone anyway.
+   * @returns {void}
+   */
+  const flushKeepalive = (): void => {
+    clearTimeout(timer)
+    timer = undefined
+
+    const ids = [...pending]
+
+    pending.clear()
+
+    for (let start = 0; start < ids.length; start += MAX_SEEN_FINDINGS) {
+      markFindingsSeen(ids.slice(start, start + MAX_SEEN_FINDINGS), true).catch(() => {})
+    }
+  }
+
+  /**
+   * Flushes when the page is hidden or unloaded.
+   * @returns {void}
+   */
+  const onHide = (): void => {
+    if (document.visibilityState === 'hidden') {
+      flushKeepalive()
+    }
+  }
+
+  if (typeof document !== 'undefined') {
+    detachHideListeners?.()
+    document.addEventListener('visibilitychange', onHide)
+    window.addEventListener('pagehide', flushKeepalive)
+    detachHideListeners = () => {
+      document.removeEventListener('visibilitychange', onHide)
+      window.removeEventListener('pagehide', flushKeepalive)
+    }
   }
 
   /**

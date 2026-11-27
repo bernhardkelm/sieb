@@ -16,6 +16,7 @@ import ProposalHeader from '@/components/proposals/ProposalHeader.vue'
 import { fixPathTitle } from '@/components/proposals/fixPathRows'
 import { hasWhatToDo } from '@/components/proposals/proposalText'
 import ReferenceLinks from '@/components/proposals/ReferenceLinks.vue'
+import RelatedFindings from '@/components/proposals/RelatedFindings.vue'
 import SiebFacts from '@/components/proposals/SiebFacts.vue'
 import UnknownsList from '@/components/proposals/UnknownsList.vue'
 import WhatToDo from '@/components/proposals/WhatToDo.vue'
@@ -27,6 +28,8 @@ const props = defineProps<{
 const decidable = computed(() => isDecidableVerdict(props.detail.proposal.verdict))
 const planShown = computed(() => hasWhatToDo(props.detail.proposal))
 const fixTitle = computed(() => fixPathTitle(props.detail.proposal, planShown.value))
+const relatedShown = computed(() => props.detail.related.length > 0)
+const relatedAfterPlan = computed(() => decidable.value && planShown.value)
 </script>
 
 <template>
@@ -48,6 +51,7 @@ const fixTitle = computed(() => fixPathTitle(props.detail.proposal, planShown.va
         <WhatToDo :proposal="detail.proposal" />
       </ClaimBox>
     </section>
+    <RelatedFindings v-if="relatedShown && relatedAfterPlan" :detail="detail" />
     <section class="section" aria-labelledby="review-basis">
       <h3 id="review-basis" class="section-title">Evidence basis</h3>
       <EvidenceBasis :detail="detail" />
@@ -71,6 +75,7 @@ const fixTitle = computed(() => fixPathTitle(props.detail.proposal, planShown.va
         <EvidenceChecklist :evidence="detail.proposal.evidence" />
       </ClaimBox>
     </section>
+    <RelatedFindings v-if="relatedShown && !relatedAfterPlan" :detail="detail" />
     <section class="section" aria-labelledby="review-fix">
       <h3 id="review-fix" class="section-title">{{ fixTitle }}</h3>
       <ClaimBox>
@@ -98,25 +103,13 @@ const fixTitle = computed(() => fixPathTitle(props.detail.proposal, planShown.va
   </div>
 </template>
 
+<style scoped src="@/components/proposals/reviewSection.css"></style>
+
 <style scoped>
 .proposal-sections {
   display: flex;
   flex-direction: column;
   gap: var(--space-6);
-}
-
-.section {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-2);
-}
-
-.section-title {
-  color: var(--color-text-muted);
-  font-size: var(--font-size-xs);
-  font-weight: var(--font-weight-semibold);
-  letter-spacing: var(--letter-spacing-caps);
-  text-transform: uppercase;
 }
 
 .count {

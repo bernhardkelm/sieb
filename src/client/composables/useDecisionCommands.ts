@@ -17,6 +17,7 @@ import { countOf } from '@/format/count'
 import { shortImageName } from '@/format/imageName'
 import { STATUS_LABELS } from '@/format/labels'
 import { useDataVersionStore } from '@/stores/dataVersionStore'
+import { useFindingSeenStore } from '@/stores/findingSeenStore'
 import { useFindingsStore } from '@/stores/findingsStore'
 import { notifyError, notifySuccess } from '@/toast/toastManager'
 
@@ -55,6 +56,7 @@ const fail = (title: string, error: unknown): never => {
 export const useDecisionCommands = (): DecisionCommands => {
   const findings = useFindingsStore()
   const dataVersion = useDataVersionStore()
+  const seen = useFindingSeenStore()
 
   /**
    * Applies written decisions and announces the change.
@@ -69,6 +71,21 @@ export const useDecisionCommands = (): DecisionCommands => {
     }
 
     dataVersion.bump()
+  }
+
+  /**
+   * Marks the loaded findings a bulk decision created decisions for as seen.
+   * @param {DecisionView[]} views - Created decisions
+   * @returns {void}
+   */
+  const markDecidedSeen = (views: DecisionView[]): void => {
+    const keys = new Set(views.map(({ decision }) => `${decision.vulnId}\n${decision.imageRef}`))
+
+    seen.markSeen(
+      findings.items
+        .filter((finding) => keys.has(`${finding.vulnId}\n${finding.imageRef}`))
+        .map((finding) => finding.id),
+    )
   }
 
   /**
@@ -175,12 +192,14 @@ export const useDecisionCommands = (): DecisionCommands => {
     } catch (error) {
       if (total.created.length > 0) {
         settle(total.created)
+        markDecidedSeen(total.created)
       }
 
       return fail('Bulk decision incomplete', error)
     }
 
     settle(total.created)
+    markDecidedSeen(total.created)
     notifySuccess(
       `${STATUS_LABELS[value.status]}: ${countOf(total.created.length, 'decision')}`,
       bulkSkipSummary(total.skipped),

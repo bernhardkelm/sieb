@@ -1,6 +1,7 @@
 import type { ApiTokenScope } from '#core/apiToken.ts'
 import type { BulkDecisionInput } from '#core/bulkDecisionValidation.ts'
-import type { DecisionInput, DecisionPatch } from '#core/decision.ts'
+import type { Decision, DecisionInput, DecisionPatch } from '#core/decision.ts'
+import type { EffectiveDecision } from '#core/effectiveDecision.ts'
 import type { Exposure } from '#core/exposure.ts'
 import type { DecisionView, FindingDetail } from '#core/findingView.ts'
 import type { InboxCounts, InboxItem } from '#core/inbox/inboxItem.ts'
@@ -217,6 +218,19 @@ export interface ProposalImageFacts {
   decision: DecisionView | null // decision governing the image now
 }
 
+/** sieb's facts on a finding a proposal says shares its cause, decided apart from the proposal */
+export interface ProposalRelatedFacts {
+  findingId: number
+  note: string | null // Claude's note, untrusted plain text
+  vulnId: string | null // null once sieb no longer holds the finding
+  imageRef: string | null
+  open: boolean
+  sourceAccess: SourceAccess | null
+  versions: PackageVersion[] // package, installed and fixed version of the current instances
+  decision: Decision | null // decision governing the finding now
+  effective: EffectiveDecision | null
+}
+
 /** Answer of GET /api/proposals/:id */
 export interface ProposalDetail extends ProposalListItem {
   images: ProposalImageFacts[] // scope image: the targets, scope all: every image with an open finding
@@ -224,6 +238,7 @@ export interface ProposalDetail extends ProposalListItem {
   currentDecisionIds: ExpectedDecisionId[] // governing decision per target, send as expectedDecisionIds
   decisionValues: AcceptedDecisionValues | null // what accepting without edits writes, prefill of Edit & accept, null for inconclusive
   kevCatalog: KevDetails | null // CISA catalog entry, null for other KEV sources and unlisted CVEs
+  related: ProposalRelatedFacts[] // the proposal's related findings in its order
 }
 
 /** Body of POST /api/proposals/:id/accept, edits leave scope and images as proposed */

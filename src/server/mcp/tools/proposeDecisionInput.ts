@@ -172,5 +172,22 @@ export const proposeDecisionInput = z.object({
         ' the image; runtime: you observed the running workload. advisory alone for private' +
         ' images you cannot inspect',
     ),
+  relatedFindings: z
+    .array(
+      z.object({
+        findingId: z.number().int().positive(),
+        note: text(LIMITS.relatedNote).optional().describe('what you checked for this one'),
+      }),
+    )
+    .max(LIMITS.relatedFindings)
+    .optional()
+    .describe(
+      'other open findings you verified share this cause (e.g. the same pseudo-version false' +
+        ' positive on the same image), with a note each; never guessed, each one checked against' +
+        ' its own CVE and version; the human decides them separately',
+    ),
+  relatedReason: text(LIMITS.relatedReason)
+    .optional()
+    .describe('with relatedFindings: the shared cause in one sentence'),
   agent: text(LIMITS.agent).optional().describe('your client, e.g. Claude Code'),
 })

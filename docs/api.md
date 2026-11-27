@@ -371,9 +371,11 @@ cleanup covers them as well.
 The client marks a finding seen once it stays shown in the side panel for 2 seconds (moving the
 cursor on restarts the time, a hidden tab pauses it) or when the user acts on it there: a saved
 decision, a hand-off, a copied value or a queued Auto-check, also one queued for checked rows.
-Triage offers "Mark all as seen" for the new findings of the filtered list. The client drops the
-tag at once and sends the ids in batches once marking pauses for a second; a failed request is
-retried with the next mark, without an error toast.
+Handing checked rows over to Claude and a bulk decision mark the affected findings too. Triage
+offers "Mark all as seen" for the new findings of the filtered list. The client drops the tag at
+once and sends the ids in batches once marking pauses for a second, pending ids go out right away
+when the page is hidden or closed (`fetch` with `keepalive`, one request per 200 ids); a failed
+request is retried with the next mark, without an error toast.
 
 ## Proposals
 
@@ -404,6 +406,11 @@ A proposal (`Proposal` in `src/core/proposal.ts`) carries:
   characters (zero-width characters, the Arabic letter mark, soft hyphens) and is capped (summary
   1000 characters, presence, reachability and exposure 4000, at most 30 evidence entries, 20
   unknowns, 20 references). Treat all of it as untrusted plain text.
+- Same cause: `relatedFindings` (`[{ findingId, note }]`, at most 50, `note` up to 1000 characters
+  or `null`) are other open findings Claude says share the cause of the verdict, and
+  `relatedReason` (one sentence up to 1000 characters, `null` without related findings) names it;
+  the rules are in [mcp.md](mcp.md#same-cause). `[]` and `null` for proposals stored before schema
+  step 19. Accepting decides only the target, a related finding is decided on its own.
 - Snapshots: `sourceAccess` (`[{ imageRef, access }]` when proposed) and `basisDecisions`
   (`[{ imageRef, decisionId, updatedAt }]`, the decisions governing the targets when proposed,
   `imageRef` `null` for the all-scope target).
@@ -455,6 +462,10 @@ a decision governing one of its targets was created, changed or revoked since it
   expiry is the review date while it lies ahead, else the default of the status. `null` for
   `inconclusive`, which has no status of its own.
 - `kevCatalog`: the CISA catalog entry, `null` for other KEV sources.
+- `related`: sieb's facts per related finding in the filed order: `{ findingId, note, vulnId,
+  imageRef, open, sourceAccess, versions, decision, effective }`, `decision` and `effective` of the
+  decision governing it now (`null` when undecided), `vulnId`, `imageRef` and `sourceAccess` `null`
+  once sieb no longer holds the finding.
 
 `POST /api/proposals/:id/accept` takes
 `{ "expectedDecisionIds": [{ "imageRef", "decisionId", "updatedAt" }], "edits"?: { "status", "justification", "reason", "expiresAt", "upstreamPending", "waitingFor" } }`.
@@ -480,6 +491,10 @@ expected one or was edited since (same `decisionId`, other `updatedAt`), nothing
 is no longer open; 409 `{ "error": "not_acceptable" }` for an `inconclusive` proposal accepted
 without `edits.status`; 400 `expectedDecisionIds` `required` or `invalid` (an entry without `updatedAt`, with an
 unparsable one, or with an `updatedAt` but no `decisionId` is `invalid`).
+
+Schema step 19 adds `decision_proposals.related_findings` (a JSON array of at most 50 entries,
+default `[]`) and the nullable `decision_proposals.related_reason` (1 to 1000 characters).
+Existing proposals keep `[]` and `null`, no row is rewritten.
 
 ### Bulk accept and reject
 
@@ -631,6 +646,8 @@ A running check has a `phase` of `preparing`, `investigating` or `reporting`. Ru
 - Only open findings whose image has source access `public` (see [Source access](#source-access))
   can be queued, each finding has at most one open check.
 - At most 500 checks are open at once, a guard against accidental floods; there is no daily limit.
+  Findings beyond that are skipped as `queue_full`. The client blocks a bulk Auto-check whose
+  checks do not all fit into the room left, counted from the last `GET /api/checks`.
 - The worker claims checks oldest first, at most one check runs at a time.
 - A running check without a heartbeat for 2 minutes, or running longer than
   `SIEB_CHECK_TIMEOUT_SECONDS` plus one minute, fails with an error saying so. sieb evaluates this

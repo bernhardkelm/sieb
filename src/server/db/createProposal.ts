@@ -20,6 +20,7 @@ import {
   listProposals,
   resolveProposal,
 } from '#server/db/proposalRepository.ts'
+import { relatedFindingIssues } from '#server/db/relatedFindingIssues.ts'
 
 export interface CreateProposalContext {
   proposer: ProposalProposer
@@ -50,7 +51,9 @@ const findReplaced = (
  * least one. The proposal records the source access of its images and the decisions governing
  * its targets and replaces the open proposal of the same origin for the same target, see
  * findReplaced. A user's own proposal is refused once they hold MAX_OPEN_PROPOSALS others; an
- * Auto-check only ever targets its finding and holds one. Nothing about suppression changes.
+ * Auto-check only ever targets its finding and holds one, and lists related findings only on
+ * its images (relatedFindingIssues). Related findings are stored, never decided. Nothing about
+ * suppression changes.
  * @param {DatabaseSync} db - Open database
  * @param {ProposalInput} input - Validated proposal
  * @param {CreateProposalContext} context - Proposer, public registries and current time
@@ -73,6 +76,16 @@ export const createProposal = (
       return { ok: false, error: 'unknown_finding', imageRefs: missing }
     }
 
+    const images = input.imageRefs ?? [...open.keys()].sort()
+    const issues = relatedFindingIssues(db, input, {
+      targetImages: images,
+      sameImageOnly: checkId !== null,
+    })
+
+    if (issues.length > 0) {
+      return { ok: false, error: 'invalid_related', issues }
+    }
+
     const replaced = findReplaced(db, input, { proposedBy: proposer.proposedBy, checkId })
 
     if (
@@ -83,7 +96,6 @@ export const createProposal = (
     }
 
     const at = now.toISOString()
-    const images = input.imageRefs ?? [...open.keys()].sort()
 
     if (replaced) {
       resolveProposal(db, replaced.id, {

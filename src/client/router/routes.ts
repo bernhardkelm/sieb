@@ -1,7 +1,7 @@
 import type { RouteRecordRaw } from 'vue-router'
 
 import { legacyFindingLink } from '@/router/legacyFindingLink'
-import { PROPOSAL_PARAM, ROUTE_NAMES } from '@/router/routeNames'
+import { HOME_ROUTE, PROPOSAL_PARAM, ROUTE_NAMES } from '@/router/routeNames'
 
 declare module 'vue-router' {
   interface RouteMeta {
@@ -12,7 +12,7 @@ declare module 'vue-router' {
 export const routes: RouteRecordRaw[] = [
   {
     path: '/',
-    redirect: { name: ROUTE_NAMES.TRIAGE },
+    redirect: { name: HOME_ROUTE },
   },
   {
     path: '/inbox',

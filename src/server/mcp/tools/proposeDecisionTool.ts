@@ -50,15 +50,23 @@ const PROBLEM_HINTS: Record<string, string> = {
   'fix.waitingFor:not_allowed': 'only with fix_planned and availability upstream_pending',
   'fix.interim:not_allowed': 'only with fix_planned and availability upstream_pending',
   'review.date:required': 'required with upstream_pending, when to look for the upstream fix again',
+  'relatedFindings.findingId:unknown_finding':
+    'no open finding with this id, take ids from get_image',
+  'relatedFindings.findingId:is_target': 'the target itself, list only other findings',
+  'relatedFindings.findingId:outside_image':
+    'an Auto-check lists only findings on its own image, from get_image',
+  'relatedFindings.findingId:duplicate': 'list each finding once',
+  'relatedReason:not_allowed': 'only with relatedFindings',
 }
 
 /**
- * Describes one validation problem, with a hint for a missing patch action or missing list.
+ * Describes one validation problem, with the hint of its field and code; list entries such as
+ * relatedFindings.2.findingId share the hint of relatedFindings.findingId.
  * @param {ValidationIssue} error - Validation problem
  * @returns {string} - Field and code, or the field with its hint
  */
 const problemText = ({ field, code }: ValidationIssue): string =>
-  `${field ?? 'input'}: ${PROBLEM_HINTS[`${field}:${code}`] ?? code}`
+  `${field ?? 'input'}: ${PROBLEM_HINTS[`${field?.replaceAll(/\.\d+(?=\.|$)/gu, '')}:${code}`] ?? code}`
 
 /**
  * Returns the rate bucket of a caller: one per sieb user, shared by all of that user's tokens
@@ -73,7 +81,7 @@ const rateKeyOf = (caller: McpCaller): string =>
  * Registers propose_decision, only for callers with sieb:propose: files a structured proposal a
  * human accepts, edits or rejects in sieb. At most PROPOSE_RATE_LIMIT valid calls per hour and
  * rate bucket, see rateKeyOf; each one is logged. An Auto-check may only propose for its own
- * finding.
+ * finding and list related findings only on its image.
  * @param {McpServer} server - MCP server
  * @param {McpToolDeps} deps - Database, clock, registries, logger, limiter and link base
  * @param {McpCaller} caller - Authenticated caller, the proposer
@@ -137,6 +145,12 @@ export const registerProposeDecisionTool = (
         publicRegistries: deps.publicRegistries,
         now,
       })
+
+      if (!result.ok && result.error === 'invalid_related') {
+        const problems = (result.issues ?? []).map(problemText)
+
+        return toolError(`invalid proposal, fix and retry: ${problems.join('; ')}`)
+      }
 
       if (!result.ok) {
         return toolError(

@@ -88,5 +88,9 @@ describe('workspacePrompt', () => {
     expect(prompt).toContain('until you can name the first release that ships the fix')
     expect(prompt).toContain('is your work, not a step in fix.action or fix.change')
     expect(prompt).toContain('is a skipped check, not an unknown')
+    expect(prompt).toContain(
+      'get_image lists the other open findings of this image; one that shares this root cause,' +
+        ' checked against its own CVE and version, goes into relatedFindings',
+    )
   })
 })

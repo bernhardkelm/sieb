@@ -10,7 +10,7 @@ import { kevItem, proposalItem } from '@/__tests__/inboxItemBuilders'
 import { fetchInbox } from '@/api/inboxApi'
 import AppSidebar from '@/components/layout/AppSidebar.vue'
 import { NOT_AVAILABLE_REASON } from '@/keyboard/hintActions'
-import { ROUTE_NAMES } from '@/router/routeNames'
+import { HOME_ROUTE, ROUTE_NAMES } from '@/router/routeNames'
 import { useHintActionsStore } from '@/stores/hintActionsStore'
 import { useMcpStore } from '@/stores/mcpStore'
 import { useMeStore } from '@/stores/meStore'
@@ -247,5 +247,13 @@ describe('AppSidebar navigation', () => {
     await sidebar.vm.$router.push('/inboxProposal')
 
     expect(labels()).toEqual(['Accept', 'Close', 'Sync'])
+  })
+
+  it('links the wordmark to the home view', async () => {
+    const sidebar = await mountSidebar(`/${ROUTE_NAMES.DECISIONS}`)
+    const wordmark = sidebar.get('a.wordmark')
+
+    expect(wordmark.attributes('href')).toBe(`/${HOME_ROUTE}`)
+    expect(wordmark.text()).toBe('sieb')
   })
 })

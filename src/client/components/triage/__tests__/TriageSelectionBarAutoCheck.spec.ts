@@ -130,6 +130,27 @@ describe('TriageSelectionBar Auto-check', () => {
     expect(notifyNotice).toHaveBeenCalledWith('No Auto-check queued', WORKER_OFFLINE_REASON)
   })
 
+  it('stays blocked on a tap while the queue has no room for every row', async () => {
+    const queued = Array.from({ length: 499 }, (_, index) =>
+      buildCheck({ id: 100 + index, findingId: 100 + index, position: index + 1 }),
+    )
+    const reason =
+      'The queue holds at most 500 checks: 499 are open, so at most 1 more fit. Select fewer findings.'
+
+    mountBar([1, 2])
+    useChecksStore().response = buildChecksResponse({ queued })
+    await flushPromises()
+
+    expect(visibleText(autoCheck())).toBe('Auto-check 2')
+    expect(autoCheck().getAttribute('aria-disabled')).toBe('true')
+    expect(autoCheck().title).toBe(reason)
+
+    autoCheck().click()
+    await flushPromises()
+    expect(createChecks).not.toHaveBeenCalled()
+    expect(notifyNotice).toHaveBeenCalledWith('No Auto-check queued', reason)
+  })
+
   it('renders no Auto-check while the feature is off', async () => {
     mountBar([1])
     await flushPromises()
