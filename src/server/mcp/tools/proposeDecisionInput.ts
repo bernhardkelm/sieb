@@ -37,8 +37,10 @@ export const proposeDecisionInput = z.object({
   verdict: z
     .enum(PROPOSAL_VERDICTS)
     .describe(
-      'needs_patch becomes fix_planned with the patch action. Affected but practically' +
-        ' unreachable, with an upgrade as the fix: needs_patch or fix_planned, not not_affected.' +
+      'needs_patch becomes fix_planned with the patch action. Code that never runs in the' +
+        ' workload (an unused tool, an unloaded library or module): not_affected,' +
+        ' vulnerable_code_not_in_execute_path. Running but practically unreachable, with an' +
+        ' upgrade as the fix: needs_patch or fix_planned, not not_affected.' +
         ' inconclusive: the evidence supports no verdict or required data could not be obtained;' +
         ' needs missing, never becomes a decision. Thin evidence that still supports a verdict is' +
         ' that verdict with confidence low',

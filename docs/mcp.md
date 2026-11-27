@@ -392,9 +392,11 @@ investigation: facts from sieb and earlier decisions, source access, presence, r
 exposure, evidence and its basis, fix path, review date, unknowns and confidence. With
 `sieb:propose` it ends in `propose_decision` (after checking `list_my_proposals`), filed without
 asking first, since a proposal changes nothing until a human accepts it. The detail goes into the
-proposal fields, the chat answer stays in the reply format below. A vulnerability that is present
-but practically unreachable, with an upgrade as the fix, is `needs_patch` or `fix_planned`, not
-`not_affected`. Without `sieb:propose` the prompt ends in the same short reply, which says that no
+proposal fields, the chat answer stays in the reply format below. Vulnerable code that never runs
+in the workload (a copy no running process loads, such as a package manager's bundled dependency,
+or a module that is not loaded) is `not_affected` with `vulnerable_code_not_in_execute_path`, even
+when an upgrade exists. Vulnerable code that runs but is practically unreachable, with an upgrade
+as the fix, is `needs_patch` or `fix_planned`, not `not_affected`. Without `sieb:propose` the prompt ends in the same short reply, which says that no
 proposal was filed because the connection is read-only. In Claude Code it appears as
 `/mcp__claude_ai_sieb__triage_finding` through the connector (the middle part follows the
 connector name) or as `/mcp__sieb__triage_finding` for a server added with a token.

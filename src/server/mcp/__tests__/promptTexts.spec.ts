@@ -319,9 +319,14 @@ describe('triageWorkflow', () => {
     }
   })
 
-  it('prefers needs_patch over not_affected for an unreachable but present vulnerability', () => {
-    expect(triageWorkflow(false)).toContain(
-      'Affected but practically unreachable, with an upgrade as the fix: that is needs_patch',
+  it('separates code that never runs from code that runs but is hard to exploit', () => {
+    const text = triageWorkflow(false)
+
+    expect(text).toContain(
+      'that is not_affected with vulnerable_code_not_in_execute_path, even when an upgrade exists',
+    )
+    expect(text).toContain(
+      "When the vulnerable code runs in the workload's process but exploitation is unlikely",
     )
   })
 
