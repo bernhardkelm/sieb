@@ -29,7 +29,7 @@ defineProps<{
       <SeverityChip v-if="image.severity" :severity="image.severity" :score="image.score" />
       <KevChip v-if="image.kev" />
       <ExposureChip v-if="image.exposure" :exposure="image.exposure" focusable />
-      <ImageAccessChips :access="image" />
+      <ImageAccessChips :access="image" :owner-shown="Boolean(image.owner)" />
       <BaseChip v-if="!image.open" variant="outline">resolved</BaseChip>
     </div>
     <FactList layout="grid">

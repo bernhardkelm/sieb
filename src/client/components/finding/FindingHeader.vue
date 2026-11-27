@@ -27,6 +27,7 @@ const props = withDefaults(
 )
 
 const labels = useLabelsStore()
+const ownerShown = computed(() => labels.showOwner && Boolean(props.finding.owner))
 const links = computed(() =>
   vulnLinks({ ...props.finding, kev: labels.showKev && props.finding.kev }),
 )
@@ -43,8 +44,8 @@ const links = computed(() =>
       />
       <KevChip v-if="labels.showKev && finding.kev" />
       <ExposureChip v-if="labels.showExposure && finding.exposure" :exposure="finding.exposure" />
-      <OwnerBadge v-if="labels.showOwner && finding.owner" :owner="finding.owner" />
-      <ImageAccessChips v-if="access" :access="access" />
+      <OwnerBadge v-if="ownerShown" :owner="finding.owner" />
+      <ImageAccessChips v-if="access" :access="access" :owner-shown="ownerShown" />
       <span class="score">{{ finding.score === null ? 'no score' : `CVSS ${finding.score}` }}</span>
       <BaseChip v-if="finding.resolvedAt !== null" variant="outline">resolved</BaseChip>
     </div>

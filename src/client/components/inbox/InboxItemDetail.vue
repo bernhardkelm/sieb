@@ -29,12 +29,12 @@ const status = computed(() => {
 </script>
 
 <template>
-  <span class="inbox-item-detail">
+  <span class="inbox-item-detail" :class="{ proposal: item.kind === 'proposal' }">
     <template v-if="item.kind === 'proposal'">
       <VerdictChip :verdict="item.verdict" />
       <ConfidenceChip :confidence="item.confidence" />
       <UpstreamPendingChip v-if="item.upstreamPending" :waiting-for="null" />
-      <ProposalClientTag :client="item" />
+      <ProposalClientTag class="client" :client="item" />
       <span v-if="item.patchAction" class="patch" :title="item.patchAction">
         {{ item.patchAction }}
       </span>
@@ -74,6 +74,22 @@ const status = computed(() => {
   color: var(--color-text-muted);
   font-size: var(--font-size-sm);
   text-overflow: ellipsis;
+}
+
+/* one visible line, a chip or client label that does not fit wraps below it and is clipped */
+.proposal {
+  flex-wrap: wrap;
+  align-content: flex-start;
+  height: var(--chip-height);
+}
+
+.proposal .client {
+  flex: none;
+}
+
+.proposal .patch {
+  flex: 1 1 0;
+  min-width: calc(var(--space-base) * 12);
 }
 
 .undecided {

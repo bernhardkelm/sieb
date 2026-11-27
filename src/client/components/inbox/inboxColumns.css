@@ -1,13 +1,13 @@
-/* checkbox, kind, severity, KEV, CVE, scope, detail, title, age, mark seen */
+/* checkbox, kind, severity, KEV, CVE, scope, detail, title, age, mark seen; detail grows before the title */
 .inbox-row {
   --row-columns: var(--checkbox-size) var(--col-inbox-kind) var(--col-severity) var(--col-kev)
-    var(--col-vuln-id) var(--col-inbox-scope) var(--col-inbox-detail) minmax(0, 1fr)
+    var(--col-vuln-id) var(--col-inbox-scope) minmax(var(--col-inbox-detail), 5fr) minmax(0, 2fr)
     var(--col-inbox-age) var(--col-inbox-seen);
 }
 
 .inbox-row.no-kev {
   --row-columns: var(--checkbox-size) var(--col-inbox-kind) var(--col-severity) var(--col-vuln-id)
-    var(--col-inbox-scope) var(--col-inbox-detail) minmax(0, 1fr) var(--col-inbox-age)
+    var(--col-inbox-scope) minmax(var(--col-inbox-detail), 5fr) minmax(0, 2fr) var(--col-inbox-age)
     var(--col-inbox-seen);
 }
 
@@ -74,13 +74,13 @@
   .inbox-row,
   .inbox-row.no-kev {
     --row-columns: var(--checkbox-size) var(--col-inbox-kind) var(--col-severity) var(--col-kev)
-      var(--col-vuln-id) minmax(0, 1fr) var(--col-inbox-detail) var(--col-inbox-age)
+      var(--col-vuln-id) minmax(0, 2fr) var(--col-inbox-detail) var(--col-inbox-age)
       var(--col-inbox-seen);
   }
 
   .inbox-row.no-kev {
     --row-columns: var(--checkbox-size) var(--col-inbox-kind) var(--col-severity) var(--col-vuln-id)
-      minmax(0, 1fr) var(--col-inbox-detail) var(--col-inbox-age) var(--col-inbox-seen);
+      minmax(0, 2fr) var(--col-inbox-detail) var(--col-inbox-age) var(--col-inbox-seen);
   }
 
   .title {

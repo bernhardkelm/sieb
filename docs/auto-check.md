@@ -1,563 +1,232 @@
 # Auto-check
 
-Auto-check lets you queue findings for an unattended investigation by Claude. A separate worker,
-`sieb-checker`, takes one check at a time, prepares a throwaway workspace with the files of the
-image, runs headless Claude Code against it and lets Claude file its verdict as a normal
-[proposal](mcp.md#proposals) through sieb's MCP endpoint. Nothing changes in sieb until a person
-accepts or rejects the proposal. The routes, states and timeouts are described in
-[api.md](api.md#auto-check).
+This guide is for people who queue Auto-checks and for the operator who runs the worker. After
+reading it you can queue a check, read its result, deploy the worker next to sieb and give it
+read access to private images and source code.
 
-## What it does and what it does not
+Auto-check is optional and off by default. It needs the Claude integration, see
+[Turn it on](working-with-claude.md#turn-it-on).
 
-- **Pullable images, and private ones through the fetcher.** Without credentials the worker
-  pulls images anonymously: third-party images on a registry of `SIEB_PUBLIC_REGISTRIES`, and
-  own images that sieb's pull probe saw anonymously pullable (see
-  [Image access](api.md#image-access)), so an own image on a public registry needs no
-  credential. With [private access](#private-access) set up and the worker running as
-  [two containers](#two-containers), the fetcher container pulls the images a stored credential
-  covers. In two-container mode the fetcher also checks out the source of the primary image,
-  public repositories without a login; Claude never sees a credential.
-- **One check at a time.** sieb runs at most one check, the worker claims the oldest queued one.
-  Run a single worker replica.
-- **No cluster access.** The worker needs no service account and never talks to the Kubernetes
-  API. It reaches sieb's worker port, the registries, the git hosts, Anthropic and the web.
-- **The scanned images, by digest.** A finding groups every tag of one image repository, and a
-  decision covers all of them. The worker pulls each distinct digest of the finding's open
-  instances, at most three, most recently seen first; the prompt names the open tags beyond
-  that, and Claude lists them as unknowns. When sieb knows no digest at all, the worker resolves
-  the tag of the most recently seen instance with `crane digest`, pulls that one image, and tells
-  Claude and the Checks page that the content may differ from what was scanned.
-- **What Claude sees:** the investigation prompt sieb builds from the finding, per pulled image
-  the flattened filesystem for one platform, the image config (environment, entrypoint, labels,
-  history) and a package inventory from syft, the [inspect tools](#inspect-tools) for binaries,
-  archives and JSON, sieb's MCP tools limited to the check's finding (see
-  [Auto-check tokens](mcp.md#auto-check-tokens)), WebFetch on an
-  [allow list](#web-access) of advisory and source hosts, and WebSearch. Claude has no shell.
-  With the fetcher, also `source/`: the repository of the primary image at the commit its
-  `org.opencontainers.image.revision` label names, else at the git tag that matches the image
-  tag (`<tag>`, then `v<tag>`), else at the default branch, without `.git`.
-- **What Claude does not see:** no registry or git credential, no running container, no
-  cluster, no images of other findings and no files of the worker. Without `source/` the prompt
-  names the reason (no repository label or mapping, no credential, a private repository without
-  credential, clone failed, size cap, no fetcher), Claude lists the source under unknowns and must not claim `own_source` as evidence
-  basis. A verdict that depends on how the image is deployed names that under *Not checked*.
+On this page
 
-## Enabling it in sieb
+- [What it is](#what-it-is)
+- [Using it](#using-it)
+- [What a check can see](#what-a-check-can-see)
+- [Set it up](#set-it-up)
+- [Private access](#private-access)
+- [Security model](#security-model)
+- [Troubleshooting](#troubleshooting)
 
-| Variable | Default | Meaning |
-| --- | --- | --- |
-| `SIEB_CHECKS_ENABLED` | `false` | `true` or `1` turns on Auto-check, needs `SIEB_MCP_ENABLED` and `SIEB_PUBLIC_URL` |
-| `SIEB_WORKER_PORT` | empty | Port of the listener that serves only the worker routes, required when on |
-| `SIEB_WORKER_SECRET` | empty | Bearer secret the worker sends, at least 32 characters without whitespace, required when on; sieb has no `_FILE` variant |
-| `SIEB_CHECK_TIMEOUT_SECONDS` | `1200` | Time limit of one check in seconds, 1 to 14400; the worker stops Claude when it passes, sieb fails the check one minute later |
-| `SIEB_CHECK_MAX_TURNS` | `60` | Turn limit the worker hands to Claude Code, 1 to 500 |
+## What it is
 
-See the [configuration table](../README.md#configuration) for the full list. Generate the secret
-with, for example, `openssl rand -hex 32` and give the same value to sieb and the worker; in
-Kubernetes, pass it to sieb as an environment variable from a Secret (`secretKeyRef`). Add the
-worker port to sieb's Service, for example as port `worker` with `targetPort` 3101, and see
-[Deployment](deployment.md#auto-check) for the Service and NetworkPolicy changes.
+An Auto-check is an unattended investigation of one finding by Claude. You queue the finding in
+sieb. A separate worker in your cluster, `sieb-checker`, pulls the scanned image, unpacks it into
+a throwaway workspace and runs headless Claude Code against it. Claude files its verdict as a
+proposal, and you review it in the Inbox like any other proposal.
+
+Nothing changes in sieb until a person accepts the proposal. The worker has no access to the
+cluster: no service account, no Kubernetes API. It only reaches sieb, the registries, the git
+hosts, Anthropic and a list of advisory sites.
+
+Use it when you want a first investigation of many findings without sitting in a chat, and when
+the answer is in the image: is the package there, is the vulnerable code compiled in, which base
+image carries the fix. A question about the running workload still needs a person.
 
 ## Using it
 
-- **Queueing.** The Auto-check button in the finding panel, or `Shift+C`, queues the panel's
-  finding; in Triage the selection bar and `Shift+C` queue the checked rows, sent in requests of
-  at most 100 findings. The button names the reason when it cannot queue, for example an image
-  sieb cannot pull, a resolved finding or an offline worker. The queue holds at most 500 open
-  checks: a selection whose checks do not all fit is not queued at all, the button names the
-  room left. A toast reports the queued findings and the skipped ones with their reason.
-- **Own images.** Before it queues an own image (owner `self`) without a fresh answer, sieb
-  probes whether the image can be pulled anonymously, see [Image access](api.md#image-access).
-  A probe that does not answer within a few seconds, one held back by the rate limit, or one that
-  fails skips the finding as `visibility_unknown`. A timeout or the rate limit passes, so try
-  again a minute later; a registry on a private or in-cluster address is never probed, so add a
-  registry credential for it.
-- **Covered by a proposal.** A finding an open proposal already lists as a related finding is
-  skipped as *already covered by proposal #N*, with a link to its review. When every finding of
-  the request is covered, the toast and the panel button offer *Check anyway*, which queues them
-  regardless. The finding a proposal targets itself is not affected.
-- **Checks page.** The Checks page (key `6`, in the navigation while Auto-check is on, with the
-  open checks as a badge) shows the running check with its phase, the queue in claim order, and
-  the 50 most recent ended checks with requester, duration, the checked images (tag and short
-  digest), the model that ran, turns, usage, cost, the error of a failed check and Claude's reply
-  as plain text. Any signed-in user can cancel a queued or running check.
-- **Retry.** A failed or cancelled check that is the latest of its finding has a Retry action, on
-  the Checks page and in the finding panel. It queues the finding again with the same rules as a
-  new check, so it is blocked while the worker is offline.
-- **Finish toasts.** When one of your own checks ends while sieb is open, a toast says so: done
-  with a Review action that opens the proposal in the Inbox, done without a proposal, or failed
-  with its reason. Cancelled checks, checks of other users and checks that ended before the page
-  loaded stay silent.
-- **Could not determine.** When the image does not settle the question, Claude files the verdict
-  `inconclusive` with what it would need to decide (`missing`, see
-  [Verdict inconclusive](mcp.md#verdict-inconclusive)) instead of a guess. The review lists it as
-  "Could not determine" and offers Decide myself, Re-check, which queues a new check of the
-  finding, and Dismiss; an inconclusive proposal never becomes a decision on its own.
-- **Usage.** The Usage section of the Checks page sums the ended checks of all users over the
-  last 7 and 30 days: checks, input, output and cache tokens, cost and average duration. The cost
-  is what Claude Code reports, see [Claude credential](#claude-credential); checks whose worker
-  reported no usage are counted but add no tokens.
+### Queue a check
 
-## Private access
+Open a finding and press **Auto-check** in the panel, or `Shift+C`. In Triage you can check
+several rows and queue them all from the selection bar or with the same key. sieb sends a
+selection in requests of at most 100 findings.
 
-With `SIEB_CREDENTIALS_KEY` set on sieb and `SIEB_FETCHER_SECRET` on sieb and the worker, signed-in
-users store read credentials for GitHub, GitLab (gitlab.com or self-hosted) and Docker Hub on the
-**Access** page, in the user menu next to API tokens. Any image a registry credential covers can
-then be checked, and for your own images Auto-check also clones the source at the image's
-revision. Without the key the page explains what to set; without the fetcher secret it warns that
-the stored credentials are not used yet.
+A toast tells you how many checks were queued and which findings were skipped, with the reason.
+When the button cannot queue anything, it names the reason, see
+[Troubleshooting](#troubleshooting).
 
-During an Auto-check, Claude reads the private images and the source code these credentials
-reach, and what it reads is sent to Anthropic. Only add credentials for code your organisation
-allows to share with Claude.
+A few rules decide what can be queued:
 
-- **List.** Each credential shows its provider, label, the hosts and path prefix it covers, its
-  uses, the username, who added it and when, when it was last used and the last test. Test tries
-  the credential on the images and repositories it covers and shows the counts and the failures.
-  Edit changes label, prefix, mapping and username, and replaces the token only when a new one is
-  typed. Delete asks first; revoke the token at the provider too.
-- **Test before saving.** *Test and save* tests the token on the images and repositories it
-  covers before anything is stored, and stores it only when, per use, at least one target is
-  reachable and none refused the login (401 or 403); a single image that moved on does not
-  block. A failed test keeps the form open with the result per use, the failures and their
-  reasons, and the token stays in its field, hidden. A prefix that covers nothing sieb has seen
-  cannot prove the token and is refused too. *Test only* runs the same test without saving.
-  Editing the label alone saves without a test. For a host on a private or in-cluster address,
-  which sieb never tests, the form offers *Save without a test: sieb cannot reach this host, the
-  fetcher still can*; the list then marks the credential as saved without a test.
-- **Tokens are write-only.** The token field is never prefilled, and sieb never shows a stored
-  token again.
-- **Path prefix.** The path within the hosts a credential covers, matched in whole segments:
-  `your-group/` covers `registry.gitlab.com/your-group/*` and `gitlab.com/your-group/*`, empty
-  covers the whole host.
-- **Repository mapping.** Optional, for images without a usable
-  `org.opencontainers.image.source` label: the registry prefix of the image is swapped for the
-  repository prefix to find the repository to clone, for example `ghcr.io/your-org/` to
-  `github.com/your-org/` maps `ghcr.io/your-org/shop` to `github.com/your-org/shop`. Both
-  prefixes stay within the credential's own hosts and path prefix, so a mapping applies only to
-  images that credential covers. An explicit mapping needs a git credential for the repository.
-- **Default mapping.** A credential with both uses and no explicit mapping maps by its provider:
-  GitHub `ghcr.io/<owner>/<name>` to `github.com/<owner>/<name>`, GitLab
-  `<registry host>/<path>` to `<git host>/<path>`, where a nested image name such as
-  `group/project/image` tries `group/project/image`, then `group/project` (at most three
-  candidates, the first that clones wins). An own image on `ghcr.io` or `registry.gitlab.com`
-  gets the same default without any credential, cloned anonymously, so a public repository needs
-  no setup and no build label. An explicit mapping replaces the default; an own source label
-  wins over both.
-- **Source label.** A label counts only when its repository belongs to the image's owner (the
-  first path segment, `your-org` above), so a label inherited from a base image of another
-  owner, or one an image sets to reach other code, never picks the repository. Without a git
-  credential for it, the fetcher clones the label's repository anonymously, but only on
-  github.com, gitlab.com or the git host of a stored credential with the git use (any other
-  host gives `no_credential`); a private repository then fails, and Claude is told the source
-  needs a credential.
-- **Changing hosts.** Changing the provider or adding a host needs the token again, so a stored
-  token never goes to a host it was not entered for. Test runs at most every 10 seconds per
-  credential, a test of entered values at most every 10 seconds per user, and only to public
-  addresses.
-- **Finding panel.** Per image, the fact *Auto-check access* says *Public*, *Via* the covering
-  credential, or *No access* with a link to the Access page, and the Auto-check button names the
-  missing credential as its block reason.
-- **Checks page.** A recent check that cloned source shows it as *Source*: the repository with
-  the short commit of the revision label, *at tag v1.1.3* with the short commit when the git tag
-  of the image tag was used, or *default branch*.
+- The finding is open, and Auto-check can pull its image, anonymously or with a stored
+  credential. [Ownership and visibility](triage.md#ownership-and-visibility) explains how sieb
+  classifies an image.
+- A finding has at most one open check.
+- The queue holds at most 500 open checks. A selection that does not fit is not queued at all,
+  and the button names the room left.
+- The worker is online, which means it reached sieb within the last 90 seconds.
 
-Tokens with the least access, as the Access page explains them per provider:
+For one of your own images (owner `self`), sieb may not know yet whether the image can be pulled
+anonymously. It then probes the registry when you queue, and waits a few seconds for the answer.
+If the probe does not answer in time, the finding is skipped as "sieb could not probe yet". Try
+again a minute later, or add a registry credential for the image.
 
-| Provider | Token | Access |
+### Follow it on the Checks page
+
+The **Checks** page (key `6`) appears in the navigation while Auto-check is on, with the number
+of open checks as a badge.
+
+<picture><source media="(prefers-color-scheme: dark)" srcset="../.github/assets/screenshot-checks-dark.png"><img src="../.github/assets/screenshot-checks-light.png" alt="Checks page with a running check in the phase investigating, two queued checks, the recent checks with their proposals, and the usage section"></picture>
+
+It shows three things:
+
+- The running check with its phase: preparing, investigating or reporting.
+- The queue in the order the worker takes it. sieb runs one check at a time, oldest first.
+- The 50 most recent ended checks with requester, duration, the checked images (tag and short
+  digest), the source that was checked out, the model, turns, token usage, cost, the error of a
+  failed check and Claude's reply as plain text.
+
+Any signed-in user can cancel any queued or running check. sieb assumes one team that shares one
+queue.
+
+A failed or cancelled check that is the latest of its finding has a **Retry** action, on the
+Checks page and in the finding panel. Retry queues the finding again under the same rules as a
+new check.
+
+When one of your own checks ends while sieb is open, a toast says so: done with a **Review**
+action that opens the proposal, done without a proposal, or failed with its reason. Cancelled
+checks and checks of other users stay silent.
+
+### Review the result
+
+A finished check leaves a proposal in the Inbox, marked as filed by Auto-check. You accept, edit
+or reject it as described in [Review proposals](working-with-claude.md#review-proposals).
+
+When the image does not settle the question, Claude files the verdict `inconclusive` and names
+what it would need to decide. The review shows it as "Could not determine" and offers **Decide
+myself**, **Re-check**, which queues a new check, and **Dismiss**. An inconclusive proposal never
+becomes a decision on its own.
+
+### Covered by a proposal
+
+One root cause often produces several findings, and a proposal can list the others as related
+findings. sieb skips a finding that an open proposal already lists this way, as "already covered
+by proposal #N", with a link to that review. Queueing it again would spend a check on a question
+that is already answered.
+
+When every finding of your request is covered, the toast and the panel button offer **Check
+anyway**, which queues them regardless. The finding a proposal targets directly is not affected.
+
+### Usage and cost
+
+The Usage section of the Checks page sums the ended checks of all users over the last 7 and 30
+days: number of checks, input, output and cache tokens, cost and average duration.
+
+The cost is the estimate Claude Code reports for each run. With an API key that is what you are
+billed. With a subscription token it is the API-equivalent value of usage that counts against
+your plan limits.
+
+## What a check can see
+
+A finding groups every tag of one image repository, and a decision covers all of them. The worker
+therefore pulls each distinct digest among the open instances of the finding, at most three, most
+recently seen first. Tags beyond that are named in the prompt, and Claude lists them as unknowns.
+If sieb knows no digest at all, the worker pulls the most recently seen tag and tells Claude and
+the Checks page that the content may differ from what was scanned.
+
+Claude gets:
+
+- The investigation prompt sieb builds from the finding.
+- Per pulled image, the flattened filesystem for one platform, the image config (environment,
+  entrypoint, labels, history) and a package inventory from syft.
+- With [private access](#private-access), `source/`: the repository of the primary image, see
+  [Which source a check gets](#which-source-a-check-gets).
+- Read-only tools for files, binaries, archives and JSON, and two tools that read tags and
+  metadata of public images, for example to see whether a base image tag was rebuilt after a fix.
+- sieb's MCP tools, limited to the finding of the check, its CVE and its image, see
+  [Auto-check tokens](reference/mcp.md#auto-check-tokens).
+- Web pages on a list of advisory, distro, source and registry hosts, and web search. The list
+  is in [Web access](reference/auto-check-internals.md#web-access).
+
+Claude does not get a shell, a registry or git credential, a running container, the cluster,
+images of other findings or files of the worker.
+
+Without `source/`, the prompt names the reason, Claude lists the source under unknowns and must
+not claim to have read it. A verdict that depends on how the image is deployed names the runtime
+as not checked.
+
+## Set it up
+
+You need a sieb with the Claude integration on (`SIEB_MCP_ENABLED` and `SIEB_PUBLIC_URL`), a
+Claude credential and room for one more pod in sieb's namespace. Use the same release for sieb
+and the worker.
+
+The worker image has two commands and runs as two containers in one pod. The fetcher pulls images
+and checks out source. The checker runs Claude. The steps below set up this layout, because it
+is the one that also supports private access later; [One container or two](#one-container-or-two)
+describes the smaller alternative.
+
+### 1. Turn it on in sieb
+
+Generate two secrets, one for each container of the worker. They must differ, and each needs at
+least 32 characters without whitespace.
+
+```sh
+openssl rand -hex 32
+openssl rand -hex 32
+```
+
+The first is the worker secret, the second the fetcher secret. Both go into the worker's Secrets
+of [step 3](#3-deploy-the-worker), `sieb-checker` and `sieb-fetcher`, and sieb reads them from
+there, so each value lives in one place. Add these variables to the sieb container:
+
+```yaml
+env:
+  - name: SIEB_CHECKS_ENABLED
+    value: "true"
+  - name: SIEB_WORKER_PORT
+    value: "3101"
+  - name: SIEB_WORKER_SECRET
+    valueFrom:
+      secretKeyRef:
+        name: sieb-checker
+        key: worker-secret
+  - name: SIEB_FETCHER_SECRET
+    valueFrom:
+      secretKeyRef:
+        name: sieb-fetcher
+        key: fetcher-secret
+```
+
+Create the two Secrets before you apply the changed sieb Deployment, because a pod whose Secret
+is missing does not start.
+
+sieb then opens a second listener on the worker port that serves only the worker routes. Add the
+port to sieb's Service and never route it through an Ingress:
+
+```yaml
+ports:
+  - name: worker
+    port: 3101
+    targetPort: 3101
+```
+
+`SIEB_CHECK_TIMEOUT_SECONDS` (default 1200) and `SIEB_CHECK_MAX_TURNS` (default 60) limit one
+check. All variables are in the
+[configuration reference](reference/configuration.md), and
+[Rules sieb enforces at start](reference/configuration.md#rules-sieb-enforces-at-start) lists
+what sieb refuses.
+
+### 2. Choose the Claude credential
+
+The worker runs the unmodified Claude Code binary with one of two credentials. sieb never stores
+either: you put it into a Secret that only the checker container mounts.
+
+| Credential | Variable | Use it for |
 | --- | --- | --- |
-| GitHub, source code | Fine-grained personal access token | Only select repositories; Repository permissions Contents: Read-only (Metadata read-only is added by GitHub) |
-| GitHub, packages (`ghcr.io`) | Personal access token (classic), fine-grained tokens do not support GitHub Packages | Only the `read:packages` scope |
-| GitLab | Group deploy token, or a project deploy token | Scopes `read_registry` and `read_repository`; enter the username GitLab shows, one credential covers registry and git; for a self-hosted GitLab set both hosts |
-| Docker Hub | Personal access token | Access permissions Read-only, plus your Docker Hub username |
+| API key from the [Claude Console](https://platform.claude.com/) | `ANTHROPIC_API_KEY` | Any shared or team deployment. Checks are billed per use to the key's organization |
+| Subscription token from `claude setup-token` | `CLAUDE_CODE_OAUTH_TOKEN` | Only your own, individual use of your own deployment. Checks count against your plan limits |
 
-For GitHub, add two credentials for the least access: the fine-grained token with the use Git and
-the classic token with the use Registry.
-
-## Monitoring
-
-sieb's `/metrics` exports the open checks per state, the ended checks per status, the run time
-of done and failed checks and, while Auto-check is on, whether the worker is online, see
-[Metrics](api.md#metrics). [prometheus-rules.md](prometheus-rules.md#auto-check-alerts) has
-example alerts for an offline worker and a queue that does not move.
-
-## Claude credential
-
-The worker runs the unmodified Claude Code binary with one of two credentials, never both. sieb
-never stores either of them: you provision it for the worker as a Kubernetes Secret, and only the
-worker reads it. Anthropic's rules for the two are in
+`claude setup-token` runs on a machine with a browser and prints a one-year token that can only
+make model requests. Do not run a worker with your subscription for other people's checks.
+Anthropic's rules for both are in
 [Authentication and credential use](https://code.claude.com/docs/en/legal-and-compliance.md#authentication-and-credential-use).
 
-- **API key, recommended for any shared or team deployment.** Create a key in the
-  [Claude Console](https://platform.claude.com/) and store it as `ANTHROPIC_API_KEY`. Checks are
-  billed per use to the key's organization; the cost a check shows in sieb is what Claude Code
-  reports for the run.
-- **Subscription token, only for your own, individual use of your own deployment.** On a machine
-  with a browser, run `claude setup-token`. It prints a one-year OAuth token of your Pro, Max,
-  Team or Enterprise plan that can only make model requests; store it as
-  `CLAUDE_CODE_OAUTH_TOKEN`. Checks count against your plan's usage limits, the cost a check shows
-  is Claude Code's API-equivalent estimate. Do not run a worker with your subscription for other
-  people's checks.
+The checker refuses to start with neither or both, and with `ANTHROPIC_AUTH_TOKEN` set.
 
-The worker refuses to start with neither or both, and with `ANTHROPIC_AUTH_TOKEN`, which Claude
-Code would prefer over both.
+### 3. Deploy the worker
 
-## Two containers
-
-The worker image has two commands. The default one, the **checker**, claims checks and runs
-Claude. The **fetcher** (`src/checker/fetcher/fetcherMain.ts`) prepares the workspace. Run both
-as containers of one pod:
-
-```text
-pod sieb-checker
-  fetcher  uid 1001, gid 1000   SIEB_FETCHER_SECRET, registry and git logins of the running check
-     |  POST /prepare, /release on 127.0.0.1:3102, bearer SIEB_FETCHER_LOCAL_SECRET
-  checker  uid 1000, gid 1000   Claude credential, SIEB_WORKER_SECRET, sieb token of the check
-  volumes  shared   fetcher read-write, checker read-only: images/ and source/ of the check
-           fetcher  /work of the fetcher: HOME, TMPDIR, DOCKER_CONFIG, syft output
-           checker  /work of the checker: Claude's HOME and TMPDIR, MCP config, settings
-```
-
-1. The checker claims a check and posts its images and the time left to the fetcher's loopback
-   endpoint, which only the pod reaches.
-2. The fetcher asks sieb for the check's registry logins (`POST /worker/checks/<id>/access`,
-   bearer `SIEB_FETCHER_SECRET`), writes them into a `DOCKER_CONFIG` directory (mode 700, file
-   600) in its private volume, resolves and pulls the images into
-   `<shared>/check-<id>/images/` as in single-container mode and deletes the docker config before
-   syft runs. It pulls the images sieb's answer lists, the claim's images, and ignores the ones
-   the checker named; an answer without them fails the preparation, and so does a finding
-   without any pullable image left (`the image is no longer pullable`).
-3. It reads the `org.opencontainers.image.source` and `org.opencontainers.image.revision` labels
-   of the primary image and asks sieb for the source (`POST /worker/checks/<id>/source`). A
-   grant lists one to three repository URLs and a login, or none for an anonymous clone. For
-   each URL in turn the fetcher runs `git init` and a depth-1 `git fetch` over https: of the
-   revision commit when the label gave a full commit id, else of `refs/tags/<tag>` and then
-   `refs/tags/v<tag>` for the primary image's tag (not for `latest` or a digest-only image, and
-   only for tag names of letters, digits and `._+-` without `..`), else of the default branch;
-   then `git checkout` into `<shared>/check-<id>/source/` and `git rev-parse` for the commit. It
-   deletes `.git` and the ignore files, contains the symlinks like those of an image, and checks
-   the size cap. All attempts together get at most five minutes. An anonymous grant whose URLs
-   all fail to clone ends as `needs_credential`: the repository is private, store a git
-   credential for it.
-4. The checker reads the answer, checks that it can read the workspace and runs Claude in
-   `<shared>/check-<id>/` as before. The result carries `source` (repository URL, commit, whether
-   the label named the repository, `refKind` `label`, `tag` or `default_branch` and the tag as
-   `ref`). At the end the
-   checker posts `/release`, and the fetcher wipes the check from both of its volumes; it also
-   wipes leftovers at its start and before every preparation.
-
-A cancelled or timed-out check closes the request, which stops the fetcher's tools. Without
-`SIEB_FETCHER_URL` the checker works as in 0.5: it pulls public images itself and checks out no
-source, and a pull that the registry refuses fails with "the image needs a registry credential,
-which only the fetcher container uses (SIEB_FETCHER_URL)". The checker waits at its start until
-the fetcher answers, and refuses to start when it holds `SIEB_FETCHER_SECRET`.
-
-The worker mode does not change what sieb queues. With private access on in sieb
-(`SIEB_CREDENTIALS_KEY` and `SIEB_FETCHER_SECRET` set) but the worker in single-container mode,
-checks of private images are queued and claimed and then fail with that message. Run the
-two-container layout whenever private access is on.
-
-### Self-hosted GitLab or registry
-
-- **Private CA.** crane and git run with a stripped environment, so `SSL_CERT_FILE`,
-  `SSL_CERT_DIR` or `GIT_SSL_CAINFO` set on the container never reach them, and git reads no
-  system config. Mount the CA certificate that signs the host's certificate into the fetcher at
-  `/etc/ssl/certs/<hash>.0`, where `<hash>` is the output of
-  `openssl x509 -hash -noout -in ca.crt`, as a ConfigMap item with `subPath`, read-only. Both
-  tools find it there next to the system certificates; the checker needs it only in
-  single-container mode, where it pulls itself.
-- **Fetching a commit.** The depth-1 fetch asks for the revision commit by its id. The git server
-  has to allow that: Git protocol v2, which GitLab and GitHub serve (a plain `git http-backend`
-  needs the `Git-Protocol` request header passed on as `GIT_PROTOCOL`), or
-  `uploadpack.allowReachableSHA1InWant` for protocol v0. Otherwise the fetcher falls back to the
-  git tag of the image tag and then to the default branch, which may differ from the code the
-  image was built from.
-
-```yaml
-apiVersion: v1
-kind: ConfigMap
-metadata:
-  name: sieb-ca
-  namespace: sieb
-data:
-  ca.crt: |
-    -----BEGIN CERTIFICATE-----
-    <the private CA certificate>
-    -----END CERTIFICATE-----
-```
-
-In the [Deployment](#kubernetes), add to the fetcher container and to the pod's volumes:
-
-```yaml
-volumeMounts:
-  - name: ca
-    mountPath: /etc/ssl/certs/<hash>.0
-    subPath: ca.crt
-    readOnly: true
-```
-
-```yaml
-volumes:
-  - name: ca
-    configMap:
-      name: sieb-ca
-```
-
-## Worker configuration
-
-The checker container:
-
-| Variable | Default | Meaning |
-| --- | --- | --- |
-| `SIEB_WORKER_URL` | required | Base URL of sieb's worker listener, for example `http://sieb.sieb.svc:3101` |
-| `SIEB_WORKER_SECRET_FILE` or `SIEB_WORKER_SECRET` | required | File with, or value of, the same secret as sieb's `SIEB_WORKER_SECRET` |
-| `ANTHROPIC_API_KEY_FILE` or `ANTHROPIC_API_KEY` | one credential required | File with, or value of, a Claude Console API key |
-| `CLAUDE_CODE_OAUTH_TOKEN_FILE` or `CLAUDE_CODE_OAUTH_TOKEN` | one credential required | File with, or value of, a token from `claude setup-token` |
-| `SIEB_CHECKER_WORKDIR` | `/work` | Directory for the check workspaces, needs room for the largest image |
-| `SIEB_CHECKER_POLL_SECONDS` | `10` | Wait between claims while the queue is empty, 1 to 60 |
-| `SIEB_CHECKER_IMAGE_MAX_BYTES` | `4294967296` (4 GiB) | Cap on the uncompressed filesystems of all images of a check together; a larger primary image fails the check, a further image that does not fit is skipped |
-| `SIEB_CHECKER_PLATFORM` | `linux/amd64` | Platform exported from multi-platform images |
-| `SIEB_CHECKER_MODEL` | the account default | Model alias or id passed to Claude Code as `--model`, for example `opus`, `sonnet` or `claude-opus-5-5`; letters, digits, `.`, `-` and `[]` only |
-| `SIEB_CHECKER_EFFORT` | Claude Code's default | Effort level passed to Claude Code as `--effort`: `low`, `medium`, `high`, `xhigh` or `max` |
-| `SIEB_CHECKER_WEB_DOMAINS` | the [default list](#web-access) | Comma or space separated hosts WebFetch may reach, `*.example.org` covers every subdomain; replaces the defaults |
-| `SIEB_FETCHER_URL` | empty | `http://127.0.0.1:<port>` of the fetcher in the same pod, loopback only; empty runs in single-container mode |
-| `SIEB_FETCHER_LOCAL_SECRET_FILE` or `SIEB_FETCHER_LOCAL_SECRET` | required with `SIEB_FETCHER_URL` | File with, or value of, the secret checker and fetcher share, at least 32 characters |
-| `SIEB_CHECKER_SHARED_DIR` | `/shared` | Mount of the shared workspace volume, read-only here, must differ from `SIEB_CHECKER_WORKDIR` |
-
-With the fetcher, `SIEB_CHECKER_WORKDIR` holds only Claude's home and the check's MCP config and
-settings, and `SIEB_CHECKER_IMAGE_MAX_BYTES` and `SIEB_CHECKER_PLATFORM` take effect in the
-fetcher.
-
-The fetcher container:
-
-| Variable | Default | Meaning |
-| --- | --- | --- |
-| `SIEB_WORKER_URL` | required | Base URL of sieb's worker listener, as for the checker |
-| `SIEB_FETCHER_SECRET_FILE` or `SIEB_FETCHER_SECRET` | required | File with, or value of, the same secret as sieb's `SIEB_FETCHER_SECRET` |
-| `SIEB_FETCHER_LOCAL_SECRET_FILE` or `SIEB_FETCHER_LOCAL_SECRET` | required | The secret shared with the checker |
-| `SIEB_FETCHER_PORT` | `3102` | Port of the endpoint on `127.0.0.1` |
-| `SIEB_CHECKER_WORKDIR` | `/work` | The fetcher's private directory |
-| `SIEB_CHECKER_SHARED_DIR` | `/shared` | Mount of the shared workspace volume, read-write here |
-| `SIEB_CHECKER_IMAGE_MAX_BYTES` | `4294967296` (4 GiB) | As for the checker in single-container mode |
-| `SIEB_CHECKER_SOURCE_MAX_BYTES` | `536870912` (512 MiB) | Cap on the checked-out source; the fetch is stopped above it, the checkout above twice the cap (packed objects and tree together), and a tree above the cap is removed |
-| `SIEB_CHECKER_PLATFORM` | `linux/amd64` | Platform exported from multi-platform images |
-
-The fetcher never needs the Claude credential or `SIEB_WORKER_SECRET` and refuses to start with
-either, also as a `_FILE` variant, so one Secret shared by both containers through `envFrom` fails
-early.
-Generate the local secret with, for example, `openssl rand -hex 32`.
-
-Prefer the `_FILE` variants: a secret mounted as a file stays out of the worker's environment and
-so out of `/proc/<pid>/environ`. Setting a variable and its `_FILE` variant together is refused.
-Failed claims back off from the poll interval up to five minutes. On SIGTERM the worker stops
-Claude, reports the running check as failed and exits.
-
-## How a check runs
-
-1. The worker claims a check and receives up to three images with their scanned digests, the
-   prompt, the MCP URL and a short-lived token of the requester bound to the check's finding. A
-   claim of an older sieb without the image list counts as its single image.
-2. It creates `<workdir>/check-<id>/`. Without a scanned digest it resolves the tag's digest with
-   `crane digest`; everything after that reads `repository@digest`, so a tag that moves during
-   the check changes nothing. It gives every image, also a single one, its own directory
-   `workspace/images/<n>-<tag>/` (`untagged` when sieb knows no tag) with `rootfs/` (the
-   filesystem from `crane export`), `image-config.json` (`crane config`) and `inventory.json`
-   (`syft`, trimmed to name, version, type, purl and paths when large). The byte cap applies to
-   all images together: the primary image gets the whole cap, each further one what is left.
-   A further image that would pass the cap, or whose pull fails, is removed and skipped, and the
-   prompt names it as not pulled; a failing primary image fails the check. Outside the workspace
-   it writes Claude's `home/` and `tmp/`, the MCP config (mode 600) with the sieb token and the
-   inspect server, and the permission settings. With the fetcher, the fetcher does the pulls in
-   `<shared>/check-<id>/` and adds `source/`, see [Two containers](#two-containers).
-3. It runs `claude -p` in `workspace/` with a wall-clock limit of the check timeout and sends a
-   heartbeat with the phase (`preparing`, `investigating`, `reporting`) every 30 seconds. When
-   sieb answers a heartbeat with 409 (cancelled or timed out), the worker kills Claude.
-4. It reports status, a short error, Claude's final reply, the token usage and the pulled
-   digests, primary first; the primary one also ends the error or the reply as a note
-   (`Pulled <repository>@<digest>`, with "the scanned digest is unknown" for a tag, and how many
-   more images it pulled), and the checked-out source. sieb stores each digest with the tag its instances name for it, which
-   the Checks page shows as the checked images. Then it deletes the check directory, also when sending
-   the result failed; a 4xx answer other than 408 and 429 is not retried. Leftovers of a crashed
-   worker are deleted at the next start.
-
-## Security model
-
-The image is untrusted input: its files can contain text written to steer Claude. The design keeps
-what a steered Claude could reach small and keeps secrets out of its reach where the tooling
-allows it.
-
-**Secrets.** The worker holds two secrets, the Claude credential and the worker secret, and reads
-both from mounted files when the `_FILE` variables are set. The worker secret never reaches a
-child process. crane, tar and syft run with only `PATH`, `HOME` and `TMPDIR`, crane in the
-fetcher also with `DOCKER_CONFIG`. Claude Code gets a
-fresh environment: `PATH`, its own `HOME` and `TMPDIR`, the variables that turn off telemetry,
-error reporting, auto-update, nonessential traffic, CLAUDE.md files, auto memory and transcripts,
-and `CLAUDE_CODE_OAUTH_TOKEN_FILE_DESCRIPTOR=3` or `CLAUDE_CODE_API_KEY_FILE_DESCRIPTOR=3`. The
-credential itself arrives on file descriptor 3, which Claude Code reads once at start,
-so it is neither in Claude's environment nor on its command line; Claude Code does not pass that
-descriptor or the variable on to the MCP servers it starts. These variables are not in Claude
-Code's public documentation; they were verified with Claude Code 2.1.326 (`claude auth status`
-reports the credential, and a probe MCP server sees neither descriptor nor credential), so
-re-check them when you change `CLAUDE_CODE_VERSION`. The sieb token sits only in the MCP config
-outside Claude's working directory, expires shortly after the check timeout, is deleted when the
-check ends, and reaches only the check's finding, its CVE and image (see
-[Auto-check tokens](mcp.md#auto-check-tokens)).
-
-**Registry and git credentials.** They reach only the fetcher: sieb hands them out on the
-fetcher routes against `SIEB_FETCHER_SECRET`, which the checker refuses to hold. The fetcher
-puts a registry login only into the `DOCKER_CONFIG` file in its private volume, which it removes
-right after the pulls, and a git login only into the environment of the one `git fetch`, as an
-`http.<repository URL>.extraHeader` in `GIT_CONFIG_*` variables: never on a command line, never
-on disk, and not sent to another URL or after a redirect (`http.followRedirects=false`). git
-runs without system or global config, credential helpers, hooks, submodules, prompts, background
-maintenance, and with https as its only protocol; it checks every received object
-(`transfer.fsckObjects`, `fetch.fsckObjects`), writes symlinks as plain files
-(`core.symlinks=false`) and refuses paths unsafe on NTFS or HFS+. Error texts and log lines of a
-check have its logins replaced by `[redacted]`, and every fetcher log line and error text also
-has Authorization header values, Bearer and Basic credentials, token fields, URL userinfo and
-token or signature query parameters masked, such as the pull tokens crane gets from a registry. The shared workspace receives only image files, inventories and the source tree
-without `.git`; the tests scan it and every spawned command line for the logins.
-
-**Two containers, two users.** The checker runs as another uid than the fetcher and shares only
-the group, mounts the shared volume read-only and has no access to the fetcher's volume, its
-secrets or its processes (separate PID namespaces, keep `shareProcessNamespace` off). Everything
-the fetcher writes is group-readable and nothing for others (umask 027). So a steered Claude, or
-a process that gets code execution in the checker, can read the workspace and what the checker
-itself holds, but no registry or git credential. With the local secret it can ask the fetcher
-to prepare the running check again: sieb answers the fetcher routes only for the running check,
-and the fetcher pulls only the claim's images that sieb lists in its access answer, never other
-images the checker names.
-
-**Same user within a container.** In the checker, the worker, Claude Code, the inspect server and
-every tool run as the same user. A process that gets code execution, for example through a memory
-corruption bug in readelf, objdump, unzip, jq or GNU tar triggered by a crafted image file, can
-read the memory of the worker and of Claude Code (same uid, no Yama) and so the worker secret,
-the local secret and the Claude credential, and the MCP config with the sieb token; in
-single-container mode crane, tar and syft run there too. Mounting the secrets as files only keeps
-them out of `/proc/<pid>/environ`. In the fetcher, crane, GNU tar, syft and git parse untrusted
-content under the uid that holds the check's logins: syft runs after the docker config is gone,
-but an exploit in one of them could still read the logins from the fetcher's memory or from the
-environment of a running `git fetch`. Keep the image current so these parsers get their fixes.
-
-**Image extraction.** The export stream passes a filter before `tar -x`: it enforces the byte cap
-on the uncompressed stream, drops absolute and `..` paths, device files and fifos, entries below
-an extracted symlink or below a hard link to one, hard links to directories and to anything not
-extracted, and the ignore files ripgrep honours (`.gitignore`, `.ignore`, `.rgignore`,
-`.git/info/exclude`), which would hide image files from Claude's Grep. It writes fresh root-owned
-headers without setuid, setgid or sticky bits. GNU tar extracts with `--no-same-owner
---no-same-permissions`. Afterwards absolute symlinks, and relative ones that climb above the
-image root, are rewritten as they resolve in the container, and every symlink that still resolves
-outside the root is removed, so no path below an image's `rootfs/` leads to another image or the
-worker's own files.
-
-**Claude Code permissions.** Claude gets the built-in tools `Read`, `Grep`, `Glob`, `WebFetch`
-and `WebSearch` only (`--tools`), so `Bash`, `Edit`, `Write`, subagents and the rest are absent,
-and only two MCP servers (`--strict-mcp-config`): sieb and the local inspect server. The session
-runs non-interactively with an explicit allow list: the sieb tools, the inspect tools,
-`WebFetch(domain:<host>)` for each [allowed host](#web-access) and WebSearch. Every other call
-that needs approval, a WebFetch to any other host included, is denied, not prompted, and `Bash`
-is also in the deny list. File tools are confined to the workspace (`blockReadsOutsideWorkingDirectories`,
-`blockWritesOutsideWorkingDirectories`), with deny rules for `/proc`, `/sys`, `/dev`, `/run`,
-`/etc`, `/home`, `/root`, `/tmp`, the MCP config and the settings. Hooks, skills, slash commands
-and auto memory are off.
-
-**Why there is no shell.** A shell would give a steered Claude every program in the image of the
-worker, `/proc` with the memory of the processes that hold the Claude credential, and the MCP
-config with the sieb token. Claude Code's Bash
-rules match command text and are no boundary, and its built-in read-only commands such as `cat`
-or `find` cannot be switched off. Isolating Bash needs bubblewrap and unprivileged user
-namespaces, which container runtimes block under their default seccomp profile. Instead, the few
-binary tools a triage needs run behind the inspect server, which checks every argument.
-
-### Web access
-
-WebFetch reaches only the hosts of `SIEB_CHECKER_WEB_DOMAINS`. A rule matches its host only,
-`*.example.org` matches every subdomain but not `example.org` itself. The default list:
-
-| Purpose | Hosts |
-| --- | --- |
-| CVE databases and advisories | `nvd.nist.gov`, `services.nvd.nist.gov`, `cve.org`, `www.cve.org`, `cveawg.mitre.org`, `www.cisa.gov`, `osv.dev`, `api.osv.dev`, `advisories.gitlab.com`, `rustsec.org`, `api.first.org` (EPSS) |
-| Source hosting | `github.com`, `api.github.com`, `raw.githubusercontent.com`, `gitlab.com` |
-| Upstream advisories | `openssl-library.org`, `curl.se`, `nginx.org`, `nodejs.org` |
-| Platform releases | `update.k3s.io`, `docs.k3s.io` |
-| Go | `pkg.go.dev`, `go.dev`, `proxy.golang.org`, `vuln.go.dev` |
-| Distro trackers | `security-tracker.debian.org`, `tracker.debian.org`, `packages.debian.org`, `sources.debian.org`, `salsa.debian.org`, `ubuntu.com`, `launchpad.net`, `packages.ubuntu.com`, `security.alpinelinux.org`, `secdb.alpinelinux.org`, `pkgs.alpinelinux.org`, `gitlab.alpinelinux.org`, `access.redhat.com`, `bugzilla.redhat.com`, `www.suse.com`, `lists.suse.com`, `bugzilla.suse.com`, `bodhi.fedoraproject.org`, `alas.aws.amazon.com`, `linux.oracle.com`, `errata.almalinux.org`, `errata.rockylinux.org`, `packages.wolfi.dev` |
-| Package registries | `www.npmjs.com`, `registry.npmjs.org`, `pypi.org`, `crates.io`, `rubygems.org`, `central.sonatype.com`, `repo1.maven.org`, `search.maven.org`, `www.nuget.org`, `api.nuget.org`, `packagist.org` |
-| Image registries | `hub.docker.com`, `quay.io`, `ghcr.io` |
-
-Claude Code also lets WebFetch reach a built-in set of preapproved documentation hosts without a
-rule. WebSearch stays on: it runs on Anthropic's side and returns results, which Claude can then
-only fetch from the hosts above.
-
-The list narrows exfiltration, it does not close it. A steered Claude can still put what it read
-into the path or query of a request to an allowed host, for example a GitHub URL, and whoever
-operates that host or controls content there may see it; and it can put text into search
-queries. What it can read is limited to the public image, the prompt and sieb's answers for the
-check's finding, its CVE and image. Shorten the list to tighten this, for example to the hosts of
-your own distro and ecosystems.
-
-### Inspect tools
-
-The inspect server is a stdio MCP server shipped with the worker. Claude Code starts it for each
-check with the workspace as its only argument and `PATH` as its only configured variable; it
-inherits Claude's environment on top (`HOME`, `TMPDIR`, the quiet variables and Claude Code's
-session variables), without the Claude credential. The commands it runs get `PATH` only, crane
-of the registry tools also a `DOCKER_CONFIG` that does not exist. Its tools are read-only and
-named `mcp__inspect__<tool>`, which the settings allow as `mcp__inspect__*`:
-
-| Tool | Arguments | Runs |
-| --- | --- | --- |
-| `strings` | `path`, `minLength` (3 to 64, default 6), `pattern`, `regex`, `ignoreCase` | `strings -a -n <minLength>`, lines filtered by plain text in Node or by an extended regular expression through `grep -E` |
-| `readelf` | `path`, `mode`: `header`, `sections`, `segments`, `dynamic`, `symbols`, `dynamic_symbols`, `notes`, `versions`, and the same `pattern`, `regex`, `ignoreCase` as `strings` | `readelf` with the fixed flags of the mode, wide output |
-| `objdump` | `path`, `mode`: `private_headers`, `section_headers`, `disassemble_symbol`, `symbol` for the latter, and the same `pattern` filter | `objdump -p`, `-h -w` or `-d --no-show-raw-insn --disassemble=<symbol>` |
-| `unzip_list` | `path` | `unzip -l`, lists without extracting |
-| `jq` | `path` of a `.json` file up to 64 MiB, `filter` up to 500 characters | `jq -M -- <filter> <path>` |
-| `registry_tags` | `repository` of a public image without tag or digest, `prefix`, `limit` (1 to 500, default 100) | `crane ls --omit-digest-tags <repository>`, tags filtered by prefix in Node |
-| `registry_image` | `ref` of a public image with tag or digest, `platform` (default `linux/amd64`) | `crane digest`, `crane manifest` and `crane config --platform <platform>`, answered as JSON: digest, platforms, created, labels, the OCI base image labels and up to 60 history steps |
-
-Every path is resolved with all symlinks followed and must be a regular file inside the
-workspace; absolute paths, `..` and symlinks that lead outside are refused. Commands run without
-a shell, with `PATH` as their whole environment, the workspace as working directory, a 30 second
-timeout and 64 KiB of output: a command is stopped at the cap and its output cut with a note,
-while only the tail of stderr is kept, so a failing command reports its exit code however much it
-writes there. With a `pattern`, `strings` reads at most 32 MiB of strings output and says so when
-matches past that point are missing. `readelf` and `objdump` take the same filter and apply it before the cap; output still over the cap ends with the number of dropped lines and a hint to add or narrow the pattern. A symbol
-for `disassemble_symbol` may contain letters, digits and `_ . $ @` only. A jq filter must not use
-`import`, `include`, `env`, `$ENV`, `input_filename` or the module search builtins. The registry
-tools read public images anonymously, for example whether `nginx/nginx-unprivileged:1.31.8-alpine`
-was rebuilt after a fix: crane runs with `PATH` and a `DOCKER_CONFIG` that does not exist as its
-whole environment, so it never finds a login, and each of its calls gets the 30 second timeout;
-the tag listing reads at most 4 MiB, manifest and config at most 256 KiB and 1 MiB, and the answer
-keeps the 64 KiB cap. A reference must be lower case, without option syntax and at most 300
-characters, and its registry a public DNS name without port or IP address on the default list of
-public registries (`docker.io` and its aliases, `mirror.gcr.io`, `ghcr.io`, `quay.io`,
-`registry.k8s.io`, `gcr.io`, `public.ecr.aws`, `mcr.microsoft.com`, `cgr.dev`); a reference
-without registry means Docker Hub, a single name an official image under `library/`. The list
-keeps these tools from becoming a channel to any host, like the WebFetch list; the
-[NetworkPolicy](#networkpolicy) keeps private addresses closed. objdump disassembles only code of the worker's own architecture, so run the worker on nodes
-that match `SIEB_CHECKER_PLATFORM`; readelf, strings and the other tools read any architecture. Go build
-information needs no tool of its own: syft records the Go modules of binaries in
-`inventory.json`.
-
-**Known limits.**
-
-- WebFetch is limited to the [allowed hosts](#web-access) and WebSearch stays on, so a steered
-  Claude can still leak what it read through request paths and search queries.
-- The same user runs every process of a container, see *Same user within a container* above.
-- The reply is shown as untrusted plain text, and a proposal changes nothing until a person
-  accepts it in sieb.
-
-Contain the rest in Kubernetes: no service account token, a read-only root filesystem, a size
-limit on the work volume, no capabilities and the [NetworkPolicy](#networkpolicy), which is
-required: the WebFetch allow list is a Claude Code rule, not a network boundary, and a process
-that escapes it, such as a tool exploited through a crafted image file, could otherwise reach
-internal services and the cloud metadata endpoint.
-
-## Kubernetes
-
-Example manifests for the namespace of sieb with both containers, adapt image tag, resources and
-the sieb Service name. For single-container mode drop the fetcher container, its Secret and
-volumes, `SIEB_FETCHER_URL` and `SIEB_FETCHER_LOCAL_SECRET_FILE`, and mount the work volume alone.
+Apply these manifests in sieb's namespace. Adapt the release, the resources and the name of the
+sieb Service. With a subscription token, store it under another key and set
+`CLAUDE_CODE_OAUTH_TOKEN_FILE` in place of `ANTHROPIC_API_KEY_FILE`.
 
 ```yaml
 apiVersion: v1
@@ -567,11 +236,9 @@ metadata:
   namespace: sieb
 type: Opaque
 stringData:
-  worker-secret: <same value as SIEB_WORKER_SECRET of sieb>
-  # one of the two: an API key from the Claude Console, or for your own use only the output of
-  # claude setup-token under the key claude-token and CLAUDE_CODE_OAUTH_TOKEN_FILE below
+  worker-secret: <worker secret from step 1>
   anthropic-api-key: <API key>
-  local-secret: <openssl rand -hex 32, the same value as in sieb-fetcher>
+  local-secret: <openssl rand -hex 32>
 ---
 apiVersion: v1
 kind: Secret
@@ -580,8 +247,8 @@ metadata:
   namespace: sieb
 type: Opaque
 stringData:
-  fetcher-secret: <same value as SIEB_FETCHER_SECRET of sieb>
-  local-secret: <the same value as in sieb-checker>
+  fetcher-secret: <fetcher secret from step 1>
+  local-secret: <same value as local-secret in sieb-checker>
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -611,8 +278,9 @@ spec:
           type: RuntimeDefault
       containers:
         - name: fetcher
-          image: ghcr.io/bernhardkelm/sieb-checker:0.6.0
-          args: [src/checker/fetcher/fetcherMain.ts]
+          image: ghcr.io/bernhardkelm/sieb-checker:<version>
+          args:
+            - src/checker/fetcher/fetcherMain.ts
           env:
             - name: SIEB_WORKER_URL
               value: http://sieb.sieb.svc:3101
@@ -633,7 +301,8 @@ spec:
             allowPrivilegeEscalation: false
             readOnlyRootFilesystem: true
             capabilities:
-              drop: [ALL]
+              drop:
+                - ALL
           volumeMounts:
             - name: shared
               mountPath: /shared
@@ -643,7 +312,7 @@ spec:
               mountPath: /run/secrets/sieb-fetcher
               readOnly: true
         - name: checker
-          image: ghcr.io/bernhardkelm/sieb-checker:0.6.0
+          image: ghcr.io/bernhardkelm/sieb-checker:<version>
           env:
             - name: SIEB_WORKER_URL
               value: http://sieb.sieb.svc:3101
@@ -668,7 +337,8 @@ spec:
             allowPrivilegeEscalation: false
             readOnlyRootFilesystem: true
             capabilities:
-              drop: [ALL]
+              drop:
+                - ALL
           volumeMounts:
             - name: shared
               mountPath: /shared
@@ -698,23 +368,35 @@ spec:
             defaultMode: 0400
 ```
 
-Each container mounts only its own Secret and its own work volume; `fsGroup` makes the volumes
-and the Secret files group-readable for gid 1000, which both containers share, while the
-fetcher's uid 1001 keeps the checker out of its processes. The shared volume holds one check at
-a time: its image filesystems up to `SIEB_CHECKER_IMAGE_MAX_BYTES` in total plus the inventories
-and up to twice `SIEB_CHECKER_SOURCE_MAX_BYTES` while the source is checked out. The fetcher's
-work volume holds the untrimmed syft output, the checker's Claude's home. Size them above the
-caps; when a volume runs full, the kubelet evicts the pod and sieb fails the check after the
-missing heartbeats.
+Things to keep when you adapt it:
 
-### NetworkPolicy
+- Run one replica. sieb runs one check at a time.
+- Each container mounts only its own Secret and its own work volume. Do not share one Secret
+  through `envFrom`: each container refuses to start when it holds a secret of the other.
+- The two containers run as different users (1001 and 1000) with the same group, and
+  `shareProcessNamespace` stays off. That is what keeps the registry and git logins away from
+  the container that runs Claude.
+- The shared volume holds one check at a time: its image filesystems up to
+  `SIEB_CHECKER_IMAGE_MAX_BYTES` (4 GiB by default) plus up to twice
+  `SIEB_CHECKER_SOURCE_MAX_BYTES` (512 MiB by default) while source is checked out. Size it
+  above the caps. When a volume runs full, the kubelet evicts the pod and sieb fails the check
+  after the missing heartbeats.
+- Run the pod on nodes that match `SIEB_CHECKER_PLATFORM` (`linux/amd64` by default).
 
-The policy is required. The worker accepts no connections; the fetcher's endpoint listens on the
-pod's loopback address only. It needs DNS, sieb's worker port, and HTTPS to the registries, the
-git hosts, Anthropic, the web pages Claude fetches and sieb's public URL, which carries the MCP
-endpoint. Everything private stays closed: RFC 1918, the shared address
-space `100.64.0.0/10` that some CNIs and cloud networks use, and the link-local
-`169.254.0.0/16`, which holds the cloud metadata endpoint:
+The worker settings, such as the model, the effort level and the web host list, are in the
+configuration reference under [Checker container](reference/configuration.md#checker-container)
+and [Fetcher container](reference/configuration.md#fetcher-container).
+
+### 4. Add the NetworkPolicy
+
+The policy is required, not a hardening extra. The list of web hosts Claude may fetch is a rule
+inside Claude Code, not a network boundary. A tool that is exploited through a crafted image file
+could otherwise reach internal services and the cloud metadata endpoint.
+
+The worker accepts no connections. It needs DNS, sieb's worker port and HTTPS to the registries,
+the git hosts, Anthropic, the advisory sites and sieb's public URL, which carries the MCP
+endpoint. Everything private stays closed: RFC 1918, the shared address space `100.64.0.0/10`
+and link-local `169.254.0.0/16`.
 
 ```yaml
 apiVersion: networking.k8s.io/v1
@@ -726,7 +408,9 @@ spec:
   podSelector:
     matchLabels:
       app.kubernetes.io/name: sieb-checker
-  policyTypes: [Ingress, Egress]
+  policyTypes:
+    - Ingress
+    - Egress
   egress:
     - to:
         - namespaceSelector:
@@ -760,103 +444,316 @@ spec:
           protocol: TCP
 ```
 
-Allow the worker in sieb's own ingress policy on the worker port:
+If sieb's public URL, a self-hosted GitLab or a registry resolves to an address inside the
+cluster or your network, for example the ingress controller, also allow that address on port 443.
+
+sieb's own policy needs one more ingress rule that admits the worker on port 3101. The rule and
+the rest of that policy are in [NetworkPolicy](deployment.md#networkpolicy).
+
+### 5. Check that it works
+
+Open the Checks page. It says whether the worker is online. Queue a finding on a public image and
+watch it move through preparing, investigating and reporting.
+
+sieb's `/metrics` exports the open checks per state, the ended checks per status, their run time
+and whether the worker is online. [Auto-check alerts](prometheus-rules.md#auto-check-alerts) has
+example alerts for an offline worker and a queue that does not move.
+
+## Private access
+
+Out of the box, a check covers images that can be pulled anonymously, and source code in public
+repositories on github.com and gitlab.com. Private access adds read credentials for GitHub,
+GitLab (gitlab.com or self-hosted) and Docker Hub, so a check can also pull private images and
+clone private repositories.
+
+### What leaves your cluster
+
+Decide this before you store the first credential.
+
+During an Auto-check, Claude reads the private images and the source code these credentials
+reach. What Claude reads is sent to Anthropic, like the rest of the check. Web requests and search
+queries Claude makes during the check can carry fragments of it to the hosts on the web list, see
+[Security model](#security-model).
+
+Only add credentials for code your organization allows to share with Claude. Scope each one with
+a path prefix and a read-only token, as described below.
+
+There is no separate allow list of images. Every image a stored registry credential covers can be
+queued by any signed-in user.
+
+### Turn it on
+
+Private access needs the two-container worker from [Set it up](#set-it-up), with
+`SIEB_FETCHER_SECRET` on sieb and the fetcher. It needs one more secret on sieb, the key that
+seals the stored credentials: 32 random bytes in base64.
+
+```sh
+openssl rand -base64 32
+```
+
+Mount it into the sieb container as a file and point `SIEB_CREDENTIALS_KEY_FILE` at it, or pass
+it as `SIEB_CREDENTIALS_KEY`. Setting both is refused, and a malformed key refuses to start.
+
+sieb stores each credential sealed with AES-256-GCM under this key. The database alone does not
+reveal a token, the database together with the key does. Keep the key in a Secret apart from
+backups of the database volume. sieb cannot re-encrypt: with a new key every stored token has to
+be entered again, see [Secrets and rotation](operations.md#secrets-and-rotation).
+
+Which container holds which secret:
+
+| Secret | sieb | Fetcher | Checker |
+| --- | --- | --- | --- |
+| Credentials key | yes | no | no |
+| Stored registry and git tokens | sealed | per check, for the pull and the clone | never |
+| `SIEB_FETCHER_SECRET` | yes | yes | refused |
+| `SIEB_WORKER_SECRET` | yes | refused | yes |
+| Local secret between the two containers | no | yes | yes |
+| Claude credential | no | refused | yes |
+
+Claude runs in the checker, so it never holds a registry or git token.
+
+### Add a credential
+
+Signed-in users manage credentials on the **Access** page, in the user menu while Auto-check is
+on. Any signed-in user can add, change, test and delete any credential.
+
+<picture><source media="(prefers-color-scheme: dark)" srcset="../.github/assets/screenshot-access-dark.png"><img src="../.github/assets/screenshot-access-light.png" alt="Access page with the notice about what Claude reads and three credentials for GitHub, GitLab and Docker Hub with the hosts they cover and their last test"></picture>
+
+A credential has a provider, a label, one or both uses (**Registry** to pull images, **Git** to
+clone source), the hosts and a path prefix. Create the token with the least access the provider
+offers:
+
+| Provider | Token | Access |
+| --- | --- | --- |
+| GitHub, source code | Fine-grained personal access token | Only select repositories, Contents: Read-only |
+| GitHub, packages (`ghcr.io`) | Personal access token (classic) | Only the `read:packages` scope |
+| GitLab | Group or project deploy token | Scopes `read_registry` and `read_repository`, plus the username GitLab shows |
+| Docker Hub | Personal access token | Access permissions Read-only, plus your Docker Hub username |
+
+Fine-grained GitHub tokens do not work with GitHub Packages. For the least access on GitHub, add
+two credentials: the fine-grained token with the use Git, and the classic token with the use
+Registry. A GitLab deploy token covers registry and git in one credential.
+
+sieb tests a token before it stores it. **Test and save** tries the token on the images and
+repositories it covers. It saves only when, for each use, at least one target was reachable and
+none refused the login. A single image that has moved on does not block the save. If the test
+fails, the form stays open with the result per use, and the token stays in its field. **Test
+only** runs the same test without saving.
+
+Three cases behave differently:
+
+- A prefix that covers no image or repository sieb has seen cannot prove the token, so the save
+  is refused. Fix the prefix or the mapping.
+- A host on a private or in-cluster address is never contacted by sieb. The form then offers to
+  save without a test, because the fetcher can still reach the host. The list marks such a
+  credential as saved without a test.
+- Changing only the label saves without a test.
+
+Tokens are write-only. The token field is never prefilled, and sieb never shows a stored token
+again. Changing the provider or adding a host asks for the token again, so a stored token never
+goes to a host it was not entered for.
+
+The list shows for each credential what it covers, who added it, when it was last used and the
+last test. **Test** runs the test again on a stored credential. When you delete a credential,
+revoke the token at the provider too.
+
+The test runs in sieb itself, so sieb's pod needs HTTPS egress to the registries and git hosts of
+your credentials, see [NetworkPolicy](deployment.md#networkpolicy). The address rules of the test
+are in [Access credentials](reference/api.md#access-credentials).
+
+### Path prefix and repository mapping
+
+The path prefix limits a credential to part of its hosts. It matches whole path segments: the
+prefix `acme` covers `ghcr.io/acme/*` and `github.com/acme/*`, an empty prefix covers the whole
+host. When several credentials cover a target, the longest prefix wins.
+
+To check out source, sieb has to know which repository an image was built from. It looks in
+three places, in this order:
+
+1. The image's own `org.opencontainers.image.source` label.
+2. An explicit repository mapping on a credential. It swaps a registry prefix for a repository
+   prefix: `registry.example.com/acme/` to `gitlab.example.com/acme/` maps the image
+   `registry.example.com/acme/shop` to the repository `gitlab.example.com/acme/shop`.
+3. The default mapping of the provider. GitHub maps `ghcr.io/<owner>/<name>` to
+   `github.com/<owner>/<name>`. GitLab maps `<registry host>/<path>` to `<git host>/<path>`, and
+   for a nested image name such as `group/project/image` it tries the longest path first, at
+   most three candidates.
+
+Details that decide edge cases:
+
+- A source label counts only when its repository has the same owner as the image, which is the
+  first path segment. A label inherited from a base image of another owner never picks the
+  repository.
+- An explicit mapping stays within its credential's hosts and path prefix, applies only to
+  images that credential covers, and needs a git credential for the repository.
+- The default mapping applies to a credential that has both uses and no explicit mapping.
+- One of your own images on `ghcr.io` or `registry.gitlab.com` gets the default mapping without
+  any credential. A public repository then needs no setup and no build label.
+- Docker Hub has no git host, so its images get their source from the label alone.
+
+### Which source a check gets
+
+A repository that a git credential covers is cloned with that credential. Without one, the
+fetcher clones anonymously, but only from github.com, gitlab.com or the git host of a stored
+credential. If the anonymous clone fails, the repository is private: store a git credential for
+it.
+
+The fetcher then picks the commit:
+
+1. The commit in the image's `org.opencontainers.image.revision` label.
+2. The git tag that matches the image tag: `<tag>`, then `v<tag>`. Not for `latest` and not for
+   an image known only by digest.
+3. The default branch, which may differ from the code the image was built from.
+
+The Checks page shows the result as Source: the repository with the short commit, "at tag
+v1.4.2" when a git tag was used, or "default branch". Claude is told the same, so it can weigh a
+default branch checkout accordingly. Set the two labels in your image build to get the exact
+commit.
+
+In the finding panel, the fact **Auto-check access** says per image whether the check reaches it:
+Public, Via the covering credential, or No access with a link to the Access page.
+
+### Self-hosted GitLab or registry
+
+For a self-hosted GitLab, set both hosts on the credential, such as `registry.gitlab.example.com`
+and `gitlab.example.com`.
+
+If the host uses a certificate from a private CA, mount the CA certificate into the fetcher. The
+tools that pull and clone run with a stripped environment, so `SSL_CERT_FILE` and
+`GIT_SSL_CAINFO` on the container do not reach them. They do find a certificate in the system
+directory under its hash name. Compute the name:
+
+```sh
+openssl x509 -hash -noout -in ca.crt
+```
+
+Store the certificate in a ConfigMap `sieb-ca` under the key `ca.crt`, then add the mount to the
+fetcher container and the volume to the pod:
 
 ```yaml
-    - from:
-        - podSelector:
-            matchLabels:
-              app.kubernetes.io/name: sieb-checker
-      ports:
-        - port: 3101
+containers:
+  - name: fetcher
+    volumeMounts:
+      - name: ca
+        mountPath: /etc/ssl/certs/<hash>.0
+        subPath: ca.crt
+        readOnly: true
+volumes:
+  - name: ca
+    configMap:
+      name: sieb-ca
 ```
 
-When sieb's public URL or a self-hosted GitLab resolves to an address inside the cluster or your
-network, for example the ingress controller, also allow that address on port 443.
+Fetching one commit by its id needs Git protocol v2, which GitLab and GitHub serve, or
+`uploadpack.allowReachableSHA1InWant` on an older server. Without it the fetcher falls back to
+the git tag and then to the default branch.
 
-## Local development
+sieb's own credential test and its pull probe refuse private and in-cluster addresses. A registry
+on such an address cannot be tested or probed from sieb, so its own images stay "unknown" until a
+registry credential covers them. The fetcher still uses the credential.
 
-Run the worker image against a sieb on your machine, for example in mock mode. Build it with
-`docker build -f Dockerfile.checker -t sieb-checker:local .`, start sieb with Auto-check on and
-point both at each other:
+### One container or two
 
-```sh
-openssl rand -hex 32 > worker-secret
-SIEB_MCP_ENABLED=true SIEB_CHECKS_ENABLED=true \
-  SIEB_PUBLIC_URL=http://host.docker.internal:3100 \
-  SIEB_ALLOWED_HOSTS=host.docker.internal:3100 \
-  SIEB_WORKER_PORT=3101 SIEB_WORKER_SECRET="$(cat worker-secret)" \
-  npm run dev:server:mock
-```
+Run two containers whenever sieb has `SIEB_FETCHER_SECRET` or stored credentials.
 
-```sh
-docker run --rm --read-only --cap-drop ALL --security-opt no-new-privileges \
-  --tmpfs /work:rw,size=8g,uid=1000,gid=1000 \
-  -v "$PWD/worker-secret:/run/secrets/worker-secret:ro" \
-  -v "$HOME/.config/sieb/anthropic-api-key:/run/secrets/anthropic-api-key:ro" \
-  -e SIEB_WORKER_URL=http://host.docker.internal:3101 \
-  -e SIEB_WORKER_SECRET_FILE=/run/secrets/worker-secret \
-  -e ANTHROPIC_API_KEY_FILE=/run/secrets/anthropic-api-key \
-  sieb-checker:local
-```
+The single-container layout is the smaller alternative when every image you check is public and
+no check needs a source checkout. Drop the fetcher container with its Secret and volumes, drop
+`SIEB_FETCHER_URL` and `SIEB_FETCHER_LOCAL_SECRET_FILE` from the checker, mount only the work
+volume, and leave `SIEB_FETCHER_SECRET` off sieb. The checker then pulls images itself,
+anonymously, and checks out no source.
 
-- **The MCP URL must work from inside the container.** The worker hands Claude `/mcp` on
-  `SIEB_PUBLIC_URL`, so `http://localhost:3100` would point at the container itself. Use an
-  address the container reaches, such as `host.docker.internal`, and accept it in sieb's host
-  guard with `SIEB_ALLOWED_HOSTS`; only loopback hosts pass without it.
-- **Linux.** Add `--add-host=host.docker.internal:host-gateway` to `docker run`. sieb listens on
-  `127.0.0.1` by default, which the container cannot reach: set `SIEB_HOST` to the Docker bridge
-  address (often `172.17.0.1`) or `0.0.0.0`, and keep the ports closed to your network with a
-  firewall. Docker Desktop on macOS and Windows needs neither.
-- The worker needs GNU tar, crane, syft and the inspect binaries, so run it from the image rather
-  than with `node src/checker/main.ts` on macOS.
-- **Two containers.** Start the fetcher first and join the checker to its network namespace, so
-  `127.0.0.1:3102` reaches it; a named volume with group 1000 and mode 2770 stands in for the
-  `fsGroup` emptyDir (it keeps its mode while it is not empty):
+The worker layout does not change what sieb queues. With private access on in sieb and a
+single-container worker, checks of private images are queued, claimed and then fail with "the
+image needs a registry credential, which only the fetcher container uses".
 
-  ```sh
-  openssl rand -hex 32 > local-secret
-  docker run --rm --user 0 --entrypoint sh -v sieb-shared:/shared sieb-checker:local \
-    -c 'chown 0:1000 /shared && chmod 2770 /shared && touch /shared/.keep'
-  docker run -d --name sieb-fetcher --read-only --cap-drop ALL --security-opt no-new-privileges \
-    --user 1001:1000 --tmpfs /work:rw,size=2g,uid=1001,gid=1000,mode=0700 -v sieb-shared:/shared \
-    -v "$PWD/fetcher-secret:/run/secrets/fetcher-secret:ro" -v "$PWD/local-secret:/run/secrets/local-secret:ro" \
-    -e SIEB_WORKER_URL=http://host.docker.internal:3101 \
-    -e SIEB_FETCHER_SECRET_FILE=/run/secrets/fetcher-secret \
-    -e SIEB_FETCHER_LOCAL_SECRET_FILE=/run/secrets/local-secret \
-    sieb-checker:local src/checker/fetcher/fetcherMain.ts
-  ```
+## Security model
 
-  Then run the checker as above with `--network container:sieb-fetcher`,
-  `-v sieb-shared:/shared:ro`, the local secret mounted, `-e SIEB_FETCHER_URL=http://127.0.0.1:3102`
-  and `-e SIEB_FETCHER_LOCAL_SECRET_FILE=...`. Give sieb the same `SIEB_FETCHER_SECRET` as the
-  fetcher. Mounted secret files must be readable by the container's uid or group.
+The image under investigation is untrusted input. Its files can contain text written to steer
+Claude, and its binaries can be crafted to attack the tools that read them. The design keeps what
+a steered Claude can reach small:
 
-## Image
+- Claude has no shell and cannot write files. It reads the workspace, calls a fixed set of
+  read-only inspection tools and fetches web pages from a list of hosts.
+- Claude's access to sieb is a short-lived token bound to the one finding of the check. With it
+  Claude can file a proposal, which changes nothing until a person accepts it.
+- Registry and git tokens exist only in the fetcher container, only for the running check. The
+  container that runs Claude cannot read them.
+- The Claude credential is handed to Claude Code on a file descriptor, not in its environment or
+  on its command line.
+- The pod has no service account token, a read-only root filesystem, no capabilities and a
+  NetworkPolicy that closes every private address.
 
-`ghcr.io/bernhardkelm/sieb-checker` is built from `Dockerfile.checker` with the same tags and
-platforms (`linux/amd64`, `linux/arm64`) as the main image. It contains:
+Limits you should know before you decide what to connect:
 
-- Node from the `node:<version>-alpine` base image, pinned by its index digest (`NODE_IMAGE`);
-- the worker source with all of `src/core`, and the MCP server SDK and zod for the inspect server;
-- Claude Code, the native binary of `@anthropic-ai/claude-code-linux-<arch>-musl` taken from its
-  npm tarball after checking the registry's sha512 `dist.integrity`
-  (`CLAUDE_CODE_VERSION`, `CLAUDE_CODE_INTEGRITY_AMD64`, `CLAUDE_CODE_INTEGRITY_ARM64`), so no
-  install script runs;
-- crane and syft as release binaries checked against their published sha256 sums
-  (`CRANE_VERSION`, `SYFT_VERSION` with their checksums);
-- from Alpine, pinned to their upstream version (`apk add pkg~x.y.z`, which admits Alpine's
-  security rebuilds): the binaries behind the inspect tools (`binutils`, `jq`, `unzip`), GNU
-  `tar`, `git` for the fetcher's checkouts, `bash`, which Claude Code requires on Alpine, and
-  `tini` as init, which forwards SIGTERM to the worker and reaps the processes of killed process
-  groups.
+- The web host list narrows exfiltration, it does not close it. A steered Claude can put what it
+  read into the path or query of a request to an allowed host, such as a GitHub URL, or into a
+  search query. With private access, what it read includes your private images and source code.
+  Shorten the list with `SIEB_CHECKER_WEB_DOMAINS` to tighten this.
+- Everything Claude reads is sent to Anthropic. That is how the check works.
+- Inside one container every process runs as the same user. A memory corruption bug in one of
+  the parsers, triggered by a crafted image file, could read the secrets that container holds.
+  Keep the worker image current.
+- Claude's reply is shown as untrusted plain text. Read a proposal's evidence before you accept
+  it.
 
-The entrypoint is `tini -- node` with `src/checker/main.ts`, the checker, as default command; the
-fetcher runs the same image with the command `src/checker/fetcher/fetcherMain.ts`. It runs as the
-non-root user `node` (the fetcher under the uid you give it) and writes only below `/work` and
-`/shared`. To update Claude Code, take
-both `dist.integrity` values from `npm view @anthropic-ai/claude-code-linux-x64-musl@<version>
-dist.integrity` and its `arm64` sibling, and re-check the credential descriptor described under
-[Security model](#security-model). CI runs the image once before publishing it: it must refuse to
-start without `SIEB_WORKER_URL` as checker and as fetcher (the latter under uid 1001), print the
-git and Claude Code versions and answer `tools/list` on the inspect server.
+[Auto-check internals](reference/auto-check-internals.md) describes each of these mechanisms for
+a security review.
+
+## Troubleshooting
+
+### The button does not queue
+
+| What the button or toast says | Cause | What to do |
+| --- | --- | --- |
+| Auto-check is not switched on for this sieb | `SIEB_CHECKS_ENABLED` is off | [Set it up](#set-it-up) |
+| The Auto-check worker is offline | No worker request for 90 seconds | Look at the worker pod and its logs, the worker secret and the NetworkPolicy |
+| No credential covers this image's registry | The image cannot be pulled anonymously and no registry credential covers it | Add a credential on the Access page |
+| The finding is resolved | The scanner no longer reports it | Nothing left to check |
+| Claude is checking this finding right now, or a check is already queued | One open check per finding | Wait for it or cancel it on the Checks page |
+| Already covered by proposal #N | An open proposal lists the finding as related | Review that proposal, or **Check anyway** |
+| The queue is full, or holds at most 500 checks | 500 open checks are the limit | Select fewer findings or wait |
+| Skipped: with an image sieb could not probe yet | The pull probe of an own image timed out, was rate limited or failed | Try again in a minute, or add a registry credential |
+
+sieb starts at most 10 probes per minute. A registry on a private or in-cluster address is never
+probed, so its images always need a registry credential.
+
+### A check failed
+
+The Checks page shows the error of a failed check. The common ones:
+
+| Error | Cause | What to do |
+| --- | --- | --- |
+| Timed out: the worker sent no heartbeat for 120 seconds | The worker pod died or lost sieb during the check | Look for an eviction (full volume, memory limit) and at the worker port |
+| Timed out: the check ran longer than N seconds | The check passed `SIEB_CHECK_TIMEOUT_SECONDS` | Retry, or raise the timeout |
+| Claude timed out, or Claude reached the turn limit | The investigation did not finish in time or turns | Retry, or raise `SIEB_CHECK_TIMEOUT_SECONDS` or `SIEB_CHECK_MAX_TURNS` |
+| image pull failed | The registry did not serve the image | Read the registry's message after the colon; a deleted tag cannot be checked |
+| the image needs a registry credential, which only the fetcher container uses | Single-container worker and a private image | Run [two containers](#one-container-or-two) |
+| the registry refused the login of credential '...' | The stored token expired, was revoked or lacks access | Test the credential on the Access page and enter a new token |
+| the image is no longer pullable | sieb no longer knows a digest or tag of the finding | Wait for the next scan |
+| The image is no longer public or covered by a registry credential | Access changed between queueing and the start | Check the credential, then Retry |
+| image export exceeds 4 GiB (your cap) | The primary image is larger than `SIEB_CHECKER_IMAGE_MAX_BYTES` | Raise the cap and the shared volume |
+| the fetcher is unreachable, or the shared workspace is not readable | The two containers do not fit together | Compare the local secret, `SIEB_FETCHER_URL`, the group and the shared mount with the manifests |
+| cancelled or timed out in sieb | Someone cancelled the check | Retry if you still want it |
+| worker stopped | The pod was terminated during the check, for example by a rollout | Retry |
+
+A check that is done but has no proposal means Claude ended without filing one. Its reply on the
+Checks page usually says why.
+
+A check without source is not a failure. The prompt tells Claude why `source/` is missing, and
+the proposal lists the source under unknowns. The usual causes are a missing source label and
+mapping, a private repository without a git credential, or a checkout above
+`SIEB_CHECKER_SOURCE_MAX_BYTES`.
+
+If the worker does not start at all, its log names the variable it refuses. The operator side of
+this is in [Troubleshooting](operations.md#troubleshooting).
+
+## See also
+
+- [Review proposals](working-with-claude.md#review-proposals) for what to do with the result of
+  a check.
+- [Auto-check internals](reference/auto-check-internals.md) for how a check runs and the full
+  security model.
+- [Checks](reference/api.md#checks) and [Access credentials](reference/api.md#access-credentials)
+  for the routes.
+- [Running the Auto-check worker locally](../CONTRIBUTING.md#running-the-auto-check-worker-locally)
+  for development.

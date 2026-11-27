@@ -8,9 +8,11 @@ import { imageAccessChips } from '@/format/imageAccessLabels'
 
 const props = defineProps<{
   access: ImageAccess
+  /** Whether an owner chip sits next to these chips, drops the Own image chip */
+  ownerShown?: boolean
 }>()
 
-const chips = computed(() => imageAccessChips(props.access))
+const chips = computed(() => imageAccessChips(props.access, props.ownerShown))
 </script>
 
 <template>

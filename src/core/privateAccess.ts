@@ -62,8 +62,8 @@ export interface AccessTestPart {
   checked: number
   ok: number
   failures: AccessTestFailure[] // at most a few, capped by the server
-  denied?: number // targets refused with 401 or 403, over all failures; absent in tests before 0.6.1
-  blocked?: number // targets on a private or in-cluster address sieb does not test; absent before 0.6.1
+  denied?: number // targets refused with 401 or 403, over all failures; absent in older stored tests
+  blocked?: number // targets on a private or in-cluster address sieb does not test; absent in older stored tests
 }
 
 export interface AccessTestResult {

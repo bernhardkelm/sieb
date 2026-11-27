@@ -104,7 +104,8 @@ describe('ProposalReview', () => {
 
     expect(alerts[0]).toContain('Weak evidence: only the advisory was checked')
     expect(alerts[1]).toContain('Claude did not inspect the source of an own image')
-    expect(panel.querySelector('[data-ownership="own"]')!.textContent).toContain('Own image')
+    expect(panel.querySelector('.image-facts-row .owner-badge')!.textContent).toContain('Own')
+    expect(panel.querySelector('[data-ownership]')).toBeNull()
     expect(panel.querySelector('[data-visibility="restricted"]')!.textContent).toContain(
       'Not pullable',
     )

@@ -2,7 +2,7 @@
   "name": "sieb",
   "version": "0.6.1",
   "private": true,
-  "description": "Triage inbox for Trivy Operator findings that silences Prometheus alerts per CVE and image",
+  "description": "Triage app for Trivy Operator findings: decide each finding, silence its Prometheus alerts per CVE and image, optionally with proposals from Claude",
   "license": "AGPL-3.0-or-later",
   "repository": {
     "type": "git",
@@ -32,7 +32,8 @@
     "lint:eslint": "eslint . --fix --cache",
     "lint:check": "oxlint . && eslint . --cache",
     "format": "oxfmt src/ scripts/",
-    "fixtures:generate": "node scripts/generateFixtures.ts"
+    "fixtures:generate": "node scripts/generateFixtures.ts",
+    "screenshots:generate": "node scripts/generateScreenshots.ts"
   },
   "dependencies": {
     "@hono/node-server": "^2.1.11",

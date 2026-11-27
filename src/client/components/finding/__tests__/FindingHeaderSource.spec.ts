@@ -8,6 +8,7 @@ import { mountWithRouter } from '@/__tests__/mountWithRouter'
 import { fetchFindingDetail } from '@/api/findingsApi'
 import FindingHeader from '@/components/finding/FindingHeader.vue'
 import FindingPanel from '@/components/finding/FindingPanel.vue'
+import { useLabelsStore } from '@/stores/labelsStore'
 import { useMcpStore } from '@/stores/mcpStore'
 
 vi.mock('@/api/findingsApi', () => ({
@@ -28,7 +29,7 @@ describe('FindingHeader image access', () => {
     [
       'own with a credential',
       { imageVisibility: 'credential', ownership: 'own' },
-      ['Own image', 'Needs a credential'],
+      ['Own image', 'Private · credential'],
     ],
     [
       'third-party and restricted',
@@ -53,6 +54,21 @@ describe('FindingHeader image access', () => {
 
     expect(wrapper.get('[data-ownership="own"]').text()).toBe('Own image')
     expect(wrapper.get('[data-visibility="restricted"]').attributes('tabindex')).toBe('0')
+  })
+
+  it('drops the Own image chip while the owner chip shows', async () => {
+    const wrapper = mountWithProviders(FindingHeader, {
+      finding: buildFindingView({ owner: 'self' }),
+      access: { imageVisibility: 'credential', ownership: 'own' },
+    })
+
+    useLabelsStore().data = { exposure: false, owners: ['self'], kev: 'cisa' }
+    await flushPromises()
+    expect(wrapper.get('.owner-badge').text()).toBe('Own')
+    expect(wrapper.findAll('.image-access-chip').map((chip) => chip.text())).toEqual([
+      'Private · credential',
+    ])
+    wrapper.unmount()
   })
 
   it('hides the chips without access facts', () => {

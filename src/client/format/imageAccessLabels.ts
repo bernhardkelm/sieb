@@ -21,8 +21,8 @@ export const VISIBILITY_CHIPS: Partial<
     hint: 'Anyone can pull this image without a login, so Claude and Auto-check can inspect it.',
   },
   credential: {
-    label: 'Needs a credential',
-    hint: 'A stored registry credential covers this image, Auto-check pulls it with that credential.',
+    label: 'Private · credential',
+    hint: 'Private image: a registry credential stored in sieb covers it, Auto-check pulls it with that credential.',
   },
   restricted: {
     label: 'Not pullable',
@@ -31,22 +31,25 @@ export const VISIBILITY_CHIPS: Partial<
 }
 
 /**
- * Lists the chips that add information about an image: Own image for own images, then its
- * visibility, where public shows only for own images since third-party images are public by
- * default and unknown never shows.
+ * Lists the chips that add information about an image: Own image for own images unless an owner
+ * chip already says so, then its visibility, where public shows only for own images since
+ * third-party images are public by default and unknown never shows.
  * @param {ImageAccess} access - Visibility and ownership of the image
+ * @param {boolean} ownerShown - Whether the owner label is shown next to the chips
  * @returns {ImageAccessChip[]} - Chips in display order, empty when nothing stands out
  */
-export const imageAccessChips = ({
-  imageVisibility,
-  ownership,
-}: ImageAccess): ImageAccessChip[] => {
+export const imageAccessChips = (
+  { imageVisibility, ownership }: ImageAccess,
+  ownerShown = false,
+): ImageAccessChip[] => {
   const own = ownership === 'own'
   const visibility =
     imageVisibility === 'public' && !own ? undefined : VISIBILITY_CHIPS[imageVisibility]
 
   return [
-    ...(own ? [{ kind: 'ownership' as const, value: ownership, ...OWN_IMAGE_CHIP }] : []),
+    ...(own && !ownerShown
+      ? [{ kind: 'ownership' as const, value: ownership, ...OWN_IMAGE_CHIP }]
+      : []),
     ...(visibility === undefined
       ? []
       : [{ kind: 'visibility' as const, value: imageVisibility, ...visibility }]),

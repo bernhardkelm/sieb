@@ -30,7 +30,7 @@ const withCredentialHint = async <T>(step: () => Promise<T>): Promise<T> => {
 }
 
 /**
- * Single-container mode as in 0.5: the checker pulls the images anonymously into its own
+ * Single-container mode: the checker pulls the images anonymously into its own
  * workspace and checks out no source. The workspace lies in the check directory, which runCheck
  * wipes, so release has nothing to do.
  */

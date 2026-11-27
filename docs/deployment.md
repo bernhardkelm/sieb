@@ -1,264 +1,306 @@
 # Deployment
 
-sieb runs as a single pod next to Prometheus. Silencing only works while Prometheus can scrape that
-pod, a sieb instance on your laptop is not scraped.
+This guide is for operators who run sieb in a cluster. It covers the images, where sieb reads its
+data, how users sign in, how to expose it, the full manifest set, the NetworkPolicy and what to
+check before you rely on it. For a first deployment in five steps, start with
+[Getting started](getting-started.md). Every variable is listed in the
+[configuration reference](reference/configuration.md).
+
+On this page
+
+- [Overview](#overview)
+- [Container images](#container-images)
+- [Data sources](#data-sources)
+- [KEV source](#kev-source)
+- [Authentication](#authentication)
+- [Exposing sieb](#exposing-sieb)
+- [Metrics port](#metrics-port)
+- [Kubernetes manifests](#kubernetes-manifests)
+- [NetworkPolicy](#networkpolicy)
+- [Security checklist](#security-checklist)
+- [Optional features](#optional-features)
+
+## Overview
+
+sieb is one Node process with a SQLite database. It runs as a single pod next to Prometheus,
+because silencing works only while Prometheus can scrape it.
+
+```text
+users --> Ingress --> :3100 sieb pod --> Kubernetes API     VulnerabilityReports, read only
+                              |      --> Prometheus         findings rule, optional KEV rule
+                              |      --> www.cisa.gov       KEV catalog, once a day
+                              |      --> identity provider  oidc mode, Claude connector
+                              |
+          Prometheus --> :9100 /metrics
+                              |
+                        /data/sieb.db   one volume, one writer
+```
+
+Keep one replica with the `Recreate` strategy: SQLite allows one writer, and a rolling update
+would start a second one.
+
+## Container images
+
+```sh
+docker pull ghcr.io/bernhardkelm/sieb:<version>
+```
+
+Releases publish the tags `x.y.z`, `x.y` and `latest`, without a `v` prefix. There is no bare
+major tag while sieb is 0.x, and a prerelease gets only its full version. `edge` follows `main`,
+and every published build also gets a `sha-<commit>` tag. Images are built for `linux/amd64` and
+`linux/arm64`. Pin an exact version in production.
+
+The image runs as the unprivileged `node` user (uid 1000) and sets `NODE_ENV=production`,
+`SIEB_SOURCE=incluster`, `SIEB_HOST=0.0.0.0`, `SIEB_PORT=3100` and `SIEB_DB_PATH=/data/sieb.db`.
+Mount a writable volume at `/data`. Its health check calls `/api/health`.
+
+The Auto-check worker has its own image, `ghcr.io/bernhardkelm/sieb-checker:<version>`, with the
+same tags and platforms. Use the same release for both, see [Upgrades](operations.md#upgrades).
 
 ## Data sources
 
-| `SIEB_SOURCE` | Reads | Typical use |
+`SIEB_SOURCE` decides where findings come from:
+
+| `SIEB_SOURCE` | Reads | Use |
 | --- | --- | --- |
-| `mock` | Synthetic fixtures in `src/server/sources/mock/fixtures/` | Development, demos. Refused with `NODE_ENV=production` |
-| `kubectl` | Spawns read-only `kubectl get vulnerabilityreports -A` and `kubectl get --raw` on the API server proxy of `SIEB_PROMETHEUS_SERVICE` | Local live mode |
-| `incluster` | `https://kubernetes.default.svc` with the ServiceAccount token, Prometheus at `SIEB_PROMETHEUS_URL` | In the cluster, counts as production |
+| `mock` | Synthetic fixtures in `src/server/sources/mock/fixtures/` | Development and demos. Refused in production |
+| `kubectl` | Read-only `kubectl get vulnerabilityreports -A` and the API server proxy of `SIEB_PROMETHEUS_SERVICE` | Local live mode on your machine |
+| `incluster` | `https://kubernetes.default.svc` with the ServiceAccount token, Prometheus at `SIEB_PROMETHEUS_URL` | In the cluster. Counts as production |
 
-The `kubectl` source needs `get` and `list` on `vulnerabilityreports.aquasecurity.github.io` in all
-namespaces and `get` on `services/proxy` for the Prometheus service.
+Both live sources join the findings rule of Prometheus with the VulnerabilityReports of the Trivy
+Operator. The rule decides what counts as a finding, see
+[Findings query](prometheus-rules.md#findings-query).
 
-## KEV feed
+The `incluster` source needs `get` and `list` on `vulnerabilityreports.aquasecurity.github.io` in
+all namespaces, granted by the ClusterRole in the manifests below. It trusts the API server
+through `NODE_EXTRA_CA_CERTS`. The `kubectl` source additionally needs `get` on `services/proxy`
+for the Prometheus service.
 
-With the default `SIEB_KEV_SOURCE=cisa`, sieb downloads the
-[CISA KEV catalog](https://www.cisa.gov/known-exploited-vulnerabilities-catalog) itself, once a day,
-from `https://www.cisa.gov/sites/default/files/feeds/known_exploited_vulnerabilities.json`, and keeps
-the last good copy in its database when a download fails. The pod then needs outbound HTTPS (443) to
-`www.cisa.gov` and DNS. Without that egress:
+## KEV source
 
-- set `SIEB_KEV_URL` to a mirror you can reach, for example an internal copy of the feed or
-  `https://raw.githubusercontent.com/cisagov/kev-data/main/known_exploited_vulnerabilities.json`,
-- or use `SIEB_KEV_SOURCE=prometheus` with a KEV recording rule, see
-  [prometheus-rules.md](prometheus-rules.md#kev-query),
-- or `SIEB_KEV_SOURCE=none` to run without KEV.
+sieb marks findings whose CVE is in the CISA
+[Known Exploited Vulnerabilities](https://www.cisa.gov/known-exploited-vulnerabilities-catalog)
+catalog and ranks them first. `SIEB_KEV_SOURCE` picks where that listing comes from:
 
-A failing download shows on the sync status in the UI (the status dot turns amber once the catalog
-is older than two days) and in the logs as `KEV catalog fetch failed`. Mock mode never downloads
-the feed.
+| `SIEB_KEV_SOURCE` | Where the listing comes from | What it needs |
+| --- | --- | --- |
+| `cisa` (default) | sieb downloads the catalog once a day and keeps the last good copy | HTTPS to `www.cisa.gov`, or a mirror in `SIEB_KEV_URL` |
+| `prometheus` | The KEV rule `SIEB_KEV_QUERY`, read with every sync. The panel shows no catalog details | A KEV recording rule, see [KEV query](prometheus-rules.md#kev-query) |
+| `none` | No KEV listing. Triage ranks by exposure, severity and score, and the UI hides KEV elements | Nothing |
 
-## Container image
+Without egress to `www.cisa.gov`, point `SIEB_KEV_URL` at a copy you can reach, for example an
+internal mirror or
+`https://raw.githubusercontent.com/cisagov/kev-data/main/known_exploited_vulnerabilities.json`.
+Mock mode never downloads the catalog.
 
-```sh
-docker pull ghcr.io/bernhardkelm/sieb:latest
-```
-
-Releases publish `x.y.z`, `x.y` and `latest`, tags have no `v` prefix and there is no bare major
-tag while sieb is 0.x. `edge` follows `main`. Pin an exact version in production.
-
-Multi-arch (`linux/amd64`, `linux/arm64`), runs as the unprivileged `node` user (uid 1000) and
-defaults to `NODE_ENV=production`, `SIEB_SOURCE=incluster`, `SIEB_HOST=0.0.0.0`, `SIEB_PORT=3100` and
-`SIEB_DB_PATH=/data/sieb.db`. Mount a volume at `/data`. A quick look with the fixtures:
-
-```sh
-docker run --rm -p 3100:3100 -e NODE_ENV= -e SIEB_SOURCE=mock -e SIEB_DB_PATH=/data/sieb-mock.db \
-  ghcr.io/bernhardkelm/sieb:latest
-```
+A decision remembers whether its CVE was KEV listed. Switching from `none` to a KEV source
+therefore re-opens decisions whose CVEs turn out to be listed. How refreshes and failures behave
+is in [KEV catalog health](operations.md#kev-catalog-health).
 
 ## Authentication
 
-sieb has two ways to know who uses the UI, chosen with `SIEB_AUTH`:
+sieb records every decision under the username of the person who made it. `SIEB_AUTH` picks how
+it learns that name:
 
-| `SIEB_AUTH` | Who authenticates the UI | Ingress |
+| `SIEB_AUTH` | Who signs users in | Ingress |
 | --- | --- | --- |
-| `header` (default) | A forward-auth proxy in front of sieb, sieb trusts its username header (`SIEB_USER_HEADER`, default `X-authentik-username`) | Behind the forward-auth middleware, plus a second Ingress without it for `/mcp` when MCP is on |
-| `oidc` | sieb itself: an OpenID Connect login against your identity provider, with sessions in its database | One Ingress without forward auth for UI, `/api`, `/mcp` and `/.well-known` |
+| `oidc` (recommended) | sieb itself, with OpenID Connect against your identity provider and sessions in its database | One Ingress without forward auth |
+| `header` (default) | A forward-auth proxy in front of sieb. sieb trusts its username header | Behind the forward-auth middleware, plus a second Ingress for `/mcp` when MCP is on |
 
-In both modes the acting user is the username of your identity provider: the forward-auth header
-carries it, and the OIDC login reads it from the `preferred_username` claim of the ID token. With
-the same provider, decisions made before and after a switch keep the same names in their history.
-
-### Header mode
-
-sieb has no login of its own and trusts the username header set by the forward-auth proxy. Expose
-the UI through an Ingress with the forward-auth middleware; see [Security](#security) for what the
-proxy and the network must guarantee. The read routes answer without a user, writes need one.
+Prefer oidc mode. It needs one Ingress and no header that sieb has to trust. In both modes the
+username is the one of your identity provider: the proxy's header carries it, and the login reads
+it from the `preferred_username` claim. With the same provider, decisions keep the same names
+after you switch modes.
 
 ### OIDC mode
 
-sieb runs the authorization code flow with PKCE (S256), state and nonce itself, as a confidential
-client of the issuer:
+These settings turn it on:
 
-| Variable | Meaning |
+| Variable | Value |
 | --- | --- |
-| `SIEB_AUTH=oidc` | Turns the login on; the username header is then ignored everywhere and there is no dev user, not even outside production |
-| `SIEB_OIDC_ISSUER` | Issuer URL exactly as the provider shows it, for authentik `https://authentik.example.com/application/o/sieb/` with the trailing slash; everything else is discovered from it |
-| `SIEB_OIDC_CLIENT_ID`, `SIEB_OIDC_CLIENT_SECRET` | Credentials of the client; keep the secret in a Kubernetes Secret, sieb never logs it |
-| `SIEB_OIDC_REQUIRED_GROUP` | Optional entry of the `groups` claim a user must have, else the login answers 403 |
-| `SIEB_SESSION_HOURS` | Session lifetime, default 12, 1 to 168 |
-| `SIEB_OIDC_DISPLAY_NAME` | Provider name on the sign-in button ("Sign in with SSO"), default `SSO` |
-| `SIEB_PUBLIC_URL` | Required. The redirect URI is `SIEB_PUBLIC_URL` + `/auth/callback` and the post-logout redirect is `SIEB_PUBLIC_URL` + `/`, both derived from this value and never from request headers |
-| `SIEB_METRICS_PORT` | Required, so `/metrics` is never served on the public port, see [Metrics port](#metrics-port) |
+| `SIEB_AUTH` | `oidc` |
+| `SIEB_OIDC_ISSUER` | Issuer URL exactly as the provider shows it, https in production. Everything else is discovered from it |
+| `SIEB_OIDC_CLIENT_ID`, `SIEB_OIDC_CLIENT_SECRET` | The confidential client. Keep both in a Secret, sieb never logs the secret |
+| `SIEB_PUBLIC_URL` | Required. The redirect URI is `SIEB_PUBLIC_URL/auth/callback`, never derived from request headers |
+| `SIEB_METRICS_PORT` | Required, so `/metrics` never answers on the public port, see [Metrics port](#metrics-port) |
 
-The issuer and the public URL must be https in production. The flow:
+Set `SIEB_OIDC_REQUIRED_GROUP` to admit only members of one group; in production sieb warns at
+start without it. `SIEB_SESSION_HOURS` (default 12) and `SIEB_OIDC_DISPLAY_NAME` (default `SSO`)
+are optional.
 
-1. A page request without a session is sent to the sign-in page `/auth/signin?return=<path>`,
-   `/api` and files answer 401. The page is rendered by the server and loads nothing (the
-   client's assets need a session): the sieb mark, a "Sign in with `SIEB_OIDC_DISPLAY_NAME`"
-   button that starts the login, and nothing else. The return path must be relative, anything
-   else returns to `/`. The client does the same when a read answers 401, so an expired session
-   shows the page instead of a silent new login.
-2. The button leads to `/auth/login`, which seals state, nonce, PKCE verifier and return path
-   (encrypted with A256GCM under a key made at process start, valid 10 minutes) into the
-   HttpOnly login cookie
-   (`__Host-sieb_login` over https, `sieb_login` over http, both Path=/), then redirects to the
-   issuer with the scopes `openid profile email groups`. Pending logins are not stored, so a flood
-   of login requests evicts nobody; a restart invalidates them, which only means logging in
-   again. The callback clears the cookie and remembers the hash of its state until the seal
-   expires (at most 5000, oldest dropped first), so each login cookie works once.
-3. `/auth/callback` exchanges the code, verifies the ID token (signature against the issuer's key
-   set, issuer, audience, expiry, nonce), requires `preferred_username` and the required group,
-   and creates a session.
-4. The session cookie is `__Host-sieb_session` (Secure, HttpOnly, SameSite=Lax, Path=/, no Domain)
-   over https, and `sieb_session` without Secure over plain http in development. The database
-   keeps only the sha-256 of the random session id. A session ends after `SIEB_SESSION_HOURS`
-   however active it is; logging in again is the sign-in button and a redirect round trip, since
-   the identity provider keeps its own session. Expired sessions are removed on use and every 15 minutes.
-5. "Log out" in the username menu calls `POST /auth/logout`, which deletes the session, sets a
-   short-lived signed-out cookie (`__Host-sieb_signedout`, `sieb_signedout` over http, HttpOnly,
-   SameSite=Lax, 5 minutes) and sends the browser to the provider's end-session endpoint with
-   `id_token_hint`. The provider returns to `SIEB_PUBLIC_URL/`, which shows the sign-in page with
-   "You are signed out of sieb." and clears the cookie. authentik's default invalidation flow ends
-   only the session of the sieb application and keeps the authentik session, so users stay
-   signed in to other applications, and "Sign in" logs them back in without a password prompt.
+What users and operators see:
 
-The log has one line per login (username), failed login (reason, never a token), logout and
-session cleanup.
+1. A page request without a session shows sieb's sign-in page with one button, "Sign in with SSO".
+   `/api` answers 401 without a session, reads included.
+2. The button runs the authorization code flow with PKCE, state and nonce, and returns to the page
+   the user asked for.
+3. sieb verifies the ID token, requires `preferred_username` and the group, and opens a session.
+   A session ends after `SIEB_SESSION_HOURS`, however active it is. Signing in again is one
+   redirect, since the provider keeps its own session.
+4. **Log out** in the user menu ends the session and sends the browser to the provider's
+   end-session endpoint, which returns to sieb's sign-in page with "You are signed out of sieb."
 
-### authentik setup for the UI login
+The log has one line per login, failed login (with the reason, never a token) and logout. Cookie
+names and the sealing of the login state are in the [API reference](reference/api.md).
 
-Create an application `sieb` with an **OAuth2/OpenID provider**. It replaces the forward-auth
-proxy application of header mode and its tile.
+### Identity provider checklist
 
-- **Client type:** confidential. Copy client id and secret into `SIEB_OIDC_CLIENT_ID` and
-  `SIEB_OIDC_CLIENT_SECRET`.
-- **Redirect URIs:** strict `https://sieb.example.com/auth/callback`. For local development add
-  `http://localhost:5173/auth/callback` on the same provider, with `SIEB_PUBLIC_URL` set to
-  `http://localhost:5173`.
-- **Post-logout redirect URI:** `https://sieb.example.com/` (and `http://localhost:5173/` for
-  development). Without it authentik stops on its own logout page instead of returning to sieb.
-  The sign-in page shown after the logout needs no URI of its own.
-- **Grant types:** make sure `authorization_code` is allowed; a provider without it rejects the
-  flow with a bare "invalid grant_type".
-- **Scopes:** the default `openid`, `email` and `profile` mappings. authentik's default profile
-  mapping carries the `groups` claim; sieb also requests a `groups` scope for providers that need
-  one, authentik drops scopes it has no mapping for.
-- **Signing key:** select an RSA or EC key. sieb checks the ID token signature against the
-  provider's key set, and an ID token without a signing key (HS256 with the client secret) is
-  refused.
-- **Subject mode and username:** the default keeps `preferred_username` equal to the authentik
-  username, which is what decisions record.
-- **Access:** bind the application to your group, for example `sieb-users`, and set the same name in
+Any OpenID Connect provider works. Create one client for the sieb login with these settings:
+
+- Client type confidential. sieb authenticates at the token endpoint with `client_secret_post`.
+- Redirect URI `https://sieb.example.com/auth/callback`, matched strictly. For local development
+  add `http://localhost:5173/auth/callback` and set `SIEB_PUBLIC_URL=http://localhost:5173`.
+- Post-logout redirect URI `https://sieb.example.com/`. Without it, many providers stop on their
+  own logout page.
+- Grant type `authorization_code` allowed.
+- Scopes `openid`, `profile` and `email`. sieb also requests `groups`; providers that need a scope
+  for the `groups` claim get it, others ignore it.
+- `preferred_username` in the ID token, holding the username you want in decisions.
+- An asymmetric signing key (RSA or EC). ID tokens signed with the client secret are refused.
+- Access limited to your group, with the same group name in `SIEB_OIDC_REQUIRED_GROUP`.
+
+The Claude connector needs a second, separate client. sieb refuses to start when both use the same
+client id. Its setup is in [Connect](working-with-claude.md#connect).
+
+### Example: authentik
+
+In authentik, create an application `sieb` with an **OAuth2/OpenID provider**. In oidc mode it
+replaces the forward-auth proxy application of header mode.
+
+- **Client type**: confidential. Copy the client id and secret into the `sieb-oidc` Secret.
+- **Redirect URIs**: strict, `https://sieb.example.com/auth/callback`.
+- **Post-logout redirect URI**: `https://sieb.example.com/`.
+- **Grant types**: make sure `authorization_code` is allowed. Without it the flow fails with a
+  bare "invalid grant_type".
+- **Scopes**: the default `openid`, `email` and `profile` mappings. The default profile mapping
+  carries the `groups` claim.
+- **Signing key**: select an RSA or EC key.
+- **Subject mode**: the default keeps `preferred_username` equal to the authentik username.
+- **Access**: bind the application to a group such as `sieb-users` and set the same name in
   `SIEB_OIDC_REQUIRED_GROUP`, so a user outside it is refused by both.
 
-### Identity provider for the MCP client
+The issuer is `https://authentik.example.com/application/o/sieb/`, with the trailing slash.
+authentik's default invalidation flow ends only the sieb application session on logout, so users
+stay signed in to other applications, and **Sign in** logs them back in without a password prompt.
 
-The Claude connector of the MCP endpoint signs in through a second client of the identity
-provider, separate from the UI login (for authentik a separate application, for example
-`sieb-mcp`). sieb refuses to start when `SIEB_OIDC_CLIENT_ID` and `SIEB_OAUTH_CLIENT_ID` are the
-same. The full client setup, scopes and claims are in
-[mcp.md](mcp.md#identity-provider); for the deployment:
+### Header mode
 
-- **Public client.** Register it without a client secret, claude.ai gets only the client id.
-  sieb never sees a secret of this client, it only verifies the access tokens. A confidential
-  client works too, its secret is then entered in claude.ai.
-- **PKCE enforced.** The authorization code flow must use PKCE with `S256`. If your provider
-  accepts requests without PKCE, or with the `plain` method, add a policy that requires
-  `code_challenge_method=S256` for this client, so an intercepted code is useless without the
-  verifier.
-- **Refresh tokens with rotation.** Keep the access token validity short (minutes) and let
-  refresh tokens carry the session; with rotation every refresh issues a new refresh token and
-  invalidates the old one.
-- **Audience and signing key.** The access token's `aud` must be the client id alone, signed with
-  RS256 or ES256 by a key of the issuer's key set.
-- **Group.** Admit only your group to the client and set the same name as
-  `SIEB_OAUTH_REQUIRED_GROUP`; in production sieb warns at startup without it.
-- **Client label.** Every OAuth caller appears under `SIEB_OAUTH_CLIENT_LABEL` in the logs, the
-  handshake line and `get_overview`, default `Claude`. Keep a generic label such as `Claude`: the
-  Claude apps and Claude Code, which picks up the connector from claude.ai, use the same client,
-  so the label cannot tell them apart.
+sieb has no login of its own and trusts the username header that a forward-auth proxy sets,
+`X-authentik-username` by default. Set `SIEB_USER_HEADER` to the header your proxy uses, for
+example `X-Auth-Request-User` for oauth2-proxy. The proxy must overwrite or strip any copy of that
+header a client sends, and a NetworkPolicy must keep everything else away from the pod. Both are
+on the [Security checklist](#security-checklist), because sieb cannot enforce them.
+
+### Switching from header mode to oidc
+
+1. While still in header mode, add `SIEB_METRICS_PORT`, the `metrics` Service port and a
+   ServiceMonitor on that port. Nothing visible changes.
+2. Create the identity provider client, add the `SIEB_OIDC_*` variables and their Secret, set
+   `SIEB_AUTH=oidc`, remove the forward-auth middleware from the Ingress, delete the second MCP
+   Ingress if you have one, and allow egress to the issuer. Rolling back means reverting this step.
+
+Check from outside afterwards: `/` shows the sign-in page, `/api/findings` answers 401, `/metrics`
+answers 404, `/mcp` without a token answers 401 (with MCP on), sign-in and log out work, and a new
+decision records the same username as before.
+
+## Exposing sieb
+
+Route the main port through one Ingress with TLS. Two variables must match the hostname:
+
+- `SIEB_ALLOWED_HOSTS` lists the public hostname. sieb refuses every other `Host` with 403
+  `forbidden_host`, except loopback names and the two paths reached by pod IP, `/metrics` and
+  `/api/health`. This blocks DNS rebinding.
+- `SIEB_PUBLIC_URL` is the origin users reach, `https://sieb.example.com`. It is required in oidc
+  mode and for the Claude connector, and makes every link sieb hands out independent of the
+  request.
+
+Never route the metrics port or the Auto-check worker port through an Ingress.
+
+sieb also refuses a request target with a dot segment (`/mcp/%2e%2e/api/me`) with 400, so no path
+can reach a route its Ingress rule did not name. Writes need a same-origin request with
+`Content-Type: application/json`; a proxy must not rewrite `Origin` or `Host`. The exact rules are
+in [Request rules](reference/api.md#request-rules).
+
+### Second Ingress for MCP in header mode
+
+In oidc mode, `/mcp` and its metadata use the one Ingress. In header mode with MCP on, Claude
+cannot pass the proxy login, so those paths need a second Ingress without forward auth. It must:
+
+- route only `/mcp`, `/.well-known/oauth-protected-resource` and
+  `/.well-known/oauth-protected-resource/mcp`, each with `pathType: Exact`, because everything on
+  it bypasses the proxy;
+- set the username header to an empty value, so no client-sent copy reaches sieb on that route.
+
+With Traefik, a headers middleware removes the header by setting it empty:
+
+```yaml
+apiVersion: traefik.io/v1alpha1
+kind: Middleware
+metadata:
+  name: sieb-strip-user
+  namespace: sieb
+spec:
+  headers:
+    customRequestHeaders:
+      X-authentik-username: ""
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: sieb-mcp
+  namespace: sieb
+  annotations:
+    traefik.ingress.kubernetes.io/router.middlewares: sieb-sieb-strip-user@kubernetescrd
+spec:
+  rules:
+    - host: sieb.example.com
+      http:
+        paths:
+          - path: /mcp
+            pathType: Exact
+            backend:
+              service:
+                name: sieb
+                port:
+                  name: http
+          - path: /.well-known/oauth-protected-resource
+            pathType: Exact
+            backend:
+              service:
+                name: sieb
+                port:
+                  name: http
+          - path: /.well-known/oauth-protected-resource/mcp
+            pathType: Exact
+            backend:
+              service:
+                name: sieb
+                port:
+                  name: http
+  tls:
+    - hosts: [sieb.example.com]
+      secretName: sieb-tls
+```
+
+`/mcp` checks bearer tokens itself and ignores both the username header and the session cookie,
+see [Endpoint and authentication](reference/mcp.md#endpoint-and-authentication).
 
 ## Metrics port
 
-`SIEB_METRICS_PORT` serves `/metrics`, and only that, on a second listener on `SIEB_HOST`. The main
-port then answers `/metrics` with 404 `{ "error": "not_found" }`. It is required in oidc mode and optional in header
-mode, where leaving it unset keeps `/metrics` on the main port. The metrics listener keeps the
-`Host` exemption of `/metrics`, so Prometheus can scrape it by pod IP.
+`SIEB_METRICS_PORT` opens a second listener on `SIEB_HOST` that serves `/metrics` and nothing
+else. The main port then answers `/metrics` with 404. The port is required in oidc mode and
+optional in header mode, where leaving it unset keeps `/metrics` on the main port. The metrics
+listener skips the `Host` check, so Prometheus can scrape it by pod IP.
 
-## Auto-check
+`/metrics` lists CVE ids and image names of your cluster without authentication, so keep it off
+the public port. The exported series are listed in
+[Health and metrics](operations.md#health-and-metrics).
 
-Auto-check is off by default. With `SIEB_CHECKS_ENABLED=true`, which needs `SIEB_MCP_ENABLED` and
-`SIEB_PUBLIC_URL`, sieb opens an extra listener on `SIEB_WORKER_PORT` (for example 3101) that
-serves only the worker routes behind `SIEB_WORKER_SECRET`. The worker, `sieb-checker`, is a
-separate Deployment of its own image without cluster access. For sieb itself:
+## Kubernetes manifests
 
-- pass `SIEB_WORKER_SECRET` as an environment variable from a Secret; sieb has no `_FILE`
-  variant, the worker reads the same value from `SIEB_WORKER_SECRET_FILE`;
-- add the worker port to the Service, for example as port `worker` with `targetPort` 3101, and
-  never route it through an Ingress;
-- allow the worker pod on that port in sieb's [NetworkPolicy](#networkpolicy);
-- keep `/mcp` on `SIEB_PUBLIC_URL` reachable from the worker, which files its proposal there.
-
-The worker settings, its security model, the Claude credential and the manifests are in
-[auto-check.md](auto-check.md), the routes and rules in [api.md](api.md#auto-check), and example
-alerts in [prometheus-rules.md](prometheus-rules.md#auto-check-alerts).
-
-### Private access
-
-Auto-check can also pull private images and clone the source of your own images from GitHub,
-GitLab (gitlab.com or self-hosted) and Docker Hub, with read credentials users enter on sieb's
-Access page. It needs two more secrets on sieb, both optional:
-
-| Variable | Meaning |
-| --- | --- |
-| `SIEB_CREDENTIALS_KEY_FILE` or `SIEB_CREDENTIALS_KEY` | File with, or value of, the key that seals the stored credentials: 32 random bytes in base64, for example from `openssl rand -base64 32`. A malformed key refuses to start; without one, credentials can neither be stored nor used and Auto-check covers public images only |
-| `SIEB_FETCHER_SECRET_FILE` or `SIEB_FETCHER_SECRET` | File with, or value of, the bearer secret of the worker's fetcher container, at least 32 characters without whitespace and different from `SIEB_WORKER_SECRET`. Without it the fetcher routes answer 404 and private images stay ineligible |
-
-Setting a variable and its `_FILE` variant together is refused. Prefer the `_FILE` variants with
-the Secret mounted as a file. Only the fetcher gets `SIEB_FETCHER_SECRET`; the checker container
-that runs Claude keeps only `SIEB_WORKER_SECRET` and never receives a credential. With both
-secrets set, every image a stored registry credential covers can be queued, there is no allow
-list. The routes are in [api.md](api.md#access-credentials).
-
-Private access needs the worker in its two-container layout, see
-[auto-check.md](auto-check.md#two-containers): a worker in single-container mode claims the
-checks of private images too and fails them with "the image needs a registry credential, which
-only the fetcher container uses (SIEB_FETCHER_URL)". For a self-hosted GitLab or registry behind
-a private CA, mount the CA certificate into the fetcher at `/etc/ssl/certs/<hash>.0` (`<hash>`
-from `openssl x509 -hash -noout -in ca.crt`, a ConfigMap item with `subPath`, read-only): crane
-and git run with a stripped environment, so `SSL_CERT_FILE` and `GIT_SSL_CAINFO` do not reach
-them. The git server has to allow fetching a commit by its id (Git protocol v2, or
-`uploadpack.allowReachableSHA1InWant`), otherwise the source is the default branch. Details in
-[auto-check.md](auto-check.md#self-hosted-gitlab-or-registry).
-
-- **What leaves your cluster.** During an Auto-check of a private image Claude reads the image's
-  files and, for your own images, the cloned source code, and what it reads is sent to Anthropic
-  like the rest of the check. Store credentials only for images and repositories your
-  organisation allows to share with Claude, and scope them with a path prefix and least-privilege
-  read tokens.
-- **The database holds sealed secrets.** Credentials are sealed with AES-256-GCM under the key,
-  bound to their row, provider, hosts and path prefix; the database alone does not reveal them,
-  the database together with the key does. Whoever can write the database but lacks the key
-  cannot point a stored secret at another host, the changed credential no longer opens and
-  covers nothing, so it neither makes an image eligible nor shadows another credential. Keep the
-  key in a Secret apart from backups of the database volume.
-- **Key rotation.** sieb has no re-encryption. A new key makes every stored credential unreadable:
-  the Access page marks them, they cover nothing, and each secret has to be entered again (or the
-  credential deleted and added again). Removing the key turns private access off and hides the
-  stored credentials until the key is back.
-- **Credential test egress.** The Test action runs in sieb itself, so sieb's pod needs HTTPS
-  (443, or the port a self-hosted host names) to the registries and git hosts of the
-  credentials, for Docker Hub `registry-1.docker.io` and `auth.docker.io`, see
-  [NetworkPolicy](#networkpolicy). sieb refuses cluster-internal names and connects only to
-  public addresses, so a host that resolves to the pod network, the cluster or a metadata
-  endpoint is never reached. A registry or GitLab on a private address or an internal name, such
-  as an in-cluster registry, cannot be tested from sieb; the fetcher still uses its credentials.
-- **Pull probe egress.** sieb probes on demand whether an own image can be pulled anonymously
-  (see [Image access](api.md#image-access)), over the same guarded HTTPS to the image's registry
-  and its token realm. Without that egress the probe fails and own images stay `unknown`, which
-  Auto-check accepts only with a registry credential.
-
-## Kubernetes
-
-Example manifests, adapt namespace, hostname, storage and the labels of your Prometheus and ingress
-controller. SQLite allows one writer, so keep one replica and the `Recreate` strategy. The example
-runs oidc mode with MCP enabled (personal tokens only; add the `SIEB_OAUTH_*` variables of
-[mcp.md](mcp.md#connector-in-claudeai) for the Claude connector) behind one Ingress.
+The full set for oidc mode behind one Ingress. Adapt the namespace, hostname, issuer, storage and
+the labels your Prometheus and ingress controller select on. [Getting started](getting-started.md)
+uses a reduced version of the same set.
 
 ```yaml
 apiVersion: v1
@@ -326,7 +368,7 @@ spec:
           type: RuntimeDefault
       containers:
         - name: sieb
-          image: ghcr.io/bernhardkelm/sieb:0.1.0
+          image: ghcr.io/bernhardkelm/sieb:<version>
           env:
             - name: NODE_EXTRA_CA_CERTS
               value: /var/run/secrets/kubernetes.io/serviceaccount/ca.crt
@@ -354,8 +396,6 @@ spec:
                 secretKeyRef:
                   name: sieb-oidc
                   key: client-secret
-            - name: SIEB_MCP_ENABLED
-              value: "true"
           ports:
             - name: http
               containerPort: 3100
@@ -436,170 +476,21 @@ spec:
       secretName: sieb-tls
 ```
 
-The Ingress routes only the `http` port; the `metrics` port is reached by Prometheus inside the
-cluster. `jobLabel` sets `job="sieb"`, which the `SiebDown` example in
-[prometheus-rules.md](prometheus-rules.md#silencing-alerts) expects. Depending on your
-kube-prometheus-stack values, the ServiceMonitor may need the `release` label of your Prometheus.
-Without `SIEB_METRICS_PORT` in header mode, drop the `metrics` port and point the ServiceMonitor
-at `port: http`.
+`jobLabel` gives the scrape `job="sieb"`, which the silencing rules and the `SiebDown` alert in
+[Silencing alerts](prometheus-rules.md#silencing-alerts) expect. With kube-prometheus-stack, the
+ServiceMonitor may need the `release` label of your Prometheus.
 
-In header mode the Deployment drops `SIEB_AUTH` and the `SIEB_OIDC_*` variables and the Ingress
-carries the forward-auth middleware. With MCP on, `/mcp` and the two
-`/.well-known/oauth-protected-resource` paths then need a second Ingress without forward auth,
-since MCP clients cannot pass the proxy login. Prefer oidc mode over this setup: it needs one
-Ingress and no header sieb has to trust. If you stay in header mode, the second Ingress must
+For header mode, drop `SIEB_AUTH`, the `SIEB_OIDC_*` variables and the Secret, and add the
+forward-auth middleware to the Ingress. Without `SIEB_METRICS_PORT`, also drop the `metrics` ports
+and point the ServiceMonitor at `port: http`.
 
-- route only `/mcp`, `/.well-known/oauth-protected-resource` and
-  `/.well-known/oauth-protected-resource/mcp`, each with `pathType: Exact`, since everything else
-  on it bypasses the proxy (sieb also refuses dot segments such as `/mcp/%2e%2e/api/me` with 400);
-- set the username header to an empty value, so no client-sent copy reaches sieb on that route.
-  With Traefik a headers middleware does it, an empty value removes the header:
+## NetworkPolicy
 
-```yaml
-apiVersion: traefik.io/v1alpha1
-kind: Middleware
-metadata:
-  name: sieb-strip-user
-  namespace: sieb
-spec:
-  headers:
-    customRequestHeaders:
-      X-authentik-username: ""
----
-apiVersion: networking.k8s.io/v1
-kind: Ingress
-metadata:
-  name: sieb-mcp
-  namespace: sieb
-  annotations:
-    traefik.ingress.kubernetes.io/router.middlewares: sieb-sieb-strip-user@kubernetescrd
-spec:
-  rules:
-    - host: sieb.example.com
-      http:
-        paths:
-          - path: /mcp
-            pathType: Exact
-            backend:
-              service:
-                name: sieb
-                port:
-                  name: http
-          - path: /.well-known/oauth-protected-resource
-            pathType: Exact
-            backend:
-              service:
-                name: sieb
-                port:
-                  name: http
-          - path: /.well-known/oauth-protected-resource/mcp
-            pathType: Exact
-            backend:
-              service:
-                name: sieb
-                port:
-                  name: http
-  tls:
-    - hosts: [sieb.example.com]
-      secretName: sieb-tls
-```
+### Ingress
 
-### Switching an existing header deployment to oidc
-
-1. Deploy with `SIEB_AUTH=header` plus `SIEB_METRICS_PORT` and the ServiceMonitor on the
-   `metrics` port. Nothing visible changes.
-2. Create the authentik application, add the `SIEB_OIDC_*` variables and the Secret, set
-   `SIEB_AUTH=oidc`, remove the forward-auth middleware from the Ingress (and the second MCP
-   Ingress) and allow egress to authentik. Rolling back means reverting this step.
-
-Check from outside afterwards: `/` redirects to the sign-in page and its button to authentik,
-`/api/findings` answers 401, `/metrics` 404, `/mcp` without a token 401 (with MCP on), login and logout work, and new decisions
-record the same username as before.
-
-## Security
-
-### Both modes
-
-- `SIEB_ALLOWED_HOSTS` must contain the public hostname. Every other `Host` is refused (DNS
-  rebinding protection), except on `/metrics` and `/api/health`, which Prometheus and the kubelet
-  reach by pod IP.
-- Writes require `Content-Type: application/json` and a same-origin request, see [api.md](api.md).
-  So does `POST /auth/logout`.
-- `/mcp` authenticates only through bearer tokens and ignores both the username header and the
-  session cookie; bearer tokens are never accepted under `/api`. See [mcp.md](mcp.md).
-- A request target with a dot segment (`/mcp/%2e%2e/api/me`, `/a/../b`, any case or encoding)
-  answers 400 before anything else, so no request reaches a route its Ingress rule did not name.
-- Every response sends `X-Content-Type-Options: nosniff` and `Content-Security-Policy:
-  frame-ancestors 'none'`.
-- Personal tokens expire after at most a year (30 days, 90 days or 1 year), and revoked or
-  expired token rows are deleted 90 days later, or earlier by their owner in the token dialog.
-  To revoke every live token of a user at once:
-
-  ```sh
-  kubectl -n sieb exec deploy/sieb -- node -e "
-    const { DatabaseSync } = require('node:sqlite')
-    console.log(new DatabaseSync('/data/sieb.db').prepare(\"UPDATE api_tokens SET revoked_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now'), revoked_by = 'admin' WHERE owner = ? AND revoked_at IS NULL\").run(process.argv[1]))
-  " alice
-  ```
-
-- In production sieb warns at startup when `SIEB_OIDC_REQUIRED_GROUP` (oidc mode) or
-  `SIEB_OAUTH_REQUIRED_GROUP` (MCP with OAuth) is unset, since every user of the issuer is then
-  admitted.
-
-### Header mode
-
-sieb trusts the username header (`SIEB_USER_HEADER`, default `X-authentik-username`) set by a
-forward-auth proxy in front of it. Not enforced by code, required for identity and write
-protection to hold:
-
-- The proxy must overwrite or strip any client-sent copy of that header on every request. With
-  Traefik's forwardAuth middleware, list the header in `authResponseHeaders`. With other proxies,
-  set `SIEB_USER_HEADER` to the header they set, for example `X-Auth-Request-User` for oauth2-proxy,
-  and make sure they strip incoming copies.
-- A NetworkPolicy must allow ingress to the sieb pod only from the ingress controller and from
-  Prometheus, so nothing else can reach the pod and send its own username header (see
-  [NetworkPolicy](#networkpolicy)).
-- `/metrics` and the read routes need no user in this mode. They list CVE ids and image names of
-  your cluster, so never expose a header mode sieb without the forward-auth proxy in front of it;
-  only `/mcp` and its metadata may bypass the proxy, since they check bearer tokens themselves. With `SIEB_METRICS_PORT`,
-  `/metrics` leaves the public port.
-
-### OIDC mode
-
-- Everything needs a session except `/auth/*`, `/api/health`, `/mcp` and
-  `/.well-known/oauth-protected-resource*` (bearer tokens, when MCP is enabled) and the icons and
-  web manifest of the client. `/api` answers 401 without a session, reads included; pages redirect
-  to the login; the client's scripts and styles answer 401.
-- `/metrics` is never served on the public port, only on `SIEB_METRICS_PORT`.
-- The username header is ignored, so a client-sent `X-authentik-username` has no effect and the
-  Ingress needs no forward-auth middleware.
-- Sessions have an absolute lifetime and are stored as sha-256 hashes; the login cookie and the
-  session cookie are HttpOnly, SameSite=Lax and `__Host-` cookies over https, so a sibling
-  subdomain cannot plant either.
-  Removing a user from the group stops new logins at once, and such a refused login also deletes
-  every session of the user and revokes their live personal tokens (logged). Until the user tries
-  to log in, a running session ends at its expiry or logout. To end every session of a user
-  immediately, delete them (and revoke their tokens with the command above):
-
-  ```sh
-  kubectl -n sieb exec deploy/sieb -- node -e "
-    const { DatabaseSync } = require('node:sqlite')
-    console.log(new DatabaseSync('/data/sieb.db').prepare('DELETE FROM sessions WHERE username = ?').run(process.argv[1]))
-  " alice
-  ```
-
-- Known exception: each session stores the ID token it was opened with, and the logout sends it
-  to the issuer as `id_token_hint` in the end-session URL, so authentik ends the application
-  session and returns to sieb without a confirmation page. This is standard RP-initiated logout.
-  The ID token is a signed statement of who logged in, not an access token: sieb accepts it
-  nowhere (`/mcp` requires the MCP client as the only audience and the `sieb:read` scope), it is
-  deleted with the session row, and the database file should be protected like any credential
-  store.
-
-### NetworkPolicy
-
-Ingress to the pod: the `http` port from the ingress controller, the `metrics` port from
-Prometheus (in header mode without a metrics port, the `http` port from both):
+Allow the `http` port from the ingress controller and the `metrics` port from Prometheus. In
+header mode this policy is required, since anything that reaches the pod can send its own username
+header. In header mode without a metrics port, allow the `http` port from both namespaces.
 
 ```yaml
 apiVersion: networking.k8s.io/v1
@@ -627,17 +518,42 @@ spec:
         - port: metrics
 ```
 
-If you also restrict egress, allow DNS, the Kubernetes API, Prometheus, for the `cisa` KEV source
-HTTPS to `www.cisa.gov`, in oidc mode (or with MCP OAuth) HTTPS to the issuer host, which sieb
-contacts for discovery, the token exchange and the key set, and with
-[private access](#private-access) HTTPS to the registries and git hosts of the stored
-credentials, which the credential test reaches, and HTTPS to the registries of your own images
-for the pull probe. When authentik runs in the same
-cluster, allow its namespace and port instead; when it is reached through its public hostname,
-the traffic leaves through the ingress controller's address. A NetworkPolicy cannot match host
-names, so either allow port 443 to addresses outside the cluster, use an egress proxy or a CNI with
-FQDN policies, or point `SIEB_KEV_URL` at a mirror inside the cluster. A sketch of the first
-option, the CIDRs are placeholders for your pod and service ranges:
+With Auto-check, also allow the worker pod on the worker port. Add this entry to `ingress`:
+
+```yaml
+- from:
+    - podSelector:
+        matchLabels:
+          app.kubernetes.io/name: sieb-checker
+  ports:
+    - port: 3101
+```
+
+The worker's own policy is in [Set it up](auto-check.md#set-it-up).
+
+### Egress
+
+If you also restrict egress, sieb needs:
+
+- DNS, the Kubernetes API and Prometheus.
+- For the `cisa` KEV source, HTTPS to `www.cisa.gov` or to your mirror.
+- In oidc mode or with the Claude connector, HTTPS to the issuer for discovery, the token exchange
+  and the key set.
+- With Auto-check private access, HTTPS to the registries and git hosts of stored credentials,
+  which the **Test** action reaches from sieb itself. For Docker Hub these are
+  `registry-1.docker.io` and `auth.docker.io`.
+- For own images, HTTPS to their registry and its token service, which the pull probe uses to
+  learn whether an image is public.
+
+The credential test and the pull probe connect only to public addresses, never to cluster or
+private ones. A registry on an internal name or a private address, such as an in-cluster registry,
+cannot be tested or probed from sieb; the Auto-check fetcher still uses its credentials. See
+[Image access](reference/api.md#image-access) and
+[Access credentials](reference/api.md#access-credentials).
+
+A NetworkPolicy cannot match host names. Either allow port 443 to addresses outside the cluster,
+use an egress proxy or a CNI with FQDN policies, or point `SIEB_KEV_URL` at a mirror inside the
+cluster. A sketch of the first option; the excluded ranges stand for your private networks:
 
 ```yaml
 apiVersion: networking.k8s.io/v1
@@ -654,11 +570,85 @@ spec:
     - to:
         - ipBlock:
             cidr: 0.0.0.0/0
-            except: [10.0.0.0/8, 172.16.0.0/12, 192.168.0.0/16]
+            except:
+              - 10.0.0.0/8
+              - 172.16.0.0/12
+              - 192.168.0.0/16
+              - 100.64.0.0/10
+              - 169.254.0.0/16
       ports:
         - port: 443
           protocol: TCP
 ```
 
-Egress policies add up, so the rules for DNS, the API server, Prometheus and an in-cluster
-authentik go in further policies.
+Egress policies add up, so DNS, the API server, Prometheus and an identity provider inside the
+cluster go in further policies. An identity provider reached through its public hostname may route
+through the ingress controller's address; allow that address too.
+
+## Security checklist
+
+### Both modes
+
+- `SIEB_ALLOWED_HOSTS` contains the public hostname and nothing you do not serve.
+- `/metrics` and the worker port are reachable only from inside the cluster.
+- Secrets come from Kubernetes Secrets, and the `_FILE` variants are used where they exist.
+- The database volume is backed up and protected like a credential store. It holds session and
+  token hashes, the ID tokens of open sessions and, with private access, sealed credentials. See
+  [Backup and restore](operations.md#backup-and-restore).
+- `SIEB_OIDC_REQUIRED_GROUP` and `SIEB_OAUTH_REQUIRED_GROUP` are set where they apply. In
+  production sieb warns at start when they are not.
+- You know how to revoke a user's tokens and sessions, see
+  [Offboarding a user](operations.md#offboarding-a-user).
+
+`/mcp` accepts only bearer tokens, and bearer tokens are never accepted under `/api`. Personal
+tokens expire after 30 days, 90 days or one year. Every response carries
+`X-Content-Type-Options: nosniff` and `Content-Security-Policy: frame-ancestors 'none'`.
+
+### Header mode
+
+sieb cannot check these. Identity and write protection hold only while they are true:
+
+- The proxy overwrites or strips every client-sent copy of `SIEB_USER_HEADER` on every request.
+  With Traefik's forwardAuth middleware, list the header in `authResponseHeaders`.
+- The [ingress NetworkPolicy](#ingress) admits only the ingress controller and Prometheus.
+- Nothing but `/mcp` and its two metadata paths bypasses the proxy. Most read routes answer
+  without a user in this mode, and they list the CVEs and images of your cluster.
+- `SIEB_METRICS_PORT` is set, so `/metrics` leaves the public port.
+
+### OIDC mode
+
+- Everything needs a session except `/auth/*`, `/api/health`, the icons and web manifest of the
+  client and, with MCP on, `/mcp` and `/.well-known/oauth-protected-resource*`, which take bearer
+  tokens.
+- `/metrics` is served only on `SIEB_METRICS_PORT`, and the username header has no effect.
+- Sessions have an absolute lifetime and are stored as sha-256 hashes. The cookies are HttpOnly,
+  SameSite=Lax and `__Host-` prefixed over https, so a sibling subdomain cannot plant them.
+- Removing a user from the group stops new logins at once. The refused login also ends the user's
+  sessions, fails their open Auto-checks and revokes their tokens. Until they try, a running
+  session lasts until it expires.
+
+Each session stores the ID token it was opened with, because the logout sends it to the provider
+as `id_token_hint`. The ID token states who signed in; sieb accepts it nowhere as a credential,
+and it is deleted with the session.
+
+## Optional features
+
+### Claude integration
+
+Off by default. Set `SIEB_MCP_ENABLED=true` and `SIEB_PUBLIC_URL`, and for the claude.ai connector
+the `SIEB_OAUTH_*` variables of a second identity provider client. In header mode add the
+[second Ingress](#second-ingress-for-mcp-in-header-mode). See
+[Turn it on](working-with-claude.md#turn-it-on) and [Connect](working-with-claude.md#connect).
+
+### Auto-check
+
+Off by default. It needs the Claude integration, `SIEB_CHECKS_ENABLED=true`, a worker port on the
+Service and the worker Deployment. Private images and source code also need
+`SIEB_CREDENTIALS_KEY` and `SIEB_FETCHER_SECRET`. See [Set it up](auto-check.md#set-it-up) and
+[Private access](auto-check.md#private-access).
+
+## See also
+
+- [Prometheus rules](prometheus-rules.md): the findings rule, silencing rules and alerts
+- [Operations](operations.md): backups, upgrades, rotation and troubleshooting
+- [Configuration](reference/configuration.md): every variable and the start-up rules
