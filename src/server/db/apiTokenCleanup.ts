@@ -2,10 +2,12 @@ import type { DatabaseSync } from 'node:sqlite'
 
 import { isTokenLive, type ApiToken } from '#core/apiToken.ts'
 import { getUserToken, listOwnTokens } from '#server/db/apiTokenRepository.ts'
+import { deleteTokenRow } from '#server/db/apiTokenWrites.ts'
 import { inTransaction } from '#server/db/inTransaction.ts'
+import { DAY_MS } from '#core/timeUnits.ts'
 
 /** Revoked and expired token rows stay listed this long, then the cleanup deletes them */
-export const TOKEN_RETENTION_MS = 90 * 24 * 60 * 60 * 1000
+export const TOKEN_RETENTION_MS = 90 * DAY_MS
 
 export type DeleteTokenResult =
   | { ok: true; token: ApiToken }
@@ -63,7 +65,7 @@ export const deleteOwnInactiveToken = (
       return { ok: false, error: 'token_live' }
     }
 
-    db.prepare('DELETE FROM api_tokens WHERE id = ? AND owner = ?').run(id, owner)
+    deleteTokenRow(db, owner, id)
     return { ok: true, token }
   })
 
@@ -77,10 +79,8 @@ export const deleteOwnInactiveToken = (
 export const deleteInactiveTokensOf = (db: DatabaseSync, owner: string, now: Date): ApiToken[] =>
   inTransaction(db, () => {
     const inactive = listOwnTokens(db, owner).filter((token) => !isTokenLive(token, now))
-    const remove = db.prepare('DELETE FROM api_tokens WHERE id = ? AND owner = ?')
-
     for (const token of inactive) {
-      remove.run(token.id, owner)
+      deleteTokenRow(db, owner, token.id)
     }
 
     return inactive

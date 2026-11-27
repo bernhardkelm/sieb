@@ -12,6 +12,6 @@ describe('ReferenceLinks', () => {
 
     expect(links).toHaveLength(1)
     expect(links[0]!.attributes('href')).toBe('https://nvd.xn--nst-jhd.gov/x')
-    expect(links[0]!.text()).toBe('https://nvd.xn--nst-jhd.gov/x ↗')
+    expect(links[0]!.text()).toBe('https://nvd.xn--nst-jhd.gov/x, opens in a new tab')
   })
 })

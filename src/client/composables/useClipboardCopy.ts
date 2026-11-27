@@ -1,6 +1,6 @@
 import { getCurrentScope, onScopeDispose, ref, type Ref } from 'vue'
 
-import { notifyError } from '@/toast/toastManager'
+import { notifyError, notifySuccess } from '@/toast/toastManager'
 
 const COPIED_MS = 1500
 
@@ -8,6 +8,8 @@ export interface ClipboardCopy {
   /** True for a moment after a successful copy */
   copied: Ref<boolean>
   copy: (text: string) => Promise<boolean>
+  /** Copies a text and confirms it with a success toast, for keys and hints without a button */
+  copyWithNotice: (text: string, title: string, description: string) => Promise<boolean>
 }
 
 /**
@@ -42,11 +44,31 @@ export const useClipboardCopy = (): ClipboardCopy => {
     return true
   }
 
+  /**
+   * Copies a text and confirms it with a success toast.
+   * @param {string} text - Text to write
+   * @param {string} title - Toast title
+   * @param {string} description - Toast description
+   * @returns {Promise<boolean>} - Whether the clipboard took the text
+   */
+  const copyWithNotice = async (
+    text: string,
+    title: string,
+    description: string,
+  ): Promise<boolean> => {
+    if (!(await copy(text))) {
+      return false
+    }
+
+    notifySuccess(title, description)
+    return true
+  }
+
   if (getCurrentScope()) {
     onScopeDispose(() => {
       clearTimeout(timer)
     })
   }
 
-  return { copied, copy }
+  return { copied, copy, copyWithNotice }
 }

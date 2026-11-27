@@ -1,6 +1,6 @@
 import type { Hono } from 'hono'
 
-import type { ErrorBody } from '#core/apiTypes.ts'
+import type { ErrorBody } from '#core/errorApiTypes.ts'
 import type { AppEnv } from '#server/http/AppEnv.ts'
 import { logSafe } from '#server/logSafe.ts'
 

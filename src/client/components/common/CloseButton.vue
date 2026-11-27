@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import AppIcon from '@/components/icons/AppIcon.vue'
 defineProps<{
   /** Accessible name, such as "Close panel" */
   label: string
@@ -8,9 +9,7 @@ defineProps<{
 <template>
   <button type="button" class="close-button" :aria-label="label" aria-keyshortcuts="Escape">
     <span class="key" aria-hidden="true">Esc</span>
-    <svg class="icon" viewBox="0 0 16 16" aria-hidden="true" focusable="false">
-      <path d="M4 4l8 8M12 4l-8 8" />
-    </svg>
+    <AppIcon class="icon" name="close" />
   </button>
 </template>
 
@@ -19,6 +18,7 @@ defineProps<{
   display: inline-grid;
   flex: none;
   place-items: center;
+  min-height: var(--control-height);
   padding: 0 var(--space-1-5);
   border: var(--border-width) solid var(--color-border);
   border-radius: var(--radius-sm);
@@ -33,12 +33,6 @@ defineProps<{
 
 .icon {
   display: none;
-  width: var(--icon-size);
-  height: var(--icon-size);
-  fill: none;
-  stroke: currentColor;
-  stroke-width: 1.6;
-  stroke-linecap: round;
 }
 
 @media (hover: none) and (pointer: coarse), (max-width: 639px) {

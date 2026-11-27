@@ -1,3 +1,4 @@
+import { HOUR_MS } from '#core/timeUnits.ts'
 // @vitest-environment node
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
@@ -10,7 +11,6 @@ import {
 } from '#server/kev/kevRefreshSchedule.ts'
 
 const NOW = new Date('2026-11-26T12:00:00.000Z')
-const HOUR_MS = 60 * 60 * 1000
 const CATALOG = { catalogVersion: '2026.11.24', dateReleased: null, entryCount: 1 }
 
 /**

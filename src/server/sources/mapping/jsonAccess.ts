@@ -1,12 +1,12 @@
+import { isPlainObject } from '#core/isPlainObject.ts'
+
 /**
  * Returns a value as a plain object.
  * @param {unknown} value - Parsed JSON
  * @returns {Record<string, unknown>} - Object, empty for anything else
  */
 export const asRecord = (value: unknown): Record<string, unknown> =>
-  typeof value === 'object' && value !== null && !Array.isArray(value)
-    ? (value as Record<string, unknown>)
-    : {}
+  isPlainObject(value) ? value : {}
 
 /**
  * Returns a value as an array.

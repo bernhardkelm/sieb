@@ -3,6 +3,7 @@ import { errors, jwtVerify, type JWTPayload, type JWTVerifyGetKey } from 'jose'
 
 import type { ApiTokenGrant } from '#core/apiToken.ts'
 import type { Clock } from '#core/clock.ts'
+import { errorMessage } from '#core/errorMessage.ts'
 import type { BearerTokenCheck } from '#server/auth/personalTokenVerifier.ts'
 import { readUsername } from '#server/auth/readUsername.ts'
 import type { McpCaller } from '#server/mcp/mcpCaller.ts'
@@ -75,7 +76,7 @@ const verifyClaims = async (
       throw new OAuthError(OAuthErrorCode.InvalidToken, 'Invalid access token')
     }
 
-    log(`[sieb] OAuth key lookup failed: ${error instanceof Error ? error.message : String(error)}`)
+    log(`[sieb] OAuth key lookup failed: ${errorMessage(error)}`)
     throw new OAuthError(OAuthErrorCode.ServerError, 'Token keys unavailable')
   }
 

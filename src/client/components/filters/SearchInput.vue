@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 
+import AppIcon from '@/components/icons/AppIcon.vue'
 import KeyHint from '@/components/common/KeyHint.vue'
 
 withDefaults(
@@ -46,10 +47,7 @@ defineExpose({ focus })
 <template>
   <label class="search-input">
     <span class="visually-hidden">{{ label ?? placeholder }}</span>
-    <svg class="icon" viewBox="0 0 16 16" aria-hidden="true" focusable="false">
-      <circle cx="7" cy="7" r="4.5" />
-      <path d="M10.5 10.5 14 14" />
-    </svg>
+    <AppIcon class="icon" name="search" />
     <input
       ref="input"
       v-model="model"
@@ -82,13 +80,7 @@ defineExpose({ focus })
 }
 
 .icon {
-  flex: none;
-  width: var(--icon-size);
-  height: var(--icon-size);
-  fill: none;
-  stroke: var(--color-text-subtle);
-  stroke-width: 1.4;
-  stroke-linecap: round;
+  color: var(--color-text-subtle);
 }
 
 input {

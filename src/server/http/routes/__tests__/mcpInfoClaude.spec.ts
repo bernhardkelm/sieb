@@ -1,10 +1,10 @@
 // @vitest-environment node
 import { describe, expect, it } from 'vitest'
 
-import type { ClaudeConnection, McpInfoResponse } from '#core/apiTypes.ts'
+import type { ClaudeConnection, McpInfoResponse } from '#core/mcpApiTypes.ts'
 import { hashTokenSecret } from '#server/auth/tokenSecrets.ts'
 import { revokeOwnToken } from '#server/db/apiTokenRepository.ts'
-import { insertToken } from '#server/db/storeApiToken.ts'
+import { insertToken } from '#server/db/apiTokenWrites.ts'
 import { recordMcpConnection } from '#server/db/mcpConnectionRepository.ts'
 import { OAUTH_CONNECTION_WINDOW_MS } from '#server/db/readClaudeConnection.ts'
 import { createApp, type AppDeps } from '#server/http/createApp.ts'

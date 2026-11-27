@@ -1,0 +1,83 @@
+/* SidebarNav below 900px: a bottom navigation with icons, short labels on phones */
+@media (max-width: 899px) {
+  .nav {
+    flex-direction: row;
+    gap: 0;
+  }
+
+  .nav li {
+    flex: 1 1 0;
+    min-width: 0;
+  }
+
+  .link {
+    flex-direction: column;
+    justify-content: center;
+    gap: var(--space-0-5);
+    height: var(--bottom-nav-height);
+    padding: 0 var(--space-0-5);
+    border-radius: 0;
+    box-shadow: inset 0 var(--border-width-strong) 0 transparent;
+    font-size: var(--font-size-xs);
+    text-align: center;
+  }
+
+  .link.router-link-active {
+    background: transparent;
+    box-shadow: inset 0 var(--border-width-strong) 0 var(--color-accent);
+    color: var(--color-accent);
+  }
+
+  .glyph {
+    position: relative;
+    display: block;
+    order: -1;
+  }
+
+  .icon {
+    --icon-size: var(--nav-icon-size);
+
+    display: block;
+  }
+
+  .label {
+    max-width: 100%;
+    margin-right: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .badge {
+    position: absolute;
+    bottom: calc(100% - var(--space-2));
+    left: calc(100% - var(--space-1-5));
+    min-width: calc(var(--space-base) * 4);
+    margin: 0;
+    padding: 0 var(--space-1);
+    line-height: calc(var(--space-base) * 4);
+  }
+
+  .shortcut {
+    display: none;
+  }
+}
+
+/* phones: short labels, the full label stays the accessible name */
+@media (max-width: 639px) {
+  .label.replaced {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+  }
+
+  .short-label {
+    display: block;
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+}

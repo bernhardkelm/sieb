@@ -7,7 +7,7 @@ import type { FindingView } from '#core/findingView.ts'
 import { visibleText } from '@/__tests__/visibleText'
 import TriageSelectionBar from '@/components/triage/TriageSelectionBar.vue'
 import { CAPPED_REASON } from '@/format/selectionHandoffText'
-import { useHandoffSelectionStore } from '@/stores/handoffSelectionStore'
+import { useSelectionStore } from '@/stores/selectionStore'
 import { useHandoffTargetStore } from '@/stores/handoffTargetStore'
 import { useMcpStore } from '@/stores/mcpStore'
 import { notifyNotice, notifySuccess } from '@/toast/toastManager'
@@ -45,7 +45,7 @@ const mountBar = (findings: FindingView[], connected = true): VueWrapper => {
     oauth: false,
     claude: { connected, activeTokens: connected ? 1 : 0, oauthLastSeenAt: null },
   }
-  useHandoffSelectionStore().register(() => findings)
+  useSelectionStore().register(() => findings)
   wrapper = mount(TriageSelectionBar, {
     props: { count: findings.length },
     global: { plugins: [pinia] },

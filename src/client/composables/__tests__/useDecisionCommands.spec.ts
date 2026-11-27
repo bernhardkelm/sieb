@@ -1,7 +1,7 @@
 import { createPinia, setActivePinia } from 'pinia'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-import type { BulkDecisionResult } from '#core/apiTypes.ts'
+import type { BulkDecisionResult } from '#core/decisionApiTypes.ts'
 import { buildDecision, buildFindingView } from '#core/__tests__/coreBuilders.ts'
 import type { DecisionView, FindingView } from '#core/findingView.ts'
 import { ApiError } from '@/api/ApiError'

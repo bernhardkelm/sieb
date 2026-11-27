@@ -1,6 +1,6 @@
 import type { DatabaseSync } from 'node:sqlite'
 
-import type { Proposal } from '#core/proposal.ts'
+import type { Proposal } from '#core/proposalRecord.ts'
 import { listProposals, resolveProposal } from '#server/db/proposalRepository.ts'
 
 /**

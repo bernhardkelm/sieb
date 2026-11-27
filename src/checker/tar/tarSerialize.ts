@@ -11,9 +11,6 @@ const TYPEFLAGS: Record<EntryKind, string> = {
   directory: '5',
 }
 
-/** Fields of a header the rewriter writes, the same the parser reads */
-export type HeaderFields = RawHeader
-
 /**
  * Writes an octal field padded with zeros and terminated by NUL.
  * @param {Buffer} block - Header block
@@ -44,10 +41,10 @@ export const fitsSize = (size: number): boolean => size <= MAX_OCTAL_SIZE
 
 /**
  * Builds a fresh ustar header owned by root.
- * @param {HeaderFields} fields - Header fields, names that do not fit must be shortened beforehand
+ * @param {RawHeader} fields - Header fields, names that do not fit must be shortened beforehand
  * @returns {Buffer} - Header block with a valid checksum
  */
-export const buildHeader = (fields: HeaderFields): Buffer => {
+export const buildHeader = (fields: RawHeader): Buffer => {
   const block = Buffer.alloc(BLOCK)
 
   block.write(fields.name, 0, 100, 'utf8')

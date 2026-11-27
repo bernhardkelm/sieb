@@ -16,9 +16,9 @@ const SKELETON = [
 ]
 
 const BLOCK_RULES =
-  'needs_patch and fix_planned add ": <exact patch action>" ("→ needs_patch: upgrade' +
-  ' libexample to 1.2.1 · confidence high"), upstream_pending " · waiting for upstream"' +
-  ' instead, also in tables.' +
+  'The first line contains "confidence"; needs_patch and fix_planned add ": <exact patch' +
+  ' action>" ("→ needs_patch: upgrade libexample to 1.2.1 · confidence high"),' +
+  ' upstream_pending " · waiting for upstream" instead, also in tables.' +
   ' inconclusive: Why names what is missing. Why has at most 25 words. Checked and Not' +
   ' checked hold only comma-separated keywords: advisory, upstream_source, image, own_source,' +
   ' runtime; sieb data counts as advisory.'
@@ -33,10 +33,6 @@ const PLAIN =
 const MIXED =
   'Find, then triage: the same, then the 4-line block of the triaged finding. No paragraphs, no' +
   ' other table.'
-
-const EMPTY_SEARCH =
-  'A filtered search returning 0: say so in the first line before you widen it and name the' +
-  ' widened filter'
 
 // Claude Code truncates MCP server instructions after this many characters
 const CLAUDE_CODE_INSTRUCTIONS_LIMIT = 4096
@@ -75,10 +71,7 @@ describe('serverInstructions', () => {
       'fix.action and fix.change, only steps the operator carries out, never a lookup ("check' +
         ' the release notes"): do it yourself, name the release, tag or digest.',
     )
-    expect(text).toContain(
-      'No fix published yet: fix_planned, fix.availability upstream_pending, waitingFor;' +
-        ' fix.interim, a workaround, only when urgent.',
-    )
+    expect(text).toContain('no shortcut around checks you can run')
     expect(text).toContain('never guess, propose inconclusive with missing')
     expect(text).toContain('weak evidence for a verdict is that verdict with confidence low')
     expect(text).not.toMatch(/do not propose|undecided/)
@@ -89,7 +82,12 @@ describe('serverInstructions', () => {
     expect(text).not.toContain('Copy the last line verbatim.')
     expect(text).toContain(PLAIN)
     expect(text).toContain(MIXED)
-    expect(text).toContain(EMPTY_SEARCH)
+  })
+
+  it('explains a reopened decision state to every connection', () => {
+    for (const text of [serverInstructions(true, true), serverInstructions(false)]) {
+      expect(text).toContain('decisionState reopened means severity rose or it became KEV listed.')
+    }
   })
 
   it('tells a read-only connection to say that proposing needs another token', () => {
@@ -165,7 +163,11 @@ describe('serverInstructions', () => {
       expect(text).toContain('may or may not be inspectable, try pulling it')
       expect(text).toContain('private: an own image (owner self)')
       expect(text).toContain('advisory-only evidence is acceptable')
-      expect(text).toContain('When a tool outside sieb is refused, do not retry with another one')
+      expect(text).toContain('never repeat a refused action through another tool')
+      expect(text).toContain(
+        'after a refused shell command still read pages with the fetch tool, it asks on its own',
+      )
+      expect(text).not.toContain('do not retry with another one')
       expect(text).toContain(
         '"public" in a question means exposure public unless the user says registry or source',
       )
@@ -194,6 +196,8 @@ describe('triageWorkflow', () => {
       '**CVE-2025-1234 · registry.example.com/acme/app** → inconclusive · confidence low',
     )
     expect(text).toContain("sieb's data and the public advisory suffice")
+    expect(text).toContain('never repeat it through another tool')
+    expect(text).toContain('does not rule out reading pages with the fetch tool')
     expect(text).toContain(
       'its repository is often on this machine, so if you can read files, check whether the' +
         ' working directory is it',

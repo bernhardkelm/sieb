@@ -1,7 +1,7 @@
 import type { McpServer, ToolAnnotations } from '@modelcontextprotocol/server'
 import { z } from 'zod'
 
-import type { ValidationIssue } from '#core/apiTypes.ts'
+import type { ValidationIssue } from '#core/errorApiTypes.ts'
 import { proposalReviewUrl } from '#core/inbox/inboxLinks.ts'
 import { PATCH_ACTION_HINT } from '#core/patchAction.ts'
 import type { ProposalClientKind } from '#core/proposalClient.ts'
@@ -16,7 +16,8 @@ import { proposeDecisionInput as inputSchema } from '#server/mcp/tools/proposeDe
 import { toolError, toolResult } from '#server/mcp/toolResult.ts'
 import { proposeLogLine } from '#server/proposalLogLines.ts'
 
-export const PROPOSAL_NOTE = 'Nothing changed yet; a human must accept this in sieb.'
+export const PROPOSAL_NOTE =
+  'Nothing changed yet; a human must accept this in sieb. Now reply in the sieb format, nothing else: the first line with verdict, confidence and, for needs_patch and fix_planned, the patch action or "waiting for upstream"; Why in at most 25 words; Checked and Not checked with keywords only; then the Proposal line with this url.'
 
 /** Writes a proposal row only, never a decision */
 const PROPOSE_TOOL: ToolAnnotations = {
@@ -99,7 +100,7 @@ export const registerProposeDecisionTool = (
     {
       title: 'Propose a decision',
       description:
-        'Files a structured triage proposal for a CVE in one or more images (findingId alone, or vulnId with imageRefs) or in every image (vulnId with all: true); findingId cannot be combined with vulnId, imageRefs or all. Nothing changes and no alert is muted until a human accepts it in sieb. A new proposal for the same target replaces your open one. Returns the review URL.',
+        'Files a structured triage proposal for a CVE in one or more images (findingId alone, or vulnId with imageRefs) or in every image (vulnId with all: true); findingId cannot be combined with vulnId, imageRefs or all. Nothing changes and no alert is muted until a human accepts it in sieb. A new proposal for the same target replaces your open one. Returns the review URL. File one at the end of every triage without asking, inconclusive included; call list_my_proposals first and do not repeat a rejected proposal without new evidence.',
       inputSchema,
       outputSchema,
       annotations: PROPOSE_TOOL,

@@ -50,7 +50,7 @@ describe('FindingInboxLine', () => {
 
     const links = [...document.querySelectorAll<HTMLAnchorElement>('.finding-inbox a')]
 
-    expect(document.querySelector('.finding-inbox .label')?.textContent).toBe('In your Inbox')
+    expect(document.getElementById('finding-inbox-label')?.textContent).toBe('In your Inbox')
     expect(links.map((link) => link.textContent?.trim())).toEqual([
       'Decision re-opened: Severity rose',
       'KEV listed 3 days ago',

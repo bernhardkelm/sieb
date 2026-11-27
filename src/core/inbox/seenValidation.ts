@@ -1,4 +1,4 @@
-import type { ValidationIssue } from '#core/apiTypes.ts'
+import type { ValidationIssue } from '#core/errorApiTypes.ts'
 import { inboxKindOf, seeableKindOf } from '#core/inbox/inboxKeys.ts'
 
 /** Most keys one POST /api/inbox/seen marks */

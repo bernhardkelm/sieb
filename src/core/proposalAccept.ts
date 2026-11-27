@@ -5,9 +5,10 @@ import {
   type DecisionStatus,
 } from '#core/decision.ts'
 import { defaultExpiresAt } from '#core/decisionExpiry.ts'
-import { isDecidableVerdict, statusOfVerdict, type ProposalClaims } from '#core/proposal.ts'
+import { isPlainObject } from '#core/isPlainObject.ts'
+import { isDecidableVerdict, statusOfVerdict } from '#core/proposal.ts'
 import { generateProposalReason } from '#core/proposalReason.ts'
-import { isPlainObject } from '#core/proposalTextReaders.ts'
+import type { ProposalClaims } from '#core/proposalRecord.ts'
 
 /** Fields a reviewer may change before accepting, scope and images stay as proposed */
 export const ACCEPT_EDIT_FIELDS = [

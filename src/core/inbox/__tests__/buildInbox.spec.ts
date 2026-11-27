@@ -2,22 +2,24 @@ import { describe, expect, it } from 'vitest'
 
 import { buildBaseline, buildDecision, NOW } from '#core/__tests__/coreBuilders.ts'
 
-import {
-  DAY_MS,
-  fromNow,
-  inboxFinding,
-  inboxOf,
-  inboxProposal,
-  NGINX,
-  REDIS,
-} from './inboxBuilders.ts'
+import { fromNow, inboxFinding, inboxOf, inboxProposal, NGINX, REDIS } from './inboxBuilders.ts'
+import { DAY_MS } from '#core/timeUnits.ts'
 
 const WINDOW_MS = 14 * DAY_MS
 
 describe('buildInbox proposals', () => {
   it('lists open proposals with the facts of the open findings they target', () => {
     const findings = [
-      inboxFinding({ id: 1, imageRef: NGINX, severity: 'Medium', title: 'libssl overflow' }),
+      inboxFinding({
+        id: 1,
+        imageRef: NGINX,
+        severity: 'Medium',
+        title: 'libssl overflow',
+        exposure: 'gated',
+        owner: 'self',
+        packages: ['libssl3'],
+        namespaces: ['web'],
+      }),
       inboxFinding({ id: 2, imageRef: REDIS, severity: 'Critical', kev: true }),
       inboxFinding({ id: 3, imageRef: REDIS, vulnId: 'CVE-2025-2000', severity: 'Critical' }),
     ]
@@ -51,6 +53,10 @@ describe('buildInbox proposals', () => {
         severity: 'Medium',
         kev: false,
         title: 'libssl overflow',
+        exposure: 'gated',
+        owners: ['self'],
+        packages: ['libssl3'],
+        namespaces: ['web'],
         url: 'https://sieb.example.com/inbox/proposals/7',
         refs: { proposalId: 7 },
         imageRefs: [NGINX],
@@ -101,8 +107,23 @@ describe('buildInbox decisions', () => {
     }
     const { items } = inboxOf({
       findings: [
-        inboxFinding({ id: 1, imageRef: NGINX, severity: 'Critical' }),
-        inboxFinding({ id: 2, imageRef: REDIS }),
+        inboxFinding({
+          id: 1,
+          imageRef: NGINX,
+          severity: 'Critical',
+          exposure: 'internal',
+          owner: 'self',
+          packages: ['zlib'],
+          namespaces: ['web'],
+        }),
+        inboxFinding({
+          id: 2,
+          imageRef: REDIS,
+          exposure: 'public',
+          owner: 'third-party',
+          packages: ['libssl3', 'zlib'],
+          namespaces: ['cache'],
+        }),
       ],
       decisions: [
         buildDecision({
@@ -127,6 +148,10 @@ describe('buildInbox decisions', () => {
         severity: 'Critical',
         kev: false,
         title: null,
+        exposure: 'public',
+        owners: ['self', 'third-party'],
+        packages: ['libssl3', 'zlib'],
+        namespaces: ['cache', 'web'],
         url: 'https://sieb.example.com/triage?finding=2',
         refs: { decisionId: 4, findingId: 2 },
         decisionStatus: 'accepted',
@@ -212,6 +237,10 @@ describe('buildInbox KEV listings', () => {
         severity: 'High',
         kev: true,
         title: null,
+        exposure: null,
+        owners: [],
+        packages: [],
+        namespaces: [],
         url: 'https://sieb.example.com/triage?finding=1',
         refs: { findingId: 1, decisionId: 8 },
         decisionStatus: 'not_affected',

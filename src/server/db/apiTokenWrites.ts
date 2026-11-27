@@ -88,3 +88,14 @@ export const insertToken = (
 
     return { ok: true, token: storeToken(db, { owner, input, prefix, hash }, now) }
   })
+
+/**
+ * Deletes one token row of an owner.
+ * @param {DatabaseSync} db - Open database
+ * @param {string} owner - Token owner
+ * @param {number} id - Token id
+ * @returns {void}
+ */
+export const deleteTokenRow = (db: DatabaseSync, owner: string, id: number): void => {
+  db.prepare('DELETE FROM api_tokens WHERE id = ? AND owner = ?').run(id, owner)
+}

@@ -12,8 +12,7 @@ import { endLogLines } from '#server/checks/checkLogLines.ts'
 import { revokeLiveTokensOf } from '#server/db/apiTokenCleanup.ts'
 import { failChecksOf, REFUSED_REQUESTER_ERROR } from '#server/db/failChecksOf.ts'
 import { createSession, deleteSession, deleteSessionsOf } from '#server/db/sessionRepository.ts'
-
-const HOUR_MS = 60 * 60 * 1000
+import { HOUR_MS } from '#core/timeUnits.ts'
 
 /**
  * Ends all access of a user the identity provider no longer admits to sieb: deletes every

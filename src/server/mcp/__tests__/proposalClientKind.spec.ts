@@ -2,7 +2,7 @@
 import type { AuthInfo } from '@modelcontextprotocol/server'
 import { describe, expect, it } from 'vitest'
 
-import type { ApiTokenCreateResponse } from '#core/apiTypes.ts'
+import type { ApiTokenCreateResponse } from '#core/tokenApiTypes.ts'
 import type { FindingView } from '#core/findingView.ts'
 import { REDIS } from '#server/db/__tests__/dbFixtures.ts'
 import { listFindingsByVuln } from '#server/db/findingRepository.ts'

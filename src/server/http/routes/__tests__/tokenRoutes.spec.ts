@@ -3,13 +3,13 @@ import { describe, expect, it } from 'vitest'
 
 import { buildProposalInput, PROPOSER } from '#core/__tests__/proposalBuilders.ts'
 import { MAX_LIVE_TOKENS, type ApiTokenScope } from '#core/apiToken.ts'
+import type { McpInfoResponse } from '#core/mcpApiTypes.ts'
 import type {
   ApiTokenCleanupResponse,
   ApiTokenCreateResponse,
   ApiTokenView,
-  McpInfoResponse,
-} from '#core/apiTypes.ts'
-import { insertToken } from '#server/db/storeApiToken.ts'
+} from '#core/tokenApiTypes.ts'
+import { insertToken } from '#server/db/apiTokenWrites.ts'
 import { getProposal, insertProposal } from '#server/db/proposalRepository.ts'
 import { createApp, type AppDeps } from '#server/http/createApp.ts'
 

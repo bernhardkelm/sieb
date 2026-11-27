@@ -1,11 +1,11 @@
 import type { InboxFinding, InboxProposal } from '#core/inbox/inboxItem.ts'
 import { buildInbox, type Inbox, type InboxSources } from '#core/inbox/buildInbox.ts'
 import { NOW } from '#core/__tests__/coreBuilders.ts'
+import { DAY_MS } from '#core/timeUnits.ts'
 
 export const NGINX = 'index.docker.io/library/nginx'
 export const REDIS = 'index.docker.io/library/redis'
 export const BASE = 'https://sieb.example.com/'
-export const DAY_MS = 24 * 60 * 60 * 1000
 
 /**
  * Returns the ISO time a number of milliseconds from NOW.
@@ -28,6 +28,10 @@ export const inboxFinding = (overrides: Partial<InboxFinding> = {}): InboxFindin
   title: null,
   resolvedAt: null,
   kevSince: null,
+  exposure: null,
+  owner: null,
+  packages: [],
+  namespaces: [],
   ...overrides,
 })
 

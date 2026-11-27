@@ -33,6 +33,19 @@ export const CANCELLED: CheckOutcome = {
 }
 
 /**
+ * Returns the outcome of a check that sieb fails itself, without a result of the worker.
+ * @param {string} error - Error text for humans
+ * @returns {CheckOutcome} - Failed outcome without duration, usage or reply
+ */
+export const failedOutcome = (error: string): CheckOutcome => ({
+  state: 'failed',
+  error,
+  durationMs: null,
+  usage: null,
+  reply: null,
+})
+
+/**
  * Returns the newest proposal filed with a token.
  * @param {DatabaseSync} db - Open database
  * @param {number} tokenId - Token id

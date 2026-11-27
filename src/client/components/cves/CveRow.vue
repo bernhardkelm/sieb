@@ -94,7 +94,7 @@ const images = computed(() => props.cve.imageRefs.join('\n'))
 
   .vuln-id {
     flex: 1 1 0;
-    min-width: calc(var(--space-base) * 24);
+    min-width: var(--row-key-min);
   }
 
   .title,

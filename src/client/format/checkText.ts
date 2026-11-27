@@ -82,3 +82,13 @@ export const checkChipHint = (check: CheckView): string => {
         : 'Claude filed a proposal, open it to review'
   }
 }
+
+/**
+ * Describes what cancelling a running check stops, for the cancel confirmation.
+ * @param {CheckView | null} check - Running check asked about, null before the first ask
+ * @returns {string} - Description, empty without a check
+ */
+export const cancelConfirmText = (check: CheckView | null): string =>
+  check === null
+    ? ''
+    : `Claude stops investigating ${check.vulnId} on ${check.imageRef} and files nothing.`

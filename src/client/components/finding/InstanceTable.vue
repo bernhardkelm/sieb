@@ -44,7 +44,7 @@ const groups = computed(() =>
           <td class="mono">{{ instance.package ?? '-' }}</td>
           <td class="mono">
             {{ instance.installedVersion ?? '?' }} → {{ instance.fixedVersion ?? '?' }}
-            <BaseChip v-if="instance.resolvedAt !== null" outline>resolved</BaseChip>
+            <BaseChip v-if="instance.resolvedAt !== null" variant="outline">resolved</BaseChip>
           </td>
         </tr>
       </tbody>

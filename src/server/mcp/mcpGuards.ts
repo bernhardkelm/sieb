@@ -1,19 +1,20 @@
 import type { MiddlewareHandler } from 'hono'
 import { bodyLimit } from 'hono/body-limit'
 
-import type { ErrorBody } from '#core/apiTypes.ts'
+import type { ErrorBody } from '#core/errorApiTypes.ts'
 import type { AppEnv } from '#server/http/AppEnv.ts'
 import { isSameHostOrigin } from '#server/http/writeGuard.ts'
+import { MINUTE_MS, HOUR_MS } from '#core/timeUnits.ts'
 
 export const MCP_MAX_BODY_BYTES = 128 * 1024
 
 export const MCP_RATE_LIMIT = 120
 
-export const MCP_RATE_WINDOW_MS = 60 * 1000
+export const MCP_RATE_WINDOW_MS = MINUTE_MS
 
 export const PROPOSE_RATE_LIMIT = 30
 
-export const PROPOSE_RATE_WINDOW_MS = 60 * 60 * 1000
+export const PROPOSE_RATE_WINDOW_MS = HOUR_MS
 
 /**
  * Returns whether a present Origin header may reach /mcp: the requested host or an allowlisted

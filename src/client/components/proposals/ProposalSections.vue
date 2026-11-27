@@ -1,8 +1,9 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 
-import type { ProposalDetail } from '#core/apiTypes.ts'
+import type { ProposalDetail } from '#core/proposalApiTypes.ts'
 import { isDecidableVerdict } from '#core/proposal.ts'
+import SectionHeading from '@/components/common/SectionHeading.vue'
 import KevDetails from '@/components/finding/KevDetails.vue'
 import AcceptEffects from '@/components/proposals/AcceptEffects.vue'
 import ClaimBox from '@/components/proposals/ClaimBox.vue'
@@ -36,28 +37,28 @@ const relatedAfterPlan = computed(() => decidable.value && planShown.value)
   <div class="proposal-sections">
     <ProposalHeader :detail="detail" />
     <section class="section" aria-labelledby="review-summary">
-      <h3 id="review-summary" class="section-title">Summary</h3>
+      <SectionHeading id="review-summary">Summary</SectionHeading>
       <ClaimBox>
         <ClaudeText :text="detail.proposal.summary" class="summary" />
       </ClaimBox>
     </section>
     <section v-if="!decidable" class="section" aria-labelledby="review-missing">
-      <h3 id="review-missing" class="section-title">Missing to decide</h3>
+      <SectionHeading id="review-missing">Missing to decide</SectionHeading>
       <MissingList :missing="detail.proposal.missing" />
     </section>
     <section v-else-if="planShown" class="section" aria-labelledby="review-todo">
-      <h3 id="review-todo" class="section-title">What to do</h3>
+      <SectionHeading id="review-todo">What to do</SectionHeading>
       <ClaimBox>
         <WhatToDo :proposal="detail.proposal" />
       </ClaimBox>
     </section>
     <RelatedFindings v-if="relatedShown && relatedAfterPlan" :detail="detail" />
     <section class="section" aria-labelledby="review-basis">
-      <h3 id="review-basis" class="section-title">Evidence basis</h3>
+      <SectionHeading id="review-basis">Evidence basis</SectionHeading>
       <EvidenceBasis :detail="detail" />
     </section>
     <section class="section" aria-labelledby="review-facts">
-      <h3 id="review-facts" class="section-title">sieb's facts and Claude's claims</h3>
+      <SectionHeading id="review-facts">sieb's facts and Claude's claims</SectionHeading>
       <div class="side-by-side">
         <div class="facts-column">
           <SiebFacts :detail="detail" />
@@ -70,26 +71,26 @@ const relatedAfterPlan = computed(() => decidable.value && planShown.value)
       </div>
     </section>
     <section class="section" aria-labelledby="review-evidence">
-      <h3 id="review-evidence" class="section-title">Evidence</h3>
+      <SectionHeading id="review-evidence">Evidence</SectionHeading>
       <ClaimBox>
         <EvidenceChecklist :evidence="detail.proposal.evidence" />
       </ClaimBox>
     </section>
     <RelatedFindings v-if="relatedShown && !relatedAfterPlan" :detail="detail" />
     <section class="section" aria-labelledby="review-fix">
-      <h3 id="review-fix" class="section-title">{{ fixTitle }}</h3>
+      <SectionHeading id="review-fix">{{ fixTitle }}</SectionHeading>
       <ClaimBox>
         <FixAndReview :proposal="detail.proposal" :plan-shown="planShown" />
       </ClaimBox>
     </section>
     <section class="section" aria-labelledby="review-unknowns">
-      <h3 id="review-unknowns" class="section-title">
-        Unknowns <span class="count">{{ detail.proposal.unknowns.length }}</span>
-      </h3>
+      <SectionHeading id="review-unknowns" :count="detail.proposal.unknowns.length">
+        Unknowns
+      </SectionHeading>
       <UnknownsList :unknowns="detail.proposal.unknowns" />
     </section>
     <section class="section" aria-labelledby="review-references">
-      <h3 id="review-references" class="section-title">References</h3>
+      <SectionHeading id="review-references">References</SectionHeading>
       <ReferenceLinks :references="detail.proposal.references" />
     </section>
     <section
@@ -97,24 +98,19 @@ const relatedAfterPlan = computed(() => decidable.value && planShown.value)
       class="section"
       aria-labelledby="review-effects"
     >
-      <h3 id="review-effects" class="section-title">What accepting will do</h3>
+      <SectionHeading id="review-effects">What accepting will do</SectionHeading>
       <AcceptEffects :detail="detail" />
     </section>
   </div>
 </template>
 
-<style scoped src="@/components/proposals/reviewSection.css"></style>
+<style scoped src="@/components/layout/panelSection.css"></style>
 
 <style scoped>
 .proposal-sections {
   display: flex;
   flex-direction: column;
   gap: var(--space-6);
-}
-
-.count {
-  color: var(--color-text-subtle);
-  font-weight: var(--font-weight-regular);
 }
 
 .summary {

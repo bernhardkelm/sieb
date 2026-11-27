@@ -26,6 +26,7 @@
   --color-text: var(--ink);
   --color-text-muted: color-mix(in srgb, var(--ink) 62%, var(--paper));
   --color-text-subtle: color-mix(in srgb, var(--ink) 45%, var(--paper));
+  --color-label: var(--color-text-muted); /* uppercase section and field labels */
   --color-border: color-mix(in srgb, var(--ink) 10%, var(--paper));
   --color-border-strong: color-mix(in srgb, var(--ink) 20%, var(--paper));
 
@@ -33,6 +34,7 @@
   --color-accent: light-dark(hsl(237 60% 56%), hsl(237 80% 72%));
   --color-on-accent: light-dark(hsl(0 0% 100%), hsl(237 40% 12%));
   --color-focus: var(--color-accent);
+  --color-new: var(--color-accent); /* dot on rows the user has not seen yet */
 
   /* state */
   --color-success: light-dark(hsl(150 55% 34%), hsl(150 45% 60%));
@@ -97,11 +99,12 @@
   --font-weight-regular: 400;
   --font-weight-medium: 500;
   --font-weight-semibold: 600;
-  --font-size-xs: 0.6875rem; /* 11px */
-  --font-size-sm: 0.75rem; /* 12px */
-  --font-size-md: 0.8125rem; /* 13px, base */
-  --font-size-lg: 0.9375rem; /* 15px */
-  --font-size-xl: 1.125rem; /* 18px */
+  --font-size-unit: 0.0625rem; /* 1px at the default root size */
+  --font-size-xs: calc(var(--font-size-unit) * 11);
+  --font-size-sm: calc(var(--font-size-unit) * 12);
+  --font-size-md: calc(var(--font-size-unit) * 13); /* base */
+  --font-size-lg: calc(var(--font-size-unit) * 15);
+  --font-size-xl: calc(var(--font-size-unit) * 18);
   --line-height-tight: 1.25;
   --line-height-body: 1.45;
   --letter-spacing-caps: 0.04em;
@@ -120,12 +123,15 @@
   --space-12: calc(var(--space-base) * 12);
 
   /* shape */
-  --radius-sm: 3px;
-  --radius: 5px;
-  --radius-lg: 8px;
+  --radius-unit: 1px;
+  --radius-sm: calc(var(--radius-unit) * 3);
+  --radius: calc(var(--radius-unit) * 5);
+  --radius-lg: calc(var(--radius-unit) * 8);
   --radius-pill: 999px;
   --border-width: 1px;
   --border-width-strong: 2px;
+  --chip-border-mix: 40%; /* share of the tone colour in a framed or dashed chip border */
+  --opacity-disabled: 0.55;
   --shadow-sm: 0 1px 2px color-mix(in srgb, var(--shade) 8%, transparent);
   --shadow-md:
     0 0 0 var(--border-width) var(--color-border),
@@ -140,13 +146,21 @@
   --control-height: calc(var(--space-base) * 7);
   --chip-height: calc(var(--space-base) * 5);
   --icon-size: calc(var(--space-base) * 4);
+  --icon-stroke: 1.5;
+  --icon-stroke-bold: 2;
+  --chip-icon-size: calc(var(--space-base) * 2.5);
   --nav-icon-size: calc(var(--space-base) * 5);
   --checkbox-size: calc(var(--space-base) * 3.5);
   --spinner-size: calc(var(--space-base) * 3);
   --dot-size: calc(var(--space-base) * 1.5);
+  --new-dot-size: calc(var(--space-base) * 2);
   --search-width: calc(var(--space-base) * 60);
   --popover-min-width: calc(var(--space-base) * 40);
   --dialog-width: calc(var(--space-base) * 120);
+  --dialog-top: 12vh;
+  --dialog-top-alert: 20vh;
+  --content-max-width: calc(var(--space-base) * 240);
+  --prose-max-width: calc(var(--space-base) * 150);
   --toast-width: calc(var(--space-base) * 90);
   --textarea-min-height: calc(var(--space-base) * 18);
   --label-width: calc(var(--space-base) * 22);
@@ -154,6 +168,23 @@
   --chevron-size: calc(var(--space-base) * 3.5);
   --sort-indicator-size: calc(var(--space-base) * 2.5);
   --count-width: calc(var(--space-base) * 10);
+  --fact-min-width: calc(var(--space-base) * 28);
+  --col-severity: calc(var(--space-base) * 15);
+  --col-kev: calc(var(--space-base) * 8);
+  --col-vuln-id: calc(var(--space-base) * 34);
+  --col-image: calc(var(--space-base) * 32);
+  --col-image-mid: calc(var(--space-base) * 28);
+  --col-exposure: calc(var(--space-base) * 16);
+  --col-owner: calc(var(--space-base) * 18);
+  --col-first-seen: calc(var(--space-base) * 16);
+  --col-first-seen-mid: calc(var(--space-base) * 12);
+  --col-decision-state: calc(var(--space-base) * 26);
+  --col-inbox-kind: calc(var(--space-base) * 22);
+  --col-inbox-scope: calc(var(--space-base) * 30);
+  --col-inbox-detail: calc(var(--space-base) * 64);
+  --col-inbox-age: calc(var(--space-base) * 14);
+  --col-inbox-seen: calc(var(--space-base) * 12);
+  --row-key-min: calc(var(--space-base) * 24);
   --nested-indent: calc(var(--space-base) * 6);
   --touch-target: calc(var(--space-base) * 11);
   --bottom-nav-height: calc(var(--space-base) * 14);

@@ -8,6 +8,7 @@ import OwnerBadge from '@/components/chips/OwnerBadge.vue'
 import SeverityChip from '@/components/chips/SeverityChip.vue'
 import UpstreamPendingChip from '@/components/chips/UpstreamPendingChip.vue'
 import ImageName from '@/components/common/ImageName.vue'
+import NewDot from '@/components/common/NewDot.vue'
 import RelativeTime from '@/components/common/RelativeTime.vue'
 import InboxMarker from '@/components/inbox/InboxMarker.vue'
 import ListRow from '@/components/list/ListRow.vue'
@@ -50,11 +51,12 @@ const { hidden, classes } = useLabelColumns()
     <span v-if="!hidden.includes('kev')" class="kev"><KevChip v-if="finding.kev" /></span>
     <span class="vuln-id" data-panel-clip>
       {{ finding.vulnId }}
+      <NewDot v-if="isNew" class="mid-only" :since="finding.firstSeen" />
       <InboxMarker class="mid-only" :finding="finding" />
       <FindingCheckChip class="mid-only" :finding-id="finding.id" />
     </span>
     <span class="title wide-only" data-panel-clip>
-      <span v-if="isNew" class="new">new</span>
+      <NewDot v-if="isNew" class="new" :since="finding.firstSeen" />
       <InboxMarker class="marker" :finding="finding" />
       <FindingCheckChip class="marker" :finding-id="finding.id" />
       <UpstreamPendingChip
@@ -89,7 +91,7 @@ const { hidden, classes } = useLabelColumns()
 
 <style scoped>
 .with-decision {
-  --last-column: calc(var(--space-base) * 26);
+  --last-column: var(--col-decision-state);
 }
 
 .vuln-id {
@@ -124,12 +126,7 @@ const { hidden, classes } = useLabelColumns()
 }
 
 .new {
-  margin-right: var(--space-1);
-  color: var(--color-accent);
-  font-size: var(--font-size-xs);
-  font-weight: var(--font-weight-semibold);
-  letter-spacing: var(--letter-spacing-caps);
-  text-transform: uppercase;
+  margin-right: var(--space-1-5);
 }
 
 .image {
@@ -148,47 +145,6 @@ const { hidden, classes } = useLabelColumns()
   font-size: var(--font-size-sm);
   text-align: right;
 }
-
-@container (max-width: 640px) {
-  .no-check,
-  .kev:empty,
-  .exposure:empty {
-    display: none;
-  }
-
-  .vuln-id {
-    flex: 1 1 0;
-    min-width: calc(var(--space-base) * 24);
-  }
-
-  .image {
-    order: 2;
-  }
-
-  .title {
-    order: 3;
-  }
-
-  .decision {
-    order: 4;
-  }
-
-  .image {
-    flex: 0 1 auto;
-    max-width: 50%;
-    color: var(--color-text);
-    font-size: var(--font-size-sm);
-  }
-
-  .title {
-    display: block;
-    flex: 1 1 0;
-    min-width: 0;
-    font-size: var(--font-size-sm);
-  }
-
-  .selectable .image {
-    margin-left: calc(var(--checkbox-size) + var(--space-2));
-  }
-}
 </style>
+
+<style scoped src="@/components/finding/findingRowNarrow.css"></style>

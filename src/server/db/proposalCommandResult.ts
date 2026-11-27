@@ -1,6 +1,7 @@
-import type { ValidationIssue } from '#core/apiTypes.ts'
+import type { ValidationIssue } from '#core/errorApiTypes.ts'
 import type { Decision } from '#core/decision.ts'
-import type { Proposal, ProposalDecisionRef, ProposalState } from '#core/proposal.ts'
+import type { ProposalState } from '#core/proposal.ts'
+import type { Proposal, ProposalDecisionRef } from '#core/proposalRecord.ts'
 
 export type ProposalCommandError =
   | 'not_found'

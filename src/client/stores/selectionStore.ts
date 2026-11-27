@@ -1,7 +1,11 @@
 import { defineStore } from 'pinia'
 import { computed, shallowRef } from 'vue'
 
-import type { SelectionHandoffFinding } from '#core/selectionHandoff.ts'
+import {
+  selectionHandoffTexts,
+  type SelectionHandoffFinding,
+  type SelectionHandoffTexts,
+} from '#core/selectionHandoff.ts'
 
 type SelectionSource = () => readonly SelectionHandoffFinding[]
 
@@ -9,18 +13,21 @@ type SelectionSource = () => readonly SelectionHandoffFinding[]
  * Holds the checked rows of the active list, the one source of the selection for the hand-off and
  * the Auto-check. Their keys, hints and buttons act on the checked rows while some are checked,
  * else on the panel finding; a list registers its source for as long as it is mounted, the latest
- * registration wins.
+ * registration wins. The hand-off texts are built here once for every key, hint and button.
  */
-export const useHandoffSelectionStore = defineStore('handoffSelection', () => {
+export const useSelectionStore = defineStore('selection', () => {
   const sources = shallowRef<SelectionSource[]>([])
 
   const findings = computed<readonly SelectionHandoffFinding[]>(
     () => sources.value.at(-1)?.() ?? [],
   )
   const findingIds = computed<readonly number[]>(() => findings.value.map((finding) => finding.id))
+  const handoffTexts = computed<SelectionHandoffTexts | null>(() =>
+    selectionHandoffTexts(findings.value),
+  )
 
   /**
-   * Adds the checked rows of a list as the hand-off selection.
+   * Adds the checked rows of a list as the selection.
    * @param {SelectionSource} source - Returns the checked findings in list order
    * @returns {() => void} - Removes exactly this source again
    */
@@ -32,5 +39,5 @@ export const useHandoffSelectionStore = defineStore('handoffSelection', () => {
     }
   }
 
-  return { findings, findingIds, register }
+  return { findings, findingIds, handoffTexts, register }
 })

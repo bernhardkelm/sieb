@@ -3,8 +3,9 @@ import { randomBytes } from 'node:crypto'
 import { EncryptJWT, jwtDecrypt } from 'jose'
 
 import type { Clock } from '#core/clock.ts'
+import { MINUTE_MS } from '#core/timeUnits.ts'
 
-export const LOGIN_TX_TTL_MS = 10 * 60 * 1000
+export const LOGIN_TX_TTL_MS = 10 * MINUTE_MS
 
 const KEY_BYTES = 32
 

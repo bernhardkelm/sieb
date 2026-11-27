@@ -1,13 +1,13 @@
 import type { Hono } from 'hono'
 
-import type { AuthMode, BuildInfo } from '#core/apiTypes.ts'
+import type { AuthMode, BuildInfo } from '#core/authApiTypes.ts'
 import type { HealthResponse, SourceKind } from '#core/types.ts'
-import type { AppEnv } from '#server/http/AppEnv.ts'
 import type { CheckContext } from '#server/checks/checkContext.ts'
+import type { AppEnv } from '#server/http/AppEnv.ts'
 import type { RouteDeps } from '#server/http/RouteDeps.ts'
-import { createCheckRoutes, createChecksDisabledRoutes } from '#server/http/routes/checkRoutes.ts'
 import { createBulkDecisionRoutes } from '#server/http/routes/bulkDecisionRoutes.ts'
 import { createBulkProposalRoutes } from '#server/http/routes/bulkProposalRoutes.ts'
+import { createCheckRoutes, createChecksDisabledRoutes } from '#server/http/routes/checkRoutes.ts'
 import { createCveRoutes } from '#server/http/routes/cveRoutes.ts'
 import { createDecisionRoutes } from '#server/http/routes/decisionRoutes.ts'
 import { createFindingRoutes } from '#server/http/routes/findingRoutes.ts'
@@ -16,6 +16,7 @@ import { createInboxRoutes } from '#server/http/routes/inboxRoutes.ts'
 import { createLabelRoutes } from '#server/http/routes/labelRoutes.ts'
 import { createMcpInfoRoutes } from '#server/http/routes/mcpInfoRoutes.ts'
 import { createMeRoutes } from '#server/http/routes/meRoutes.ts'
+import { createProposalReviewRoutes } from '#server/http/routes/proposalReviewRoutes.ts'
 import { createProposalRoutes } from '#server/http/routes/proposalRoutes.ts'
 import { createStatsRoutes } from '#server/http/routes/statsRoutes.ts'
 import { createSyncRoutes } from '#server/http/routes/syncRoutes.ts'
@@ -73,7 +74,8 @@ export const useApiRoutes = (
   app.route('/api/decisions/bulk', createBulkDecisionRoutes(deps))
   app.route('/api/decisions', createDecisionRoutes(deps))
   app.route('/api/proposals', createBulkProposalRoutes({ ...deps, log }))
-  app.route('/api/proposals', createProposalRoutes({ ...deps, publicRegistries, log }))
+  app.route('/api/proposals', createProposalRoutes({ ...deps, publicRegistries }))
+  app.route('/api/proposals', createProposalReviewRoutes({ ...deps, log }))
   app.route('/api/sync', createSyncRoutes({ ...deps, sync }))
   app.route('/api/stats', createStatsRoutes(deps))
   app.route('/api/labels', createLabelRoutes(deps))

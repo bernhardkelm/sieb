@@ -1,7 +1,7 @@
 import type { DatabaseSync } from 'node:sqlite'
 
 import type { DecisionInput } from '#core/decision.ts'
-import type { ProposalProvenance } from '#core/proposal.ts'
+import type { ProposalProvenance } from '#core/proposalRecord.ts'
 import { mustGetDecision, type DecisionCommandResult } from '#server/db/decisionCommandResult.ts'
 import { appendDecisionEvent } from '#server/db/decisionEventRepository.ts'
 import { findCurrentDecision } from '#server/db/decisionRepository.ts'

@@ -1,7 +1,7 @@
 import type { Context } from 'hono'
 import { Hono } from 'hono'
 
-import type { ErrorBody } from '#core/apiTypes.ts'
+import type { ErrorBody } from '#core/errorApiTypes.ts'
 import type { WorkerClaim } from '#core/check.ts'
 import { validateHeartbeat, validateWorkerResult } from '#core/checkValidation.ts'
 import type { CheckContext } from '#server/checks/checkContext.ts'
@@ -9,8 +9,8 @@ import { claimForWorker, recordHeartbeat, recordResult } from '#server/checks/wo
 import type { WorkerUpdate } from '#server/checks/workerCommands.ts'
 import type { AppEnv } from '#server/http/AppEnv.ts'
 import { parseId } from '#server/http/pathParams.ts'
-import { INVALID_BODY, readObjectBody } from '#server/http/requestBody.ts'
-import { notFound, validationFailed } from '#server/http/responses.ts'
+import { readValidBody } from '#server/http/requestBody.ts'
+import { notFound } from '#server/http/responses.ts'
 
 /**
  * Answers a heartbeat or result update: 204, 404 for an unknown check, 409 once it ended.
@@ -49,11 +49,10 @@ export const createWorkerRoutes = (context: CheckContext): Hono<AppEnv> => {
 
   routes.post('/checks/:id/heartbeat', async (c) => {
     const id = parseId(c.req.param('id'))
-    const body = await readObjectBody(c)
-    const input = body === null ? null : validateHeartbeat(body)
+    const input = await readValidBody(c, validateHeartbeat)
 
-    if (input === null || !input.ok) {
-      return validationFailed(c, input?.errors ?? INVALID_BODY)
+    if (!input.ok) {
+      return input.response
     }
 
     return updateAnswer(
@@ -64,11 +63,10 @@ export const createWorkerRoutes = (context: CheckContext): Hono<AppEnv> => {
 
   routes.post('/checks/:id/result', async (c) => {
     const id = parseId(c.req.param('id'))
-    const body = await readObjectBody(c)
-    const input = body === null ? null : validateWorkerResult(body)
+    const input = await readValidBody(c, validateWorkerResult)
 
-    if (input === null || !input.ok) {
-      return validationFailed(c, input?.errors ?? INVALID_BODY)
+    if (!input.ok) {
+      return input.response
     }
 
     return updateAnswer(c, id === null ? 'not_found' : recordResult(context, id, input.value))

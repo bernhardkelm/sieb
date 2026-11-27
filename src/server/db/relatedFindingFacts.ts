@@ -1,7 +1,7 @@
-import type { ProposalRelatedFacts } from '#core/apiTypes.ts'
+import type { ProposalRelatedFacts } from '#core/proposalApiTypes.ts'
 import type { FindingView } from '#core/findingView.ts'
 import type { PackageVersion } from '#core/instance.ts'
-import type { ProposalRelatedFinding } from '#core/proposal.ts'
+import type { ProposalRelatedFinding } from '#core/proposalRecord.ts'
 import { sourceAccess } from '#core/sourceAccess.ts'
 
 export interface RelatedFactsContext {

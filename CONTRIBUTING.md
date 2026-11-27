@@ -56,8 +56,8 @@ src/
   core/      shared types and pure logic, no IO, used by server and client (#core/*)
   server/    Hono API, sync, SQLite, sources, /metrics (#server/*)
     main.ts        reads the config and starts listening
-    config.ts      environment parsing, configValues.ts, mcpConfigValues.ts and oidcConfigValues.ts
-                   hold the value parsers
+    config.ts      environment parsing, the *ConfigValues.ts files hold the value parsers (general,
+                   URL, port, source, MCP OAuth, OIDC, checks)
     auth/          bearer token verification: personal token secrets and OAuth JWTs
       oidc/        UI login of SIEB_AUTH=oidc: discovery, pending logins, cookies, /auth routes, session cleanup
     http/          app factory (createApp), identity, oidc session guard, static client serving,

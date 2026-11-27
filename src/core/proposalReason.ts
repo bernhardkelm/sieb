@@ -1,6 +1,7 @@
 import { MAX_REASON_LENGTH } from '#core/decisionFieldReaders.ts'
 import { patchActionOf } from '#core/patchAction.ts'
-import type { ProposalClaims, ProposalVerdict } from '#core/proposal.ts'
+import type { ProposalVerdict } from '#core/proposal.ts'
+import type { ProposalClaims } from '#core/proposalRecord.ts'
 
 const VERDICT_LABELS: Record<ProposalVerdict, string> = {
   not_affected: 'Not affected',

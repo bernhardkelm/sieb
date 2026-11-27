@@ -58,6 +58,10 @@ export const decisionItems = (
       severity: facts.severity,
       kev: facts.kev,
       title: facts.title,
+      exposure: facts.exposure,
+      owners: facts.owners,
+      packages: facts.packages,
+      namespaces: facts.namespaces,
       url: facts.lead
         ? findingUrl(base, facts.lead.id)
         : decisionUrl(base, decision.id, effective.state),

@@ -1,7 +1,7 @@
 // @vitest-environment node
 import { describe, expect, it } from 'vitest'
 
-import type { LogoutResponse } from '#core/apiTypes.ts'
+import type { LogoutResponse } from '#core/authApiTypes.ts'
 
 import { IDP_CLIENT_ID } from './fakeOidcProvider.ts'
 import {

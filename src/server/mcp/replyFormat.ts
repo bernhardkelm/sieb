@@ -17,7 +17,7 @@ Why: libexample 1.2.0 is compiled in and reachable; the newest published tag 3.4
 Checked: advisory, upstream_source, image · Not checked: runtime`
 
 const BLOCK_RULES =
-  'needs_patch and fix_planned add ": <exact patch action>" ("→ needs_patch: upgrade libexample to 1.2.1 · confidence high"), upstream_pending " · waiting for upstream" instead, also in tables. inconclusive: Why names what is missing. Why has at most 25 words. Checked and Not checked hold only comma-separated keywords: advisory, upstream_source, image, own_source, runtime; sieb data counts as advisory.'
+  'The first line contains "confidence"; needs_patch and fix_planned add ": <exact patch action>" ("→ needs_patch: upgrade libexample to 1.2.1 · confidence high"), upstream_pending " · waiting for upstream" instead, also in tables. inconclusive: Why names what is missing. Why has at most 25 words. Checked and Not checked hold only comma-separated keywords: advisory, upstream_source, image, own_source, runtime; sieb data counts as advisory.'
 
 /**
  * Returns the example blocks of a single-finding reply, left out of the server instructions,
@@ -60,8 +60,7 @@ const severalFindings = (canPropose: boolean): string =>
     : `Several triaged findings: a table | Finding | Verdict | Conf. | Proposal | with "none" as proposal, then the line "${READ_ONLY_PROPOSAL_LINE}"`
 
 const QUESTIONS = `Plain questions, "does CVE-X affect us" across many images included: the answer in the first line, at most 3 bullets with counts and names, then the sieb link. No table, no verdict block.
-Find, then triage: the same, then the 4-line block of the triaged finding. No paragraphs, no other table.
-A filtered search returning 0: say so in the first line before you widen it and name the widened filter.`
+Find, then triage: the same, then the 4-line block of the triaged finding. No paragraphs, no other table.`
 
 /**
  * Joins the reply format of one and of several findings.

@@ -3,6 +3,9 @@ import { computed } from 'vue'
 import { RouterLink } from 'vue-router'
 
 import type { InboxFindingTarget } from '#core/inbox/findingInboxItems.ts'
+import { INBOX_KIND_TONES } from '@/components/chips/chipTones'
+import PanelLine from '@/components/common/PanelLine.vue'
+import StatusDot from '@/components/common/StatusDot.vue'
 import { inboxItemRoute } from '@/components/inbox/inboxItems'
 import { useNow } from '@/composables/useNow'
 import { inboxMarkerDetail } from '@/format/inboxMarkerText'
@@ -21,36 +24,24 @@ const items = computed(() =>
 </script>
 
 <template>
-  <div v-if="items.length > 0" class="finding-inbox">
-    <span id="finding-inbox-label" class="label">In your Inbox</span>
+  <PanelLine
+    v-if="items.length > 0"
+    class="finding-inbox"
+    label="In your Inbox"
+    label-id="finding-inbox-label"
+  >
     <ul class="items" aria-labelledby="finding-inbox-label">
       <li v-for="item in items" :key="item.key" class="item" :class="item.kind">
-        <span class="dot" aria-hidden="true" />
+        <StatusDot :tone="INBOX_KIND_TONES[item.kind]" />
         <RouterLink :to="inboxItemRoute(item)" :data-inbox-item="item.key">{{
           inboxMarkerDetail(item, now)
         }}</RouterLink>
       </li>
     </ul>
-  </div>
+  </PanelLine>
 </template>
 
 <style scoped>
-.finding-inbox {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: baseline;
-  gap: var(--space-1) var(--space-3);
-  font-size: var(--font-size-sm);
-}
-
-.label {
-  color: var(--color-text-muted);
-  font-size: var(--font-size-xs);
-  font-weight: var(--font-weight-semibold);
-  letter-spacing: var(--letter-spacing-caps);
-  text-transform: uppercase;
-}
-
 .items {
   display: flex;
   flex-wrap: wrap;
@@ -61,25 +52,8 @@ const items = computed(() =>
 }
 
 .item {
-  --item-color: var(--color-danger);
-
   display: inline-flex;
   align-items: center;
   gap: var(--space-1-5);
-}
-
-.kev {
-  --item-color: var(--color-kev);
-}
-
-.expiring {
-  --item-color: var(--color-warning);
-}
-
-.dot {
-  width: var(--dot-size);
-  height: var(--dot-size);
-  border-radius: var(--radius-pill);
-  background: var(--item-color);
 }
 </style>

@@ -1,11 +1,15 @@
 import type { DatabaseSync } from 'node:sqlite'
 
-import type { ProposalDetail, ProposalImageFacts, ProposalListItem } from '#core/apiTypes.ts'
+import type {
+  ProposalDetail,
+  ProposalImageFacts,
+  ProposalListItem,
+} from '#core/proposalApiTypes.ts'
 import type { Finding } from '#core/finding.ts'
 import type { DecisionView, FindingView } from '#core/findingView.ts'
-import type { Proposal } from '#core/proposal.ts'
 import { proposalDecisionValues } from '#core/proposalAccept.ts'
 import { currentDecisionRefs, isProposalOutdated } from '#core/proposalFreshness.ts'
+import type { Proposal } from '#core/proposalRecord.ts'
 import { toProposalView } from '#core/proposalView.ts'
 import { maxSeverity } from '#core/severity.ts'
 import { sourceAccess } from '#core/sourceAccess.ts'

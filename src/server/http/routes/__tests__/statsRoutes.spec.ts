@@ -1,14 +1,14 @@
+import { HOUR_MS } from '#core/timeUnits.ts'
 // @vitest-environment node
 import { describe, expect, it } from 'vitest'
 
-import type { StatsResponse, ValidationErrorBody } from '#core/apiTypes.ts'
+import type { ValidationErrorBody } from '#core/errorApiTypes.ts'
+import type { StatsResponse } from '#core/statsApiTypes.ts'
 import type { FindingView } from '#core/findingView.ts'
 import { emptyOverviewStats } from '#core/overviewStats.ts'
 import { insertStatsSnapshot } from '#server/db/statsSnapshotRepository.ts'
 
 import { requestJson, syncedTestApp, TEST_NOW } from '#server/http/__tests__/appFixtures.ts'
-
-const HOUR_MS = 60 * 60 * 1000
 
 describe('stats routes', () => {
   it('answers the live stats and the snapshot of the sync', async () => {

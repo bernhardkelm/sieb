@@ -28,7 +28,7 @@ const FLAG_ON = '1'
  * @param {(entry: string) => T | null} read - Returns the entry as a value, null to drop it
  * @returns {T[]} - Distinct valid entries in order
  */
-const readEntries = <T>(raw: string | null, read: (entry: string) => T | null): T[] => {
+export const readEntries = <T>(raw: string | null, read: (entry: string) => T | null): T[] => {
   const values = (raw ?? '')
     .split(',')
     .map((entry) => read(entry.trim()))
@@ -72,7 +72,7 @@ const readPending = (entry: string): PendingFilter | null => {
  * @param {readonly string[]} values - Values
  * @returns {string | null} - Param value, null for an empty list
  */
-const listParam = (values: readonly string[]): string | null =>
+export const listParam = (values: readonly string[]): string | null =>
   values.length > 0 ? values.join(',') : null
 
 /**

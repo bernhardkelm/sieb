@@ -1,7 +1,8 @@
 // @vitest-environment node
 import { describe, expect, it } from 'vitest'
 
-import type { LabelsResponse, StatsResponse } from '#core/apiTypes.ts'
+import type { LabelsResponse } from '#core/findingApiTypes.ts'
+import type { StatsResponse } from '#core/statsApiTypes.ts'
 import type { FindingView } from '#core/findingView.ts'
 import { buildSnapshot } from '#server/db/__tests__/dbFixtures.ts'
 import { createApp } from '#server/http/createApp.ts'

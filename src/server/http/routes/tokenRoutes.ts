@@ -2,21 +2,22 @@ import { Hono } from 'hono'
 
 import type { ApiToken } from '#core/apiToken.ts'
 import { validateTokenInput } from '#core/apiToken.ts'
+import type { ErrorBody } from '#core/errorApiTypes.ts'
 import type {
   ApiTokenCleanupResponse,
   ApiTokenCreateResponse,
   ApiTokenView,
-  ErrorBody,
-} from '#core/apiTypes.ts'
-import { displayPrefixOf, generateTokenSecret, hashTokenSecret } from '#server/auth/tokenSecrets.ts'
+} from '#core/tokenApiTypes.ts'
+import { newTokenSecret } from '#server/auth/tokenSecrets.ts'
 import { deleteInactiveTokensOf, deleteOwnInactiveToken } from '#server/db/apiTokenCleanup.ts'
 import { listOwnTokens, revokeOwnToken } from '#server/db/apiTokenRepository.ts'
-import { insertToken } from '#server/db/storeApiToken.ts'
+import { insertToken } from '#server/db/apiTokenWrites.ts'
 import type { AppEnv } from '#server/http/AppEnv.ts'
 import { requireActor } from '#server/http/identity.ts'
+import { noStore } from '#server/http/noStore.ts'
 import { parseId } from '#server/http/pathParams.ts'
-import { INVALID_BODY, readObjectBody } from '#server/http/requestBody.ts'
-import { notFound, validationFailed } from '#server/http/responses.ts'
+import { readValidBody } from '#server/http/requestBody.ts'
+import { notFound } from '#server/http/responses.ts'
 import type { RouteDeps } from '#server/http/RouteDeps.ts'
 import { tokenLogLine } from '#server/tokenLogLine.ts'
 
@@ -54,32 +55,26 @@ export const createTokenRoutes = ({ db, clock, log }: TokenRouteDeps): Hono<AppE
       return c.json<ErrorBody>({ error: 'unauthorized' }, 401)
     }
 
-    c.header('Cache-Control', 'no-store')
     await next()
   })
+  routes.use('*', noStore())
 
   routes.get('/', (c) =>
     c.json<ApiTokenView[]>(listOwnTokens(db, requireActor(c)).map(toTokenView)),
   )
 
   routes.post('/', async (c) => {
-    const body = await readObjectBody(c)
     const now = clock()
-    const input = body === null ? null : validateTokenInput(body, now)
+    const input = await readValidBody(c, (body) => validateTokenInput(body, now))
 
-    if (input === null || !input.ok) {
-      return validationFailed(c, input?.errors ?? INVALID_BODY)
+    if (!input.ok) {
+      return input.response
     }
 
-    const secret = generateTokenSecret()
+    const { secret, prefix, hash } = newTokenSecret()
     const result = insertToken(
       db,
-      {
-        owner: requireActor(c),
-        input: input.value,
-        prefix: displayPrefixOf(secret),
-        hash: hashTokenSecret(secret),
-      },
+      { owner: requireActor(c), input: input.value, prefix, hash },
       now,
     )
 

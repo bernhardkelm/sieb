@@ -1,4 +1,5 @@
 import type { CheckView } from '#core/check.ts'
+import { findingCheckBlocker } from '#core/checkEligibility.ts'
 import { MAX_OPEN_CHECKS } from '#core/checkLimits.ts'
 import type { SourceAccess } from '#core/sourceAccess.ts'
 import { formatCount } from '@/format/count'
@@ -38,7 +39,7 @@ export const availabilityReason = ({ enabled, workerOnline }: CheckAvailability)
 
 /**
  * Returns why the finding cannot be checked, lasting reasons before the offline worker, which
- * may come back any moment.
+ * may come back any moment. Resolved goes before not public, in the order the server uses.
  * @param {FindingCheckTarget} target - Feature state and the finding facts
  * @returns {string | null} - Reason, null while a check can be queued
  */
@@ -47,12 +48,10 @@ export const findingCheckReason = (target: FindingCheckTarget): string | null =>
     return CHECKS_OFF_REASON
   }
 
-  if (target.sourceAccess !== 'public') {
-    return NOT_PUBLIC_REASON
-  }
+  const blocker = findingCheckBlocker(target)
 
-  if (target.resolved) {
-    return RESOLVED_REASON
+  if (blocker !== null) {
+    return blocker === 'resolved' ? RESOLVED_REASON : NOT_PUBLIC_REASON
   }
 
   if (target.open !== null) {

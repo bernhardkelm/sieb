@@ -1,14 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
-import {
-  ariaSort,
-  compareSortValues,
-  describeSort,
-  nextSort,
-  parseSort,
-  sortItems,
-  type SortColumns,
-} from '@/components/list/listSort'
+import { compareSortValues, sortItems, type SortColumns } from '@/components/list/listSort'
+import { ariaSort, describeSort, nextSort, parseSort } from '@/components/list/sortState'
 
 interface Item {
   id: string

@@ -15,10 +15,10 @@ import { getCheck } from '#server/db/checkRepository.ts'
 import type { CheckRow, StoredCheck } from '#server/db/checkRows.ts'
 import { toStoredCheck } from '#server/db/checkRows.ts'
 import { mintCheckToken } from '#server/db/checkTokens.ts'
-import { endCheck } from '#server/db/endCheck.ts'
+import { endCheck, failedOutcome } from '#server/db/endCheck.ts'
 import { getFinding } from '#server/db/findingRepository.ts'
-import { inTransaction } from '#server/db/inTransaction.ts'
 import { listInstances } from '#server/db/instanceRepository.ts'
+import { inTransaction } from '#server/db/inTransaction.ts'
 
 export interface ClaimedCheck {
   check: StoredCheck
@@ -116,14 +116,7 @@ export const claimCheck = (db: DatabaseSync, context: ClaimContext, now: Date): 
 
       if (finding === null || blocker !== null || pull === null) {
         const error = blocker === null ? NO_PULL_REF_ERROR : BLOCKER_ERRORS[blocker]
-        const outcome = {
-          state: 'failed',
-          error,
-          durationMs: null,
-          usage: null,
-          reply: null,
-        } as const
-        const ended = endCheck(db, next, outcome, now)
+        const ended = endCheck(db, next, failedOutcome(error), now)
 
         skipped.push(ended?.check ?? next)
         continue

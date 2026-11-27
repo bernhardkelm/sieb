@@ -1,7 +1,11 @@
 import { computed, ref, shallowRef, type ComputedRef, type Ref, type ShallowRef } from 'vue'
 
 import { isTokenLive } from '#core/apiToken.ts'
-import type { ApiTokenCreateRequest, ApiTokenCreateResponse, ApiTokenView } from '#core/apiTypes.ts'
+import type {
+  ApiTokenCreateRequest,
+  ApiTokenCreateResponse,
+  ApiTokenView,
+} from '#core/tokenApiTypes.ts'
 import { ApiError } from '@/api/ApiError'
 import { errorMessage } from '@/api/apiRequest'
 import { cleanupTokens, createToken, deleteToken, fetchTokens, revokeToken } from '@/api/tokensApi'

@@ -1,4 +1,4 @@
-import { withinDaysBefore } from '#core/inbox/inboxFacts.ts'
+import { coveredLabels, withinDaysBefore } from '#core/inbox/inboxFacts.ts'
 import { INBOX_WINDOW_DAYS, type InboxFinding, type KevInboxItem } from '#core/inbox/inboxItem.ts'
 import { kevKey } from '#core/inbox/inboxKeys.ts'
 import { findingUrl } from '#core/siebLinks.ts'
@@ -43,6 +43,7 @@ export const kevItems = (
         severity: finding.severity,
         kev: true,
         title: finding.title,
+        ...coveredLabels([finding]),
         url: findingUrl(base, finding.id),
         refs: { findingId: finding.id, decisionId: decision?.id ?? null },
         decisionStatus: decision?.status ?? null,

@@ -1,7 +1,7 @@
 import { defineStore } from 'pinia'
 import { computed, ref, watch } from 'vue'
 
-import type { LabelsResponse } from '#core/apiTypes.ts'
+import type { LabelsResponse } from '#core/findingApiTypes.ts'
 import { fetchLabels } from '@/api/labelsApi'
 import { useDataVersionStore } from '@/stores/dataVersionStore'
 

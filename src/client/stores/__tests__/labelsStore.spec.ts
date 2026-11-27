@@ -1,7 +1,7 @@
 import { createPinia, setActivePinia } from 'pinia'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-import type { LabelsResponse } from '#core/apiTypes.ts'
+import type { LabelsResponse } from '#core/findingApiTypes.ts'
 import { fetchLabels } from '@/api/labelsApi'
 import { useDataVersionStore } from '@/stores/dataVersionStore'
 import { useLabelsStore } from '@/stores/labelsStore'

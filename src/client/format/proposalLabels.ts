@@ -7,11 +7,10 @@ import type {
   ProposalVerdict,
 } from '#core/proposal.ts'
 import type { SourceAccess } from '#core/sourceAccess.ts'
+import { STATUS_LABELS } from '@/format/labels'
 
 export const VERDICT_LABELS: Record<ProposalVerdict, string> = {
-  not_affected: 'Not affected',
-  accepted: 'Accepted',
-  fix_planned: 'Fix planned',
+  ...STATUS_LABELS,
   needs_patch: 'Needs patch',
   inconclusive: 'Could not determine',
 }

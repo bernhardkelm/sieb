@@ -1,6 +1,6 @@
-import type { AuthMode } from '#core/apiTypes.ts'
+import type { AuthMode } from '#core/authApiTypes.ts'
 import { parsePositiveInt } from '#server/configValues.ts'
-import { parseWebUrl } from '#server/mcpConfigValues.ts'
+import { parseWebUrl } from '#server/urlConfigValues.ts'
 
 export const AUTH_MODES: readonly AuthMode[] = ['header', 'oidc']
 export const DEFAULT_SESSION_HOURS = 12
@@ -31,27 +31,6 @@ export const parseAuthMode = (value: string | undefined): AuthMode => {
   }
 
   return mode as AuthMode
-}
-
-/**
- * Parses the optional port of the separate /metrics listener.
- * @param {string | undefined} value - Raw SIEB_METRICS_PORT value
- * @param {number} mainPort - Port of the main listener, which it must differ from
- * @returns {number | null} - Port, null when unset or blank
- * @throws {Error} - For an invalid port or the main port
- */
-export const parseMetricsPort = (value: string | undefined, mainPort: number): number | null => {
-  if ((value?.trim() ?? '') === '') {
-    return null
-  }
-
-  const port = parsePositiveInt(value?.trim(), 'SIEB_METRICS_PORT', 1, 65535)
-
-  if (port === mainPort) {
-    throw new Error(`SIEB_METRICS_PORT must differ from SIEB_PORT, both are ${port}`)
-  }
-
-  return port
 }
 
 /**

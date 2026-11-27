@@ -162,40 +162,4 @@ const estimate = treeItemEstimate(PANEL_ESTIMATE)
   </div>
 </template>
 
-<style scoped>
-.cve-list {
-  container-type: inline-size;
-}
-
-.columns {
-  --row-columns: var(--chevron-size) calc(var(--space-base) * 15)
-    var(--kev-track, calc(var(--space-base) * 8)) calc(var(--space-base) * 34) minmax(0, 1fr)
-    var(--count-width) calc(var(--space-base) * 16) var(--count-width) var(--count-width)
-    calc(var(--space-base) * 56);
-}
-
-/* no-kev empties --kev-track, an empty custom property drops the track from the list */
-.columns.no-kev {
-  --kev-track: ;
-}
-
-/* no-exposure drops the exposure track while no open finding has an exposure label */
-.columns.no-exposure {
-  --row-columns: var(--chevron-size) calc(var(--space-base) * 15)
-    var(--kev-track, calc(var(--space-base) * 8)) calc(var(--space-base) * 34) minmax(0, 1fr)
-    var(--count-width) var(--count-width) var(--count-width) calc(var(--space-base) * 56);
-}
-
-@container (max-width: 900px) {
-  .columns,
-  .columns.no-exposure {
-    --row-columns: var(--chevron-size) calc(var(--space-base) * 15)
-      var(--kev-track, calc(var(--space-base) * 8)) minmax(0, 1fr) var(--count-width)
-      var(--count-width) var(--count-width) calc(var(--space-base) * 40);
-  }
-
-  .optional {
-    display: none;
-  }
-}
-</style>
+<style scoped src="@/components/cves/cveColumns.css"></style>

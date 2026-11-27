@@ -1,7 +1,7 @@
 import { createPinia, setActivePinia } from 'pinia'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-import type { SyncStatusResponse } from '#core/apiTypes.ts'
+import type { SyncStatusResponse } from '#core/syncApiTypes.ts'
 import type { SyncRun } from '#core/syncRun.ts'
 import { fetchSyncStatus, triggerSync } from '@/api/syncApi'
 import { useDataVersionStore } from '@/stores/dataVersionStore'

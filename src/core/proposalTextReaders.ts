@@ -1,4 +1,4 @@
-import type { ValidationIssue } from '#core/apiTypes.ts'
+import type { ValidationIssue } from '#core/errorApiTypes.ts'
 
 // bidirectional marks, overrides and isolates can make plain text render in a misleading order
 const BIDI_CONTROLS = /[\u061C\u200E\u200F\u202A-\u202E\u2066-\u2069]/gu
@@ -146,11 +146,3 @@ export const isHttpUrl = (text: string): boolean => {
 
   return ['http:', 'https:'].includes(url.protocol) && url.username === '' && url.password === ''
 }
-
-/**
- * Returns whether a value is a plain object.
- * @param {unknown} value - Value to test
- * @returns {boolean} - True for a non-array object
- */
-export const isPlainObject = (value: unknown): value is Record<string, unknown> =>
-  value !== null && typeof value === 'object' && !Array.isArray(value)

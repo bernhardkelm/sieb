@@ -13,11 +13,3 @@ const isControl = (code: number): boolean => code < 0x20 || (code >= 0x7f && cod
  */
 export const printable = (text: string): string =>
   Array.from(text, (char) => (isControl(char.charCodeAt(0)) ? ' ' : char)).join('')
-
-/**
- * Returns the message of a caught value.
- * @param {unknown} error - Caught value
- * @returns {string} - Error message, or the value as text
- */
-export const errorMessage = (error: unknown): string =>
-  error instanceof Error ? error.message : String(error)

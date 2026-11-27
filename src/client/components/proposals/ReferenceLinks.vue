@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 
+import ExternalLink from '@/components/common/ExternalLink.vue'
 import { safeReferences } from '@/components/proposals/proposalText'
 
 const props = defineProps<{
@@ -13,7 +14,7 @@ const links = computed(() => safeReferences(props.references))
 <template>
   <ul v-if="links.length > 0" class="reference-links">
     <li v-for="link in links" :key="link">
-      <a :href="link" target="_blank" rel="noopener noreferrer">{{ link }} ↗</a>
+      <ExternalLink :href="link">{{ link }}</ExternalLink>
     </li>
   </ul>
   <p v-else class="none">No references.</p>
@@ -30,7 +31,7 @@ const links = computed(() => safeReferences(props.references))
   font-size: var(--font-size-sm);
 }
 
-.reference-links a {
+.reference-links :deep(a) {
   overflow-wrap: anywhere;
 }
 

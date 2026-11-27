@@ -1,6 +1,7 @@
 import type { DatabaseSync } from 'node:sqlite'
 
 import type { Clock } from '#core/clock.ts'
+import { errorMessage } from '#core/errorMessage.ts'
 import type { SyncRun } from '#core/syncRun.ts'
 import { inTransaction } from '#server/db/inTransaction.ts'
 import {
@@ -28,14 +29,6 @@ export interface SyncServiceDeps {
   clock: Clock
   log?: (message: string) => void
 }
-
-/**
- * Returns the message of a thrown value.
- * @param {unknown} error - Thrown value
- * @returns {string} - Message
- */
-const messageOf = (error: unknown): string =>
-  error instanceof Error ? error.message : String(error)
 
 /**
  * Creates the sync service. A sync fetches the source, then writes the snapshot, the decision
@@ -106,19 +99,19 @@ export const createSyncService = ({
     try {
       started = startSyncRun(db, source.kind, clock())
     } catch (error) {
-      log(`[sieb] sync from ${source.kind} could not start: ${messageOf(error)}`)
+      log(`[sieb] sync from ${source.kind} could not start: ${errorMessage(error)}`)
       throw error
     }
 
     try {
       return await commit(started)
     } catch (error) {
-      log(`[sieb] sync ${started.id} from ${source.kind} failed: ${messageOf(error)}`)
+      log(`[sieb] sync ${started.id} from ${source.kind} failed: ${errorMessage(error)}`)
 
       try {
-        return failSyncRun(db, started.id, messageOf(error), clock())
+        return failSyncRun(db, started.id, errorMessage(error), clock())
       } catch (recordError) {
-        log(`[sieb] sync ${started.id} failure not recorded: ${messageOf(recordError)}`)
+        log(`[sieb] sync ${started.id} failure not recorded: ${errorMessage(recordError)}`)
         throw recordError
       }
     }

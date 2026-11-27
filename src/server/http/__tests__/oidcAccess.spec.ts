@@ -5,7 +5,8 @@ import { join } from 'node:path'
 
 import { afterAll, describe, expect, it } from 'vitest'
 
-import type { ApiTokenCreateResponse, MeResponse } from '#core/apiTypes.ts'
+import type { MeResponse } from '#core/authApiTypes.ts'
+import type { ApiTokenCreateResponse } from '#core/tokenApiTypes.ts'
 import {
   logIn,
   oidcTestApp,

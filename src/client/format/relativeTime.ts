@@ -1,6 +1,5 @@
-const MINUTE_MS = 60 * 1000
-const HOUR_MS = 60 * MINUTE_MS
-const DAY_MS = 24 * HOUR_MS
+import { DAY_MS, HOUR_MS, MINUTE_MS } from '#core/timeUnits.ts'
+
 const MONTH_MS = 30 * DAY_MS
 const YEAR_MS = 365 * DAY_MS
 

@@ -1,4 +1,4 @@
-import type { ProposalDetail, ProposalRelatedFacts } from '#core/apiTypes.ts'
+import type { ProposalDetail, ProposalRelatedFacts } from '#core/proposalApiTypes.ts'
 import type { BulkTarget } from '@/components/decision/bulkTargets'
 import { TEXT_MAX_LENGTH, type DecisionFormInitial } from '@/components/decision/decisionFormModel'
 import { editInitial } from '@/components/proposals/acceptEdits'

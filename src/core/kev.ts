@@ -1,3 +1,4 @@
+import { DAY_MS } from '#core/timeUnits.ts'
 /** Where the KEV listing comes from, SIEB_KEV_SOURCE */
 export type KevSourceKind = 'cisa' | 'prometheus' | 'none'
 
@@ -30,5 +31,5 @@ export interface KevFeedStatus {
   stale: boolean // no successful fetch yet, or the last one is older than KEV_STALE_AFTER_MS
 }
 
-export const KEV_REFRESH_AFTER_MS = 24 * 60 * 60 * 1000
+export const KEV_REFRESH_AFTER_MS = DAY_MS
 export const KEV_STALE_AFTER_MS = 2 * KEV_REFRESH_AFTER_MS

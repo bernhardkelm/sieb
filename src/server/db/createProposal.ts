@@ -1,13 +1,13 @@
 import type { DatabaseSync } from 'node:sqlite'
 
+import { currentDecisionRefs } from '#core/proposalFreshness.ts'
 import {
   MAX_OPEN_PROPOSALS,
   proposalTargetKey,
   type Proposal,
   type ProposalInput,
   type ProposalProposer,
-} from '#core/proposal.ts'
-import { currentDecisionRefs } from '#core/proposalFreshness.ts'
+} from '#core/proposalRecord.ts'
 import { sourceAccess } from '#core/sourceAccess.ts'
 import { listDecisionsByVuln } from '#server/db/decisionRepository.ts'
 import { listFindingsByVuln } from '#server/db/findingRepository.ts'

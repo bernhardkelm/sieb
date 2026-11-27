@@ -8,7 +8,7 @@ import { buildChecksResponse } from '@/__tests__/checkBuilders'
 import { visibleText } from '@/__tests__/visibleText'
 import TriageSummary from '@/components/triage/TriageSummary.vue'
 import { useChecksStore } from '@/stores/checksStore'
-import { useHandoffSelectionStore } from '@/stores/handoffSelectionStore'
+import { useSelectionStore } from '@/stores/selectionStore'
 import { useMcpStore } from '@/stores/mcpStore'
 
 vi.mock('@/api/checksApi', () => ({
@@ -30,10 +30,7 @@ const mountSummary = async (checks: ChecksResponse | null): Promise<VueWrapper> 
   setActivePinia(pinia)
   useMcpStore().info = { enabled: true, mcpUrl: null, oauth: false, claude: null }
   useChecksStore().response = checks
-  useHandoffSelectionStore().register(() => [
-    buildFindingView({ id: 1 }),
-    buildFindingView({ id: 2 }),
-  ])
+  useSelectionStore().register(() => [buildFindingView({ id: 1 }), buildFindingView({ id: 2 })])
   wrapper = mount(TriageSummary, {
     props: { shown: 4, total: 4, newCount: 0, checkedCount: 2, sortLabel: null },
     global: { plugins: [pinia] },

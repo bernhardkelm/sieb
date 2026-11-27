@@ -1,7 +1,7 @@
-import type { ValidationIssue } from '#core/apiTypes.ts'
+import type { ValidationIssue } from '#core/errorApiTypes.ts'
+import { isPlainObject } from '#core/isPlainObject.ts'
 import { PROPOSAL_LIMITS } from '#core/proposal.ts'
 import type { ExpectedDecisionId } from '#core/proposalFreshness.ts'
-import { isPlainObject } from '#core/proposalTextReaders.ts'
 
 /**
  * Reads one expected decision: imageRef a string or null for the all-scope target, decisionId a

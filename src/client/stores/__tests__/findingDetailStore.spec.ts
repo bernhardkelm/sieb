@@ -2,7 +2,7 @@ import { createPinia, setActivePinia } from 'pinia'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { buildFindingView } from '#core/__tests__/coreBuilders.ts'
-import type { FindingDetailResponse } from '#core/apiTypes.ts'
+import type { FindingDetailResponse } from '#core/findingApiTypes.ts'
 import { ApiError } from '@/api/ApiError'
 import { fetchFindingDetail } from '@/api/findingsApi'
 import { useFindingDetailStore } from '@/stores/findingDetailStore'

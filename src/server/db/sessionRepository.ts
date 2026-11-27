@@ -1,63 +1,20 @@
-import { createHash, randomBytes } from 'node:crypto'
+import { randomBytes } from 'node:crypto'
 import type { DatabaseSync } from 'node:sqlite'
 
+import { hashSessionId, toSession, type Session, type SessionRow } from '#server/db/sessionRows.ts'
+import { MINUTE_MS } from '#core/timeUnits.ts'
+
 /** last_seen_at is written at most once per this interval, so every request is not a write */
-export const SESSION_TOUCH_INTERVAL_MS = 60 * 1000
+export const SESSION_TOUCH_INTERVAL_MS = MINUTE_MS
 
 const SESSION_ID_BYTES = 32
 const SESSION_ID_PATTERN = /^[A-Za-z0-9_-]{43}$/
-
-/** Signed-in UI user of the oidc auth mode */
-export interface Session {
-  idHash: string
-  username: string
-  groups: string[]
-  createdAt: string
-  lastSeenAt: string
-  expiresAt: string
-  idToken: string
-}
 
 export interface NewSession {
   username: string
   groups: readonly string[]
   idToken: string
 }
-
-interface SessionRow {
-  id_hash: string
-  username: string
-  groups: string
-  created_at: string
-  last_seen_at: string
-  expires_at: string
-  id_token: string
-}
-
-/**
- * Hashes a session id for storage and lookup, so the database never holds a usable cookie.
- * @param {string} id - Session id from the cookie
- * @returns {string} - Lower-case hex sha-256
- */
-export const hashSessionId = (id: string): string =>
-  createHash('sha256').update(id, 'utf8').digest('hex')
-
-/**
- * Maps a sessions row to the domain type.
- * @param {SessionRow} row - Row
- * @returns {Session} - Session
- */
-const toSession = (row: SessionRow): Session => ({
-  idHash: row.id_hash,
-  username: row.username,
-  groups: (JSON.parse(row.groups) as unknown[]).filter(
-    (group): group is string => typeof group === 'string',
-  ),
-  createdAt: row.created_at,
-  lastSeenAt: row.last_seen_at,
-  expiresAt: row.expires_at,
-  idToken: row.id_token,
-})
 
 /**
  * Stores a new session that ends lifetimeMs after now, whatever happens in between.

@@ -1,6 +1,6 @@
 import type { ShortcutScope } from '@/keyboard/triageKeymap'
 
-export type InboxAction = 'open' | 'close' | 'accept' | 'reject' | 'markSeen'
+export type InboxAction = 'open' | 'close' | 'accept' | 'reject' | 'markSeen' | 'search'
 
 const KEYS: Record<string, InboxAction> = {
   Enter: 'open',
@@ -9,12 +9,14 @@ const KEYS: Record<string, InboxAction> = {
   a: 'accept',
   d: 'reject',
   s: 'markSeen',
+  '/': 'search',
 }
 
 /**
  * Maps a key press in the Inbox to its action, on top of the cursor keys every list shares:
  * Enter or o opens the item, Escape closes its panel, a and d accept or reject the checked
- * proposals after a dialog, s marks the checked or cursor items as seen. Only the page scope applies, the panels and dialogs handle their own keys.
+ * proposals after a dialog, s marks the checked or cursor items as seen, / focuses the search.
+ * Only the page scope applies, the panels and dialogs handle their own keys.
  * @param {Pick<KeyboardEvent, 'key'>} event - Key press
  * @param {ShortcutScope} scope - Where the key was pressed
  * @returns {InboxAction | null} - Action, null for keys without one

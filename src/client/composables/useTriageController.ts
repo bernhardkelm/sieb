@@ -2,36 +2,35 @@ import {
   computed,
   onMounted,
   onScopeDispose,
-  ref,
   type ComputedRef,
   type Ref,
   type WritableComputedRef,
 } from 'vue'
 
-import type { DecisionStatus } from '#core/decision.ts'
 import type { FindingView } from '#core/findingView.ts'
-import { bulkTargetsFor, type BulkTarget } from '@/components/decision/bulkTargets'
 import {
   TRIAGE_SORT_COLUMNS,
   sortTriage,
   type TriageSortColumn,
 } from '@/components/triage/triageSort'
-import { useCursorRefocus } from '@/composables/useCursorRefocus'
+import { useCheckboxToggle } from '@/composables/useCheckboxToggle'
 import { useFindingFilterQuery } from '@/composables/useFindingFilterQuery'
 import { useFindingPanel } from '@/composables/useFindingPanel'
 import { useSelectionHandoffKeys } from '@/composables/useSelectionHandoffKeys'
+import { useTriageActions, type TriageActions } from '@/composables/useTriageActions'
 import { useTriageHintActions } from '@/composables/useTriageHintActions'
 import { useTriageNew } from '@/composables/useTriageNew'
 import { useListCursor } from '@/composables/useListCursor'
 import { useListSort, type ListSort } from '@/composables/useListSort'
-import { triageActionFor, type TriageAction } from '@/keyboard/triageKeymap'
-import { rowClickIntent } from '@/keyboard/rowClick'
+import { triageActionFor } from '@/keyboard/triageKeymap'
 import type { FindingFilters } from '@/stores/findingFilters'
-import { useFindingDetailStore } from '@/stores/findingDetailStore'
 import { useFindingsStore } from '@/stores/findingsStore'
-import { useHandoffSelectionStore } from '@/stores/handoffSelectionStore'
+import { useSelectionStore } from '@/stores/selectionStore'
 
-export interface TriageController {
+export interface TriageController extends Pick<
+  TriageActions,
+  'bulkOpen' | 'bulkTargets' | 'bulkStatus'
+> {
   /** Filter bar state, kept in the query */
   filters: WritableComputedRef<FindingFilters>
   resetFilters: () => Promise<void>
@@ -42,34 +41,25 @@ export interface TriageController {
   markAllSeen: () => void
   currentId: Ref<number | null>
   checkedIds: Ref<Set<number>>
-  bulkOpen: Ref<boolean>
-  bulkTargets: Ref<BulkTarget[]>
-  bulkStatus: Ref<DecisionStatus | null>
   select: (id: number, event?: MouseEvent) => void
   openBulk: () => void
   toggleChecked: (id: number, event?: MouseEvent) => void
   clearChecked: () => void
 }
 
-const ACTION_STATUS: Partial<Record<TriageAction, DecisionStatus>> = {
-  accept: 'accepted',
-  notAffected: 'not_affected',
-  fixPlanned: 'fix_planned',
-}
-
 /**
- * Drives the triage list on the shared list cursor with multiple selection: cursor and checked rows
- * over the triage list filtered by the filter query params (see useFindingFilterQuery) in the
- * sort of the `sort` and `dir` query params, triage order by default, the triage keymap, the side panel following the cursor and the bulk dialog, which a,
- * n and f open for the checked rows. A panel
- * opened by link on a finding outside the list stays until a cursor key moves the cursor.
+ * Drives the triage list on the shared list cursor with multiple selection: cursor and checked
+ * rows over the triage list filtered by the filter query params (see useFindingFilterQuery) in the
+ * sort of the `sort` and `dir` query params, triage order by default, the triage keymap, the side
+ * panel following the cursor and the bulk dialog, which a, n and f open for the checked rows
+ * (see useTriageActions). A panel opened by link on a finding outside the list stays until a
+ * cursor key moves the cursor.
  * @param {() => void} focusSearch - Focuses the search input of the filter bar
  * @returns {TriageController} - State and actions for the triage view
  */
 export const useTriageController = (focusSearch: () => void): TriageController => {
   const store = useFindingsStore()
-  const detail = useFindingDetailStore()
-  const { findingId, openFinding, closeFinding } = useFindingPanel()
+  const { openFinding } = useFindingPanel()
   const filterQuery = useFindingFilterQuery()
 
   const sort = useListSort(TRIAGE_SORT_COLUMNS)
@@ -77,67 +67,12 @@ export const useTriageController = (focusSearch: () => void): TriageController =
   const findings = computed(() => sortTriage(store.inbox, sort.sort.value))
   const ids = computed(() => findings.value.map((finding) => finding.id))
   const { newCount, markAllSeen } = useTriageNew(findings)
-  const bulkOpen = ref(false)
-  const bulkTargets = ref<BulkTarget[]>([])
-  const bulkStatus = ref<DecisionStatus | null>(null)
   const handoffKey = useSelectionHandoffKeys()
-
-  /**
-   * Opens the bulk dialog for targets, with a status preselected or none.
-   * @param {BulkTarget[]} targets - Targets, the dialog stays closed when empty
-   * @param {DecisionStatus | null} status - Preselected status, null for none
-   * @returns {void}
-   */
-  const showBulk = (targets: BulkTarget[], status: DecisionStatus | null): void => {
-    bulkTargets.value = targets
-    bulkStatus.value = status
-    bulkOpen.value = targets.length > 0
-  }
-
-  /**
-   * Runs a triage action. A decision key decides the checked rows in the bulk dialog, without
-   * checked rows it opens the decision form of the cursor row in the panel, once the panel
-   * shows that row, so a navigation an unsaved draft kept leaves no request behind.
-   * @param {TriageAction} action - Action
-   * @returns {void}
-   */
-  const run = (action: TriageAction): void => {
-    const { selection } = cursor
-    const id = cursor.currentKey.value
-
-    switch (action) {
-      case 'open':
-        if (id !== null) {
-          void openFinding(String(id))
-        }
-        return
-      case 'close':
-        if (findingId.value !== null) {
-          void closeFinding()
-        }
-        return
-      case 'bulk':
-        showBulk(bulkTargetsFor(findings.value, selection.checkedIds.value, id), null)
-        return
-      case 'search':
-        focusSearch()
-        return
-      default: {
-        const status = ACTION_STATUS[action]
-        const checked = bulkTargetsFor(findings.value, selection.checkedIds.value, null)
-
-        if (status && checked.length > 0) {
-          showBulk(checked, status)
-        } else if (id !== null && status) {
-          void openFinding(String(id)).then((opened) => {
-            if (opened) {
-              detail.requestDecision(id, status)
-            }
-          })
-        }
-      }
-    }
-  }
+  const { bulkOpen, bulkTargets, bulkStatus, run } = useTriageActions({
+    findings,
+    cursor: () => cursor,
+    focusSearch,
+  })
 
   /**
    * Returns the rendered row of a finding.
@@ -166,12 +101,12 @@ export const useTriageController = (focusSearch: () => void): TriageController =
     },
   })
 
-  const refocusCursor = useCursorRefocus(cursor.currentKey, rowOf)
+  const toggleChecked = useCheckboxToggle(cursor, rowOf)
 
   useTriageHintActions({ run, cursor, ids })
 
   onScopeDispose(
-    useHandoffSelectionStore().register(() =>
+    useSelectionStore().register(() =>
       findings.value.filter((finding) => cursor.selection.checkedIds.value.has(finding.id)),
     ),
   )
@@ -190,23 +125,6 @@ export const useTriageController = (focusSearch: () => void): TriageController =
 
     cursor.currentKey.value = id
     void openFinding(String(id))
-  }
-
-  /**
-   * Handles a click on the checkbox of a row: Shift checks the range from the anchor as a Shift
-   * click on the row does, every other click checks or unchecks the row and anchors there,
-   * leaving cursor and panel where they are and focus on the cursor row.
-   * @param {number} id - Finding id
-   * @param {MouseEvent | undefined} event - Click
-   * @returns {void}
-   */
-  const toggleChecked = (id: number, event?: MouseEvent): void => {
-    if (rowClickIntent(event, true) === 'range') {
-      cursor.click(id, event)
-    } else {
-      cursor.selection.toggleChecked(id)
-      refocusCursor()
-    }
   }
 
   /**

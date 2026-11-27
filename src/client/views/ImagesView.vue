@@ -72,20 +72,22 @@ const { hidden } = useLabelColumns()
             ? 'No image matches these filters.'
             : 'Every image has only not affected findings open.'
         }}
-        <BaseButton
-          v-if="hiddenCount > 0"
-          variant="ghost"
-          @click="filters = { ...filters, showNotAffected: true }"
-        >
-          Show not affected
-        </BaseButton>
-        <BaseButton
-          v-if="hasAggregateFilters(filters)"
-          variant="ghost"
-          @click="filters = emptyAggregateFilters()"
-        >
-          Reset filters
-        </BaseButton>
+        <template #actions>
+          <BaseButton
+            v-if="hiddenCount > 0"
+            variant="ghost"
+            @click="filters = { ...filters, showNotAffected: true }"
+          >
+            Show not affected
+          </BaseButton>
+          <BaseButton
+            v-if="hasAggregateFilters(filters)"
+            variant="ghost"
+            @click="filters = emptyAggregateFilters()"
+          >
+            Reset filters
+          </BaseButton>
+        </template>
       </EmptyState>
       <ImageList
         v-else

@@ -17,7 +17,6 @@ import {
 import { parseFindingQuery, type FindingQuery } from '#core/findingQuery.ts'
 import type { InboxFinding } from '#core/inbox/inboxItem.ts'
 import {
-  DAY_MS,
   fromNow,
   inboxFinding,
   inboxOf,
@@ -26,6 +25,7 @@ import {
   REDIS,
 } from '#core/inbox/__tests__/inboxBuilders.ts'
 import { resolveTriage } from '#core/triage.ts'
+import { DAY_MS } from '#core/timeUnits.ts'
 
 const POSTGRES = 'index.docker.io/library/postgres'
 

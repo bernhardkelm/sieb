@@ -1,7 +1,7 @@
 import type { WorkerClaim, WorkerResult } from '#core/check.ts'
+import { errorMessage } from '#core/errorMessage.ts'
 import { InvalidClaimError } from '#checker/api/parseClaim.ts'
 import type { WorkerApi } from '#checker/api/workerApi.ts'
-import { errorMessage } from '#checker/safeText.ts'
 
 /** Longest wait between claim attempts after repeated failures */
 export const BACKOFF_MAX_MS = 5 * 60_000

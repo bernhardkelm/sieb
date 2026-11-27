@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest'
 
 import { NOW } from '#core/__tests__/coreBuilders.ts'
 import { buildProposalInput, PROPOSER } from '#core/__tests__/proposalBuilders.ts'
-import { MAX_OPEN_PROPOSALS } from '#core/proposal.ts'
+import { MAX_OPEN_PROPOSALS } from '#core/proposalRecord.ts'
 import { createProposal } from '#server/db/createProposal.ts'
 import { getProposal, insertProposal } from '#server/db/proposalRepository.ts'
 import { applySnapshot } from '#server/sync/applySnapshot.ts'

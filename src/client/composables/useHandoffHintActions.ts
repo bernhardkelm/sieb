@@ -1,8 +1,10 @@
+import type { HandoffActions } from '@/composables/HandoffActions'
 import { useHintActions } from '@/composables/useHintActions'
-import { usePanelHandoff, type HandoffActions } from '@/composables/usePanelHandoff'
+import { usePanelHandoff } from '@/composables/usePanelHandoff'
 import { useSelectionHandoff } from '@/composables/useSelectionHandoff'
 import { FINDING_NOUN } from '@/format/bulkCount'
-import type { HintBulk } from '@/keyboard/hintActions'
+import { HANDOFF_KEYMAP } from '@/keyboard/handoffKeymap'
+import type { HintActions, HintBulk } from '@/keyboard/hintActions'
 
 /**
  * Registers the hand-off hint actions: Open in Claude runs the default hand-off action as
@@ -29,27 +31,18 @@ export const useHandoffHintActions = (): void => {
   const bulk = (): HintBulk | null =>
     selection.active.value ? { count: selection.count.value, noun: FINDING_NOUN } : null
 
-  useHintActions({
-    handoffOpen: {
-      run: () => {
-        current().openPreferred()
-      },
-      blockedBy: () => current().openBlockedBy(),
-      bulk,
-    },
-    handoff: {
-      run: () => {
-        void current().copyPrompt()
-      },
-      blockedBy: () => current().promptBlockedBy(),
-      bulk,
-    },
-    handoffCommand: {
-      run: () => {
-        void current().copyCommand()
-      },
-      blockedBy: () => current().commandBlockedBy(),
-      bulk,
-    },
-  })
+  useHintActions(
+    Object.fromEntries(
+      HANDOFF_KEYMAP.map((key) => [
+        key.hintId,
+        {
+          run: () => {
+            void key.run(current())
+          },
+          blockedBy: () => key.blockedBy(current()),
+          bulk,
+        },
+      ]),
+    ) as HintActions,
+  )
 }

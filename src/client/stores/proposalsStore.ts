@@ -1,7 +1,7 @@
 import { defineStore } from 'pinia'
 import { computed, shallowRef, watch } from 'vue'
 
-import type { ProposalListItem } from '#core/apiTypes.ts'
+import type { ProposalListItem } from '#core/proposalApiTypes.ts'
 import { fetchProposals } from '@/api/proposalsApi'
 import { useDataVersionStore } from '@/stores/dataVersionStore'
 

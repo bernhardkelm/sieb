@@ -7,8 +7,8 @@ import type {
   ProposalAcceptResponse,
   ProposalDetail,
   ProposalListItem,
-  StatsResponse,
-} from '#core/apiTypes.ts'
+} from '#core/proposalApiTypes.ts'
+import type { StatsResponse } from '#core/statsApiTypes.ts'
 import type { FindingView } from '#core/findingView.ts'
 import { buildProposalInput, PROPOSER } from '#core/__tests__/proposalBuilders.ts'
 import { DEFAULT_PUBLIC_REGISTRIES } from '#core/sourceAccess.ts'

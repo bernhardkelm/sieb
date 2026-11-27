@@ -1,10 +1,10 @@
 import { describe, expect, it } from 'vitest'
 
 import { downsampleLatest } from '#core/seriesDownsampling.ts'
+import { HOUR_MS } from '#core/timeUnits.ts'
 
 const FROM = new Date('2026-06-01T00:00:00.000Z')
 const TO = new Date('2026-06-02T00:00:00.000Z')
-const HOUR_MS = 60 * 60 * 1000
 
 /**
  * Builds a point at an hour offset from FROM.

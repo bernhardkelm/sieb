@@ -1,7 +1,7 @@
 // @vitest-environment node
 import { describe, expect, it } from 'vitest'
 
-import type { BulkDecisionResult } from '#core/apiTypes.ts'
+import type { BulkDecisionResult } from '#core/decisionApiTypes.ts'
 import type { CveAggregate } from '#core/cveAggregation.ts'
 import type { DecisionView } from '#core/findingView.ts'
 

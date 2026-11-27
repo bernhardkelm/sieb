@@ -1,7 +1,7 @@
 import { defineStore } from 'pinia'
 import { computed, ref } from 'vue'
 
-import type { SyncStatusResponse } from '#core/apiTypes.ts'
+import type { SyncStatusResponse } from '#core/syncApiTypes.ts'
 import { errorMessage } from '@/api/apiRequest'
 import { fetchSyncStatus, triggerSync } from '@/api/syncApi'
 import { countOf } from '@/format/count'

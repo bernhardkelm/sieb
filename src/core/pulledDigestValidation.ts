@@ -1,4 +1,4 @@
-import type { ValidationIssue } from '#core/apiTypes.ts'
+import type { ValidationIssue } from '#core/errorApiTypes.ts'
 import { MAX_CHECK_IMAGES } from '#core/checkLimits.ts'
 import { isImageDigest } from '#core/checkPrompt.ts'
 

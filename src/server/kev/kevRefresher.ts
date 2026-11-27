@@ -1,6 +1,7 @@
 import type { DatabaseSync } from 'node:sqlite'
 
 import type { Clock } from '#core/clock.ts'
+import { errorMessage } from '#core/errorMessage.ts'
 import { inTransaction } from '#server/db/inTransaction.ts'
 import { countKevEntries, replaceKevCatalog } from '#server/db/kevCatalogRepository.ts'
 import {
@@ -24,14 +25,6 @@ export interface KevRefresherDeps {
   log?: (message: string) => void
   onUpdated?: () => void // called after a new catalog was stored
 }
-
-/**
- * Returns the message of a thrown value.
- * @param {unknown} error - Thrown value
- * @returns {string} - Message
- */
-const messageOf = (error: unknown): string =>
-  error instanceof Error ? error.message : String(error)
 
 /**
  * Rejects a feed that lost too many entries against the stored catalog.
@@ -104,12 +97,12 @@ export const createKevRefresher = ({
         ? `keeping ${state.entryCount} entries from ${state.lastSuccessAt}`
         : 'no catalog stored yet'
 
-      log(`[sieb] KEV catalog fetch failed: ${messageOf(error)}, ${kept}`)
+      log(`[sieb] KEV catalog fetch failed: ${errorMessage(error)}, ${kept}`)
 
       try {
-        recordKevFailure(db, messageOf(error), attemptAt)
+        recordKevFailure(db, errorMessage(error), attemptAt)
       } catch (recordError) {
-        log(`[sieb] KEV catalog failure not recorded: ${messageOf(recordError)}`)
+        log(`[sieb] KEV catalog failure not recorded: ${errorMessage(recordError)}`)
       }
 
       return false

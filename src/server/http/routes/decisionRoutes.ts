@@ -12,7 +12,7 @@ import { updateDecision } from '#server/db/updateDecision.ts'
 import type { AppEnv } from '#server/http/AppEnv.ts'
 import { requireActor } from '#server/http/identity.ts'
 import { parseId } from '#server/http/pathParams.ts'
-import { INVALID_BODY, readObjectBody } from '#server/http/requestBody.ts'
+import { readObjectBody, readValidBody } from '#server/http/requestBody.ts'
 import { commandRefused, notFound, validationFailed } from '#server/http/responses.ts'
 import type { RouteDeps } from '#server/http/RouteDeps.ts'
 
@@ -69,12 +69,11 @@ export const createDecisionRoutes = ({ db, clock }: RouteDeps): Hono<AppEnv> => 
   })
 
   routes.post('/', async (c) => {
-    const body = await readObjectBody(c)
     const now = clock()
-    const input = body === null ? null : validateDecisionInput(body, now)
+    const input = await readValidBody(c, (body) => validateDecisionInput(body, now))
 
-    if (input === null || !input.ok) {
-      return validationFailed(c, input?.errors ?? INVALID_BODY)
+    if (!input.ok) {
+      return input.response
     }
 
     const findingField = input.value.scope === 'image' ? 'imageRef' : 'vulnId'
@@ -84,17 +83,16 @@ export const createDecisionRoutes = ({ db, clock }: RouteDeps): Hono<AppEnv> => 
 
   routes.patch('/:id', async (c) => {
     const id = parseId(c.req.param('id'))
-    const body = await readObjectBody(c)
     const now = clock()
 
     if (id === null) {
       return notFound(c)
     }
 
-    const patch = body === null ? null : validateDecisionPatch(body, now)
+    const patch = await readValidBody(c, (body) => validateDecisionPatch(body, now))
 
-    if (patch === null || !patch.ok) {
-      return validationFailed(c, patch?.errors ?? INVALID_BODY)
+    if (!patch.ok) {
+      return patch.response
     }
 
     return answer(c, updateDecision(db, id, patch.value, requireActor(c), now), 200)

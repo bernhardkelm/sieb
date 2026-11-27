@@ -1,5 +1,6 @@
-import type { ValidationIssue } from '#core/apiTypes.ts'
+import type { ValidationIssue } from '#core/errorApiTypes.ts'
 import { readExpectedDecisionIds } from '#core/expectedDecisionIds.ts'
+import { isPlainObject } from '#core/isPlainObject.ts'
 import { PROPOSAL_LIMITS } from '#core/proposal.ts'
 import {
   MAX_BULK_PROPOSALS,
@@ -7,9 +8,8 @@ import {
   type BulkAcceptRequest,
   type BulkRejectRequest,
 } from '#core/proposalBulk.ts'
-import { isPlainObject, readProposalText } from '#core/proposalTextReaders.ts'
-
-export type BulkValidated<T> = { ok: true; value: T } | { ok: false; errors: ValidationIssue[] }
+import { readProposalText } from '#core/proposalTextReaders.ts'
+import type { Validation } from '#core/validation.ts'
 
 /**
  * Returns whether a value is a proposal id, a positive safe integer.
@@ -75,11 +75,9 @@ const readAcceptItem = (
  * Validates a bulk accept: 1 to MAX_BULK_PROPOSALS distinct proposals, each with its
  * expectedDecisionIds as the single accept takes them. Edits are not part of a bulk accept.
  * @param {Record<string, unknown>} raw - Parsed request body
- * @returns {BulkValidated<BulkAcceptRequest>} - Entries or the errors
+ * @returns {Validation<BulkAcceptRequest>} - Entries or the errors
  */
-export const validateBulkAccept = (
-  raw: Record<string, unknown>,
-): BulkValidated<BulkAcceptRequest> => {
+export const validateBulkAccept = (raw: Record<string, unknown>): Validation<BulkAcceptRequest> => {
   const errors: ValidationIssue[] = []
 
   if (!isBatch(raw.items, 'items', errors)) {
@@ -101,11 +99,9 @@ export const validateBulkAccept = (
  * Validates a bulk reject: 1 to MAX_BULK_PROPOSALS distinct proposal ids and one reason for all,
  * with the rules of the single reject.
  * @param {Record<string, unknown>} raw - Parsed request body
- * @returns {BulkValidated<BulkRejectRequest>} - Ids and reason or the errors
+ * @returns {Validation<BulkRejectRequest>} - Ids and reason or the errors
  */
-export const validateBulkReject = (
-  raw: Record<string, unknown>,
-): BulkValidated<BulkRejectRequest> => {
+export const validateBulkReject = (raw: Record<string, unknown>): Validation<BulkRejectRequest> => {
   const errors: ValidationIssue[] = []
   const reason = readProposalText(
     raw.reason,

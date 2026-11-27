@@ -5,7 +5,7 @@ import { defineComponent, h } from 'vue'
 import { buildFindingView } from '#core/__tests__/coreBuilders.ts'
 import { MAX_OPEN_CHECKS } from '#core/checkLimits.ts'
 import type { ChecksResponse } from '#core/check.ts'
-import type { InboxResponse } from '#core/apiTypes.ts'
+import type { InboxResponse } from '#core/inboxApiTypes.ts'
 import { buildCheck, buildChecksResponse } from '@/__tests__/checkBuilders'
 import { mountWithRouter, type RoutedMount } from '@/__tests__/mountWithRouter'
 import { fetchFindings } from '@/api/findingsApi'
@@ -76,7 +76,7 @@ const labelOf = (keys: string): [string, string | undefined] => {
   const button = hintOf(keys)
 
   return [
-    button.querySelector(':scope > span:last-child')!.textContent!,
+    [...button.querySelectorAll(':scope > span:not([hidden])')].at(-1)!.textContent!,
     button.querySelector('.visually-hidden')?.textContent ?? undefined,
   ]
 }

@@ -3,8 +3,7 @@ import type { DatabaseSync } from 'node:sqlite'
 import type { CheckUsageSummary, CheckUsageWindow } from '#core/check.ts'
 import { CHECK_USAGE_WINDOW_DAYS } from '#core/checkLimits.ts'
 import { CHECK_DURATION_MS_SQL, TIMED_CHECK_STATES_SQL } from '#server/db/checkDurationSql.ts'
-
-const DAY_MS = 24 * 60 * 60 * 1000
+import { DAY_MS } from '#core/timeUnits.ts'
 
 interface UsageRow {
   checks: number

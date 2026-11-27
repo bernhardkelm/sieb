@@ -1,5 +1,5 @@
-import type { StatsResponse } from '#core/apiTypes.ts'
-import { STATS_RANGE_DAYS, type StatsRange } from '#core/statsRange.ts'
+import type { StatsResponse } from '#core/statsApiTypes.ts'
+import { STATS_RANGE_PERIODS, type StatsRange } from '#core/statsRange.ts'
 import type { SparkPoint } from '@/components/overview/sparkline'
 import {
   deltaTone,
@@ -100,7 +100,7 @@ export const buildStatPanels = (
   range: StatsRange,
   labels: { exposure: boolean; kev?: boolean } = { exposure: true },
 ): StatPanelModel[] => {
-  const period = `${STATS_RANGE_DAYS[range]} days`
+  const period = STATS_RANGE_PERIODS[range]
 
   return STAT_PANEL_SPECS.filter(
     (spec) => (labels.exposure || !spec.needsExposure) && (labels.kev !== false || !spec.needsKev),

@@ -3,6 +3,8 @@ import type { CheckView } from '#core/check.ts'
 import CheckChip from '@/components/checks/CheckChip.vue'
 import CheckFinding from '@/components/checks/CheckFinding.vue'
 import BaseButton from '@/components/common/BaseButton.vue'
+import SectionHeading from '@/components/common/SectionHeading.vue'
+import StatusDot from '@/components/common/StatusDot.vue'
 
 defineProps<{
   check: CheckView | null
@@ -14,13 +16,15 @@ defineEmits<{ cancel: [check: CheckView] }>()
 
 <template>
   <section class="check-section" aria-labelledby="checks-running">
-    <h2 id="checks-running" class="section-title">
+    <SectionHeading id="checks-running" :level="2">
       Running
-      <span class="worker" :class="{ online: workerOnline }" data-worker>
-        <span class="dot" aria-hidden="true" />
-        {{ workerOnline ? 'Worker online' : 'Worker offline' }}
-      </span>
-    </h2>
+      <template #aside>
+        <span class="worker" :class="{ online: workerOnline }" data-worker>
+          <StatusDot :tone="workerOnline ? 'success' : 'warning'" />
+          {{ workerOnline ? 'Worker online' : 'Worker offline' }}
+        </span>
+      </template>
+    </SectionHeading>
     <div v-if="check" class="items">
       <div class="item">
         <CheckFinding :check="check" />
@@ -53,19 +57,9 @@ defineEmits<{ cancel: [check: CheckView] }>()
   align-items: center;
   gap: var(--space-1);
   color: var(--color-warning);
-  font-weight: var(--font-weight-medium);
-  letter-spacing: normal;
-  text-transform: none;
 }
 
 .worker.online {
   color: var(--color-success);
-}
-
-.dot {
-  width: var(--dot-size);
-  height: var(--dot-size);
-  border-radius: var(--radius-pill);
-  background: currentColor;
 }
 </style>

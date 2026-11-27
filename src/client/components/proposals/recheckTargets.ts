@@ -1,4 +1,4 @@
-import type { ProposalDetail, ProposalImageFacts } from '#core/apiTypes.ts'
+import type { ProposalDetail, ProposalImageFacts } from '#core/proposalApiTypes.ts'
 import type { HandoffInput } from '#core/handoffPrompt.ts'
 
 /** Target image of a proposal with an open finding, what a re-check can look at */

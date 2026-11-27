@@ -48,13 +48,13 @@ const mountTriage = async (): Promise<RoutedMount> => {
 }
 
 /**
- * Returns the ids of the rows that carry the "new" tag.
+ * Returns the ids of the rows that carry the new dot.
  * @returns {string[]} - Finding ids
  */
 const taggedIds = (): string[] =>
   mounted!.wrapper
     .findAll('[data-finding-id]')
-    .filter((row) => row.find('.new').exists())
+    .filter((row) => row.find('.title .new-dot').exists())
     .map((row) => row.attributes('data-finding-id')!)
 
 /**

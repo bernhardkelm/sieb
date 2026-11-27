@@ -5,7 +5,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { defineComponent, h } from 'vue'
 import { createMemoryHistory, createRouter, RouterView, type Router } from 'vue-router'
 
-import type { InboxResponse, ProposalAcceptResponse, ProposalDetail } from '#core/apiTypes.ts'
+import type { InboxResponse } from '#core/inboxApiTypes.ts'
+import type { ProposalAcceptResponse, ProposalDetail } from '#core/proposalApiTypes.ts'
 import type { InboxItem } from '#core/inbox/inboxItem.ts'
 import { proposalItem } from '@/__tests__/inboxItemBuilders'
 import {

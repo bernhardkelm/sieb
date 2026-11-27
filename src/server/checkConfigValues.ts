@@ -5,6 +5,7 @@ import {
   MAX_CHECK_TIMEOUT_SECONDS,
 } from '#core/checkLimits.ts'
 import { parseBoolean, parsePositiveInt } from '#server/configValues.ts'
+import { parseWorkerPort } from '#server/portConfigValues.ts'
 
 export const MIN_WORKER_SECRET_LENGTH = 32
 
@@ -14,32 +15,6 @@ export interface CheckConfig {
   workerSecret: string // bearer secret of the worker, never logged
   timeoutSeconds: number
   maxTurns: number
-}
-
-/**
- * Parses the port of the worker listener, which must differ from the main and metrics ports.
- * @param {string | undefined} value - Raw SIEB_WORKER_PORT value
- * @param {{ port: number; metricsPort: number | null }} ports - Main and metrics port
- * @returns {number} - Port
- * @throws {Error} - When unset, invalid or taken by another listener
- */
-const parseWorkerPort = (
-  value: string | undefined,
-  { port, metricsPort }: { port: number; metricsPort: number | null },
-): number => {
-  if ((value?.trim() ?? '') === '') {
-    throw new Error('SIEB_WORKER_PORT must be set when SIEB_CHECKS_ENABLED=true')
-  }
-
-  const workerPort = parsePositiveInt(value?.trim(), 'SIEB_WORKER_PORT', 1, 65535)
-
-  if (workerPort === port || workerPort === metricsPort) {
-    throw new Error(
-      `SIEB_WORKER_PORT must differ from SIEB_PORT and SIEB_METRICS_PORT, got ${workerPort}`,
-    )
-  }
-
-  return workerPort
 }
 
 /**

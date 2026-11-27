@@ -1,4 +1,4 @@
-import type { DecisionPatchRequest } from '#core/apiTypes.ts'
+import type { DecisionPatchRequest } from '#core/decisionApiTypes.ts'
 import { JUSTIFIABLE_STATUS, type Decision } from '#core/decision.ts'
 import {
   isLapsed,

@@ -1,13 +1,11 @@
 import { computed, type ComputedRef } from 'vue'
 
 import { useAutoCheck } from '@/composables/useAutoCheck'
-import { NO_FINDING_REASON } from '@/composables/useHandoff'
 import { findingCheckReason } from '@/format/checkBlockReason'
+import { NO_FINDING_REASON } from '@/format/handoffReasons'
 import { useChecksStore } from '@/stores/checksStore'
 import { useFindingDetailStore } from '@/stores/findingDetailStore'
 import { notifyNotice } from '@/toast/toastManager'
-
-export const AUTO_CHECK_SHORTCUT = 'Shift+C'
 
 export interface PanelAutoCheck {
   /** Why the panel finding cannot be checked now, null while it can */

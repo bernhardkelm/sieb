@@ -88,7 +88,7 @@ export const registerSearchFindingsTool = (
     {
       title: 'Search findings',
       description:
-        'Searches the findings sieb holds (one finding = one CVE in one image), in inbox order: KEV first, then exposure, severity and score. Combine filters to answer questions such as "critical openssl findings in public images" or "what is open in namespace X"; use groupBy for counts per CVE, image, namespace or package. Absence of a finding means sieb saw it in no scanned image, not that the cluster is safe.',
+        'Searches the findings sieb holds (one finding = one CVE in one image), in inbox order: KEV first, then exposure, severity and score. Combine filters to answer questions such as "critical openssl findings in public images" or "what is open in namespace X"; use groupBy for counts per CVE, image, namespace or package. Absence of a finding means sieb saw it in no scanned image, not that the cluster is safe. A filtered search returning 0: say so in the first line of your answer before you widen it and name the widened filter ("None with exposure public; widened to all exposures:").',
       inputSchema,
       outputSchema,
       annotations: READ_ONLY_TOOL,

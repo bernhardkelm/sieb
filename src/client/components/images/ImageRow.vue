@@ -101,7 +101,7 @@ const workloadNoun = computed(() => pluralize(props.image.workloadCount, 'worklo
 @container (max-width: 640px) {
   .name {
     flex: 1 1 0;
-    min-width: calc(var(--space-base) * 24);
+    min-width: var(--row-key-min);
   }
 
   .open,

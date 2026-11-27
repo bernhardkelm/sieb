@@ -1,9 +1,13 @@
 import { describe, expect, it } from 'vitest'
 
 import { buildFindingView } from '#core/__tests__/coreBuilders.ts'
-import { PROMPT_LINK_LIMIT } from '#core/handoffLinks.ts'
-import { multiLinkPrompt } from '#core/multiHandoffLink.ts'
-import { MULTI_HANDOFF_CAP, buildMultiHandoffPrompts } from '#core/multiHandoffPrompt.ts'
+import { fitsLink, PROMPT_LINK_LIMIT } from '#core/handoffLinks.ts'
+import { maxFitting, multiLinkPrompt } from '#core/multiHandoffLink.ts'
+import {
+  MULTI_HANDOFF_CAP,
+  buildMultiHandoffPrompts,
+  composeMultiPrompt,
+} from '#core/multiHandoffPrompt.ts'
 import type { MultiHandoffFinding } from '#core/multiHandoffRepositoryLine.ts'
 import { selectionHandoffTexts } from '#core/selectionHandoff.ts'
 
@@ -89,5 +93,36 @@ describe('selectionHandoffTexts', () => {
 
     expect(texts).toMatchObject({ listed: MULTI_HANDOFF_CAP, total: MULTI_HANDOFF_CAP + 3 })
     expect(texts?.links.chat.prompt).toBeNull()
+  })
+})
+
+describe('maxFitting', () => {
+  /**
+   * Counts the findings that fit by growing the selection one at a time.
+   * @param {MultiHandoffFinding[]} selection - Findings
+   * @param {'chat' | 'code'} client - Client kind
+   * @returns {number} - Count of the longest fitting prefix
+   */
+  const linearMax = (selection: MultiHandoffFinding[], client: 'chat' | 'code'): number => {
+    let count = 0
+
+    while (
+      count < selection.length &&
+      fitsLink(composeMultiPrompt(selection.slice(0, count + 1), client, false))
+    ) {
+      count += 1
+    }
+
+    return count
+  }
+
+  it('matches a linear search for every selection size and client', () => {
+    for (const client of ['chat', 'code'] as const) {
+      for (let size = 0; size <= MULTI_HANDOFF_CAP + 5; size += 1) {
+        const selection = findings(size)
+
+        expect(maxFitting(selection, client)).toBe(linearMax(selection, client))
+      }
+    }
   })
 })

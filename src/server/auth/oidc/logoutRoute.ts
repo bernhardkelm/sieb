@@ -1,13 +1,14 @@
 import type { Handler } from 'hono'
 import * as client from 'openid-client'
 
-import type { LogoutResponse } from '#core/apiTypes.ts'
-import type { AppEnv } from '#server/http/AppEnv.ts'
+import type { LogoutResponse } from '#core/authApiTypes.ts'
 import { clearSessionCookie, readSessionCookie } from '#server/auth/oidc/authCookies.ts'
-import { errorText, logSafe } from '#server/logSafe.ts'
 import type { OidcAuthDeps } from '#server/auth/oidc/OidcAuthDeps.ts'
 import { setSignedOutCookie } from '#server/auth/oidc/signedOutCookie.ts'
-import { deleteSession, type Session } from '#server/db/sessionRepository.ts'
+import { deleteSession } from '#server/db/sessionRepository.ts'
+import type { Session } from '#server/db/sessionRows.ts'
+import type { AppEnv } from '#server/http/AppEnv.ts'
+import { errorText, logSafe } from '#server/logSafe.ts'
 
 /**
  * Builds where the browser goes after the local logout: the issuer end-session endpoint with

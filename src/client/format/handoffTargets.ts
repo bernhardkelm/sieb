@@ -49,3 +49,15 @@ export const HANDOFF_PREFERENCES: readonly HandoffPreference[] = [...HANDOFF_TAR
  */
 export const isHandoffPreference = (value: unknown): value is HandoffPreference =>
   HANDOFF_PREFERENCES.includes(value as HandoffPreference)
+
+/**
+ * Returns why the default hand-off action cannot run: a deep link needs Claude connected to
+ * sieb, copying the prompt needs nothing.
+ * @param {HandoffPreference} preferred - Default action
+ * @param {string | null} connectReason - Why Claude cannot reach sieb, null while it can
+ * @returns {string | null} - Reason, null while the action can run
+ */
+export const openBlockReason = (
+  preferred: HandoffPreference,
+  connectReason: string | null,
+): string | null => (preferred === 'copy' ? null : connectReason)

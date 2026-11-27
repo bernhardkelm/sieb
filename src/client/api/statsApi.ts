@@ -1,4 +1,4 @@
-import type { StatsResponse } from '#core/apiTypes.ts'
+import type { StatsResponse } from '#core/statsApiTypes.ts'
 import type { StatsRange } from '#core/statsRange.ts'
 import { apiRequest } from '@/api/apiRequest'
 import { queryString } from '@/api/queryString'

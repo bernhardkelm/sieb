@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, nextTick, onMounted, ref } from 'vue'
 
-import type { ProposalDetail } from '#core/apiTypes.ts'
+import type { ProposalDetail } from '#core/proposalApiTypes.ts'
 import DecisionForm from '@/components/decision/DecisionForm.vue'
 import type { DecisionFormValue } from '@/components/decision/decisionFormModel'
 import { editInitial } from '@/components/proposals/acceptEdits'

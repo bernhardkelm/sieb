@@ -1,30 +1,53 @@
 <script setup lang="ts">
-import type { ChipTone } from '@/components/chips/chipTone'
+import { computed } from 'vue'
+import { RouterLink, type RouteLocationRaw } from 'vue-router'
 
-withDefaults(
+import type { ChipTone, ChipVariant } from '@/components/chips/chipTone'
+import StatusDot from '@/components/common/StatusDot.vue'
+
+const props = withDefaults(
   defineProps<{
     tone?: ChipTone
-    /** Shows a coloured dot before the label instead of tinting the background */
-    dot?: boolean
-    /** Leaves out the background, for chips that should stay quiet */
-    outline?: boolean
+    /**
+     * wash tints the background, outline draws a neutral border, dot puts a coloured dot before
+     * the label, framed adds a tinted border to the wash, pending a dashed one for content
+     * Claude wrote or that waits on Claude
+     */
+    variant?: ChipVariant
+    /** Large for a header verdict, wraps instead of truncating */
+    size?: 'sm' | 'lg'
+    /** Renders the chip as a link that shows a solid border on hover */
+    to?: RouteLocationRaw | null
+    /** Makes a plain chip a tab stop that opens its tooltip on focus, never inside a list row */
+    focusable?: boolean
   }>(),
-  { tone: 'neutral', dot: false, outline: false },
+  { tone: 'neutral', variant: 'wash', size: 'sm', to: null, focusable: false },
 )
+
+const tag = computed(() => (props.to === null ? 'span' : RouterLink))
+const bound = computed(() => ({
+  ...(props.to === null ? {} : { to: props.to }),
+  tabindex: props.focusable && props.to === null ? 0 : undefined,
+}))
 </script>
 
 <template>
-  <span class="chip" :class="[tone, { dot, outline }]">
-    <span v-if="dot" class="marker" aria-hidden="true" />
+  <component
+    :is="tag"
+    class="chip"
+    :class="[tone, variant, size, { link: to !== null }]"
+    v-bind="bound"
+  >
+    <StatusDot v-if="variant === 'dot'" :tone="tone" />
     <slot />
-  </span>
+  </component>
 </template>
 
 <style scoped>
 .chip {
-  --chip-color: var(--color-text-muted);
-  --chip-wash: var(--color-severity-unknown-wash);
-  --chip-ink: var(--chip-color);
+  --tone-color: var(--color-text-muted);
+  --tone-wash: var(--color-severity-unknown-wash);
+  --tone-ink: var(--tone-color);
 
   display: inline-flex;
   flex: none;
@@ -34,12 +57,27 @@ withDefaults(
   padding: 0 var(--space-1-5);
   border: var(--border-width) solid transparent;
   border-radius: var(--radius-sm);
-  background: var(--chip-wash);
-  color: var(--chip-ink);
+  background: var(--tone-wash);
+  color: var(--tone-ink);
+  font-family: var(--font-sans);
   font-size: var(--font-size-xs);
   font-weight: var(--font-weight-medium);
+  font-variant-numeric: tabular-nums;
   line-height: 1;
+  text-decoration: none;
   white-space: nowrap;
+}
+
+.lg {
+  height: auto;
+  max-width: 100%;
+  padding: var(--space-1-5) var(--space-3);
+  border-radius: var(--radius);
+  font-size: var(--font-size-lg);
+  font-weight: var(--font-weight-semibold);
+  line-height: var(--line-height-tight);
+  white-space: normal;
+  overflow-wrap: anywhere;
 }
 
 .outline {
@@ -52,59 +90,23 @@ withDefaults(
   color: var(--color-text);
 }
 
-.marker {
-  width: var(--dot-size);
-  height: var(--dot-size);
-  border-radius: var(--radius-pill);
-  background: var(--chip-color);
+.framed {
+  border-color: color-mix(in srgb, var(--tone-color) var(--chip-border-mix), transparent);
 }
 
-.critical {
-  --chip-color: var(--color-severity-critical);
-  --chip-wash: var(--color-severity-critical-wash);
-  --chip-ink: var(--color-severity-critical-text);
+.pending {
+  border-style: dashed;
+  border-color: color-mix(in srgb, var(--tone-color) var(--chip-border-mix), transparent);
 }
 
-.high {
-  --chip-color: var(--color-severity-high);
-  --chip-wash: var(--color-severity-high-wash);
-  --chip-ink: var(--color-severity-high-text);
+.link {
+  cursor: pointer;
 }
 
-.medium {
-  --chip-color: var(--color-severity-medium);
-  --chip-wash: var(--color-severity-medium-wash);
-  --chip-ink: var(--color-severity-medium-text);
-}
-
-.low {
-  --chip-color: var(--color-severity-low);
-  --chip-wash: var(--color-severity-low-wash);
-  --chip-ink: var(--color-severity-low-text);
-}
-
-.kev {
-  --chip-color: var(--color-kev);
-  --chip-wash: var(--color-kev-wash);
-}
-
-.accent {
-  --chip-color: var(--color-accent);
-  --chip-wash: var(--color-accent-wash);
-}
-
-.success {
-  --chip-color: var(--color-success);
-  --chip-wash: var(--color-success-wash);
-}
-
-.warning {
-  --chip-color: var(--color-warning);
-  --chip-wash: var(--color-warning-wash);
-}
-
-.danger {
-  --chip-color: var(--color-danger);
-  --chip-wash: var(--color-danger-wash);
+.link:hover {
+  border-style: solid;
+  border-color: var(--tone-color);
 }
 </style>
+
+<style scoped src="@/components/chips/toneColors.css"></style>

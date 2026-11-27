@@ -2,7 +2,7 @@
 import { computed } from 'vue'
 import { RouterLink, useRoute } from 'vue-router'
 
-import type { ProposalRelatedFacts } from '#core/apiTypes.ts'
+import type { ProposalRelatedFacts } from '#core/proposalApiTypes.ts'
 import BaseChip from '@/components/chips/BaseChip.vue'
 import DecisionStateChip from '@/components/chips/DecisionStateChip.vue'
 import ImageName from '@/components/common/ImageName.vue'
@@ -29,7 +29,7 @@ const findingLink = computed(() => ({
       <span v-else class="missing">Finding #{{ facts.findingId }}, no longer in sieb</span>
       <span v-if="facts.imageRef" class="image"><ImageName :image-ref="facts.imageRef" /></span>
       <span class="state">
-        <BaseChip v-if="facts.vulnId && !facts.open" outline>resolved</BaseChip>
+        <BaseChip v-if="facts.vulnId && !facts.open" variant="outline">resolved</BaseChip>
         <DecisionStateChip
           v-else-if="facts.decision && facts.effective"
           :effective="facts.effective"

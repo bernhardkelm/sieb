@@ -1,6 +1,7 @@
 import type { Decision } from '#core/decision.ts'
 import { selectApplicableDecision } from '#core/decisionApplicability.ts'
-import type { ProposalDecisionRef, ProposalTarget } from '#core/proposal.ts'
+import type { ProposalTarget } from '#core/proposal.ts'
+import type { ProposalDecisionRef } from '#core/proposalRecord.ts'
 
 type DecisionFields = Pick<
   Decision,

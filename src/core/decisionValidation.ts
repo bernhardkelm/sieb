@@ -14,8 +14,9 @@ import {
   readLiteral,
   readText,
 } from '#core/decisionFieldReaders.ts'
-import type { DecisionInputError, Validated } from '#core/decisionInputError.ts'
+import type { DecisionInputError } from '#core/decisionInputError.ts'
 import { readUpstreamInput, readUpstreamPatch } from '#core/decisionUpstream.ts'
+import type { Validation } from '#core/validation.ts'
 
 type RawInput = Record<string, unknown>
 
@@ -27,9 +28,12 @@ type RawInput = Record<string, unknown>
  * with status not_affected, omitted or null means none.
  * @param {RawInput} raw - Parsed request body
  * @param {Date} now - Current time
- * @returns {Validated<DecisionInput>} - Validated input or the list of errors
+ * @returns {Validation<DecisionInput, DecisionInputError>} - Validated input or the list of errors
  */
-export const validateDecisionInput = (raw: RawInput, now: Date): Validated<DecisionInput> => {
+export const validateDecisionInput = (
+  raw: RawInput,
+  now: Date,
+): Validation<DecisionInput, DecisionInputError> => {
   const errors: DecisionInputError[] = []
   const vulnId = nonBlank(raw.vulnId)
   const scope = readLiteral<DecisionScope>(raw.scope, DECISION_SCOPES, 'scope', errors)
@@ -93,9 +97,12 @@ export const validateDecisionInput = (raw: RawInput, now: Date): Validated<Decis
  * stored status is checked by the update.
  * @param {RawInput} raw - Parsed request body
  * @param {Date} now - Current time
- * @returns {Validated<DecisionPatch>} - Validated patch or the list of errors
+ * @returns {Validation<DecisionPatch, DecisionInputError>} - Validated patch or the list of errors
  */
-export const validateDecisionPatch = (raw: RawInput, now: Date): Validated<DecisionPatch> => {
+export const validateDecisionPatch = (
+  raw: RawInput,
+  now: Date,
+): Validation<DecisionPatch, DecisionInputError> => {
   const errors: DecisionInputError[] = []
   const patch: DecisionPatch = {}
 

@@ -1,0 +1,44 @@
+/* dashed filter-bar trigger that turns solid while a value is set, and its popover surface */
+.menu-trigger {
+  align-items: center;
+  gap: var(--space-1);
+  height: var(--control-height);
+  padding: 0 var(--space-2);
+  border: var(--border-width) dashed var(--color-border-strong);
+  border-radius: var(--radius);
+  background: transparent;
+  color: var(--color-text-muted);
+  font-size: var(--font-size-sm);
+  white-space: nowrap;
+}
+
+.menu-trigger:hover,
+.menu-trigger[aria-expanded='true'] {
+  background: var(--color-hover);
+  color: var(--color-text);
+}
+
+.menu-trigger.active {
+  border-style: solid;
+  color: var(--color-text);
+}
+
+.menu-summary {
+  padding: 0 var(--space-1);
+  border-radius: var(--radius-sm);
+  background: var(--color-selected);
+  font-weight: var(--font-weight-medium);
+}
+
+.menu-content {
+  z-index: var(--z-menu);
+  display: flex;
+  flex-direction: column;
+  min-width: var(--popover-min-width);
+  max-width: calc(100vw - 2 * var(--space-2));
+  padding: var(--space-1);
+  border-radius: var(--radius);
+  background: var(--color-surface-raised);
+  box-shadow: var(--shadow-md);
+  color: var(--color-text);
+}

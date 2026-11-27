@@ -2,6 +2,8 @@
 import { computed, onBeforeUnmount, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
 
+import BaseChip from '@/components/chips/BaseChip.vue'
+import HintTooltip from '@/components/common/HintTooltip.vue'
 import SyncControl from '@/components/layout/SyncControl.vue'
 import OverviewSheet from '@/components/overview/OverviewSheet.vue'
 import ThemeToggle from '@/components/layout/ThemeToggle.vue'
@@ -46,9 +48,9 @@ onBeforeUnmount(() => {
         :kev-feed="sync.kevFeed"
         @sync="sync.sync()"
       />
-      <span v-if="me.source" class="source" title="Source the server reads findings from">
-        {{ me.source }}
-      </span>
+      <HintTooltip v-if="me.source" text="Source the server reads findings from">
+        <BaseChip variant="outline" class="source" focusable>{{ me.source }}</BaseChip>
+      </HintTooltip>
       <UserMenu />
       <OverviewSheet />
       <ThemeToggle />
@@ -82,15 +84,6 @@ onBeforeUnmount(() => {
   gap: var(--space-3);
 }
 
-.source {
-  padding: 0 var(--space-1-5);
-  border: var(--border-width) solid var(--color-border);
-  border-radius: var(--radius-sm);
-  color: var(--color-text-subtle);
-  font-family: var(--font-mono);
-  font-size: var(--font-size-xs);
-}
-
 @media (max-width: 639px) {
   .top-bar {
     gap: var(--space-2);
@@ -108,7 +101,7 @@ onBeforeUnmount(() => {
     gap: var(--space-2);
   }
 
-  .source {
+  .tools .source {
     display: none;
   }
 }

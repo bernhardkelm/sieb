@@ -1,6 +1,6 @@
 import { Hono } from 'hono'
 
-import type { SyncStatusResponse } from '#core/apiTypes.ts'
+import type { SyncStatusResponse } from '#core/syncApiTypes.ts'
 import type { SyncRun } from '#core/syncRun.ts'
 import { readKevFeedStatus } from '#server/db/kevFeedRepository.ts'
 import { latestSyncRun } from '#server/db/syncRunRepository.ts'

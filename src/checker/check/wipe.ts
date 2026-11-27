@@ -1,7 +1,7 @@
 import { readdir, rm } from 'node:fs/promises'
 import { join } from 'node:path'
 
-import { errorMessage } from '#checker/safeText.ts'
+import { errorMessage } from '#core/errorMessage.ts'
 import { CHECK_DIR_PREFIX } from '#checker/workspace/checkLayout.ts'
 
 /**

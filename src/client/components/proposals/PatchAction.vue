@@ -20,7 +20,9 @@ const target = computed(() => patchTargetOf(props.action, props.fixedVersion, pr
 
 <template>
   <p class="patch-action">
-    <BaseChip v-if="layer" class="layer" outline>{{ PATCH_LAYER_LABELS[layer] }}</BaseChip>
+    <BaseChip v-if="layer" class="layer" variant="outline">{{
+      PATCH_LAYER_LABELS[layer]
+    }}</BaseChip>
     <span class="text">{{ action }}</span>
     <CopyButton v-if="target" :value="target" :label="`Copy ${target}`" />
   </p>

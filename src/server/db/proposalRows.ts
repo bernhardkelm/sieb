@@ -1,20 +1,22 @@
 import type { DecisionJustification, DecisionScope } from '#core/decision.ts'
-import { storedClientKind } from '#core/proposalClient.ts'
 import type {
   EvidenceBasis,
-  Proposal,
   ProposalConfidence,
-  ProposalDecisionRef,
   ProposalEvidence,
   ProposalFix,
-  ProposalRelatedFinding,
   ProposalResolution,
-  ProposalReview,
-  ProposalSourceAccess,
   ProposalState,
   ProposalVerdict,
-  ProposalVia,
 } from '#core/proposal.ts'
+import { storedClientKind } from '#core/proposalClient.ts'
+import type {
+  Proposal,
+  ProposalDecisionRef,
+  ProposalRelatedFinding,
+  ProposalReview,
+  ProposalSourceAccess,
+  ProposalVia,
+} from '#core/proposalRecord.ts'
 
 export interface ProposalRow {
   id: number

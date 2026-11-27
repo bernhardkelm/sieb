@@ -1,7 +1,7 @@
 import type { CheckPhase } from '#core/check.ts'
 import { HEARTBEAT_INTERVAL_MS } from '#core/checkLimits.ts'
+import { errorMessage } from '#core/errorMessage.ts'
 import type { WorkerApi } from '#checker/api/workerApi.ts'
-import { errorMessage } from '#checker/safeText.ts'
 
 /** A running heartbeat */
 export interface Heartbeat {

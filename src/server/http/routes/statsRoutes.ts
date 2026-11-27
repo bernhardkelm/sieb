@@ -1,6 +1,6 @@
 import { Hono } from 'hono'
 
-import type { StatsResponse } from '#core/apiTypes.ts'
+import type { StatsResponse } from '#core/statsApiTypes.ts'
 import { downsampleLatest } from '#core/seriesDownsampling.ts'
 import {
   DEFAULT_STATS_RANGE,
@@ -16,7 +16,7 @@ import type { RouteDeps } from '#server/http/RouteDeps.ts'
 
 /**
  * Creates the stats routes: GET / answers the live overview stats and the snapshots of the
- * ?range=7d|30d|90d (default 30d) before now, at most STATS_MAX_POINTS of them, oldest first.
+ * ?range=24h|7d|30d|90d (default 30d) before now, at most STATS_MAX_POINTS of them, oldest first.
  * @param {RouteDeps} deps - Database and clock
  * @returns {Hono<AppEnv>} - Routes, mounted at /api/stats
  */

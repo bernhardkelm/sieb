@@ -1,6 +1,7 @@
 import { computed, watch, type ComputedRef, type Ref } from 'vue'
 
 import type { InboxItem } from '#core/inbox/inboxItem.ts'
+import { withoutKeys } from '@/components/inbox/checkedKeys'
 import { isSeeable, isSelectable } from '@/components/inbox/inboxItems'
 import type { ListSelection } from '@/composables/useListSelection'
 import { useInboxStore } from '@/stores/inboxStore'
@@ -59,12 +60,9 @@ export const useInboxSeen = (
       return
     }
 
-    const marked = new Set(keys)
     const done = store.markSeen(keys)
 
-    selection.checkedIds.value = new Set(
-      [...selection.checkedIds.value].filter((key) => !marked.has(key)),
-    )
+    selection.checkedIds.value = withoutKeys(selection.checkedIds.value, keys)
     await done
   }
 

@@ -1,3 +1,4 @@
+import { createHold } from '@/stores/hold'
 import { createVisiblePoll } from '@/stores/visiblePoll'
 
 export interface ChecksPolling {
@@ -24,8 +25,8 @@ export const createChecksPolling = (
   canStart: () => boolean,
 ): ChecksPolling => {
   let polling = false
-  let pageViewers = 0
-  const poll = createVisiblePoll(task, () => interval(pageViewers > 0))
+  const page = createHold()
+  const poll = createVisiblePoll(task, () => interval(page.held()))
 
   /**
    * Starts polling once.
@@ -52,7 +53,7 @@ export const createChecksPolling = (
     stop,
     runNow: poll.runNow,
     showPage: () => {
-      pageViewers += 1
+      const release = page.take()
 
       if (polling) {
         poll.runNow()
@@ -60,9 +61,7 @@ export const createChecksPolling = (
         start()
       }
 
-      return () => {
-        pageViewers = Math.max(0, pageViewers - 1)
-      }
+      return release
     },
   }
 }

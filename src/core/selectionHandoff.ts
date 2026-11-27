@@ -1,5 +1,5 @@
 import type { FindingView } from '#core/findingView.ts'
-import { PROMPT_LINK_LIMIT, type HandoffClient } from '#core/handoffLinks.ts'
+import { fitsLink, type HandoffClient } from '#core/handoffLinks.ts'
 import {
   buildHandoffPrompts,
   handoffCommand,
@@ -38,9 +38,7 @@ export interface SelectionHandoffTexts {
  * @returns {MultiLinkPrompt} - Link prompt
  */
 const singleLink = (prompt: string): MultiLinkPrompt =>
-  encodeURIComponent(prompt).length < PROMPT_LINK_LIMIT
-    ? { prompt, max: 1 }
-    : { prompt: null, max: 0 }
+  fitsLink(prompt) ? { prompt, max: 1 } : { prompt: null, max: 0 }
 
 /**
  * Builds the hand-off texts of one selected finding with the single-finding prompt, the

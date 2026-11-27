@@ -1,0 +1,60 @@
+.handoff-button {
+  --segment-height: calc(var(--control-height) - 2 * var(--border-width));
+
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  border: var(--border-width) solid var(--color-border);
+  border-radius: var(--radius-sm);
+}
+
+.primary {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  height: var(--segment-height);
+  padding: 0 var(--space-2);
+  border: 0;
+  border-radius: var(--radius-sm) 0 0 var(--radius-sm);
+  background: transparent;
+  color: var(--color-text-muted);
+  font-size: var(--font-size-sm);
+  white-space: nowrap;
+}
+
+.primary:hover:not([aria-disabled='true']) {
+  background: var(--color-hover);
+  color: var(--color-text);
+}
+
+.primary[aria-disabled='true'] {
+  cursor: default;
+  opacity: var(--opacity-disabled);
+}
+
+.primary.copied {
+  color: var(--color-success);
+}
+
+@media (hover: none) and (pointer: coarse), (max-width: 639px) {
+  .handoff-button {
+    --segment-height: calc(var(--touch-target) - 2 * var(--border-width));
+  }
+
+  .primary {
+    justify-content: center;
+    min-width: var(--segment-height);
+  }
+}
+
+/* icon only on narrow screens, the label stays the accessible name */
+@media (max-width: 639px) {
+  .label {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+}

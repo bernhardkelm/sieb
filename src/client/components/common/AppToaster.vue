@@ -9,6 +9,8 @@ import {
   useToastManager,
 } from 'reka-ui'
 
+import AppIcon from '@/components/icons/AppIcon.vue'
+
 const { toasts } = useToastManager()
 </script>
 
@@ -21,7 +23,9 @@ const { toasts } = useToastManager()
         <ToastDescription v-if="item.description" class="description" />
       </div>
       <ToastAction v-if="item.actionProps" class="action" />
-      <ToastClose class="close" aria-label="Dismiss notification">×</ToastClose>
+      <ToastClose class="close" aria-label="Dismiss notification">
+        <AppIcon name="close" />
+      </ToastClose>
     </li>
   </ToastRoot>
   <ToastViewport as-child>
@@ -102,7 +106,6 @@ const { toasts } = useToastManager()
   border: 0;
   background: transparent;
   color: var(--color-text-subtle);
-  font-size: var(--font-size-lg);
   line-height: 1;
 }
 

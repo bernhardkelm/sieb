@@ -2,9 +2,11 @@
 import { computed } from 'vue'
 
 import type { KevFeedStatus } from '#core/kev.ts'
+import type { ChipTone } from '@/components/chips/chipTone'
 import BaseButton from '@/components/common/BaseButton.vue'
 import HintTooltip from '@/components/common/HintTooltip.vue'
 import LoadingSpinner from '@/components/common/LoadingSpinner.vue'
+import StatusDot from '@/components/common/StatusDot.vue'
 import { useNow } from '@/composables/useNow'
 import { describeKevFeed, isKevFeedStale } from '@/format/kevFeedText'
 import { formatAbsolute, formatRelative } from '@/format/relativeTime'
@@ -52,6 +54,24 @@ const failed = computed(() => props.fetchError !== null || props.ok === false)
 const kevStale = computed(() => isKevFeedStale(props.kevFeed))
 
 /**
+ * Picks the status dot colour: a failure wins over a stale KEV catalog, which wins over success.
+ * @returns {ChipTone} - Dot tone
+ */
+const dotToneOf = (): ChipTone => {
+  if (failed.value) {
+    return 'danger'
+  }
+
+  if (kevStale.value) {
+    return 'warning'
+  }
+
+  return props.ok === true ? 'success' : 'neutral'
+}
+
+const dotTone = computed(dotToneOf)
+
+/**
  * Describes the last sync for the tooltip.
  * @returns {string} - One line
  */
@@ -81,11 +101,7 @@ const detail = computed(() =>
     <HintTooltip :text="detail">
       <span class="status" :class="{ failed: failed && !syncing }" role="status" tabindex="0">
         <LoadingSpinner v-if="syncing" />
-        <span
-          v-else
-          class="dot"
-          :class="{ ok: ok === true && !failed && !kevStale, stale: kevStale && !failed, failed }"
-        />
+        <StatusDot v-else class="dot" :tone="dotTone" />
         <span class="text">{{ status }}</span>
       </span>
     </HintTooltip>
@@ -114,25 +130,6 @@ const detail = computed(() =>
 
 .status.failed {
   color: var(--color-danger);
-}
-
-.dot {
-  width: var(--dot-size);
-  height: var(--dot-size);
-  border-radius: var(--radius-pill);
-  background: var(--color-text-subtle);
-}
-
-.dot.ok {
-  background: var(--color-success);
-}
-
-.dot.stale {
-  background: var(--color-warning);
-}
-
-.dot.failed {
-  background: var(--color-danger);
 }
 
 @media (max-width: 639px) {

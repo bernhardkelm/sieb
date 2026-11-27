@@ -1,6 +1,6 @@
 import { classifyEntry, dataSize, type DropReason, type SeenPaths } from '#checker/tar/tarEntry.ts'
 import { BLOCK, isZeroBlock, padded, parseHeader, TarFormatError } from '#checker/tar/tarHeader.ts'
-import { applyPaxRecords, readLongName, type HeaderOverrides } from '#checker/tar/tarPax.ts'
+import { applyMetaRecord, type HeaderOverrides } from '#checker/tar/tarPax.ts'
 import { serializeEntry } from '#checker/tar/tarSerialize.ts'
 
 const META_MAX_BYTES = 1024 * 1024
@@ -77,22 +77,6 @@ export const createTarRewriter = (push: (chunk: Buffer) => void): TarRewriter =>
   }
 
   /**
-   * Applies a complete meta record to the overrides of the next entry, global pax headers are ignored.
-   * @param {string} typeflag - Record type
-   * @param {Buffer} data - Record payload
-   * @returns {void}
-   */
-  const onMeta = (typeflag: string, data: Buffer): void => {
-    if (typeflag === 'x') {
-      applyPaxRecords(overrides, data)
-    } else if (typeflag === 'L') {
-      overrides.path = readLongName(data)
-    } else if (typeflag === 'K') {
-      overrides.linkpath = readLongName(data)
-    }
-  }
-
-  /**
    * Consumes as much of the buffered input as possible.
    * @returns {void}
    */
@@ -118,7 +102,7 @@ export const createTarRewriter = (push: (chunk: Buffer) => void): TarRewriter =>
           return
         }
 
-        onMeta(meta.typeflag, buffered.subarray(0, meta.size))
+        applyMetaRecord(overrides, meta.typeflag, buffered.subarray(0, meta.size))
         buffered = buffered.subarray(length)
         meta = null
       } else {

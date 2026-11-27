@@ -28,17 +28,19 @@ const { empty, confirmOpen, confirmText, cancelling, requestCancel, confirmCance
       <EmptyState v-if="empty" title="No checks yet">
         Pick Auto-check on a finding of a public image, in its panel or for selected rows in Triage.
         Claude checks one finding at a time and files a proposal to the Inbox.
-        <span v-if="!checks.workerOnline" class="offline">The worker is offline right now.</span>
+        <template v-if="!checks.workerOnline" #actions>
+          <p class="offline">The worker is offline right now.</p>
+        </template>
       </EmptyState>
       <div v-else class="sections">
         <RunningCheck
-          :check="checks.response?.running ?? null"
+          :check="checks.running"
           :worker-online="checks.workerOnline"
           @cancel="requestCancel"
         />
-        <CheckQueue :checks="checks.response?.queued ?? []" @cancel="requestCancel" />
-        <CheckUsageSummary v-if="checks.response?.usage" :summary="checks.response.usage" />
-        <RecentChecks :checks="checks.response?.recent ?? []" />
+        <CheckQueue :checks="checks.queued" @cancel="requestCancel" />
+        <CheckUsageSummary v-if="checks.usage" :summary="checks.usage" />
+        <RecentChecks :checks="checks.recent" />
       </div>
     </template>
     <ConfirmDialog
@@ -59,8 +61,6 @@ const { empty, confirmOpen, confirmText, cancelling, requestCancel, confirmCance
 }
 
 .offline {
-  display: block;
-  margin-top: var(--space-2);
   color: var(--color-warning);
 }
 
@@ -68,6 +68,6 @@ const { empty, confirmOpen, confirmText, cancelling, requestCancel, confirmCance
   display: flex;
   flex-direction: column;
   gap: var(--space-6);
-  max-width: calc(var(--space-base) * 240);
+  max-width: var(--content-max-width);
 }
 </style>

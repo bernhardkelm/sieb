@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { ProposalImageFacts } from '#core/apiTypes.ts'
+import type { ProposalImageFacts } from '#core/proposalApiTypes.ts'
 import BaseChip from '@/components/chips/BaseChip.vue'
 import DecisionStateChip from '@/components/chips/DecisionStateChip.vue'
 import ExposureChip from '@/components/chips/ExposureChip.vue'
@@ -7,6 +7,8 @@ import KevChip from '@/components/chips/KevChip.vue'
 import OwnerBadge from '@/components/chips/OwnerBadge.vue'
 import SeverityChip from '@/components/chips/SeverityChip.vue'
 import SourceAccessBadge from '@/components/chips/SourceAccessBadge.vue'
+import FactItem from '@/components/common/FactItem.vue'
+import FactList from '@/components/common/FactList.vue'
 import { countOf } from '@/format/count'
 import { shortImageName } from '@/format/imageName'
 import { SCOPE_LABELS } from '@/format/labels'
@@ -28,31 +30,26 @@ defineProps<{
       <KevChip v-if="image.kev" />
       <ExposureChip v-if="image.exposure" :exposure="image.exposure" focusable />
       <SourceAccessBadge :access="image.sourceAccess" />
-      <BaseChip v-if="!image.open" outline>resolved</BaseChip>
+      <BaseChip v-if="!image.open" variant="outline">resolved</BaseChip>
     </div>
-    <dl class="facts">
-      <div class="versions">
-        <dt>Installed → fixed</dt>
-        <dd>
-          <span v-for="(version, index) in image.versions" :key="index" class="version">
-            <span v-if="version.package" class="package">{{ version.package }}</span>
-            {{ version.installedVersion }} →
-            <span :class="{ missing: version.fixedVersion === null }">{{
-              version.fixedVersion ?? 'no fix'
-            }}</span>
-          </span>
-          <span v-if="image.versions.length === 0" class="missing">no current instance</span>
-        </dd>
-      </div>
-      <div>
-        <dt>Workloads</dt>
-        <dd :title="image.workloads.join('\n') || undefined">
+    <FactList layout="grid">
+      <FactItem class="versions" label="Installed → fixed">
+        <span v-for="(version, index) in image.versions" :key="index" class="version">
+          <span v-if="version.package" class="package">{{ version.package }}</span>
+          {{ version.installedVersion }} →
+          <span :class="{ missing: version.fixedVersion === null }">{{
+            version.fixedVersion ?? 'no fix'
+          }}</span>
+        </span>
+        <span v-if="image.versions.length === 0" class="missing">no current instance</span>
+      </FactItem>
+      <FactItem label="Workloads">
+        <span :title="image.workloads.join('\n') || undefined">
           {{ countOf(image.workloads.length, 'workload') }}
-        </dd>
-      </div>
-      <div>
-        <dt>Current decision</dt>
-        <dd class="decision">
+        </span>
+      </FactItem>
+      <FactItem label="Current decision">
+        <span class="decision">
           <template v-if="image.decision">
             <DecisionStateChip
               :effective="image.decision.effective"
@@ -64,9 +61,9 @@ defineProps<{
             }}</span>
           </template>
           <span v-else class="missing">Undecided</span>
-        </dd>
-      </div>
-    </dl>
+        </span>
+      </FactItem>
+    </FactList>
   </li>
 </template>
 
@@ -110,23 +107,6 @@ defineProps<{
   flex-wrap: wrap;
   align-items: center;
   gap: var(--space-1-5);
-}
-
-.facts {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(calc(var(--space-base) * 28), 1fr));
-  gap: var(--space-2) var(--space-4);
-  margin: 0;
-  font-size: var(--font-size-sm);
-}
-
-.facts dt {
-  color: var(--color-text-subtle);
-  font-size: var(--font-size-xs);
-}
-
-.facts dd {
-  margin: 0;
 }
 
 .versions {

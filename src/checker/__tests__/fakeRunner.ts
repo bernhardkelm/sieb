@@ -3,7 +3,7 @@ import { PassThrough } from 'node:stream'
 import { finished } from 'node:stream/promises'
 
 import type { ProcessExit, ProcessRunner, ProcessSpec } from '#checker/process/processRunner.ts'
-import { tarArchive } from '#checker/__tests__/tarFixtures.ts'
+import { tarArchive } from '#checker/tar/__tests__/tarFixtures.ts'
 
 /** A fake process the test drives */
 export interface FakeProcess {

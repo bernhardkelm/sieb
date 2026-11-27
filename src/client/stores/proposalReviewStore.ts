@@ -1,7 +1,7 @@
 import { defineStore } from 'pinia'
 import { ref, shallowRef, watch } from 'vue'
 
-import type { ProposalDetail } from '#core/apiTypes.ts'
+import type { ProposalDetail } from '#core/proposalApiTypes.ts'
 import { sameExpectedDecisionIds, type ExpectedDecisionId } from '#core/proposalFreshness.ts'
 import { ApiError } from '@/api/ApiError'
 import { errorMessage } from '@/api/apiRequest'

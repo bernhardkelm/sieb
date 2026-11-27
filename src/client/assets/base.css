@@ -64,6 +64,14 @@ kbd {
   outline-offset: var(--border-width);
 }
 
+.caps-label {
+  color: var(--color-label);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-semibold);
+  letter-spacing: var(--letter-spacing-caps);
+  text-transform: uppercase;
+}
+
 .visually-hidden {
   position: absolute;
   width: 1px;

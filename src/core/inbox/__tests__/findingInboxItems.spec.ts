@@ -8,15 +8,8 @@ import {
 } from '#core/inbox/findingInboxItems.ts'
 import type { InboxItem } from '#core/inbox/inboxItem.ts'
 
-import {
-  DAY_MS,
-  fromNow,
-  inboxFinding,
-  inboxOf,
-  inboxProposal,
-  NGINX,
-  REDIS,
-} from './inboxBuilders.ts'
+import { fromNow, inboxFinding, inboxOf, inboxProposal, NGINX, REDIS } from './inboxBuilders.ts'
+import { DAY_MS } from '#core/timeUnits.ts'
 
 const VULN = 'CVE-2025-1000'
 const FINDING: InboxFindingTarget = { id: 11, vulnId: VULN, imageRef: NGINX, decision: { id: 5 } }

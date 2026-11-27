@@ -1,13 +1,12 @@
 import { DECISION_STATES } from '#core/decisionStates.ts'
 import type { DecisionView } from '#core/findingView.ts'
+import { DAY_MS } from '#core/timeUnits.ts'
 
 export const EXPIRING_WITHIN_DAYS = 14
 
 export const DECISION_FILTERS = [...DECISION_STATES, 'expiring', 'upstream_pending'] as const
 
 export type DecisionFilter = (typeof DECISION_FILTERS)[number]
-
-const DAY_MS = 24 * 60 * 60 * 1000
 
 type FilterableDecision = Pick<DecisionView, 'decision' | 'effective'>
 

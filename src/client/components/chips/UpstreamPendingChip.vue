@@ -15,7 +15,7 @@ const hint = computed(() => waitingForText(props.waitingFor))
 
 <template>
   <HintTooltip :text="hint">
-    <BaseChip class="upstream-pending-chip" tone="warning" outline>
+    <BaseChip class="upstream-pending-chip" tone="warning" variant="outline">
       {{ UPSTREAM_PENDING_LABEL }}
     </BaseChip>
   </HintTooltip>

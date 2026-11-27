@@ -4,9 +4,10 @@ import type { Clock } from '#core/clock.ts'
 import { KEV_REFRESH_AFTER_MS } from '#core/kev.ts'
 import { isKevCatalogOlderThan, readKevFeedState } from '#server/db/kevFeedRepository.ts'
 import type { KevRefresher } from '#server/kev/kevRefresher.ts'
+import { MINUTE_MS, HOUR_MS } from '#core/timeUnits.ts'
 
-export const KEV_CHECK_INTERVAL_MS = 15 * 60 * 1000
-export const KEV_RETRY_AFTER_MS = 60 * 60 * 1000
+export const KEV_CHECK_INTERVAL_MS = 15 * MINUTE_MS
+export const KEV_RETRY_AFTER_MS = HOUR_MS
 
 export interface KevRefreshSchedule {
   stop: () => void

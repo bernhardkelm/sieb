@@ -1,4 +1,4 @@
-import type { ProposalDetail } from '#core/apiTypes.ts'
+import type { ProposalDetail } from '#core/proposalApiTypes.ts'
 
 /**
  * Returns whether a not_affected verdict rests on the advisory alone.

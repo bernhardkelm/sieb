@@ -1,5 +1,6 @@
 import { serve } from '@hono/node-server'
 
+import { errorMessage } from '#core/errorMessage.ts'
 import { readAppVersion } from '#server/appVersion.ts'
 import { startAuthCleanup } from '#server/auth/authCleanup.ts'
 import { startChecks } from '#server/checks/startChecks.ts'
@@ -12,8 +13,8 @@ import { createMetricsApp } from '#server/http/metricsApp.ts'
 import { startKevCatalog } from '#server/kev/startKevCatalog.ts'
 import { createSource } from '#server/sources/createSource.ts'
 import { backfillMockStats } from '#server/sources/mock/backfillMockStats.ts'
-import { startSyncScheduler } from '#server/sync/syncScheduler.ts'
 import { startupWarnings } from '#server/startupWarnings.ts'
+import { startSyncScheduler } from '#server/sync/syncScheduler.ts'
 import { createSyncService } from '#server/sync/syncService.ts'
 
 /**
@@ -106,9 +107,7 @@ const main = (): void => {
         }
       })
       .catch((error: unknown) => {
-        console.error(
-          `[sieb] stats backfill failed: ${error instanceof Error ? error.message : String(error)}`,
-        )
+        console.error(`[sieb] stats backfill failed: ${errorMessage(error)}`)
       })
   }
 
@@ -135,6 +134,6 @@ const main = (): void => {
 try {
   main()
 } catch (error) {
-  console.error(`[sieb] ${error instanceof Error ? error.message : String(error)}`)
+  console.error(`[sieb] ${errorMessage(error)}`)
   process.exitCode = 1
 }

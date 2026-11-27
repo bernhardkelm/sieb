@@ -1,0 +1,54 @@
+/* colour, wash and text colour per tone, defaults sit on the component root */
+.critical {
+  --tone-color: var(--color-severity-critical);
+  --tone-wash: var(--color-severity-critical-wash);
+  --tone-ink: var(--color-severity-critical-text);
+}
+
+.high {
+  --tone-color: var(--color-severity-high);
+  --tone-wash: var(--color-severity-high-wash);
+  --tone-ink: var(--color-severity-high-text);
+}
+
+.medium {
+  --tone-color: var(--color-severity-medium);
+  --tone-wash: var(--color-severity-medium-wash);
+  --tone-ink: var(--color-severity-medium-text);
+}
+
+.low {
+  --tone-color: var(--color-severity-low);
+  --tone-wash: var(--color-severity-low-wash);
+  --tone-ink: var(--color-severity-low-text);
+}
+
+.kev {
+  --tone-color: var(--color-kev);
+  --tone-wash: var(--color-kev-wash);
+}
+
+.claim {
+  --tone-color: var(--color-claim);
+  --tone-wash: var(--color-claim-wash);
+}
+
+.accent {
+  --tone-color: var(--color-accent);
+  --tone-wash: var(--color-accent-wash);
+}
+
+.success {
+  --tone-color: var(--color-success);
+  --tone-wash: var(--color-success-wash);
+}
+
+.warning {
+  --tone-color: var(--color-warning);
+  --tone-wash: var(--color-warning-wash);
+}
+
+.danger {
+  --tone-color: var(--color-danger);
+  --tone-wash: var(--color-danger-wash);
+}

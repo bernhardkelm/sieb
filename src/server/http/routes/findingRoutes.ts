@@ -1,11 +1,12 @@
 import { Hono } from 'hono'
 
-import type { ErrorBody, FindingDetailResponse, FindingsSeenResponse } from '#core/apiTypes.ts'
-import type { FindingView } from '#core/findingView.ts'
+import type { ErrorBody } from '#core/errorApiTypes.ts'
+import type { FindingDetailResponse, FindingsSeenResponse } from '#core/findingApiTypes.ts'
 import { filterFindings } from '#core/findingFilter.ts'
 import { parseFindingQuery } from '#core/findingQuery.ts'
 import { isRecentFinding } from '#core/findingRecency.ts'
 import { validateSeenFindingIds } from '#core/findingSeen.ts'
+import type { FindingView } from '#core/findingView.ts'
 import { sourceAccess } from '#core/sourceAccess.ts'
 import { markFindingsSeen, readSeenFindingIds } from '#server/db/findingSeenRepository.ts'
 import { getFindingDetail, listFindingViews } from '#server/db/findingViews.ts'
@@ -15,7 +16,7 @@ import { readPendingIndex } from '#server/db/readPendingIndex.ts'
 import type { AppEnv } from '#server/http/AppEnv.ts'
 import { requireActor } from '#server/http/identity.ts'
 import { parseId } from '#server/http/pathParams.ts'
-import { INVALID_BODY, readObjectBody } from '#server/http/requestBody.ts'
+import { readValidBody } from '#server/http/requestBody.ts'
 import { notFound, validationFailed } from '#server/http/responses.ts'
 import type { RouteDeps } from '#server/http/RouteDeps.ts'
 
@@ -76,11 +77,10 @@ export const createFindingRoutes = ({
       return c.json<ErrorBody>({ error: 'unauthorized' }, 401)
     }
 
-    const body = await readObjectBody(c)
-    const ids = body === null ? null : validateSeenFindingIds(body)
+    const ids = await readValidBody(c, validateSeenFindingIds)
 
-    if (ids === null || !ids.ok) {
-      return validationFailed(c, ids?.errors ?? INVALID_BODY)
+    if (!ids.ok) {
+      return ids.response
     }
 
     const actor = requireActor(c)

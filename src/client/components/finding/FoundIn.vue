@@ -27,7 +27,7 @@ const pathSegments = (path: string): string[] => path.match(/[^/]*\/|[^/]+$/g) ?
         <span v-if="origin.installedVersion" class="mono version">{{
           origin.installedVersion
         }}</span>
-        <BaseChip v-if="origin.packageType" outline>{{ origin.packageType }}</BaseChip>
+        <BaseChip v-if="origin.packageType" variant="outline">{{ origin.packageType }}</BaseChip>
       </div>
       <ul v-if="origin.paths.length > 0" class="paths" aria-label="Paths">
         <li v-for="path in origin.paths" :key="path" class="mono path">

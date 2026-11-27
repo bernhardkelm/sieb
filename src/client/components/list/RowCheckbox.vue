@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import AppIcon from '@/components/icons/AppIcon.vue'
 defineProps<{
   checked: boolean
 }>()
@@ -13,9 +14,7 @@ defineEmits<{ toggle: [event: MouseEvent] }>()
     aria-hidden="true"
     @click.stop="$emit('toggle', $event)"
   >
-    <svg v-if="checked" viewBox="0 0 16 16" focusable="false">
-      <path d="M3.5 8.5 6.5 11.5 12.5 4.5" />
-    </svg>
+    <AppIcon v-if="checked" class="check-icon" name="check" />
   </span>
 </template>
 
@@ -56,14 +55,10 @@ defineEmits<{ toggle: [event: MouseEvent] }>()
   }
 }
 
-svg {
+.check-icon {
+  --icon-size: 100%;
+  --icon-stroke: var(--icon-stroke-bold);
+
   display: block;
-  width: 100%;
-  height: 100%;
-  fill: none;
-  stroke: currentColor;
-  stroke-width: 2;
-  stroke-linecap: round;
-  stroke-linejoin: round;
 }
 </style>

@@ -1,9 +1,9 @@
 import type { CallToolResult } from '@modelcontextprotocol/server'
 
+import { errorMessage } from '#core/errorMessage.ts'
 import type { CommandOptions, ExecCommand } from '#checker/inspect/execCommand.ts'
 import { commandResult, toolError } from '#checker/inspect/inspectResult.ts'
 import { FILTER_INPUT_BYTES, filterLines, type LineFilter } from '#checker/inspect/patternFilter.ts'
-import { errorMessage } from '#checker/safeText.ts'
 
 /** What a line output handler needs */
 export interface LinesDeps {

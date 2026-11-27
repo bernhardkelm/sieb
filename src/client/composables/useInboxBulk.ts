@@ -1,8 +1,6 @@
 import { computed, ref, type ComputedRef, type Ref } from 'vue'
 
 import type { InboxItem } from '#core/inbox/inboxItem.ts'
-import type { BulkProposalOutcome, BulkProposalResult } from '#core/proposalBulk.ts'
-import { ApiError } from '@/api/ApiError'
 import { bulkAcceptProposals, bulkRejectProposals } from '@/api/proposalBulkApi'
 import {
   acceptBlockedBy,
@@ -11,12 +9,12 @@ import {
   type InboxBulkTargets,
 } from '@/components/inbox/inboxBulkTargets'
 import { inboxBulkCounts, type InboxBulkCounts } from '@/components/inbox/inboxBulkCounts'
-import { proposalItemKey } from '@/components/inbox/inboxItems'
+import { acceptItems } from '@/components/inbox/inboxBulkResults'
 import type { ListSelection } from '@/composables/useListSelection'
-import { bulkResultText } from '@/format/bulkProposalText'
-import { useDataVersionStore } from '@/stores/dataVersionStore'
+import { useInboxBulkFinish } from '@/composables/useInboxBulkFinish'
 import { runUnlessBlocked } from '@/toast/blockedNotice'
-import { notifyError, notifyNotice, notifySuccess } from '@/toast/toastManager'
+import { notifyError } from '@/toast/toastManager'
+import { notifyUnlessValidation } from '@/toast/validationNotice'
 
 export interface InboxBulk {
   targets: ComputedRef<InboxBulkTargets>
@@ -43,9 +41,6 @@ export interface InboxBulkDialogs {
   rejectOpen: Ref<boolean>
 }
 
-/** Outcomes of proposals that stay open, their rows stay checked */
-const STILL_OPEN: readonly BulkProposalOutcome[] = ['outdated', 'inconclusive', 'not_acceptable']
-
 const BLOCKED_TITLE = 'Not available'
 
 /**
@@ -65,7 +60,7 @@ export const useInboxBulk = (
   settle: () => Promise<void>,
   { acceptOpen, rejectOpen }: InboxBulkDialogs,
 ): InboxBulk => {
-  const dataVersion = useDataVersionStore()
+  const finish = useInboxBulkFinish(selection, settle)
   const targets = computed(() => bulkTargetsOf(selection.checkedInOrder.value, byKey.value))
   const acceptBlocked = computed(() => acceptBlockedBy(targets.value))
   const rejectBlocked = computed(() => rejectBlockedBy(targets.value))
@@ -73,40 +68,11 @@ export const useInboxBulk = (
   const rejectError = ref<unknown>(null)
 
   /**
-   * Toasts the outcome, unchecks the handled rows and refetches.
-   * @param {string} verb - Past tense of the action
-   * @param {readonly BulkProposalResult[]} results - Results of the batch
-   * @returns {Promise<void>} - Resolves once refetched
-   */
-  const finish = async (verb: string, results: readonly BulkProposalResult[]): Promise<void> => {
-    const text = bulkResultText(verb, results)
-    const handled = new Set(
-      results
-        .filter((result) => !STILL_OPEN.includes(result.outcome))
-        .map((result) => proposalItemKey(result.id)),
-    )
-
-    ;(text.wrote ? notifySuccess : notifyNotice)(text.title, text.description)
-    selection.checkedIds.value = new Set(
-      [...selection.checkedIds.value].filter((key) => !handled.has(key)),
-    )
-
-    if (text.wrote) {
-      dataVersion.bump()
-    }
-
-    await settle()
-  }
-
-  /**
    * Accepts the checked proposals unchanged with the decisions the Inbox showed for them.
    * @returns {Promise<void>} - Resolves once settled
    */
   const accept = async (): Promise<void> => {
-    const items = targets.value.proposals.map((item) => ({
-      id: item.refs.proposalId,
-      expectedDecisionIds: item.currentDecisionIds,
-    }))
+    const items = acceptItems(targets.value.proposals)
 
     busy.value = true
 
@@ -143,9 +109,7 @@ export const useInboxBulk = (
     } catch (error) {
       rejectError.value = error
 
-      if (!(error instanceof ApiError && error.isValidation)) {
-        notifyError('Proposals not rejected', error)
-      }
+      notifyUnlessValidation('Proposals not rejected', error)
     } finally {
       busy.value = false
     }

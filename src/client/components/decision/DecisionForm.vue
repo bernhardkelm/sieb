@@ -1,14 +1,14 @@
 <script setup lang="ts">
-import { computed, ref, useId, watch } from 'vue'
+import { ref, useId, watch } from 'vue'
 
 import { UPSTREAM_STATUS, type DecisionStatus } from '#core/decision.ts'
 import DecisionEffectNote from '@/components/decision/DecisionEffectNote.vue'
+import DecisionExpiryField from '@/components/decision/DecisionExpiryField.vue'
 import DecisionFormActions from '@/components/decision/DecisionFormActions.vue'
-import ExpiryField from '@/components/decision/ExpiryField.vue'
 import FieldErrors from '@/components/decision/FieldErrors.vue'
-import RadioChoice from '@/components/decision/RadioChoice.vue'
 import ReasonField from '@/components/decision/ReasonField.vue'
 import ReconfirmField from '@/components/decision/ReconfirmField.vue'
+import ScopeField from '@/components/decision/ScopeField.vue'
 import StatusFields from '@/components/decision/StatusFields.vue'
 import UpstreamField from '@/components/decision/UpstreamField.vue'
 import type {
@@ -55,11 +55,6 @@ const fields = useDecisionFormFields(props.initial)
 const { status, justification, reason, scope, reconfirm, expiryDate, never } = fields
 const { upstreamPending, waitingFor } = fields
 const errors = useDecisionFormErrors(fields, () => props.error)
-
-const scopeOptions = computed(() => [
-  { value: 'image' as const, label: `Only ${props.imageLabel}` },
-  { value: 'all' as const, label: 'All images' },
-])
 
 /**
  * Focuses the reason input.
@@ -128,22 +123,14 @@ defineExpose({ focusReason, setStatus })
       :status="status"
       :errors="errors.reason.value"
     />
-    <div v-if="scopeChoice" class="field">
-      <span class="label">Scope</span>
-      <RadioChoice v-model="scope" label="Scope" :options="scopeOptions" />
-    </div>
-    <div class="field">
-      <label :for="`${id}-expiry`" class="label">Expires</label>
-      <ExpiryField
-        v-model:date="expiryDate"
-        v-model:never="never"
-        :input-id="`${id}-expiry`"
-        :error-id="`${id}-expiry-error`"
-        :invalid="errors.expiresAt.value.length > 0"
-        @touch="fields.expiryTouched.value = true"
-      />
-      <FieldErrors :id="`${id}-expiry-error`" :messages="errors.expiresAt.value" />
-    </div>
+    <ScopeField v-if="scopeChoice" v-model="scope" :image-label="imageLabel" />
+    <DecisionExpiryField
+      v-model:date="expiryDate"
+      v-model:never="never"
+      :field-id="id"
+      :errors="errors.expiresAt.value"
+      @touch="fields.expiryTouched.value = true"
+    />
     <ReconfirmField v-if="reconfirmable" v-model="reconfirm" />
     <DecisionEffectNote :status="status" />
     <FieldErrors :messages="errors.server.value.general" role="alert" />
@@ -156,8 +143,6 @@ defineExpose({ focusReason, setStatus })
     />
   </form>
 </template>
-
-<style scoped src="@/components/decision/decisionField.css"></style>
 
 <style scoped>
 .decision-form {

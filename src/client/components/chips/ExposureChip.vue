@@ -2,6 +2,7 @@
 import type { Exposure } from '#core/exposure.ts'
 import { exposureMeaning } from '#core/exposureMeaning.ts'
 import BaseChip from '@/components/chips/BaseChip.vue'
+import { EXPOSURE_LOOKS } from '@/components/chips/chipTones'
 import HintTooltip from '@/components/common/HintTooltip.vue'
 import { EXPOSURE_LABELS } from '@/format/labels'
 
@@ -18,20 +19,13 @@ withDefaults(
 <template>
   <HintTooltip :text="exposureMeaning(exposure)">
     <BaseChip
-      :tone="exposure === 'public' ? 'warning' : 'neutral'"
-      :outline="exposure !== 'public'"
+      :tone="EXPOSURE_LOOKS[exposure].tone"
+      :variant="EXPOSURE_LOOKS[exposure].variant"
       class="exposure-chip"
       :data-exposure="exposure"
-      :tabindex="focusable ? 0 : undefined"
+      :focusable="focusable"
     >
       {{ EXPOSURE_LABELS[exposure] }}
     </BaseChip>
   </HintTooltip>
 </template>
-
-<style scoped>
-.exposure-chip:focus-visible {
-  outline: var(--border-width-strong) solid var(--color-focus);
-  outline-offset: var(--border-width);
-}
-</style>

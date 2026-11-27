@@ -2,7 +2,7 @@ import { createPinia, setActivePinia } from 'pinia'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { effectScope, type EffectScope } from 'vue'
 
-import type { McpInfoResponse } from '#core/apiTypes.ts'
+import type { McpInfoResponse } from '#core/mcpApiTypes.ts'
 import { fetchMcpInfo } from '@/api/tokensApi'
 import { useMcpFocusRefresh } from '@/composables/useMcpFocusRefresh'
 import { REFRESH_THROTTLE_MS, useMcpStore } from '@/stores/mcpStore'

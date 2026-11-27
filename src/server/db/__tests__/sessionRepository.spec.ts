@@ -7,9 +7,9 @@ import {
   deleteExpiredSessions,
   deleteSession,
   findSession,
-  hashSessionId,
   SESSION_TOUCH_INTERVAL_MS,
 } from '#server/db/sessionRepository.ts'
+import { hashSessionId } from '#server/db/sessionRows.ts'
 
 const NOW = new Date('2026-06-01T12:00:00.000Z')
 const HOUR_MS = 60 * 60 * 1000

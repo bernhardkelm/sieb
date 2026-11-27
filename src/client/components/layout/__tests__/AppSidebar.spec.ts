@@ -4,7 +4,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { ref } from 'vue'
 import { createMemoryHistory, createRouter } from 'vue-router'
 
-import type { InboxResponse } from '#core/apiTypes.ts'
+import type { InboxResponse } from '#core/inboxApiTypes.ts'
 import type { ChecksResponse } from '#core/check.ts'
 import { kevItem, proposalItem } from '@/__tests__/inboxItemBuilders'
 import { fetchInbox } from '@/api/inboxApi'
@@ -65,7 +65,7 @@ const mountSidebar = async (path: string): Promise<VueWrapper> => {
 const hintOf = (sidebar: VueWrapper, label: string): Element => {
   const entry = sidebar
     .findAll('.hints li > *')
-    .find((item) => item.findAll('span').at(-1)?.text() === label)
+    .find((item) => item.findAll('span:not([hidden])').at(-1)?.text() === label)
 
   if (!entry) {
     throw new Error(`No hint ${label}`)
@@ -78,7 +78,9 @@ describe('AppSidebar hints', () => {
   it('lists the Claude hints at the end of Triage only with the integration on', async () => {
     const sidebar = await mountSidebar('/triage')
     const labels = (): string[] =>
-      sidebar.findAll('.hints li > *').map((item) => item.findAll('span').at(-1)?.text() ?? '')
+      sidebar
+        .findAll('.hints li > *')
+        .map((item) => item.findAll('span:not([hidden])').at(-1)?.text() ?? '')
 
     expect(labels()).not.toContain('Copy for Claude')
 
@@ -118,6 +120,7 @@ describe('AppSidebar hints', () => {
     const run = vi.fn<() => void>()
 
     useHintActionsStore().register({ actions: { accept: { run } } })
+    await sidebar.vm.$nextTick()
     ;(hintOf(sidebar, 'Accept') as HTMLButtonElement).click()
     await vi.waitFor(() => expect(run).toHaveBeenCalledOnce())
   })
@@ -137,7 +140,7 @@ describe('AppSidebar hints', () => {
     const button = hintOf(sidebar, 'Re-confirm') as HTMLButtonElement
 
     expect(button.getAttribute('aria-disabled')).toBe('true')
-    expect(button.tabIndex).toBe(-1)
+    expect(button.hasAttribute('tabindex')).toBe(false)
     expect(button.title).toBe('Not re-opened')
 
     button.click()
@@ -232,7 +235,9 @@ describe('AppSidebar navigation', () => {
   it('lists the Inbox hints, with the review keys on its proposal panel', async () => {
     const sidebar = await mountSidebar('/inbox')
     const labels = (): string[] =>
-      sidebar.findAll('.hints li > *').map((item) => item.findAll('span').at(-1)?.text() ?? '')
+      sidebar
+        .findAll('.hints li > *')
+        .map((item) => item.findAll('span:not([hidden])').at(-1)?.text() ?? '')
 
     expect(labels()).toEqual([
       'Accept',
@@ -241,6 +246,7 @@ describe('AppSidebar navigation', () => {
       'Select',
       'Select range',
       'Select all',
+      'Search',
       'Sync',
     ])
 

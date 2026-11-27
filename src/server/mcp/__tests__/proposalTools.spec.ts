@@ -138,6 +138,8 @@ describe('propose_decision', () => {
       url: `${BASE_URL}/inbox/proposals/1`,
       note: PROPOSAL_NOTE,
     })
+    expect(PROPOSAL_NOTE).toContain('a human must accept this in sieb')
+    expect(PROPOSAL_NOTE).toContain('Now reply in the sieb format')
     expect(tool && (await matchesAdvertisedSchema(tool, first.structuredContent))).toBe(true)
     expect(content(second)).toMatchObject({ proposalId: 2, replacedProposalId: 1 })
     expect(getProposal(deps.db, 2)).toMatchObject({
@@ -201,6 +203,9 @@ describe('propose_decision', () => {
 
     expect(fix.properties?.action?.description).toContain(
       'required for needs_patch and fix_planned',
+    )
+    expect(fix.properties?.action?.description).toContain(
+      'never a lookup ("check the release notes"): look it up yourself',
     )
     expect(fix.properties?.layer?.enum).toEqual([
       'dependency',

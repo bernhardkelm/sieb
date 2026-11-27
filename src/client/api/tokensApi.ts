@@ -1,10 +1,10 @@
+import type { McpInfoResponse } from '#core/mcpApiTypes.ts'
 import type {
   ApiTokenCleanupResponse,
   ApiTokenCreateRequest,
   ApiTokenCreateResponse,
   ApiTokenView,
-  McpInfoResponse,
-} from '#core/apiTypes.ts'
+} from '#core/tokenApiTypes.ts'
 import { apiRequest } from '@/api/apiRequest'
 
 export const TOKENS_URL = '/api/tokens'

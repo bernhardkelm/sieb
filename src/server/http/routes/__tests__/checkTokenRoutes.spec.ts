@@ -2,14 +2,15 @@
 import { describe, expect, it } from 'vitest'
 
 import { MAX_LIVE_TOKENS } from '#core/apiToken.ts'
-import type { ApiTokenView, McpInfoResponse } from '#core/apiTypes.ts'
+import type { McpInfoResponse } from '#core/mcpApiTypes.ts'
+import type { ApiTokenView } from '#core/tokenApiTypes.ts'
+import { hashTokenSecret } from '#server/auth/tokenSecrets.ts'
 import { checkFixture, PUBLIC_URL } from '#server/checks/__tests__/checkFixtures.ts'
 import { cancelForUser, queueForUser } from '#server/checks/userCommands.ts'
 import { claimForWorker } from '#server/checks/workerCommands.ts'
-import { hashTokenSecret } from '#server/auth/tokenSecrets.ts'
 import { findTokenByHash } from '#server/db/apiTokenRepository.ts'
+import { insertToken } from '#server/db/apiTokenWrites.ts'
 import { getCheck } from '#server/db/checkRepository.ts'
-import { insertToken } from '#server/db/storeApiToken.ts'
 import { requestJson, testAppDeps } from '#server/http/__tests__/appFixtures.ts'
 import { createApp } from '#server/http/createApp.ts'
 

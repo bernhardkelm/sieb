@@ -4,7 +4,7 @@ import { useAutoCheck } from '@/composables/useAutoCheck'
 import { allOf, type BulkCount } from '@/format/bulkCount'
 import { OPEN_SKIP_REASON, queueRoomReason, selectionCheckReason } from '@/format/checkBlockReason'
 import { useChecksStore } from '@/stores/checksStore'
-import { useHandoffSelectionStore } from '@/stores/handoffSelectionStore'
+import { useSelectionStore } from '@/stores/selectionStore'
 import { notifyNotice } from '@/toast/toastManager'
 
 export interface SelectionAutoCheck {
@@ -32,7 +32,7 @@ export interface SelectionAutoCheck {
  */
 export const useSelectionAutoCheck = (source?: () => readonly number[]): SelectionAutoCheck => {
   const checks = useChecksStore()
-  const selection = useHandoffSelectionStore()
+  const selection = useSelectionStore()
   const { submitting, submit } = useAutoCheck()
   const findingIds = computed(() => (source ? source() : selection.findingIds))
 

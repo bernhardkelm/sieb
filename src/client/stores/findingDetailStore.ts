@@ -1,7 +1,7 @@
 import { defineStore } from 'pinia'
 import { ref, watch } from 'vue'
 
-import type { FindingDetailResponse } from '#core/apiTypes.ts'
+import type { FindingDetailResponse } from '#core/findingApiTypes.ts'
 import type { DecisionStatus } from '#core/decision.ts'
 import { ApiError } from '@/api/ApiError'
 import { errorMessage } from '@/api/apiRequest'

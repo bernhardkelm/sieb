@@ -3,7 +3,7 @@ import { createPinia, setActivePinia } from 'pinia'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { createMemoryHistory, createRouter } from 'vue-router'
 
-import type { InboxResponse } from '#core/apiTypes.ts'
+import type { InboxResponse } from '#core/inboxApiTypes.ts'
 import type { ChecksResponse } from '#core/check.ts'
 import { buildCheck, buildChecksResponse } from '@/__tests__/checkBuilders'
 import { fetchChecks } from '@/api/checksApi'
@@ -55,7 +55,9 @@ const mountSidebar = async (path: string): Promise<VueWrapper> => {
  * @returns {string[]} - Hint labels
  */
 const hintLabels = (sidebar: VueWrapper): string[] =>
-  sidebar.findAll('.hints li > *').map((item) => item.findAll('span').at(-1)?.text() ?? '')
+  sidebar
+    .findAll('.hints li > *')
+    .map((item) => item.findAll('span:not([hidden])').at(-1)?.text() ?? '')
 
 beforeEach(() => {
   Object.defineProperty(document, 'visibilityState', { configurable: true, get: () => 'visible' })

@@ -5,7 +5,7 @@ import { effectScope, type EffectScope } from 'vue'
 import { buildFindingView } from '#core/__tests__/coreBuilders.ts'
 import { fetchMcpInfo } from '@/api/tokensApi'
 import { useSelectionHandoffButtons } from '@/composables/useSelectionHandoffButtons'
-import { useHandoffSelectionStore } from '@/stores/handoffSelectionStore'
+import { useSelectionStore } from '@/stores/selectionStore'
 import { useHandoffTargetStore } from '@/stores/handoffTargetStore'
 import { CONNECT_POLL_MS, useMcpStore } from '@/stores/mcpStore'
 
@@ -57,7 +57,7 @@ describe('useSelectionHandoffButtons connection poll', () => {
 
   it('polls while rows are checked and stops once they are cleared', async () => {
     await createButtons()
-    const unregister = useHandoffSelectionStore().register(() => [buildFindingView({ id: 1 })])
+    const unregister = useSelectionStore().register(() => [buildFindingView({ id: 1 })])
 
     await vi.advanceTimersByTimeAsync(CONNECT_POLL_MS * 2)
     const polled = vi.mocked(fetchMcpInfo).mock.calls.length
@@ -72,7 +72,7 @@ describe('useSelectionHandoffButtons connection poll', () => {
   it('does not poll while copying is the default action', async () => {
     await createButtons()
     useHandoffTargetStore().setPreferred('copy')
-    useHandoffSelectionStore().register(() => [buildFindingView({ id: 1 })])
+    useSelectionStore().register(() => [buildFindingView({ id: 1 })])
 
     await vi.advanceTimersByTimeAsync(CONNECT_POLL_MS * 3)
     expect(fetchMcpInfo).toHaveBeenCalledOnce()

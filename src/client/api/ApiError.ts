@@ -1,4 +1,4 @@
-import type { ValidationIssue } from '#core/apiTypes.ts'
+import type { ValidationIssue } from '#core/errorApiTypes.ts'
 
 interface ErrorAnswer {
   error?: string
@@ -18,6 +18,7 @@ export class ApiError extends Error {
    * @param {number} status - HTTP status
    * @param {ErrorAnswer} body - Parsed error body, empty when unreadable
    * @param {string} url - Requested URL, used in the message
+   * @returns {void}
    */
   constructor(status: number, body: ErrorAnswer, url: string) {
     super(`API answered ${status} ${body.error ?? 'error'} for ${url}`)

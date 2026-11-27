@@ -1,6 +1,7 @@
 import { mkdir, rm } from 'node:fs/promises'
 
 import type { WorkerClaim } from '#core/check.ts'
+import { errorMessage } from '#core/errorMessage.ts'
 import { CheckFailure } from '#checker/CheckFailure.ts'
 import { writeClaudeFiles } from '#checker/claude/writeClaudeFiles.ts'
 import { imageLayout, type CheckLayout } from '#checker/workspace/checkLayout.ts'
@@ -85,7 +86,7 @@ export const prepareWorkspace = async (
       }
 
       context.log(
-        `[sieb-checker] check ${claim.checkId}: skipped ${image.ref}: ${(error as Error).message}`,
+        `[sieb-checker] check ${claim.checkId}: skipped ${image.ref}: ${errorMessage(error)}`,
       )
       await rm(paths.path, { recursive: true, force: true })
       result.skipped.push({

@@ -13,6 +13,7 @@ import {
 } from 'reka-ui'
 
 import { DECISION_JUSTIFICATIONS, type DecisionJustification } from '#core/decision.ts'
+import AppIcon from '@/components/icons/AppIcon.vue'
 import { JUSTIFICATION_LABELS } from '@/format/labels'
 
 defineProps<{
@@ -55,9 +56,7 @@ const onUpdate = (value: unknown): void => {
         model ? JUSTIFICATION_LABELS[model] : NONE_LABEL
       }}</SelectValue>
       <SelectIcon as-child>
-        <svg class="caret" viewBox="0 0 16 16" aria-hidden="true" focusable="false">
-          <path d="M4.5 6.5 8 10l3.5-3.5" />
-        </svg>
+        <AppIcon class="caret" name="chevron-down" />
       </SelectIcon>
     </SelectTrigger>
     <SelectPortal>
@@ -72,9 +71,7 @@ const onUpdate = (value: unknown): void => {
               class="item"
             >
               <SelectItemIndicator class="check" force-mount>
-                <svg viewBox="0 0 16 16" aria-hidden="true" focusable="false">
-                  <path d="M3.5 8.5 6.5 11.5 12.5 4.5" />
-                </svg>
+                <AppIcon class="check-icon" name="check" />
               </SelectItemIndicator>
               <SelectItemText>{{ option.label }}</SelectItemText>
             </SelectItem>
@@ -114,17 +111,6 @@ const onUpdate = (value: unknown): void => {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-}
-
-.caret {
-  flex: none;
-  width: var(--icon-size);
-  height: var(--icon-size);
-  fill: none;
-  stroke: currentColor;
-  stroke-width: 1.4;
-  stroke-linecap: round;
-  stroke-linejoin: round;
 }
 
 .content {
@@ -167,13 +153,9 @@ const onUpdate = (value: unknown): void => {
   visibility: visible;
 }
 
-.check svg {
-  width: var(--icon-size);
-  height: var(--icon-size);
-  fill: none;
-  stroke: var(--color-accent);
-  stroke-width: 2;
-  stroke-linecap: round;
-  stroke-linejoin: round;
+.check-icon {
+  --icon-stroke: var(--icon-stroke-bold);
+
+  color: var(--color-accent);
 }
 </style>

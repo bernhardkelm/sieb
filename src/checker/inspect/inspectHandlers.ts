@@ -1,5 +1,6 @@
 import type { CallToolResult } from '@modelcontextprotocol/server'
 
+import { errorMessage } from '#core/errorMessage.ts'
 import type { CommandOutput, ExecCommand } from '#checker/inspect/execCommand.ts'
 import {
   jqArgs,
@@ -14,7 +15,6 @@ import { runLines } from '#checker/inspect/linesHandler.ts'
 import type { LineFilter } from '#checker/inspect/patternFilter.ts'
 import { createStringsHandler, type StringsInput } from '#checker/inspect/stringsHandler.ts'
 import { workspaceFile } from '#checker/inspect/workspaceFile.ts'
-import { errorMessage } from '#checker/safeText.ts'
 
 const JQ_MAX_FILE_BYTES = 64 * 1024 * 1024
 

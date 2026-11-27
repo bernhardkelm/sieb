@@ -1,4 +1,4 @@
-import type { ValidationIssue } from '#core/apiTypes.ts'
+import type { ValidationIssue } from '#core/errorApiTypes.ts'
 import type { DecisionJustification } from '#core/decision.ts'
 import { readJustification } from '#core/decisionFieldReaders.ts'
 import type { DecisionInputError } from '#core/decisionInputError.ts'

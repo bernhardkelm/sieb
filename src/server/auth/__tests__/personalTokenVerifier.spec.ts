@@ -13,7 +13,7 @@ import {
   isTokenSecret,
 } from '#server/auth/tokenSecrets.ts'
 import { findTokenByHash, listOwnTokens, revokeOwnToken } from '#server/db/apiTokenRepository.ts'
-import { insertToken } from '#server/db/storeApiToken.ts'
+import { insertToken } from '#server/db/apiTokenWrites.ts'
 import { MEMORY_DB, openDatabase } from '#server/db/openDatabase.ts'
 
 const NOW = new Date('2026-06-01T12:00:00.000Z')

@@ -1,8 +1,7 @@
 <script setup lang="ts">
-import { computed } from 'vue'
-
-import type { ProposalDetail } from '#core/apiTypes.ts'
+import type { ProposalDetail } from '#core/proposalApiTypes.ts'
 import BaseButton from '@/components/common/BaseButton.vue'
+import BlockableButton from '@/components/common/BlockableButton.vue'
 import HandoffButton from '@/components/finding/HandoffButton.vue'
 import { useProposalRecheck } from '@/composables/useProposalRecheck'
 
@@ -11,21 +10,21 @@ const props = defineProps<{
 }>()
 
 const { mode, blockedBy, submitting, handoff, run } = useProposalRecheck(() => props.detail)
-
-const blocked = computed(() => blockedBy.value !== null || submitting.value)
 </script>
 
 <template>
-  <BaseButton
+  <BlockableButton
     v-if="mode === 'auto'"
+    :as="BaseButton"
     class="recheck"
-    :aria-disabled="blocked || undefined"
-    :aria-busy="submitting || undefined"
-    :title="blockedBy ?? 'Queue an Auto-check of the target findings, it files a new proposal'"
-    @click="run()"
+    :blocked-by="blockedBy"
+    blocked-title="No Auto-check queued"
+    :busy="submitting"
+    hint="Queue an Auto-check of the target findings, it files a new proposal"
+    @press="run()"
   >
     Re-check
-  </BaseButton>
+  </BlockableButton>
   <HandoffButton
     v-else-if="handoff"
     class="recheck"
@@ -33,10 +32,3 @@ const blocked = computed(() => blockedBy.value !== null || submitting.value)
     :command="handoff.command"
   />
 </template>
-
-<style scoped>
-.recheck[aria-disabled='true'] {
-  cursor: default;
-  opacity: 0.55;
-}
-</style>

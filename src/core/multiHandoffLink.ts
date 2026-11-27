@@ -1,4 +1,4 @@
-import { PROMPT_LINK_LIMIT, type HandoffClient } from '#core/handoffLinks.ts'
+import { fitsLink, type HandoffClient } from '#core/handoffLinks.ts'
 import { composeMultiPrompt, listedFindings } from '#core/multiHandoffPrompt.ts'
 import type { MultiHandoffFinding } from '#core/multiHandoffRepositoryLine.ts'
 
@@ -10,29 +10,30 @@ export interface MultiLinkPrompt {
 }
 
 /**
- * Returns whether a prompt stays below the encoded link limit.
- * @param {string} prompt - Prompt
- * @returns {boolean} - True when a link can carry it uncut
- */
-const fits = (prompt: string): boolean => encodeURIComponent(prompt).length < PROMPT_LINK_LIMIT
-
-/**
  * Counts how many findings, from the first, fit a link in the compact form.
+ * Binary search, the compact prompt only grows with every added finding.
  * @param {readonly MultiHandoffFinding[]} findings - Findings
  * @param {HandoffClient} client - Client kind
  * @returns {number} - Count, 0 when not even one fits
  */
-const maxFitting = (findings: readonly MultiHandoffFinding[], client: HandoffClient): number => {
-  let count = 0
+export const maxFitting = (
+  findings: readonly MultiHandoffFinding[],
+  client: HandoffClient,
+): number => {
+  let low = 0
+  let high = findings.length
 
-  while (
-    count < findings.length &&
-    fits(composeMultiPrompt(findings.slice(0, count + 1), client, false))
-  ) {
-    count += 1
+  while (low < high) {
+    const mid = Math.ceil((low + high) / 2)
+
+    if (fitsLink(composeMultiPrompt(findings.slice(0, mid), client, false))) {
+      low = mid
+    } else {
+      high = mid - 1
+    }
   }
 
-  return count
+  return low
 }
 
 /**
@@ -52,13 +53,13 @@ export const multiLinkPrompt = (
   if (listed.length === findings.length) {
     const full = composeMultiPrompt(listed, client)
 
-    if (fits(full)) {
+    if (fitsLink(full)) {
       return { prompt: full, max: findings.length }
     }
 
     const compact = composeMultiPrompt(listed, client, false)
 
-    if (fits(compact)) {
+    if (fitsLink(compact)) {
       return { prompt: compact, max: findings.length }
     }
   }

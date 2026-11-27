@@ -1,4 +1,8 @@
-import type { ProposalDetail, ProposalImageFacts, ProposalListItem } from '#core/apiTypes.ts'
+import type {
+  ProposalDetail,
+  ProposalImageFacts,
+  ProposalListItem,
+} from '#core/proposalApiTypes.ts'
 import { buildDecision } from '#core/__tests__/coreBuilders.ts'
 import { buildProposalInput, PROPOSER } from '#core/__tests__/proposalBuilders.ts'
 import type { DecisionStatus } from '#core/decision.ts'

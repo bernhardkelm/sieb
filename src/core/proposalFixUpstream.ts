@@ -1,14 +1,15 @@
-import type { ValidationIssue } from '#core/apiTypes.ts'
+import type { ValidationIssue } from '#core/errorApiTypes.ts'
+import { isPlainObject } from '#core/isPlainObject.ts'
 import {
   FIX_AVAILABILITIES,
   PROPOSAL_LIMITS as LIMITS,
   type FixAvailability,
   type ProposalFix,
   type ProposalInterim,
-  type ProposalReview,
   type ProposalVerdict,
 } from '#core/proposal.ts'
-import { isPlainObject, readProposalEnum, readProposalText } from '#core/proposalTextReaders.ts'
+import type { ProposalReview } from '#core/proposalRecord.ts'
+import { readProposalEnum, readProposalText } from '#core/proposalTextReaders.ts'
 
 type FixUpstream = Pick<ProposalFix, 'availability' | 'waitingFor' | 'interim'>
 

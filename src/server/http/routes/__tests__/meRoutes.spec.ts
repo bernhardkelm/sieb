@@ -1,7 +1,7 @@
 // @vitest-environment node
 import { describe, expect, it } from 'vitest'
 
-import type { MeResponse } from '#core/apiTypes.ts'
+import type { MeResponse } from '#core/authApiTypes.ts'
 import { createApp } from '#server/http/createApp.ts'
 
 import { requestJson, testAppDeps } from '#server/http/__tests__/appFixtures.ts'

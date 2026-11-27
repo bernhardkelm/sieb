@@ -1,6 +1,8 @@
-import type { ValidationIssue } from '#core/apiTypes.ts'
+import type { ValidationIssue } from '#core/errorApiTypes.ts'
 import { readExpiry } from '#core/decisionFieldReaders.ts'
 import type { DecisionInputError } from '#core/decisionInputError.ts'
+import type { Validation } from '#core/validation.ts'
+import { DAY_MS } from '#core/timeUnits.ts'
 
 export const API_TOKEN_SCOPES = ['read', 'propose'] as const
 
@@ -16,8 +18,6 @@ export const MAX_LIVE_TOKENS = 20
 
 /** Longest lifetime of a new token; a date-only expiry ends that day, hence one day of slack */
 export const MAX_TOKEN_DAYS = 365
-
-const DAY_MS = 24 * 60 * 60 * 1000
 
 const CONTROL_CHARACTERS = /\p{Cc}/u
 
@@ -41,10 +41,6 @@ export interface ApiTokenInput {
   scope: ApiTokenScope
   expiresAt: string
 }
-
-export type TokenValidation =
-  | { ok: true; value: ApiTokenInput }
-  | { ok: false; errors: ValidationIssue[] }
 
 /**
  * Returns the MCP scopes a token scope grants.
@@ -98,9 +94,12 @@ const readName = (value: unknown, errors: ValidationIssue[]): string | null => {
  * in the future (decision expiry rules) at most MAX_TOKEN_DAYS ahead, too_far beyond that.
  * @param {Record<string, unknown>} raw - Parsed request body
  * @param {Date} now - Current time
- * @returns {TokenValidation} - Validated input or the list of errors
+ * @returns {Validation<ApiTokenInput>} - Validated input or the list of errors
  */
-export const validateTokenInput = (raw: Record<string, unknown>, now: Date): TokenValidation => {
+export const validateTokenInput = (
+  raw: Record<string, unknown>,
+  now: Date,
+): Validation<ApiTokenInput> => {
   const errors: ValidationIssue[] = []
   const name = readName(raw.name, errors)
   const scope = (API_TOKEN_SCOPES as readonly unknown[]).includes(raw.scope)

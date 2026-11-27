@@ -7,10 +7,9 @@ import {
 import { MAX_EXPIRY_DAYS } from '#core/decisionExpiry.ts'
 import type { DecisionField, DecisionInputError } from '#core/decisionInputError.ts'
 import { parseExpiry } from '#core/expiryParsing.ts'
+import { DAY_MS } from '#core/timeUnits.ts'
 
 export const MAX_REASON_LENGTH = 2000
-
-const DAY_MS = 24 * 60 * 60 * 1000
 
 /**
  * Returns a trimmed non-empty string or null.

@@ -2,9 +2,9 @@
 import { describe, expect, it } from 'vitest'
 
 import { listOwnTokens } from '#server/db/apiTokenRepository.ts'
+import { insertToken } from '#server/db/apiTokenWrites.ts'
 import { REFUSED_REQUESTER_ERROR } from '#server/db/failChecksOf.ts'
-import { insertToken } from '#server/db/storeApiToken.ts'
-import { hashSessionId } from '#server/db/sessionRepository.ts'
+import { hashSessionId } from '#server/db/sessionRows.ts'
 
 import { IDP_CLIENT_ID } from './fakeOidcProvider.ts'
 import {

@@ -36,13 +36,13 @@ describe('CopyButton', () => {
     await flushPromises()
 
     expect(writeText).toHaveBeenCalledWith('CVE-2024-6387')
-    expect(button.classes()).toContain('copied')
+    expect(button.get('[role="status"]').text()).toBe('Copied')
     expect(notifyError).not.toHaveBeenCalled()
 
     vi.advanceTimersByTime(1500)
     await flushPromises()
 
-    expect(button.classes()).not.toContain('copied')
+    expect(button.get('[role="status"]').text()).toBe('')
     wrapper.unmount()
   })
 
@@ -56,7 +56,7 @@ describe('CopyButton', () => {
     await flushPromises()
 
     expect(notifyError).toHaveBeenCalledTimes(1)
-    expect(button.classes()).not.toContain('copied')
+    expect(button.get('[role="status"]').text()).toBe('')
     wrapper.unmount()
   })
 })

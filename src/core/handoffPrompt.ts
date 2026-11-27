@@ -1,5 +1,5 @@
 import type { FindingView } from '#core/findingView.ts'
-import { PROMPT_LINK_LIMIT, type HandoffClient } from '#core/handoffLinks.ts'
+import { fitsLink, type HandoffClient } from '#core/handoffLinks.ts'
 import { repositoryLine, type HandoffContext } from '#core/handoffRepositoryLine.ts'
 import type { FindingInstance } from '#core/instance.ts'
 import { SELF_OWNER } from '#core/owner.ts'
@@ -104,9 +104,7 @@ export const buildHandoffPrompt = (
   const repository = repositoryLine(oneLine(finding.imageRef), context, isOwnImage(finding))
   const prompt = composePrompt(finding, packageText(input), repository)
 
-  return encodeURIComponent(prompt).length < PROMPT_LINK_LIMIT
-    ? prompt
-    : composePrompt(finding, '', repository)
+  return fitsLink(prompt) ? prompt : composePrompt(finding, '', repository)
 }
 
 /**

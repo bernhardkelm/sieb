@@ -5,8 +5,11 @@ export type ChipTone =
   | 'low'
   | 'unknown'
   | 'kev'
+  | 'claim'
   | 'neutral'
   | 'accent'
   | 'success'
   | 'warning'
   | 'danger'
+
+export type ChipVariant = 'wash' | 'outline' | 'dot' | 'framed' | 'pending'

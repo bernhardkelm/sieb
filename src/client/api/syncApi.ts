@@ -1,4 +1,4 @@
-import type { SyncStatusResponse } from '#core/apiTypes.ts'
+import type { SyncStatusResponse } from '#core/syncApiTypes.ts'
 import type { SyncRun } from '#core/syncRun.ts'
 import { apiRequest } from '@/api/apiRequest'
 

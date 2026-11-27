@@ -45,6 +45,28 @@ const pairs = (result: SearchResult): string[][] =>
   (result.findings ?? []).map((row) => [String(row.vulnId), String(row.imageRef)])
 
 describe('search_findings', () => {
+  it('carries the rules of an empty filtered search and of the filters in its descriptions', async () => {
+    const client = await connectSeededServer()
+    const tool = (await client.listTools()).find(
+      (candidate) => candidate.name === 'search_findings',
+    )
+    const properties = (tool?.inputSchema.properties ?? {}) as Record<
+      string,
+      { description?: string }
+    >
+
+    expect(tool?.description).toContain(
+      'A filtered search returning 0: say so in the first line of your answer before you widen' +
+        ' it and name the widened filter ("None with exposure public; widened to all exposures:").',
+    )
+    expect(properties.exposure?.description).toContain(
+      '"public" in a question means this public unless the user says registry or source',
+    )
+    expect(properties.decisionState?.description).toContain(
+      'reopened means severity rose or it became KEV listed',
+    )
+  })
+
   it('lists open findings in inbox order with compact rows and relative links', async () => {
     const result = await search({})
 

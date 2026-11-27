@@ -3,9 +3,10 @@ import type { DatabaseSync } from 'node:sqlite'
 import type { Clock } from '#core/clock.ts'
 import { recordMcpConnection } from '#server/db/mcpConnectionRepository.ts'
 import type { McpCaller } from '#server/mcp/mcpCaller.ts'
+import { MINUTE_MS } from '#core/timeUnits.ts'
 
 /** mcp_connections is written at most once per user, authentication kind and this interval */
-export const CONNECTION_RECORD_INTERVAL_MS = 5 * 60 * 1000
+export const CONNECTION_RECORD_INTERVAL_MS = 5 * MINUTE_MS
 
 export interface ConnectionRecorderDeps {
   db: DatabaseSync

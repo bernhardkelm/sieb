@@ -1,7 +1,7 @@
 import { existsSync } from 'node:fs'
 import { join, resolve } from 'node:path'
 
-import type { AuthMode } from '#core/apiTypes.ts'
+import type { AuthMode } from '#core/authApiTypes.ts'
 import type { KevSourceKind } from '#core/kev.ts'
 import type { SourceKind } from '#core/types.ts'
 import { readCheckConfig, type CheckConfig } from '#server/checkConfigValues.ts'
@@ -11,33 +11,28 @@ import {
   parseKevSource,
   parseKevUrl,
   parsePositiveInt,
-  parsePrometheusService,
-  parsePrometheusUrl,
   parseRegistryList,
   parseUserHeader,
 } from '#server/configValues.ts'
-import {
-  parseOriginList,
-  parsePublicUrl,
-  readOAuthConfig,
-  type OAuthConfig,
-} from '#server/mcpConfigValues.ts'
-import {
-  parseAuthMode,
-  parseMetricsPort,
-  readOidcConfig,
-  type OidcConfig,
-} from '#server/oidcConfigValues.ts'
+import { readOAuthConfig, type OAuthConfig } from '#server/mcpConfigValues.ts'
+import { parseAuthMode, readOidcConfig, type OidcConfig } from '#server/oidcConfigValues.ts'
+import { MAX_PORT, parseMetricsPort } from '#server/portConfigValues.ts'
 import { parseSourceCodeUrl } from '#server/sourceCodeUrl.ts'
-import { DEFAULT_SOURCE_QUERIES, type SourceQueries } from '#server/sources/sourceQueries.ts'
+import {
+  parsePrometheusService,
+  parsePrometheusUrl,
+  parseQueries,
+  parseSource,
+  resolveDbPath,
+} from '#server/sourceConfigValues.ts'
+import type { SourceQueries } from '#server/sources/sourceQueries.ts'
+import { parseOriginList, parsePublicUrl } from '#server/urlConfigValues.ts'
 
-export const LIVE_DB_PATH = 'data/sieb.db'
-export const MOCK_DB_PATH = 'data/sieb-mock.db'
 export const STATIC_DIR = 'dist'
 export const DEFAULT_PORT = 3100
 export const DEFAULT_DEV_USER = 'dev'
-
-const SOURCES: readonly SourceKind[] = ['mock', 'kubectl', 'incluster']
+export const DEFAULT_SYNC_INTERVAL_MINUTES = 15
+export const MAX_SYNC_INTERVAL_MINUTES = 24 * 60
 
 export interface ServerConfig {
   source: SourceKind
@@ -69,51 +64,6 @@ export interface ServerConfig {
 }
 
 /**
- * Parses the data source.
- * @param {string | undefined} value - Raw SIEB_SOURCE value
- * @returns {SourceKind} - Source, kubectl when unset
- * @throws {Error} - For an unknown source
- */
-const parseSource = (value: string | undefined): SourceKind => {
-  const source = value || 'kubectl'
-
-  if (!(SOURCES as readonly string[]).includes(source)) {
-    throw new Error(`SIEB_SOURCE must be one of ${SOURCES.join(', ')}, got "${value}"`)
-  }
-
-  return source as SourceKind
-}
-
-/**
- * Resolves the database path. Mock mode never opens the live database file.
- * @param {string | undefined} value - Raw SIEB_DB_PATH value
- * @param {SourceKind} source - Data source
- * @param {string} cwd - Directory relative paths resolve against
- * @returns {string} - Absolute path
- * @throws {Error} - When mock mode points at the live database
- */
-const resolveDbPath = (value: string | undefined, source: SourceKind, cwd: string): string => {
-  const mock = source === 'mock'
-  const path = resolve(cwd, value || (mock ? MOCK_DB_PATH : LIVE_DB_PATH))
-
-  if (mock && path === resolve(cwd, LIVE_DB_PATH)) {
-    throw new Error(`SIEB_SOURCE=mock must not use ${LIVE_DB_PATH}, unset SIEB_DB_PATH`)
-  }
-
-  return path
-}
-
-/**
- * Reads the two Prometheus queries, an unset or blank value keeps the default.
- * @param {Record<string, string | undefined>} env - Environment
- * @returns {SourceQueries} - Findings and KEV query
- */
-const parseQueries = (env: Record<string, string | undefined>): SourceQueries => ({
-  findings: env.SIEB_FINDINGS_QUERY?.trim() || DEFAULT_SOURCE_QUERIES.findings,
-  kev: env.SIEB_KEV_QUERY?.trim() || DEFAULT_SOURCE_QUERIES.kev,
-})
-
-/**
  * Reads the server configuration from the environment. NODE_ENV=production, and the incluster
  * source even without it, refuse the mock source and disable the dev user, so a deployment never
  * answers with fixtures or acts without an auth header. The built client is served whenever
@@ -138,7 +88,7 @@ export const readConfig = (env: Record<string, string | undefined>, cwd: string)
   const staticDir = resolve(cwd, STATIC_DIR)
   const publicUrl = parsePublicUrl(env.SIEB_PUBLIC_URL, production)
   const mcpEnabled = parseBoolean(env.SIEB_MCP_ENABLED, 'SIEB_MCP_ENABLED', false)
-  const port = parsePositiveInt(env.SIEB_PORT, 'SIEB_PORT', DEFAULT_PORT, 65535)
+  const port = parsePositiveInt(env.SIEB_PORT, 'SIEB_PORT', DEFAULT_PORT, MAX_PORT)
   const metricsPort = parseMetricsPort(env.SIEB_METRICS_PORT, port)
   const authMode = parseAuthMode(env.SIEB_AUTH)
   const oidc =
@@ -165,8 +115,8 @@ export const readConfig = (env: Record<string, string | undefined>, cwd: string)
     syncIntervalMinutes: parsePositiveInt(
       env.SIEB_SYNC_INTERVAL_MINUTES,
       'SIEB_SYNC_INTERVAL_MINUTES',
-      15,
-      24 * 60,
+      DEFAULT_SYNC_INTERVAL_MINUTES,
+      MAX_SYNC_INTERVAL_MINUTES,
     ),
     authMode,
     oidc,

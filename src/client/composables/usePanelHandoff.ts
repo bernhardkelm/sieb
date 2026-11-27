@@ -1,24 +1,13 @@
+import type { HandoffActions } from '@/composables/HandoffActions'
 import { useClipboardCopy } from '@/composables/useClipboardCopy'
-import { useHandoff, NO_FINDING_REASON, type Handoff } from '@/composables/useHandoff'
+import { useHandoff, type Handoff } from '@/composables/useHandoff'
 import { useHandoffOpen } from '@/composables/useHandoffOpen'
+import { runCommandNote } from '@/format/handoffNotices'
+import { NO_FINDING_REASON } from '@/format/handoffReasons'
+import { openBlockReason } from '@/format/handoffTargets'
 import { useFindingSeenStore } from '@/stores/findingSeenStore'
 import { useHandoffTargetStore } from '@/stores/handoffTargetStore'
 import { useMcpStore } from '@/stores/mcpStore'
-import { notifySuccess } from '@/toast/toastManager'
-
-/** Hand-off actions of the keys and hints, for the panel finding or the checked rows */
-export interface HandoffActions {
-  /** Why the prompt cannot be handed off, null while it can */
-  promptBlockedBy: () => string | null
-  /** Why the default action cannot run: no prompt, or a deep link while Claude cannot reach sieb */
-  openBlockedBy: () => string | null
-  /** Why the claude command cannot be copied: none, or Claude cannot reach sieb */
-  commandBlockedBy: () => string | null
-  copyPrompt: () => Promise<boolean>
-  copyCommand: () => Promise<boolean>
-  /** Runs the default hand-off action, false while it is blocked */
-  openPreferred: () => boolean
-}
 
 export interface PanelHandoff extends HandoffActions {
   handoff: Handoff
@@ -36,7 +25,7 @@ export const usePanelHandoff = (): PanelHandoff => {
   const mcp = useMcpStore()
   const seen = useFindingSeenStore()
   const { copyPrompt, open } = useHandoffOpen()
-  const { copy } = useClipboardCopy()
+  const { copyWithNotice } = useClipboardCopy()
 
   /**
    * Returns why the prompt cannot be handed off.
@@ -50,7 +39,7 @@ export const usePanelHandoff = (): PanelHandoff => {
    * @returns {string | null} - Reason, null while it can run
    */
   const openBlockedBy = (): string | null =>
-    promptBlockedBy() ?? (targets.preferred === 'copy' ? null : mcp.connectReason)
+    promptBlockedBy() ?? openBlockReason(targets.preferred, mcp.connectReason)
 
   /**
    * Returns why the claude command cannot be copied.
@@ -65,13 +54,30 @@ export const usePanelHandoff = (): PanelHandoff => {
   const copyCommand = async (): Promise<boolean> => {
     const command = handoff.command.value
 
-    if (command === null || commandBlockedBy() !== null || !(await copy(command))) {
+    if (
+      command === null ||
+      commandBlockedBy() !== null ||
+      !(await copyWithNotice(command, 'Copied claude command', runCommandNote(1)))
+    ) {
       return false
     }
 
     seen.markShown()
-    notifySuccess('Copied claude command', 'Run it in the repository that builds the image.')
     return true
+  }
+
+  /**
+   * Copies the chat prompt and confirms it with a toast.
+   * @returns {Promise<boolean>} - Whether the prompt was copied
+   */
+  const copyChatPrompt = async (): Promise<boolean> => {
+    const copied = handoff.prompts.value !== null && (await copyPrompt(handoff.prompts.value.chat))
+
+    if (copied) {
+      seen.markShown()
+    }
+
+    return copied
   }
 
   /**
@@ -95,16 +101,7 @@ export const usePanelHandoff = (): PanelHandoff => {
     promptBlockedBy,
     openBlockedBy,
     commandBlockedBy,
-    copyPrompt: async () => {
-      const copied =
-        handoff.prompts.value !== null && (await copyPrompt(handoff.prompts.value.chat))
-
-      if (copied) {
-        seen.markShown()
-      }
-
-      return copied
-    },
+    copyPrompt: copyChatPrompt,
     copyCommand,
     openPreferred,
   }

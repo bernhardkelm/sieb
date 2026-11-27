@@ -1,7 +1,7 @@
 import { defineStore } from 'pinia'
 import { ref, watch } from 'vue'
 
-import type { StatsResponse } from '#core/apiTypes.ts'
+import type { StatsResponse } from '#core/statsApiTypes.ts'
 import { DEFAULT_STATS_RANGE, isStatsRange, type StatsRange } from '#core/statsRange.ts'
 import { errorMessage } from '@/api/apiRequest'
 import { fetchStats } from '@/api/statsApi'

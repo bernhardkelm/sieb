@@ -1,7 +1,7 @@
 import { flushPromises, type VueWrapper } from '@vue/test-utils'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
-import type { ProposalDetail } from '#core/apiTypes.ts'
+import type { ProposalDetail } from '#core/proposalApiTypes.ts'
 import type { ProposalFix } from '#core/proposal.ts'
 import { mountWithProviders } from '@/__tests__/mountWithProviders'
 import {
@@ -42,8 +42,9 @@ const sections = (detail: ProposalDetail): HTMLElement => {
  * @returns {string[]} - Titles without counts
  */
 const titles = (root: HTMLElement): string[] =>
-  [...root.querySelectorAll('.section-title')].map(
-    (title) => title.childNodes[0]?.textContent?.trim() ?? '',
+  [...root.querySelectorAll('section > h3')].map(
+    (title) =>
+      [...title.childNodes].find((node) => node.textContent?.trim())?.textContent?.trim() ?? '',
   )
 
 /**

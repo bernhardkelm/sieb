@@ -68,7 +68,7 @@ describe('claim images', () => {
       tag: '1.26',
     })
     expect(claim?.prompt).toContain(
-      `1 more tag was not pulled: 1.24 (${digest('e').slice(0, 19)}). Name them under unknowns.`,
+      `1 more tag was not pulled: 1.24 (${digest('e').slice(0, 19)}). Name it under unknowns.`,
     )
   })
 

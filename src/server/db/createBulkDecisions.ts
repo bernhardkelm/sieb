@@ -1,6 +1,6 @@
 import type { DatabaseSync } from 'node:sqlite'
 
-import type { BulkDecisionSkip, BulkSkipReason } from '#core/apiTypes.ts'
+import type { BulkDecisionSkip, BulkSkipReason } from '#core/decisionApiTypes.ts'
 import { ALL_OPEN_IMAGES, type BulkDecisionInput } from '#core/bulkDecisionValidation.ts'
 import type { Decision } from '#core/decision.ts'
 import type { DecisionState } from '#core/effectiveDecision.ts'

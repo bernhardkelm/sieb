@@ -9,6 +9,7 @@ import {
   DropdownMenuSubTrigger,
 } from 'reka-ui'
 
+import AppIcon from '@/components/icons/AppIcon.vue'
 import { HANDOFF_OPTIONS, HANDOFF_PREFERENCES, isHandoffPreference } from '@/format/handoffTargets'
 import { useHandoffTargetStore } from '@/stores/handoffTargetStore'
 
@@ -33,9 +34,7 @@ const onPick = (value: unknown): void => {
         <span>Default action</span>
         <span class="help">{{ HANDOFF_OPTIONS[targets.preferred].action }}, ⇧H</span>
       </span>
-      <svg class="icon" viewBox="0 0 16 16" aria-hidden="true" focusable="false">
-        <path d="M6.5 4.5 10 8l-3.5 3.5" />
-      </svg>
+      <AppIcon class="icon" name="chevron-right" />
     </DropdownMenuSubTrigger>
     <DropdownMenuPortal>
       <DropdownMenuSubContent as-child :side-offset="4" :collision-padding="8">
@@ -48,9 +47,7 @@ const onPick = (value: unknown): void => {
               class="item"
             >
               <DropdownMenuItemIndicator class="check" force-mount>
-                <svg viewBox="0 0 16 16" aria-hidden="true" focusable="false">
-                  <path d="M3.5 8.5 6.5 11.5 12.5 4.5" />
-                </svg>
+                <AppIcon class="check-icon" name="check" />
               </DropdownMenuItemIndicator>
               {{ HANDOFF_OPTIONS[preference].label }}
             </DropdownMenuRadioItem>
@@ -76,13 +73,9 @@ const onPick = (value: unknown): void => {
   visibility: visible;
 }
 
-.check svg {
-  width: var(--icon-size);
-  height: var(--icon-size);
-  fill: none;
-  stroke: var(--color-accent);
-  stroke-width: 2;
-  stroke-linecap: round;
-  stroke-linejoin: round;
+.check-icon {
+  --icon-stroke: var(--icon-stroke-bold);
+
+  color: var(--color-accent);
 }
 </style>

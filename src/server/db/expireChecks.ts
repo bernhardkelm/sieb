@@ -2,7 +2,7 @@ import type { DatabaseSync } from 'node:sqlite'
 
 import { checkTimeoutError } from '#core/checkLimits.ts'
 import { listOpenChecks } from '#server/db/checkRepository.ts'
-import { endCheck, type EndedCheck } from '#server/db/endCheck.ts'
+import { endCheck, failedOutcome, type EndedCheck } from '#server/db/endCheck.ts'
 import { inTransaction } from '#server/db/inTransaction.ts'
 
 /**
@@ -24,15 +24,7 @@ export const expireChecks = (db: DatabaseSync, timeoutSeconds: number, now: Date
         now,
         timeoutSeconds,
       )
-      const ended =
-        error === null
-          ? null
-          : endCheck(
-              db,
-              check,
-              { state: 'failed', error, durationMs: null, usage: null, reply: null },
-              now,
-            )
+      const ended = error === null ? null : endCheck(db, check, failedOutcome(error), now)
 
       return ended === null ? [] : [ended]
     }),

@@ -1,4 +1,4 @@
-import type { LabelsResponse } from '#core/apiTypes.ts'
+import type { LabelsResponse } from '#core/findingApiTypes.ts'
 import type { Finding } from '#core/finding.ts'
 import { distinctOwners } from '#core/owner.ts'
 

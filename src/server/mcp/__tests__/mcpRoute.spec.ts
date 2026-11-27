@@ -3,7 +3,8 @@ import { describe, expect, it } from 'vitest'
 
 import { createLocalJWKSet, exportJWK, generateKeyPair, SignJWT, type JWTPayload } from 'jose'
 
-import type { ApiTokenCreateResponse, McpInfoResponse } from '#core/apiTypes.ts'
+import type { McpInfoResponse } from '#core/mcpApiTypes.ts'
+import type { ApiTokenCreateResponse } from '#core/tokenApiTypes.ts'
 import { testAppDeps } from '#server/http/__tests__/appFixtures.ts'
 import { createApp, type AppDeps } from '#server/http/createApp.ts'
 import { isClientRoute } from '#server/http/spaRoutes.ts'

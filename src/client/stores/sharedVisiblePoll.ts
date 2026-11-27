@@ -1,3 +1,4 @@
+import { createHold } from '@/stores/hold'
 import { createVisiblePoll } from '@/stores/visiblePoll'
 
 /**
@@ -12,28 +13,6 @@ export const createSharedVisiblePoll = (
   intervalMs: number,
 ): (() => () => void) => {
   const poll = createVisiblePoll(task, intervalMs)
-  let holders = 0
 
-  return () => {
-    let held = true
-
-    holders += 1
-
-    if (holders === 1) {
-      poll.start()
-    }
-
-    return () => {
-      if (!held) {
-        return
-      }
-
-      held = false
-      holders -= 1
-
-      if (holders === 0) {
-        poll.stop()
-      }
-    }
-  }
+  return createHold(poll.start, poll.stop).take
 }

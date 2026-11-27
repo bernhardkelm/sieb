@@ -1,7 +1,7 @@
 import type { WorkerClaim } from '#core/check.ts'
 import type { ClaudeCredential } from '#checker/checkerConfig.ts'
-import type { ClaudeEffort } from '#checker/config/claudeEffort.ts'
 import { allowRules, MCP_SERVER_NAME } from '#checker/claude/claudeSettings.ts'
+import type { ClaudeEffort } from '#checker/config/claudeEffort.ts'
 import { INSPECT_SERVER_NAME } from '#checker/inspect/createInspectServer.ts'
 import { INSPECT_ENTRY } from '#checker/inspect/inspectEntry.ts'
 import { INPUT_FD } from '#checker/process/processRunner.ts'
@@ -10,13 +10,13 @@ import type { CheckLayout } from '#checker/workspace/checkLayout.ts'
 /** Built-in tools Claude gets, everything else such as Bash, Edit, Write and Agent is absent */
 export const CLAUDE_TOOLS = ['Read', 'Grep', 'Glob', 'WebFetch', 'WebSearch']
 
-// documented Claude Code variables: no telemetry, updates, CLAUDE.md files or transcripts
 // Claude Code 2.1.326 reads the credential once from this descriptor, verified with auth status
 const CREDENTIAL_FD_VARIABLES: Record<ClaudeCredential['kind'], string> = {
   oauth_token: 'CLAUDE_CODE_OAUTH_TOKEN_FILE_DESCRIPTOR',
   api_key: 'CLAUDE_CODE_API_KEY_FILE_DESCRIPTOR',
 }
 
+// documented Claude Code variables: no telemetry, updates, CLAUDE.md files or transcripts
 const QUIET_ENV: Record<string, string> = {
   CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC: '1',
   DISABLE_TELEMETRY: '1',

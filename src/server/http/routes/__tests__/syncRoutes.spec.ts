@@ -1,7 +1,7 @@
 // @vitest-environment node
 import { describe, expect, it } from 'vitest'
 
-import type { SyncStatusResponse } from '#core/apiTypes.ts'
+import type { SyncStatusResponse } from '#core/syncApiTypes.ts'
 import type { SyncRun } from '#core/syncRun.ts'
 
 import { recordKevFailure } from '#server/db/kevFeedRepository.ts'

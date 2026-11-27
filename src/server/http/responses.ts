@@ -1,12 +1,7 @@
 import type { Context } from 'hono'
 
-import type {
-  ErrorBody,
-  ProposalClosedBody,
-  ProposalConflictBody,
-  ValidationErrorBody,
-  ValidationIssue,
-} from '#core/apiTypes.ts'
+import type { ErrorBody, ValidationErrorBody, ValidationIssue } from '#core/errorApiTypes.ts'
+import type { ProposalClosedBody, ProposalConflictBody } from '#core/proposalApiTypes.ts'
 import type { DecisionCommandError } from '#server/db/decisionCommandResult.ts'
 import type { ProposalCommandError, ProposalRefusal } from '#server/db/proposalCommandResult.ts'
 

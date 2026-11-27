@@ -2,24 +2,20 @@ import { computed, type ComputedRef } from 'vue'
 
 import { HANDOFF_CLIENTS, handoffLink } from '#core/handoffLinks.ts'
 import { listedFindings } from '#core/multiHandoffPrompt.ts'
-import { selectionHandoffTexts } from '#core/selectionHandoff.ts'
+import type { HandoffActions } from '@/composables/HandoffActions'
 import { useClipboardCopy } from '@/composables/useClipboardCopy'
 import { useHandoffOpen } from '@/composables/useHandoffOpen'
-import type { HandoffActions } from '@/composables/usePanelHandoff'
 import type { BulkCount } from '@/format/bulkCount'
 import {
-  CAPPED_REASON,
-  NO_SELECTION_REASON,
-  commandReason,
-  copiedToast,
-  linkReason,
-  openingTitle,
-} from '@/format/selectionHandoffText'
+  selectionCommandReason,
+  selectionOpenReason,
+  selectionPromptReason,
+} from '@/format/selectionHandoffReasons'
+import { CAPPED_REASON, copiedToast, openingTitle } from '@/format/selectionHandoffText'
 import { useFindingSeenStore } from '@/stores/findingSeenStore'
-import { useHandoffSelectionStore } from '@/stores/handoffSelectionStore'
 import { useHandoffTargetStore } from '@/stores/handoffTargetStore'
 import { useMcpStore } from '@/stores/mcpStore'
-import { notifySuccess } from '@/toast/toastManager'
+import { useSelectionStore } from '@/stores/selectionStore'
 
 export interface SelectionHandoff extends HandoffActions {
   /** Whether rows are checked, the hand-off then acts on them instead of the panel finding */
@@ -37,14 +33,14 @@ export interface SelectionHandoff extends HandoffActions {
  * @returns {SelectionHandoff} - Whether a selection exists, block reasons, copy and open functions
  */
 export const useSelectionHandoff = (): SelectionHandoff => {
-  const selection = useHandoffSelectionStore()
+  const selection = useSelectionStore()
   const targets = useHandoffTargetStore()
   const seen = useFindingSeenStore()
   const mcp = useMcpStore()
-  const { copy } = useClipboardCopy()
+  const { copyWithNotice } = useClipboardCopy()
   const { openLink } = useHandoffOpen()
 
-  const texts = computed(() => selectionHandoffTexts(selection.findings))
+  const texts = computed(() => selection.handoffTexts)
 
   /**
    * Marks the findings the hand-off lists as seen.
@@ -58,29 +54,21 @@ export const useSelectionHandoff = (): SelectionHandoff => {
    * Returns why the prompt cannot be handed off.
    * @returns {string | null} - Reason, null with checked rows
    */
-  const promptBlockedBy = (): string | null => (texts.value === null ? NO_SELECTION_REASON : null)
+  const promptBlockedBy = (): string | null => selectionPromptReason(texts.value)
 
   /**
-   * Returns why the default action cannot run: no selection, Claude not connected for a deep
-   * link, or a selection too large for one.
+   * Returns why the default action cannot run.
    * @returns {string | null} - Reason, null while it can run
    */
-  const openBlockedBy = (): string | null => {
-    const preferred = targets.preferred
-
-    if (texts.value === null || preferred === 'copy') {
-      return promptBlockedBy()
-    }
-
-    return mcp.connectReason ?? linkReason(texts.value.links[HANDOFF_CLIENTS[preferred]])
-  }
+  const openBlockedBy = (): string | null =>
+    selectionOpenReason(texts.value, targets.preferred, mcp.connectReason)
 
   /**
    * Returns why the claude command cannot be copied.
    * @returns {string | null} - Reason, null while it can be copied
    */
   const commandBlockedBy = (): string | null =>
-    texts.value === null ? NO_SELECTION_REASON : (commandReason(texts.value) ?? mcp.connectReason)
+    selectionCommandReason(texts.value, mcp.connectReason)
 
   /**
    * Copies the full prompt and names the copied findings in a toast.
@@ -89,14 +77,17 @@ export const useSelectionHandoff = (): SelectionHandoff => {
   const copyPrompt = async (): Promise<boolean> => {
     const current = texts.value
 
-    if (current === null || !(await copy(current.prompts.chat))) {
+    if (current === null) {
+      return false
+    }
+
+    const { title, description } = copiedToast(current, 'prompt')
+
+    if (!(await copyWithNotice(current.prompts.chat, title, description))) {
       return false
     }
 
     markListedSeen()
-    const { title, description } = copiedToast(current, 'prompt')
-
-    notifySuccess(title, description)
     return true
   }
 
@@ -111,14 +102,13 @@ export const useSelectionHandoff = (): SelectionHandoff => {
       return false
     }
 
-    if (!(await copy(current.command))) {
+    const { title, description } = copiedToast(current, 'claude command')
+
+    if (!(await copyWithNotice(current.command, title, description))) {
       return false
     }
 
     markListedSeen()
-    const { title, description } = copiedToast(current, 'claude command')
-
-    notifySuccess(title, description)
     return true
   }
 

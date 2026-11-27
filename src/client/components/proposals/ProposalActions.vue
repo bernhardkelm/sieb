@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 
-import type { ProposalDetail } from '#core/apiTypes.ts'
+import type { ProposalDetail } from '#core/proposalApiTypes.ts'
 import { isDecidableVerdict } from '#core/proposal.ts'
 import BaseButton from '@/components/common/BaseButton.vue'
 import KeyHint from '@/components/common/KeyHint.vue'

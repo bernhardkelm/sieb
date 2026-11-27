@@ -1,7 +1,7 @@
 // @vitest-environment node
 import { describe, expect, it } from 'vitest'
 
-import { filterArchive, readArchive, tarArchive } from '#checker/__tests__/tarFixtures.ts'
+import { filterArchive, readArchive, tarArchive } from '#checker/tar/__tests__/tarFixtures.ts'
 import { BLOCK, checksumOf } from '#checker/tar/tarHeader.ts'
 import { paxBody } from '#checker/tar/tarPax.ts'
 

@@ -1,0 +1,43 @@
+/* FindingRow in a list up to 640px wide: image, title and decision wrap below the id */
+@container (max-width: 640px) {
+  .no-check,
+  .kev:empty,
+  .exposure:empty {
+    display: none;
+  }
+
+  .vuln-id {
+    flex: 1 1 0;
+    min-width: var(--row-key-min);
+  }
+
+  .image {
+    order: 2;
+  }
+
+  .title {
+    order: 3;
+  }
+
+  .decision {
+    order: 4;
+  }
+
+  .image {
+    flex: 0 1 auto;
+    max-width: 50%;
+    color: var(--color-text);
+    font-size: var(--font-size-sm);
+  }
+
+  .title {
+    display: block;
+    flex: 1 1 0;
+    min-width: 0;
+    font-size: var(--font-size-sm);
+  }
+
+  .selectable .image {
+    margin-left: calc(var(--checkbox-size) + var(--space-2));
+  }
+}

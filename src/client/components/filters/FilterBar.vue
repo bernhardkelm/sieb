@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
 
+import FilterBarShell from '@/components/filters/FilterBarShell.vue'
 import FilterResetButton from '@/components/filters/FilterResetButton.vue'
 import {
   EXPOSURE_OPTIONS,
@@ -9,7 +10,6 @@ import {
   SEVERITY_OPTIONS,
 } from '@/components/filters/labelOptions'
 import MultiSelectFilter from '@/components/filters/MultiSelectFilter.vue'
-import SearchInput from '@/components/filters/SearchInput.vue'
 import ToggleFilter from '@/components/filters/ToggleFilter.vue'
 import { useLabelColumns } from '@/composables/useLabelColumns'
 import { useChecksStore } from '@/stores/checksStore'
@@ -32,7 +32,7 @@ const checks = useChecksStore()
 const pending = computed(() => pendingOptions(checks.enabled))
 const { hidden } = useLabelColumns()
 
-const search = ref<InstanceType<typeof SearchInput> | null>(null)
+const shell = ref<InstanceType<typeof FilterBarShell> | null>(null)
 
 /**
  * Changes one filter.
@@ -49,100 +49,70 @@ const set = <K extends keyof FindingFilters>(key: K, value: FindingFilters[K]): 
  * @returns {void}
  */
 const focusSearch = (): void => {
-  search.value?.focus()
+  shell.value?.focusSearch()
 }
 
 defineExpose({ focusSearch })
 </script>
 
 <template>
-  <div class="filter-bar" role="search">
-    <SearchInput
-      ref="search"
-      :model-value="filters.q"
-      label="Search findings"
-      placeholder="Search CVE, image, package, workload"
-      @update:model-value="set('q', $event)"
+  <FilterBarShell
+    ref="shell"
+    :q="filters.q"
+    label="Search findings"
+    placeholder="Search CVE, image, package, workload"
+    @update:q="set('q', $event)"
+  >
+    <!-- view controls such as the sort menu, first -->
+    <slot />
+    <MultiSelectFilter
+      label="Severity"
+      :options="SEVERITY_OPTIONS"
+      :model-value="filters.severity"
+      @update:model-value="set('severity', $event)"
     />
-    <div class="controls scroll-row">
-      <!-- view controls such as the sort menu, first -->
-      <slot />
-      <MultiSelectFilter
-        label="Severity"
-        :options="SEVERITY_OPTIONS"
-        :model-value="filters.severity"
-        @update:model-value="set('severity', $event)"
-      />
-      <MultiSelectFilter
-        v-if="labels.showExposure"
-        label="Exposure"
-        :options="EXPOSURE_OPTIONS"
-        :model-value="filters.exposure"
-        @update:model-value="set('exposure', $event)"
-      />
-      <MultiSelectFilter
-        v-if="labels.showOwner"
-        label="Owner"
-        :options="owners"
-        :model-value="filters.owner"
-        @update:model-value="set('owner', $event)"
-      />
-      <MultiSelectFilter
-        label="Pending"
-        :options="pending"
-        :model-value="filters.pending"
-        @update:model-value="set('pending', $event)"
-      />
-      <ToggleFilter
-        v-if="labels.showKev"
-        label="KEV"
-        :model-value="filters.kev"
-        @update:model-value="set('kev', $event)"
-      />
-      <ToggleFilter
-        label="Waiting for upstream"
-        :model-value="filters.upstreamPending"
-        @update:model-value="set('upstreamPending', $event)"
-      />
-      <ToggleFilter
-        label="New this week"
-        :model-value="filters.newThisWeek"
-        @update:model-value="set('newThisWeek', $event)"
-      />
-      <ToggleFilter
-        v-if="resolvedToggle"
-        label="Show resolved"
-        :model-value="filters.includeResolved"
-        @update:model-value="set('includeResolved', $event)"
-      />
-      <FilterResetButton
-        v-if="hasActiveFilters(filters, hidden)"
-        @click="filters = emptyFilters()"
-      />
-    </div>
-  </div>
+    <MultiSelectFilter
+      v-if="labels.showExposure"
+      label="Exposure"
+      :options="EXPOSURE_OPTIONS"
+      :model-value="filters.exposure"
+      @update:model-value="set('exposure', $event)"
+    />
+    <MultiSelectFilter
+      v-if="labels.showOwner"
+      label="Owner"
+      :options="owners"
+      :model-value="filters.owner"
+      @update:model-value="set('owner', $event)"
+    />
+    <MultiSelectFilter
+      label="Pending"
+      :options="pending"
+      :model-value="filters.pending"
+      @update:model-value="set('pending', $event)"
+    />
+    <ToggleFilter
+      v-if="labels.showKev"
+      label="KEV"
+      :model-value="filters.kev"
+      @update:model-value="set('kev', $event)"
+    />
+    <ToggleFilter
+      label="Waiting for upstream"
+      :model-value="filters.upstreamPending"
+      @update:model-value="set('upstreamPending', $event)"
+    />
+    <ToggleFilter
+      label="New this week"
+      :model-value="filters.newThisWeek"
+      @update:model-value="set('newThisWeek', $event)"
+    />
+    <ToggleFilter
+      v-if="resolvedToggle"
+      label="Show resolved"
+      :model-value="filters.includeResolved"
+      @update:model-value="set('includeResolved', $event)"
+    />
+    <FilterResetButton v-if="hasActiveFilters(filters, hidden)" @click="filters = emptyFilters()" />
+  </FilterBarShell>
 </template>
-
-<style scoped src="@/components/layout/scrollRow.css"></style>
-
-<style scoped>
-.filter-bar {
-  display: flex;
-  flex: 1 1 auto;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: var(--space-2);
-  min-width: 0;
-}
-
-.controls {
-  flex: 1 1 0;
-}
-
-@media (max-width: 639px) {
-  .filter-bar,
-  .controls {
-    flex: 1 1 100%;
-  }
-}
-</style>

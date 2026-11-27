@@ -1,4 +1,4 @@
-import type { ValidationIssue } from '#core/apiTypes.ts'
+import type { ValidationIssue } from '#core/errorApiTypes.ts'
 import { isDecisionStateFilter, type DecisionStateFilter } from '#core/decisionStateFilter.ts'
 import { isExposureFilter, type ExposureFilter } from '#core/exposure.ts'
 import { isPendingFilter, type PendingFilter } from '#core/findingPending.ts'
@@ -11,6 +11,7 @@ import {
   readTimestamp,
 } from '#core/queryParamReaders.ts'
 import { SEVERITIES, type Severity } from '#core/severity.ts'
+import type { Validation } from '#core/validation.ts'
 
 export const FINDING_LIST_VIEWS = ['inbox', 'all'] as const
 
@@ -42,10 +43,6 @@ export interface FindingQuery {
   upstreamPending?: boolean | null // true: the governing decision waits for upstream, false: it does not
 }
 
-export type FindingQueryResult =
-  | { ok: true; value: FindingQuery }
-  | { ok: false; errors: ValidationIssue[] }
-
 type RawQuery = Record<string, string | undefined>
 
 /**
@@ -63,9 +60,9 @@ const isSeverity = (value: unknown): value is Severity =>
  * and 1 (includeResolved, kev; fixable and upstreamPending also false and 0), newSince and kevAddedSince take any
  * parseable timestamp, minScore a number from 0 to 10, pending the options of PENDING_FILTERS.
  * @param {RawQuery} raw - Query parameters
- * @returns {FindingQueryResult} - Parsed query or the list of errors
+ * @returns {Validation<FindingQuery>} - Parsed query or the list of errors
  */
-export const parseFindingQuery = (raw: RawQuery): FindingQueryResult => {
+export const parseFindingQuery = (raw: RawQuery): Validation<FindingQuery> => {
   const errors: ValidationIssue[] = []
   const view = raw.view ?? 'all'
 

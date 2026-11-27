@@ -3,6 +3,7 @@ import type { CheckView } from '#core/check.ts'
 import CheckFinding from '@/components/checks/CheckFinding.vue'
 import BaseButton from '@/components/common/BaseButton.vue'
 import RelativeTime from '@/components/common/RelativeTime.vue'
+import SectionHeading from '@/components/common/SectionHeading.vue'
 
 defineProps<{
   /** Queued checks in queue order */
@@ -14,9 +15,7 @@ defineEmits<{ cancel: [check: CheckView] }>()
 
 <template>
   <section class="check-section" aria-labelledby="checks-queue">
-    <h2 id="checks-queue" class="section-title">
-      Queue <span class="count">{{ checks.length }}</span>
-    </h2>
+    <SectionHeading id="checks-queue" :level="2" :count="checks.length">Queue</SectionHeading>
     <ol v-if="checks.length > 0" class="items">
       <li v-for="check in checks" :key="check.id" class="item" :data-check-id="check.id">
         <span class="position">#{{ check.position ?? '?' }}</span>

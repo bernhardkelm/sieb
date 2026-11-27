@@ -2,7 +2,7 @@ import { flushPromises } from '@vue/test-utils'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import { buildFindingView } from '#core/__tests__/coreBuilders.ts'
-import type { FindingDetailResponse } from '#core/apiTypes.ts'
+import type { FindingDetailResponse } from '#core/findingApiTypes.ts'
 import { mountWithProviders } from '@/__tests__/mountWithProviders'
 import { mountWithRouter } from '@/__tests__/mountWithRouter'
 import { fetchFindingDetail } from '@/api/findingsApi'

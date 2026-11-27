@@ -1,9 +1,9 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 
-import type { InboxItem, InboxKind } from '#core/inbox/inboxItem.ts'
+import type { InboxItem } from '#core/inbox/inboxItem.ts'
 import BaseChip from '@/components/chips/BaseChip.vue'
-import type { ChipTone } from '@/components/chips/chipTone'
+import { INBOX_KIND_TONES } from '@/components/chips/chipTones'
 import KevChip from '@/components/chips/KevChip.vue'
 import SeverityChip from '@/components/chips/SeverityChip.vue'
 import HintTooltip from '@/components/common/HintTooltip.vue'
@@ -24,13 +24,6 @@ const props = defineProps<{
 
 defineEmits<{ select: [event: MouseEvent]; toggle: [event: MouseEvent]; seen: [] }>()
 
-const TONES: Record<InboxKind, ChipTone> = {
-  proposal: 'accent',
-  reopened: 'danger',
-  expiring: 'warning',
-  kev: 'kev',
-}
-
 const seeable = computed(() => isSeeable(props.item))
 const selectable = computed(() => isSelectable(props.item))
 const scope = computed(() => inboxScopeText(props.item))
@@ -47,7 +40,7 @@ const scope = computed(() => inboxScopeText(props.item))
   >
     <RowCheckbox v-if="selectable" :checked="checked" @toggle="$emit('toggle', $event)" />
     <span v-else class="no-check" aria-hidden="true" />
-    <BaseChip class="kind" :tone="TONES[item.kind]" dot>{{
+    <BaseChip class="kind" :tone="INBOX_KIND_TONES[item.kind]" variant="dot">{{
       INBOX_KIND_LABELS[item.kind]
     }}</BaseChip>
     <SeverityChip :severity="item.severity" :source="null" />

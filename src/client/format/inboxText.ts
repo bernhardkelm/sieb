@@ -1,8 +1,7 @@
 import type { InboxItem, InboxKind } from '#core/inbox/inboxItem.ts'
+import { DAY_MS } from '#core/timeUnits.ts'
 import { countOf } from '@/format/count'
 import { shortImageName } from '@/format/imageName'
-
-const DAY_MS = 24 * 60 * 60 * 1000
 
 export const INBOX_KIND_LABELS: Record<InboxKind, string> = {
   proposal: 'Proposal',

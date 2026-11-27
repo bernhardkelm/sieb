@@ -1,21 +1,16 @@
 <script setup lang="ts">
-import { computed, nextTick, onBeforeUnmount, ref, watch } from 'vue'
-
 import { isDecidableVerdict } from '#core/proposal.ts'
 
-import BaseButton from '@/components/common/BaseButton.vue'
 import CloseButton from '@/components/common/CloseButton.vue'
 import CopyButton from '@/components/common/CopyButton.vue'
 import LoadingSpinner from '@/components/common/LoadingSpinner.vue'
+import LoadState from '@/components/common/LoadState.vue'
 import ConflictNotice from '@/components/proposals/ConflictNotice.vue'
 import ProposalActions from '@/components/proposals/ProposalActions.vue'
 import ProposalEditForm from '@/components/proposals/ProposalEditForm.vue'
 import ProposalSections from '@/components/proposals/ProposalSections.vue'
 import RejectDialog from '@/components/proposals/RejectDialog.vue'
-import { useChordArming } from '@/composables/useChordArming'
-import { usePanelDismiss } from '@/composables/usePanelDismiss'
-import { useProposalReviewActions } from '@/composables/useProposalReviewActions'
-import { useProposalReviewKeys } from '@/composables/useProposalReviewKeys'
+import { useProposalReviewPanel } from '@/composables/useProposalReviewPanel'
 import { useProposalReviewStore } from '@/stores/proposalReviewStore'
 
 const props = defineProps<{
@@ -25,76 +20,11 @@ const props = defineProps<{
 const emit = defineEmits<{ resolved: []; close: [] }>()
 
 const store = useProposalReviewStore()
-const actions = useProposalReviewActions((outcome) => {
-  if (outcome === 'resolved') {
-    emit('resolved')
-  } else {
-    emit('close')
-  }
-})
-const { busy, editing, editError, rejecting, rejectError } = actions
-const panel = ref<HTMLElement | null>(null)
-const readyId = computed(() =>
-  store.detail?.proposal.id === props.proposalId ? props.proposalId : null,
-)
-const acceptArmed = useChordArming(readyId, panel)
-
-usePanelDismiss(
-  panel,
-  () => emit('close'),
-  () => !busy.value && !(editing.value && actions.editDirty.value),
-)
-
-/**
- * Focuses the panel itself.
- * @returns {void}
- */
-const focusPanel = (): void => {
-  panel.value?.focus({ preventScroll: true })
-}
-
-/**
- * Opens the reject dialog with a fresh error state.
- * @returns {void}
- */
-const openReject = (): void => {
-  rejectError.value = null
-  rejecting.value = true
-}
-
-/**
- * Closes the decision form and returns focus to the panel.
- * @returns {void}
- */
-const onCancelEdit = (): void => {
-  actions.cancelEdit()
-  focusPanel()
-}
-
-const { chordRefused, onKeydown } = useProposalReviewKeys({
-  actions,
-  readyId,
-  acceptArmed,
-  focusPanel,
-  cancelEdit: onCancelEdit,
-  close: () => emit('close'),
-})
-
-watch(
+const { panel, actions, chordRefused, onKeydown, cancelEdit } = useProposalReviewPanel(
   () => props.proposalId,
-  async (id) => {
-    actions.cancelEdit()
-    rejecting.value = false
-    void store.load(id)
-    await nextTick()
-    focusPanel()
-  },
-  { immediate: true },
+  { resolved: () => emit('resolved'), close: () => emit('close') },
 )
-
-onBeforeUnmount(() => {
-  store.clear()
-})
+const { busy, editing, editError, rejecting, rejectError } = actions
 </script>
 
 <template>
@@ -129,7 +59,7 @@ onBeforeUnmount(() => {
           :error="editError"
           :submitting="busy"
           @submit="actions.acceptEdited"
-          @cancel="onCancelEdit"
+          @cancel="cancelEdit"
           @dirty="actions.editDirty.value = $event"
         />
         <ProposalActions
@@ -140,7 +70,7 @@ onBeforeUnmount(() => {
           :chord-refused="chordRefused"
           @accept="actions.accept"
           @edit="actions.startEdit"
-          @reject="openReject"
+          @reject="actions.startReject"
           @acknowledge="store.acknowledge()"
         />
       </template>
@@ -153,11 +83,13 @@ onBeforeUnmount(() => {
         @confirm="actions.reject"
       />
     </template>
-    <div v-else-if="store.error" class="state" role="alert">
-      <p>{{ store.notFound ? 'This proposal does not exist.' : 'Could not load the proposal.' }}</p>
-      <BaseButton v-if="!store.notFound" @click="store.reload()">Retry</BaseButton>
-    </div>
-    <p v-else class="state">Loading…</p>
+    <LoadState
+      v-else
+      subject="the proposal"
+      :error="store.error"
+      :not-found="store.notFound ? 'This proposal does not exist.' : null"
+      @retry="store.reload()"
+    />
   </aside>
 </template>
 

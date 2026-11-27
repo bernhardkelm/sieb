@@ -56,7 +56,12 @@ const reasonHint = computed(() =>
     <span v-else class="scope all">All images</span>
     <HintTooltip :text="reasonHint">
       <span class="reason" data-panel-clip>
-        <BaseChip v-if="view.decision.upstreamPending" class="upstream" tone="warning" outline>
+        <BaseChip
+          v-if="view.decision.upstreamPending"
+          class="upstream"
+          tone="warning"
+          variant="outline"
+        >
           {{ UPSTREAM_PENDING_LABEL }}
         </BaseChip>
         <span v-if="why" class="why" :class="{ lapsed }">{{ why }} · </span
@@ -76,90 +81,4 @@ const reasonHint = computed(() =>
   </ListRow>
 </template>
 
-<style scoped>
-.vuln-id {
-  overflow: hidden;
-  font-family: var(--font-mono);
-  font-size: var(--font-size-sm);
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.scope {
-  display: block;
-  min-width: 0;
-}
-
-.all {
-  color: var(--color-accent);
-  font-weight: var(--font-weight-medium);
-}
-
-.reason,
-.author {
-  overflow: hidden;
-  color: var(--color-text-muted);
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.author,
-.created,
-.expires {
-  font-size: var(--font-size-sm);
-}
-
-.created {
-  color: var(--color-text-muted);
-}
-
-.upstream {
-  margin-right: var(--space-1-5);
-  vertical-align: middle;
-}
-
-.why {
-  color: var(--color-warning);
-  font-weight: var(--font-weight-medium);
-}
-
-.lapsed {
-  color: var(--color-danger);
-}
-
-.expires {
-  color: var(--color-text-subtle);
-}
-
-@container (max-width: 900px) {
-  .optional {
-    display: none;
-  }
-}
-
-@container (max-width: 640px) {
-  .vuln-id {
-    flex: 1 1 0;
-    min-width: calc(var(--space-base) * 24);
-  }
-
-  .scope,
-  .reason,
-  .expires {
-    order: 2;
-  }
-
-  .scope {
-    flex: 0 1 auto;
-    max-width: 40%;
-    margin-left: calc(var(--chevron-size) + var(--space-2));
-    font-size: var(--font-size-sm);
-  }
-
-  .reason {
-    flex: 1 1 0;
-    min-width: 0;
-    font-size: var(--font-size-sm);
-  }
-}
-</style>
+<style scoped src="@/components/decisions/decisionRow.css"></style>

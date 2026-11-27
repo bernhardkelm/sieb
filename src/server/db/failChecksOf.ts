@@ -1,7 +1,7 @@
 import type { DatabaseSync } from 'node:sqlite'
 
 import { listOpenChecksOf } from '#server/db/checkRepository.ts'
-import { endCheck, type EndedCheck } from '#server/db/endCheck.ts'
+import { endCheck, failedOutcome, type EndedCheck } from '#server/db/endCheck.ts'
 import { inTransaction } from '#server/db/inTransaction.ts'
 
 /** Error of the open checks of a user the identity provider no longer admits */
@@ -24,12 +24,7 @@ export const failChecksOf = (
 ): EndedCheck[] =>
   inTransaction(db, () =>
     listOpenChecksOf(db, requestedBy).flatMap((check) => {
-      const ended = endCheck(
-        db,
-        check,
-        { state: 'failed', error, durationMs: null, usage: null, reply: null },
-        now,
-      )
+      const ended = endCheck(db, check, failedOutcome(error), now)
 
       return ended === null ? [] : [ended]
     }),

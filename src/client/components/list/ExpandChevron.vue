@@ -1,35 +1,25 @@
 <script setup lang="ts">
+import AppIcon from '@/components/icons/AppIcon.vue'
+
 defineProps<{
   expanded: boolean
 }>()
 </script>
 
 <template>
-  <svg
-    class="expand-chevron"
-    :class="{ expanded }"
-    viewBox="0 0 16 16"
-    aria-hidden="true"
-    focusable="false"
-  >
-    <path d="M6 4.5 9.5 8 6 11.5" />
-  </svg>
+  <AppIcon class="expand-chevron" :class="{ expanded }" name="expand" />
 </template>
 
 <style scoped>
 .expand-chevron {
-  width: var(--chevron-size);
-  height: var(--chevron-size);
-  fill: none;
-  stroke: var(--color-text-subtle);
-  stroke-width: 1.6;
-  stroke-linecap: round;
-  stroke-linejoin: round;
+  --icon-size: var(--chevron-size);
+
+  color: var(--color-text-subtle);
   transition: transform var(--duration-fast) var(--ease);
 }
 
 .expanded {
-  stroke: var(--color-text);
+  color: var(--color-text);
   transform: rotate(90deg);
 }
 </style>

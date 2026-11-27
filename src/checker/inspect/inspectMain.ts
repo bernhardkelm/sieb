@@ -2,10 +2,11 @@ import { realpath } from 'node:fs/promises'
 
 import { StdioServerTransport } from '@modelcontextprotocol/server/stdio'
 
+import { errorMessage } from '#core/errorMessage.ts'
 import { createInspectServer } from '#checker/inspect/createInspectServer.ts'
 import { execCommand } from '#checker/inspect/execCommand.ts'
 import { createInspectHandlers } from '#checker/inspect/inspectHandlers.ts'
-import { errorMessage, printable } from '#checker/safeText.ts'
+import { printable } from '#checker/safeText.ts'
 
 const TIMEOUT_MS = 30_000
 const MAX_OUTPUT_BYTES = 64 * 1024

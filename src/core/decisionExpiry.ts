@@ -1,10 +1,9 @@
 import type { DecisionStatus } from '#core/decision.ts'
+import { DAY_MS } from '#core/timeUnits.ts'
 
 export const ACCEPTED_EXPIRY_DAYS = 90
 
 export const MAX_EXPIRY_DAYS = 3 * 366
-
-const DAY_MS = 24 * 60 * 60 * 1000
 
 /**
  * Returns the default expiry of a new decision: accepted risks expire after 90 days, other

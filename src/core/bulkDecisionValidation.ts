@@ -1,7 +1,8 @@
 import type { DecisionInput } from '#core/decision.ts'
 import { nonBlank } from '#core/decisionFieldReaders.ts'
-import type { DecisionInputError, Validated } from '#core/decisionInputError.ts'
+import type { DecisionInputError } from '#core/decisionInputError.ts'
 import { validateDecisionInput } from '#core/decisionValidation.ts'
+import type { Validation } from '#core/validation.ts'
 
 export const ALL_OPEN_IMAGES = 'all-open'
 
@@ -50,12 +51,12 @@ const readImageRefs = (
  * expiry default, the justification and the upstream rules included, plus the target images.
  * @param {Record<string, unknown>} raw - Parsed request body
  * @param {Date} now - Current time
- * @returns {Validated<BulkDecisionInput>} - Validated input or the list of errors
+ * @returns {Validation<BulkDecisionInput, DecisionInputError>} - Validated input or the list of errors
  */
 export const validateBulkDecisionInput = (
   raw: Record<string, unknown>,
   now: Date,
-): Validated<BulkDecisionInput> => {
+): Validation<BulkDecisionInput, DecisionInputError> => {
   const errors: DecisionInputError[] = []
   const imageRefs = readImageRefs(raw.imageRefs, errors)
   const single = validateDecisionInput(

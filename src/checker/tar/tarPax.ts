@@ -85,6 +85,27 @@ export const readLongName = (data: Buffer): string => {
 }
 
 /**
+ * Applies a complete meta record to the overrides of the next entry, global pax headers are ignored.
+ * @param {HeaderOverrides} overrides - Overrides of the next entry, changed in place
+ * @param {string} typeflag - Record type
+ * @param {Buffer} data - Record payload
+ * @returns {void}
+ */
+export const applyMetaRecord = (
+  overrides: HeaderOverrides,
+  typeflag: string,
+  data: Buffer,
+): void => {
+  if (typeflag === 'x') {
+    applyPaxRecords(overrides, data)
+  } else if (typeflag === 'L') {
+    overrides.path = readLongName(data)
+  } else if (typeflag === 'K') {
+    overrides.linkpath = readLongName(data)
+  }
+}
+
+/**
  * Returns the length of a pax record including its own decimal length prefix.
  * @param {number} rest - Byte length of " <key>=<value>\n"
  * @returns {number} - Total record length

@@ -2,7 +2,7 @@ import type { DatabaseSync } from 'node:sqlite'
 import type { MiddlewareHandler } from 'hono'
 
 import type { Clock } from '#core/clock.ts'
-import type { ErrorBody } from '#core/apiTypes.ts'
+import type { ErrorBody } from '#core/errorApiTypes.ts'
 import { readSessionCookie, type AuthCookies } from '#server/auth/oidc/authCookies.ts'
 import { hasSignedOutCookie } from '#server/auth/oidc/signedOutCookie.ts'
 import { findSession } from '#server/db/sessionRepository.ts'

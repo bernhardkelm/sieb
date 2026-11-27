@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import type { BulkDecisionSkip } from '#core/apiTypes.ts'
+import type { BulkDecisionSkip } from '#core/decisionApiTypes.ts'
 import { bulkSkipSummary } from '@/components/decision/bulkSkipSummary'
 
 /**

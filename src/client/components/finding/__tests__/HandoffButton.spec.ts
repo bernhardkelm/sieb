@@ -10,6 +10,7 @@ import { notifyWithAction } from '@/toast/toastManager'
 vi.mock('@/toast/toastManager', () => ({
   notifyError: vi.fn<(title: string, error: unknown) => void>(),
   notifySuccess: vi.fn<(title: string, description?: string) => void>(),
+  notifyNotice: vi.fn<(title: string, description?: string) => void>(),
   notifyWithAction:
     vi.fn<(id: string, title: string, description: string, action: unknown) => void>(),
 }))
@@ -139,8 +140,9 @@ describe('HandoffButton', () => {
   ])('follows the stored default %s', async (target, label, link) => {
     localStorage.setItem(HANDOFF_TARGET_STORAGE_KEY, target)
     const wrapper = mountButton(null)
+    await flushPromises()
 
-    expect(wrapper.get('button.primary').text()).toBe(label)
+    expect(wrapper.get('button.primary .label').text()).toBe(label)
 
     await wrapper.get('button.primary').trigger('click')
 
@@ -238,7 +240,7 @@ describe('HandoffButton', () => {
     const content = document.body.querySelector<HTMLElement>('[role="menu"]')
 
     expect(primary.attributes('aria-disabled')).toBe('true')
-    expect(primary.attributes('tabindex')).toBe('-1')
+    expect(primary.attributes('tabindex')).toBeUndefined()
     expect(primary.attributes('title')).toBe(REASON)
     expect(note?.textContent?.trim()).toBe(REASON)
     expect(content?.getAttribute('aria-describedby')).toBe(note?.id)

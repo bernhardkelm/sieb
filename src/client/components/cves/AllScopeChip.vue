@@ -22,6 +22,8 @@ const hint = computed(() => {
 
 <template>
   <HintTooltip :text="hint">
-    <BaseChip tone="accent" outline>All · {{ STATUS_LABELS[decision.status] }}</BaseChip>
+    <BaseChip tone="accent" variant="outline">
+      All · {{ STATUS_LABELS[decision.status] }}
+    </BaseChip>
   </HintTooltip>
 </template>

@@ -3,7 +3,8 @@ import { resolve } from 'node:path'
 
 import { describe, expect, it } from 'vitest'
 
-import { DEFAULT_PORT, LIVE_DB_PATH, MOCK_DB_PATH, readConfig } from '#server/config.ts'
+import { DEFAULT_PORT, readConfig } from '#server/config.ts'
+import { LIVE_DB_PATH, MOCK_DB_PATH } from '#server/sourceConfigValues.ts'
 
 const CWD = '/srv/sieb'
 

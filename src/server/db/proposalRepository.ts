@@ -1,11 +1,7 @@
 import type { DatabaseSync, SQLInputValue } from 'node:sqlite'
 
-import {
-  proposalTargetKey,
-  type Proposal,
-  type ProposalResolution,
-  type ProposalState,
-} from '#core/proposal.ts'
+import type { ProposalResolution, ProposalState } from '#core/proposal.ts'
+import { proposalTargetKey, type Proposal } from '#core/proposalRecord.ts'
 import { toProposal, type ProposalRow } from '#server/db/proposalRows.ts'
 
 /** Proposal as filed, before it has an id or a resolution */

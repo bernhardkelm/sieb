@@ -6,7 +6,7 @@ import BaseButton from '@/components/common/BaseButton.vue'
 import BulkActionButton from '@/components/list/BulkActionButton.vue'
 import ListSummary from '@/components/list/ListSummary.vue'
 import { useSelectionAutoCheckLabel } from '@/composables/useSelectionAutoCheckLabel'
-import { allOf } from '@/format/bulkCount'
+import { allOf, FINDING_NOUN } from '@/format/bulkCount'
 
 const props = defineProps<{
   shown: number
@@ -22,8 +22,6 @@ defineEmits<{ bulk: []; resetSort: []; markSeen: [] }>()
 
 const autoCheck = useSelectionAutoCheckLabel()
 const decided = computed(() => allOf(props.checkedCount))
-
-const NOUN = { singular: 'finding' }
 </script>
 
 <template>
@@ -46,7 +44,7 @@ const NOUN = { singular: 'finding' }
         variant="ghost"
         label="Decide"
         :count="decided"
-        :noun="NOUN"
+        :noun="FINDING_NOUN"
         :blocked-by="null"
         blocked-title="Not available"
         @press="$emit('bulk')"
@@ -71,12 +69,6 @@ const NOUN = { singular: 'finding' }
 
 kbd {
   font-size: var(--font-size-xs);
-}
-
-.bulk-button[aria-disabled='true'] {
-  color: var(--color-text-subtle);
-  cursor: default;
-  opacity: 0.55;
 }
 
 @media (hover: none) and (pointer: coarse) {

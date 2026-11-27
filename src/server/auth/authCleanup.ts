@@ -1,11 +1,13 @@
 import type { DatabaseSync } from 'node:sqlite'
 
 import type { Clock } from '#core/clock.ts'
+import { errorMessage } from '#core/errorMessage.ts'
 import { deleteStaleTokens } from '#server/db/apiTokenCleanup.ts'
 import { deleteStaleSeenMarks } from '#server/db/inboxRepository.ts'
 import { deleteExpiredSessions } from '#server/db/sessionRepository.ts'
+import { MINUTE_MS } from '#core/timeUnits.ts'
 
-export const AUTH_CLEANUP_INTERVAL_MS = 15 * 60 * 1000
+export const AUTH_CLEANUP_INTERVAL_MS = 15 * MINUTE_MS
 
 export interface AuthCleanup {
   stop: () => void
@@ -53,7 +55,7 @@ export const startAuthCleanup = ({
         log(`[sieb] inbox cleanup removed ${seenMarks} old seen marks`)
       }
     } catch (error) {
-      log(`[sieb] auth cleanup failed: ${error instanceof Error ? error.message : String(error)}`)
+      log(`[sieb] auth cleanup failed: ${errorMessage(error)}`)
     }
   }
 

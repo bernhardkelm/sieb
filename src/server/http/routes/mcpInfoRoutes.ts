@@ -1,6 +1,6 @@
 import { Hono } from 'hono'
 
-import type { McpInfoResponse } from '#core/apiTypes.ts'
+import type { McpInfoResponse } from '#core/mcpApiTypes.ts'
 import { readClaudeConnection } from '#server/db/readClaudeConnection.ts'
 import type { AppEnv } from '#server/http/AppEnv.ts'
 import type { RouteDeps } from '#server/http/RouteDeps.ts'

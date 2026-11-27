@@ -2,7 +2,7 @@ import { flushPromises } from '@vue/test-utils'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { buildFindingView } from '#core/__tests__/coreBuilders.ts'
-import type { FindingDetailResponse } from '#core/apiTypes.ts'
+import type { FindingDetailResponse } from '#core/findingApiTypes.ts'
 import type { CheckCreateResponse, ChecksResponse } from '#core/check.ts'
 import type { SourceAccess } from '#core/sourceAccess.ts'
 import { buildCheck, buildChecksResponse } from '@/__tests__/checkBuilders'
@@ -105,8 +105,8 @@ describe('Auto-check button', () => {
     await openPanel(access, checks)
 
     expect(button().getAttribute('aria-disabled')).toBe('true')
-    expect(button().getAttribute('tabindex')).toBe('-1')
-    expect(button().title).toBe(reason)
+    expect(button().hasAttribute('tabindex')).toBe(false)
+    expect(button().getAttribute('aria-label')).toBe('Auto-check')
     expect(useHintActionsStore().reasonOf('autoCheck')).toBe(reason)
 
     button().click()

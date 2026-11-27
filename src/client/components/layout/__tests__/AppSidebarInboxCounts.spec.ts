@@ -5,7 +5,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { defineComponent, h } from 'vue'
 import { createMemoryHistory, createRouter, RouterView } from 'vue-router'
 
-import type { InboxResponse } from '#core/apiTypes.ts'
+import type { InboxResponse } from '#core/inboxApiTypes.ts'
 import type { ChecksResponse } from '#core/check.ts'
 import type { InboxItem } from '#core/inbox/inboxItem.ts'
 import { expiringItem, kevItem, proposalItem } from '@/__tests__/inboxItemBuilders'
@@ -91,7 +91,7 @@ const labelOf = (key: string): [string, string | undefined] => {
   const button = hintOf(key)
 
   return [
-    button.querySelector(':scope > span:last-child')!.textContent!,
+    [...button.querySelectorAll(':scope > span:not([hidden])')].at(-1)!.textContent!,
     button.querySelector('.visually-hidden')?.textContent ?? undefined,
   ]
 }

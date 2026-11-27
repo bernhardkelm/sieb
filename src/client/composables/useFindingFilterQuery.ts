@@ -1,63 +1,36 @@
-import { computed, watch, type WritableComputedRef } from 'vue'
-import { useRoute, useRouter } from 'vue-router'
+import { useRoute } from 'vue-router'
 
+import { useQueryFilters, type QueryFilters } from '@/composables/useQueryFilters'
 import {
   findingFilterParams,
   readFindingFilters,
   sameFindingFilters,
 } from '@/router/findingFilterQuery'
-import { withQueryParams } from '@/router/queryParam'
 import { emptyFilters, type FindingFilters } from '@/stores/findingFilters'
 import { useFindingsStore } from '@/stores/findingsStore'
 
-export interface FindingFilterQuery {
-  /** Filters of the findings store, writing them replaces the query params */
-  filters: WritableComputedRef<FindingFilters>
-  reset: () => Promise<void>
-}
+export type FindingFilterQuery = QueryFilters<FindingFilters>
 
 /**
  * Keeps the finding filters of a list view in the query (`q`, `sev`, `exp`, `owner`, `kev`,
- * `new`, `resolved`, `pending`, `upstream`), so reload and links keep them. The query is the
- * source: every navigation of the view reads it into the findings store, ignoring unknown
- * values. A change updates the store at once, so typing stays responsive, and replaces the
- * history entry, keeping every other param such as `finding` and `sort`.
+ * `new`, `resolved`, `pending`, `upstream`), so reload and links keep them. Every navigation of
+ * the view reads the query into the findings store, ignoring unknown values; a change keeps every
+ * other param such as `finding` and `sort`.
  * @returns {FindingFilterQuery} - Filters and their reset
  */
 export const useFindingFilterQuery = (): FindingFilterQuery => {
-  const route = useRoute()
-  const router = useRouter()
   const store = useFindingsStore()
-  const view = route.name
+  const view = useRoute().name
 
-  watch(
-    () => route.query,
-    (query) => {
-      const next = readFindingFilters(query)
-
-      if (route.name === view && !sameFindingFilters(next, store.filters)) {
-        store.filters = next
-      }
+  return useQueryFilters({
+    current: () => store.filters,
+    apply: (filters) => {
+      store.filters = filters
     },
-    { immediate: true },
-  )
-
-  /**
-   * Applies filters to the store and the query.
-   * @param {FindingFilters} next - New filters
-   * @returns {Promise<void>} - Resolves after navigation
-   */
-  const write = async (next: FindingFilters): Promise<void> => {
-    store.filters = next
-    await router.replace({ query: withQueryParams(route.query, findingFilterParams(next)) })
-  }
-
-  const filters = computed<FindingFilters>({
-    get: () => store.filters,
-    set: (next) => {
-      void write(next)
-    },
+    read: readFindingFilters,
+    params: findingFilterParams,
+    same: sameFindingFilters,
+    empty: emptyFilters,
+    reads: (routeName) => routeName === view,
   })
-
-  return { filters, reset: () => write(emptyFilters()) }
 }

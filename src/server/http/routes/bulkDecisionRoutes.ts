@@ -1,13 +1,12 @@
 import { Hono } from 'hono'
 
-import type { BulkDecisionResult } from '#core/apiTypes.ts'
+import type { BulkDecisionResult } from '#core/decisionApiTypes.ts'
 import { validateBulkDecisionInput } from '#core/bulkDecisionValidation.ts'
 import { createBulkDecisions } from '#server/db/createBulkDecisions.ts'
 import { listDecisionViewsByVuln } from '#server/db/findingViews.ts'
 import type { AppEnv } from '#server/http/AppEnv.ts'
 import { requireActor } from '#server/http/identity.ts'
-import { INVALID_BODY, readObjectBody } from '#server/http/requestBody.ts'
-import { validationFailed } from '#server/http/responses.ts'
+import { readValidBody } from '#server/http/requestBody.ts'
 import type { RouteDeps } from '#server/http/RouteDeps.ts'
 
 /**
@@ -21,12 +20,11 @@ export const createBulkDecisionRoutes = ({ db, clock }: RouteDeps): Hono<AppEnv>
   const routes = new Hono<AppEnv>()
 
   routes.post('/', async (c) => {
-    const body = await readObjectBody(c)
     const now = clock()
-    const input = body === null ? null : validateBulkDecisionInput(body, now)
+    const input = await readValidBody(c, (body) => validateBulkDecisionInput(body, now))
 
-    if (input === null || !input.ok) {
-      return validationFailed(c, input?.errors ?? INVALID_BODY)
+    if (!input.ok) {
+      return input.response
     }
 
     const outcome = createBulkDecisions(db, input.value, requireActor(c), now)

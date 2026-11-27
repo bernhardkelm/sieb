@@ -5,26 +5,24 @@ import { isDecidableVerdict } from '#core/proposal.ts'
 import type { DecisionFormValue } from '@/components/decision/decisionFormModel'
 import { acceptEdits, formErrorOfAccept } from '@/components/proposals/acceptEdits'
 import { useProposalCommands, type ProposalOutcome } from '@/composables/useProposalCommands'
+import { useProposalEditState, type ProposalEditState } from '@/composables/useProposalEditState'
 import { useProposalReviewStore } from '@/stores/proposalReviewStore'
 
-export interface ProposalReviewActions {
+export interface ProposalReviewActions extends ProposalEditState {
   busy: Ref<boolean>
-  editing: Ref<boolean>
-  editDirty: Ref<boolean>
-  editError: Ref<unknown>
   rejecting: Ref<boolean>
   rejectError: Ref<unknown>
   accept: () => Promise<void>
   acceptEdited: (value: DecisionFormValue) => Promise<void>
   reject: (reason: string) => Promise<void>
-  startEdit: () => void
-  cancelEdit: () => void
+  /** Opens the reject dialog with a fresh error state */
+  startReject: () => void
 }
 
 /**
  * Runs the actions of the review panel on the proposal in the review store: Accept,
- * Edit & accept and Reject, for an inconclusive one Decide myself and Dismiss, one at a time and never again on a proposal one of them finished.
- * Both accepts wait while the decisions changed since the reviewer saw them, until Review again.
+ * Edit & accept and Reject, for an inconclusive one Decide myself and Dismiss, one at a time and
+ * never again on a proposal one of them finished. Both accepts wait while the decisions changed since the reviewer saw them, until Review again.
  * A finished command reports resolved, a proposal that closed in the meantime reports closed, a
  * conflict leaves the panel open on the reloaded detail, and validation errors stay with the
  * form or dialog that caused them.
@@ -36,10 +34,9 @@ export const useProposalReviewActions = (
 ): ProposalReviewActions => {
   const review = useProposalReviewStore()
   const commands = useProposalCommands()
+  const edit = useProposalEditState()
+  const { editing, editDirty, editError } = edit
   const busy = ref(false)
-  const editing = ref(false)
-  const editDirty = ref(false)
-  const editError = ref<unknown>(null)
   const rejecting = ref(false)
   const rejectError = ref<unknown>(null)
   let finishedId: number | null = null
@@ -132,35 +129,13 @@ export const useProposalReviewActions = (
   }
 
   /**
-   * Opens the decision form prefilled with the proposed values.
+   * Opens the reject dialog with a fresh error state.
    * @returns {void}
    */
-  const startEdit = (): void => {
-    editError.value = null
-    editing.value = true
+  const startReject = (): void => {
+    rejectError.value = null
+    rejecting.value = true
   }
 
-  /**
-   * Closes the decision form and drops its draft.
-   * @returns {void}
-   */
-  const cancelEdit = (): void => {
-    editing.value = false
-    editDirty.value = false
-    editError.value = null
-  }
-
-  return {
-    busy,
-    editing,
-    editDirty,
-    editError,
-    rejecting,
-    rejectError,
-    accept,
-    acceptEdited,
-    reject,
-    startEdit,
-    cancelEdit,
-  }
+  return { ...edit, busy, rejecting, rejectError, accept, acceptEdited, reject, startReject }
 }

@@ -1,12 +1,13 @@
 import type { DatabaseSync } from 'node:sqlite'
 
 import { isTokenLive } from '#core/apiToken.ts'
-import type { ClaudeConnection } from '#core/apiTypes.ts'
+import type { ClaudeConnection } from '#core/mcpApiTypes.ts'
 import { listOwnTokens } from '#server/db/apiTokenRepository.ts'
 import { mcpLastSeenAt } from '#server/db/mcpConnectionRepository.ts'
+import { DAY_MS } from '#core/timeUnits.ts'
 
 /** An OAuth MCP request within this window counts as a connected claude.ai connector */
-export const OAUTH_CONNECTION_WINDOW_MS = 30 * 24 * 60 * 60 * 1000
+export const OAUTH_CONNECTION_WINDOW_MS = 30 * DAY_MS
 
 /**
  * Reads whether Claude can reach sieb for a user: with at least one live personal token, or

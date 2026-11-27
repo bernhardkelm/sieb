@@ -1,4 +1,5 @@
-import type { PatchLayer, ProposalClaims, ProposalVerdict } from '#core/proposal.ts'
+import type { PatchLayer, ProposalVerdict } from '#core/proposal.ts'
+import type { ProposalClaims } from '#core/proposalRecord.ts'
 
 /** Verdicts that mean patching, their proposals must name the patch action */
 export const PATCH_VERDICTS = ['needs_patch', 'fix_planned'] as const satisfies ProposalVerdict[]

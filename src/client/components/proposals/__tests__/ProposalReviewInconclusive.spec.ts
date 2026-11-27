@@ -1,7 +1,7 @@
 import { flushPromises, type VueWrapper } from '@vue/test-utils'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-import type { ProposalAcceptResponse, ProposalDetail } from '#core/apiTypes.ts'
+import type { ProposalAcceptResponse, ProposalDetail } from '#core/proposalApiTypes.ts'
 import type { CheckCreateResponse, ChecksResponse } from '#core/check.ts'
 import { buildCheck, buildChecksResponse } from '@/__tests__/checkBuilders'
 import { mountWithProviders } from '@/__tests__/mountWithProviders'
@@ -71,7 +71,13 @@ const actionTexts = (panel: HTMLElement): string[] =>
  */
 const buttonByText = (text: string): HTMLButtonElement =>
   [...document.body.querySelectorAll('button')].find(
-    (candidate) => candidate.textContent?.trim() === text,
+    (candidate) =>
+      [...candidate.childNodes]
+        .filter((node) => node.nodeType !== Node.COMMENT_NODE)
+        .filter((node) => !(node instanceof HTMLElement && node.hidden))
+        .map((node) => node.textContent)
+        .join('')
+        .trim() === text,
   )!
 
 beforeEach(() => {

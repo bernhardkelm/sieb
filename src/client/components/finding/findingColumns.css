@@ -1,8 +1,7 @@
 .finding-columns {
-  --row-columns: var(--checkbox-size) calc(var(--space-base) * 15)
-    var(--kev-track, calc(var(--space-base) * 8)) calc(var(--space-base) * 34) minmax(0, 1fr)
-    calc(var(--space-base) * 32) calc(var(--space-base) * 16) calc(var(--space-base) * 18)
-    var(--count-width) var(--last-column, calc(var(--space-base) * 16));
+  --row-columns: var(--checkbox-size) var(--col-severity) var(--kev-track, var(--col-kev))
+    var(--col-vuln-id) minmax(0, 1fr) var(--col-image) var(--col-exposure) var(--col-owner)
+    var(--count-width) var(--last-column, var(--col-first-seen));
 }
 
 /* no-kev empties --kev-track, an empty custom property drops the track from the list */
@@ -12,38 +11,35 @@
 
 /* no-exposure and no-owner drop the tracks of label columns no open finding has */
 .finding-columns.no-exposure {
-  --row-columns: var(--checkbox-size) calc(var(--space-base) * 15)
-    var(--kev-track, calc(var(--space-base) * 8)) calc(var(--space-base) * 34) minmax(0, 1fr)
-    calc(var(--space-base) * 32) calc(var(--space-base) * 18) var(--count-width)
-    var(--last-column, calc(var(--space-base) * 16));
+  --row-columns: var(--checkbox-size) var(--col-severity) var(--kev-track, var(--col-kev))
+    var(--col-vuln-id) minmax(0, 1fr) var(--col-image) var(--col-owner) var(--count-width)
+    var(--last-column, var(--col-first-seen));
 }
 
 .finding-columns.no-owner {
-  --row-columns: var(--checkbox-size) calc(var(--space-base) * 15)
-    var(--kev-track, calc(var(--space-base) * 8)) calc(var(--space-base) * 34) minmax(0, 1fr)
-    calc(var(--space-base) * 32) calc(var(--space-base) * 16) var(--count-width)
-    var(--last-column, calc(var(--space-base) * 16));
+  --row-columns: var(--checkbox-size) var(--col-severity) var(--kev-track, var(--col-kev))
+    var(--col-vuln-id) minmax(0, 1fr) var(--col-image) var(--col-exposure) var(--count-width)
+    var(--last-column, var(--col-first-seen));
 }
 
 .finding-columns.no-exposure.no-owner {
-  --row-columns: var(--checkbox-size) calc(var(--space-base) * 15)
-    var(--kev-track, calc(var(--space-base) * 8)) calc(var(--space-base) * 34) minmax(0, 1fr)
-    calc(var(--space-base) * 32) var(--count-width) var(--last-column, calc(var(--space-base) * 16));
+  --row-columns: var(--checkbox-size) var(--col-severity) var(--kev-track, var(--col-kev))
+    var(--col-vuln-id) minmax(0, 1fr) var(--col-image) var(--count-width)
+    var(--last-column, var(--col-first-seen));
 }
 
 @container (max-width: 900px) {
   .finding-columns,
   .finding-columns.no-owner {
-    --row-columns: var(--checkbox-size) calc(var(--space-base) * 15)
-      var(--kev-track, calc(var(--space-base) * 8)) minmax(0, 1fr) calc(var(--space-base) * 28)
-      calc(var(--space-base) * 16) var(--last-column, calc(var(--space-base) * 12));
+    --row-columns: var(--checkbox-size) var(--col-severity) var(--kev-track, var(--col-kev))
+      minmax(0, 1fr) var(--col-image-mid) var(--col-exposure)
+      var(--last-column, var(--col-first-seen-mid));
   }
 
   .finding-columns.no-exposure,
   .finding-columns.no-exposure.no-owner {
-    --row-columns: var(--checkbox-size) calc(var(--space-base) * 15)
-      var(--kev-track, calc(var(--space-base) * 8)) minmax(0, 1fr) calc(var(--space-base) * 28)
-      var(--last-column, calc(var(--space-base) * 12));
+    --row-columns: var(--checkbox-size) var(--col-severity) var(--kev-track, var(--col-kev))
+      minmax(0, 1fr) var(--col-image-mid) var(--last-column, var(--col-first-seen-mid));
   }
 
   .wide-only {

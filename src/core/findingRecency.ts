@@ -1,9 +1,8 @@
 import type { FindingView } from '#core/findingView.ts'
+import { DAY_MS } from '#core/timeUnits.ts'
 
 /** Days after the first sighting during which a finding is recent */
 export const NEW_WITHIN_DAYS = 7
-
-const DAY_MS = 24 * 60 * 60 * 1000
 
 /**
  * Returns the start of the recent window.

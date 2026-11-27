@@ -2,7 +2,8 @@ import { flushPromises, type VueWrapper } from '@vue/test-utils'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { defineComponent, h, nextTick, ref } from 'vue'
 
-import type { ApiTokenView, McpInfoResponse } from '#core/apiTypes.ts'
+import type { McpInfoResponse } from '#core/mcpApiTypes.ts'
+import type { ApiTokenView } from '#core/tokenApiTypes.ts'
 import { mountWithProviders } from '@/__tests__/mountWithProviders'
 import { ApiError } from '@/api/ApiError'
 import {
@@ -174,7 +175,7 @@ describe('ApiTokensDialog', () => {
     const secretBlock = dialog().querySelector<HTMLElement>('.new-token-secret')!
 
     expect(document.activeElement).toBe(secretBlock)
-    expect(secretBlock.querySelector('.secret')!.textContent).toBe(SECRET)
+    expect(secretBlock.querySelector('.copy-field code')!.textContent).toBe(SECRET)
     expect(secretBlock.textContent).toContain(
       `claude mcp add --transport http --scope user sieb ${MCP_URL} --header "Authorization: Bearer ${SECRET}"`,
     )
@@ -201,7 +202,7 @@ describe('ApiTokensDialog', () => {
       'Claude apps and Claude Code connect through the sieb connector in claude.ai without a token.',
     )
     expect(note.textContent).toContain('Tokens are for claude -p, CI and scripts.')
-    expect(note.querySelector('.snippet')!.textContent).toBe(MCP_URL)
+    expect(note.querySelector('.copy-field code')!.textContent).toBe(MCP_URL)
     expect(button('Copy connector URL')).toBeDefined()
     expect(dialog().textContent).toContain('without a browser sign-in')
     expect(
@@ -319,7 +320,7 @@ describe('ApiTokensDialog', () => {
     await flushPromises()
 
     expect(open.value).toBe(true)
-    expect(dialog().querySelector('.secret')!.textContent).toBe(SECRET)
+    expect(dialog().querySelector('.new-token-secret .copy-field code')!.textContent).toBe(SECRET)
 
     button('Done')!.click()
     await flushPromises()

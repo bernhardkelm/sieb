@@ -45,7 +45,7 @@ export const findingFilterShape = {
     .array(z.enum(EXPOSURE_FILTERS))
     .optional()
     .describe(
-      'public, gated (behind an SSO proxy or IP allowlist), internal, or unknown for findings without exposure label',
+      'public, gated (behind an SSO proxy or IP allowlist), internal, or unknown for findings without exposure label; "public" in a question means this public unless the user says registry or source, which is sourceAccess',
     ),
   owner: z
     .array(z.string().trim().min(1).max(OWNER_MAX_LENGTH))
@@ -54,7 +54,9 @@ export const findingFilterShape = {
   decisionState: z
     .array(z.enum(DECISION_STATE_FILTERS))
     .optional()
-    .describe('state of the governing decision, active covers active not_affected and accepted'),
+    .describe(
+      'state of the governing decision, active covers active not_affected and accepted, reopened means severity rose or it became KEV listed',
+    ),
   firstSeenSince: timestamp.optional().describe('first seen at or after, ISO date or date-time'),
   kevAddedSince: timestamp
     .optional()

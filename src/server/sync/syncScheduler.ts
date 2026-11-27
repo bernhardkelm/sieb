@@ -1,3 +1,4 @@
+import { errorMessage } from '#core/errorMessage.ts'
 import type { SyncService } from '#server/sync/syncService.ts'
 
 export interface SyncScheduler {
@@ -23,7 +24,7 @@ export const startSyncScheduler = (
    */
   const tick = (): void => {
     sync.syncNow().catch((error: unknown) => {
-      log(`[sieb] scheduled sync failed: ${error instanceof Error ? error.message : String(error)}`)
+      log(`[sieb] scheduled sync failed: ${errorMessage(error)}`)
     })
   }
 

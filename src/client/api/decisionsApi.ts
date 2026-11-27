@@ -3,7 +3,7 @@ import type {
   BulkDecisionResult,
   DecisionPatchRequest,
   DecisionRequest,
-} from '#core/apiTypes.ts'
+} from '#core/decisionApiTypes.ts'
 import type { DecisionFilter } from '#core/decisionFilter.ts'
 import type { DecisionView } from '#core/findingView.ts'
 import { apiRequest } from '@/api/apiRequest'

@@ -1,7 +1,8 @@
 import type { Hono } from 'hono'
 import { bodyLimit } from 'hono/body-limit'
 
-import type { AuthMode, ErrorBody } from '#core/apiTypes.ts'
+import type { AuthMode } from '#core/authApiTypes.ts'
+import type { ErrorBody } from '#core/errorApiTypes.ts'
 import type { AppEnv } from '#server/http/AppEnv.ts'
 import { identity } from '#server/http/identity.ts'
 import { writeGuard } from '#server/http/writeGuard.ts'

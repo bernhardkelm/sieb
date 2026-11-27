@@ -1,16 +1,17 @@
 import { Hono } from 'hono'
 
+import type { ErrorBody } from '#core/errorApiTypes.ts'
 import type { CheckCreateResponse, ChecksResponse } from '#core/check.ts'
-import type { ErrorBody } from '#core/apiTypes.ts'
 import { validateCheckCreate } from '#core/checkValidation.ts'
 import type { CheckContext } from '#server/checks/checkContext.ts'
 import { DISABLED_CHECKS, readChecks } from '#server/checks/readChecks.ts'
 import { cancelForUser, queueForUser } from '#server/checks/userCommands.ts'
 import type { AppEnv } from '#server/http/AppEnv.ts'
 import { requireActor } from '#server/http/identity.ts'
+import { noStore } from '#server/http/noStore.ts'
 import { parseId } from '#server/http/pathParams.ts'
-import { INVALID_BODY, readObjectBody } from '#server/http/requestBody.ts'
-import { notFound, validationFailed } from '#server/http/responses.ts'
+import { readValidBody } from '#server/http/requestBody.ts'
+import { notFound } from '#server/http/responses.ts'
 
 /**
  * Creates the Auto-check routes of the UI: GET / answers the running check, the queue and the
@@ -22,19 +23,15 @@ import { notFound, validationFailed } from '#server/http/responses.ts'
 export const createCheckRoutes = (context: CheckContext): Hono<AppEnv> => {
   const routes = new Hono<AppEnv>()
 
-  routes.use('*', async (c, next) => {
-    c.header('Cache-Control', 'no-store')
-    await next()
-  })
+  routes.use('*', noStore())
 
   routes.get('/', (c) => c.json<ChecksResponse>(readChecks(context)))
 
   routes.post('/', async (c) => {
-    const body = await readObjectBody(c)
-    const input = body === null ? null : validateCheckCreate(body)
+    const input = await readValidBody(c, validateCheckCreate)
 
-    if (input === null || !input.ok) {
-      return validationFailed(c, input?.errors ?? INVALID_BODY)
+    if (!input.ok) {
+      return input.response
     }
 
     return c.json<CheckCreateResponse>(

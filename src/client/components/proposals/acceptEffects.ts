@@ -1,4 +1,4 @@
-import type { ProposalDetail, ProposalImageFacts } from '#core/apiTypes.ts'
+import type { ProposalDetail, ProposalImageFacts } from '#core/proposalApiTypes.ts'
 import type { DecisionStatus } from '#core/decision.ts'
 import { leavesInbox } from '#core/effectiveDecision.ts'
 import type { DecisionView } from '#core/findingView.ts'

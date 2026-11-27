@@ -1,8 +1,8 @@
 import { setTimeout as sleep } from 'node:timers/promises'
 
 import type { WorkerResult } from '#core/check.ts'
+import { errorMessage } from '#core/errorMessage.ts'
 import { WorkerApiError, type WorkerApi } from '#checker/api/workerApi.ts'
-import { errorMessage } from '#checker/safeText.ts'
 
 const RESULT_ATTEMPTS = 3
 const RESULT_RETRY_MS = 2000

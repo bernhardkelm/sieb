@@ -39,7 +39,9 @@ const notPulledText = (notPulled: readonly string[]): string => {
   const more = rest > 0 ? ` and ${rest} more` : ''
   const subject = notPulled.length === 1 ? '1 more tag was' : `${notPulled.length} more tags were`
 
-  return ` ${subject} not pulled: ${listed}${more}. Name them under unknowns.`
+  const pronoun = notPulled.length === 1 ? 'it' : 'them'
+
+  return ` ${subject} not pulled: ${listed}${more}. Name ${pronoun} under unknowns.`
 }
 
 /** Error of a check whose image sieb cannot pin, it fails at claim */

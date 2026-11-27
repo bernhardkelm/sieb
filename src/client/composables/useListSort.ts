@@ -1,13 +1,8 @@
 import { computed, type ComputedRef } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 
-import {
-  describeSort,
-  nextSort,
-  parseSort,
-  type SortColumns,
-  type SortState,
-} from '@/components/list/listSort'
+import type { SortColumns, SortState } from '@/components/list/listSort'
+import { describeSort, nextSort, parseSort } from '@/components/list/sortState'
 import { useLabelColumns } from '@/composables/useLabelColumns'
 import { useQueryParam } from '@/composables/useQueryParam'
 import { withQueryParams } from '@/router/queryParam'

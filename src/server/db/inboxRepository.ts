@@ -1,11 +1,13 @@
 import type { DatabaseSync } from 'node:sqlite'
 
+import type { Exposure } from '#core/exposure.ts'
 import { FINDING_SEEN_PREFIX } from '#core/findingSeen.ts'
 import type { InboxFinding } from '#core/inbox/inboxItem.ts'
 import type { Severity } from '#core/severity.ts'
+import { DAY_MS } from '#core/timeUnits.ts'
 
 /** Seen marks stay this long, past both 14-day Inbox windows, then the cleanup deletes them */
-export const INBOX_SEEN_RETENTION_MS = 30 * 24 * 60 * 60 * 1000
+export const INBOX_SEEN_RETENTION_MS = 30 * DAY_MS
 
 /** Most Inbox seen marks kept per user, marking more drops the oldest; finding marks prune themselves */
 export const INBOX_SEEN_MAX_PER_USER = 5000
@@ -13,15 +15,27 @@ export const INBOX_SEEN_MAX_PER_USER = 5000
 const FINDING_KEYS = `${FINDING_SEEN_PREFIX}%`
 
 /**
- * Lists the open findings with the fields the Inbox reads.
+ * Splits a GROUP_CONCAT result into a sorted list. Kubernetes names never contain commas.
+ * @param {string | null} value - Comma separated values
+ * @returns {string[]} - Sorted values
+ */
+const splitList = (value: string | null): string[] => (value ? value.split(',').sort() : [])
+
+/**
+ * Lists the open findings with the fields the Inbox reads, packages and namespaces over their
+ * open instances.
  * @param {DatabaseSync} db - Open database
  * @returns {InboxFinding[]} - Open findings by id
  */
 export const listInboxFindings = (db: DatabaseSync): InboxFinding[] => {
   const rows = db
     .prepare(
-      `SELECT id, vuln_id, image_ref, severity, kev, title, kev_since FROM findings
-       WHERE resolved_at IS NULL ORDER BY id`,
+      `SELECT f.id, f.vuln_id, f.image_ref, f.severity, f.kev, f.title, f.kev_since, f.exposure,
+         f.owner, GROUP_CONCAT(DISTINCT i.package) AS packages,
+         GROUP_CONCAT(DISTINCT i.namespace) AS namespaces
+       FROM findings f
+       LEFT JOIN finding_instances i ON i.finding_id = f.id AND i.resolved_at IS NULL
+       WHERE f.resolved_at IS NULL GROUP BY f.id ORDER BY f.id`,
     )
     .all() as unknown as {
     id: number
@@ -31,6 +45,10 @@ export const listInboxFindings = (db: DatabaseSync): InboxFinding[] => {
     kev: number
     title: string | null
     kev_since: string | null
+    exposure: string | null
+    owner: string | null
+    packages: string | null
+    namespaces: string | null
   }[]
 
   return rows.map((row) => ({
@@ -42,6 +60,10 @@ export const listInboxFindings = (db: DatabaseSync): InboxFinding[] => {
     title: row.title,
     resolvedAt: null,
     kevSince: row.kev_since,
+    exposure: row.exposure as Exposure | null,
+    owner: row.owner,
+    packages: splitList(row.packages),
+    namespaces: splitList(row.namespaces),
   }))
 }
 

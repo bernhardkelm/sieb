@@ -2,7 +2,7 @@ import { flushPromises } from '@vue/test-utils'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { defineComponent, h, type Component } from 'vue'
 
-import type { ProposalDetail, ProposalRelatedFacts } from '#core/apiTypes.ts'
+import type { ProposalDetail, ProposalRelatedFacts } from '#core/proposalApiTypes.ts'
 import { buildDecision } from '#core/__tests__/coreBuilders.ts'
 import type { CheckCreateResponse, ChecksResponse } from '#core/check.ts'
 import { buildCheck, buildChecksResponse } from '@/__tests__/checkBuilders'
@@ -127,7 +127,7 @@ describe('RelatedFindings', () => {
     const rows = [...root.querySelectorAll('.related-finding-row')]
     const link = rows[0]?.querySelector('a')
 
-    expect(root.querySelector('.section-title')?.textContent).toBe('Same cause, 5 more findings')
+    expect(root.querySelector('section > h3')?.textContent).toBe('Same cause, 5 more findings')
     expect(root.querySelector('.claim-box')?.textContent).toContain(REASON)
     expect(rows).toHaveLength(5)
     expect(rows[0]?.textContent).toContain('CVE-2099-00002')
@@ -234,8 +234,9 @@ describe('ProposalSections with related findings', () => {
    * @returns {string[]} - Titles without counts
    */
   const titles = (root: HTMLElement): string[] =>
-    [...root.querySelectorAll('.section-title')].map(
-      (title) => title.childNodes[0]?.textContent?.trim() ?? '',
+    [...root.querySelectorAll('section > h3')].map(
+      (title) =>
+        [...title.childNodes].find((node) => node.textContent?.trim())?.textContent?.trim() ?? '',
     )
 
   it('places the section under What to do, else under the evidence', async () => {

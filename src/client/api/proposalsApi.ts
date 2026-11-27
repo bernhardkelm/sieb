@@ -5,7 +5,7 @@ import type {
   ProposalListItem,
   ProposalRejectResponse,
   ProposalStateFilter,
-} from '#core/apiTypes.ts'
+} from '#core/proposalApiTypes.ts'
 import { apiRequest } from '@/api/apiRequest'
 import { queryString } from '@/api/queryString'
 

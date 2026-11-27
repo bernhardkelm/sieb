@@ -5,8 +5,7 @@ import { validateBulkAccept, validateBulkReject } from '#core/proposalBulkValida
 import { acceptUnchanged, rejectOne, type BatchStep } from '#server/db/proposalBatch.ts'
 import type { AppEnv } from '#server/http/AppEnv.ts'
 import { requireActor } from '#server/http/identity.ts'
-import { INVALID_BODY, readObjectBody } from '#server/http/requestBody.ts'
-import { validationFailed } from '#server/http/responses.ts'
+import { readValidBody } from '#server/http/requestBody.ts'
 import type { RouteDeps } from '#server/http/RouteDeps.ts'
 import { acceptLogLine, rejectLogLine } from '#server/proposalLogLines.ts'
 
@@ -64,11 +63,10 @@ export const createBulkProposalRoutes = ({
   const routes = new Hono<AppEnv>()
 
   routes.post('/bulk-accept', async (c) => {
-    const body = await readObjectBody(c)
-    const input = body === null ? null : validateBulkAccept(body)
+    const input = await readValidBody(c, validateBulkAccept)
 
-    if (input === null || !input.ok) {
-      return validationFailed(c, input?.errors ?? INVALID_BODY)
+    if (!input.ok) {
+      return input.response
     }
 
     const actor = requireActor(c)
@@ -86,11 +84,10 @@ export const createBulkProposalRoutes = ({
   })
 
   routes.post('/bulk-reject', async (c) => {
-    const body = await readObjectBody(c)
-    const input = body === null ? null : validateBulkReject(body)
+    const input = await readValidBody(c, validateBulkReject)
 
-    if (input === null || !input.ok) {
-      return validationFailed(c, input?.errors ?? INVALID_BODY)
+    if (!input.ok) {
+      return input.response
     }
 
     const actor = requireActor(c)

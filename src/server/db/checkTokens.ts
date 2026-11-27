@@ -2,9 +2,9 @@ import type { DatabaseSync } from 'node:sqlite'
 
 import type { ApiToken } from '#core/apiToken.ts'
 import { checkTokenName } from '#core/checkLimits.ts'
-import { displayPrefixOf, generateTokenSecret, hashTokenSecret } from '#server/auth/tokenSecrets.ts'
+import { newTokenSecret } from '#server/auth/tokenSecrets.ts'
 import { getOwnToken } from '#server/db/apiTokenRepository.ts'
-import { storeToken } from '#server/db/storeApiToken.ts'
+import { deleteTokenRow, storeToken } from '#server/db/apiTokenWrites.ts'
 
 /**
  * Mints the propose token of a check for its requester, marked with the check id: /mcp binds it
@@ -20,7 +20,7 @@ export const mintCheckToken = (
   { owner, checkId, expiresAt }: { owner: string; checkId: number; expiresAt: Date },
   now: Date,
 ): { token: ApiToken; secret: string } => {
-  const secret = generateTokenSecret()
+  const { secret, prefix, hash } = newTokenSecret()
   const token = storeToken(
     db,
     {
@@ -30,8 +30,8 @@ export const mintCheckToken = (
         scope: 'propose',
         expiresAt: expiresAt.toISOString(),
       },
-      prefix: displayPrefixOf(secret),
-      hash: hashTokenSecret(secret),
+      prefix,
+      hash,
       checkId,
     },
     now,
@@ -54,7 +54,7 @@ export const dropCheckToken = (
   const token = getOwnToken(db, owner, tokenId)
 
   if (token !== null) {
-    db.prepare('DELETE FROM api_tokens WHERE id = ? AND owner = ?').run(tokenId, owner)
+    deleteTokenRow(db, owner, tokenId)
   }
 
   return token

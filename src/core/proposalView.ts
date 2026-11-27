@@ -1,4 +1,4 @@
-import type { Proposal } from '#core/proposal.ts'
+import type { Proposal } from '#core/proposalRecord.ts'
 
 /** Proposal as the HTTP API shows it to every user, without the proposer's token id */
 export type ProposalView = Omit<Proposal, 'tokenId'>

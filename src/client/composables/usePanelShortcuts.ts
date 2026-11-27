@@ -1,18 +1,13 @@
-import type { DecisionStatus } from '#core/decision.ts'
 import { useFindingPanel } from '@/composables/useFindingPanel'
 import { usePanelAutoCheck } from '@/composables/usePanelAutoCheck'
 import { usePanelHandoff } from '@/composables/usePanelHandoff'
+import { decisionStatusOfKey } from '@/keyboard/decisionKeymap'
 import { isDraftKey } from '@/keyboard/draftKeys'
+import { claudeKeyOf } from '@/keyboard/handoffKeymap'
 import { isEditableTarget, isShortcutEvent, shortcutScope } from '@/keyboard/keyboardTarget'
 import { useChecksStore } from '@/stores/checksStore'
 import { useFindingDetailStore } from '@/stores/findingDetailStore'
 import { useMcpStore } from '@/stores/mcpStore'
-
-export const DECISION_KEYS: Record<string, DecisionStatus> = {
-  a: 'accepted',
-  n: 'not_affected',
-  f: 'fix_planned',
-}
 
 export interface PanelShortcuts {
   onPanelKeydown: (event: KeyboardEvent) => void
@@ -35,13 +30,8 @@ export const usePanelShortcuts = (focusPanel: () => void): PanelShortcuts => {
   const store = useFindingDetailStore()
   const mcp = useMcpStore()
   const checks = useChecksStore()
-  const { copyPrompt, copyCommand, openPreferred } = usePanelHandoff()
+  const handoff = usePanelHandoff()
   const autoCheck = usePanelAutoCheck()
-  const handoffKeys: Record<string, () => unknown> = {
-    h: copyPrompt,
-    y: copyCommand,
-    H: openPreferred,
-  }
 
   /**
    * Returns the Claude action of a key, Shift+H and Shift+C only with Shift so Caps Lock does
@@ -50,15 +40,13 @@ export const usePanelShortcuts = (focusPanel: () => void): PanelShortcuts => {
    * @returns {(() => unknown) | undefined} - Action, undefined for other keys or with the integration off
    */
   const handoffAction = (event: KeyboardEvent): (() => unknown) | undefined => {
-    if (!mcp.enabled || (['H', 'C'].includes(event.key) && !event.shiftKey)) {
-      return undefined
-    }
+    const key = mcp.enabled ? claudeKeyOf(event) : null
 
-    if (event.key === 'C') {
+    if (key === 'autoCheck') {
       return checks.enabled ? autoCheck.runOrExplain : undefined
     }
 
-    return handoffKeys[event.key]
+    return key === null ? undefined : () => key.run(handoff)
   }
 
   /**
@@ -85,7 +73,7 @@ export const usePanelShortcuts = (focusPanel: () => void): PanelShortcuts => {
       return
     }
 
-    const status = DECISION_KEYS[event.key]
+    const status = decisionStatusOfKey(event.key)
 
     if (status) {
       const id = store.detail?.finding.id

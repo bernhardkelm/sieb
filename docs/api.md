@@ -55,7 +55,7 @@ Checked before identity:
 | `POST /api/decisions/:id/revoke`   | Revoke, optional `{ "comment" }`                                                                                                                                                                                          |
 | `POST /api/decisions/bulk`         | `{ vulnId, imageRefs: [...] \| "all-open", status, justification?, reason, expiresAt?, upstreamPending?, waitingFor? }`, images with a decision are skipped with reason `decided`, `expired` or `reopened`, unknown ones with `unknown_finding`          |
 | `GET /api/sync`, `POST /api/sync`  | `{ run, lastFinished, running, kevFeed }`: latest run and the health of the CISA catalog; run a sync and answer the finished run                                                                                          |
-| `GET /api/stats`                   | `{ current, series }`: live overview counts and their history, `range=7d\|30d\|90d` (default `30d`)                                                                                                                       |
+| `GET /api/stats`                   | `{ current, series }`: live overview counts and their history, `range=24h\|7d\|30d\|90d` (default `30d`)                                                                                                                       |
 | `GET /api/labels`                  | `{ exposure, owners, kev }`: which optional labels the open findings carry and the KEV source, see [Labels](#labels)                                                                                                      |
 | `GET /api/inbox`                   | `{ items, counts }`: what waits for the acting user, see [Inbox](#inbox)                                                                                                                                                                                                                             |
 | `POST /api/inbox/seen`             | Mark expiring and KEV items as seen, `{ keys: [...] }`, answers `{ counts, ignored }`                                                                                                                                                                                                                |
@@ -313,8 +313,10 @@ answer `Cache-Control: no-store`.
 `key` (stable identity), `kind`, `at` (the time it sorts by), `vulnId`, `imageRef` (`null` for a
 decision on every image or a proposal on several), `severity` and `kev` (highest severity and any
 KEV listing of the open findings it covers), `title` (advisory title of a covered finding, may be
-`null`), `url` (absolute link into sieb on `SIEB_PUBLIC_URL`, else on the origin of the request)
-and `refs`:
+`null`), `exposure` (most exposed of the covered open findings, `null` when unknown or none is
+covered), `owners`, `packages` and `namespaces` (distinct and sorted over the covered open
+findings and their open instances, the Inbox filters read them), `url` (absolute link into
+sieb on `SIEB_PUBLIC_URL`, else on the origin of the request) and `refs`:
 
 | Kind       | Key                                  | `at`         | In the Inbox while                                                                                | Extra fields                                                                                                                         |
 | ---------- | ------------------------------------ | ------------ | ------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------ |

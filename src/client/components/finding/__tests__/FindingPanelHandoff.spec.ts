@@ -18,6 +18,7 @@ vi.mock('@/api/findingsApi', () => ({
 vi.mock('@/toast/toastManager', () => ({
   notifyError: vi.fn<(title: string, error: unknown) => void>(),
   notifySuccess: vi.fn<(title: string, description?: string) => void>(),
+  notifyNotice: vi.fn<(title: string, description?: string) => void>(),
   notifyWithAction:
     vi.fn<(id: string, title: string, description: string, action: unknown) => void>(),
 }))

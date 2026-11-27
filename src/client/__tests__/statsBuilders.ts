@@ -1,4 +1,4 @@
-import type { StatsResponse } from '#core/apiTypes.ts'
+import type { StatsResponse } from '#core/statsApiTypes.ts'
 import { emptyOverviewStats, type OverviewStats, type RecordedStats } from '#core/overviewStats.ts'
 
 /**

@@ -1,5 +1,5 @@
-import type { Proposal } from '#core/proposal.ts'
 import type { Decision } from '#core/decision.ts'
+import type { Proposal } from '#core/proposalRecord.ts'
 import { logSafe } from '#server/logSafe.ts'
 
 /**

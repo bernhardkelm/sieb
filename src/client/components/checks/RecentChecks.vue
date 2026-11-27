@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import type { CheckView } from '#core/check.ts'
 import RecentCheckItem from '@/components/checks/RecentCheckItem.vue'
+import SectionHeading from '@/components/common/SectionHeading.vue'
 
 defineProps<{
   /** Finished and cancelled checks, newest first */
@@ -10,9 +11,7 @@ defineProps<{
 
 <template>
   <section class="check-section" aria-labelledby="checks-recent">
-    <h2 id="checks-recent" class="section-title">
-      Recent <span class="count">{{ checks.length }}</span>
-    </h2>
+    <SectionHeading id="checks-recent" :level="2" :count="checks.length">Recent</SectionHeading>
     <ol v-if="checks.length > 0" class="items">
       <RecentCheckItem v-for="check in checks" :key="check.id" :check="check" />
     </ol>

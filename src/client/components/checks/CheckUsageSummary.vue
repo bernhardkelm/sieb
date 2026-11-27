@@ -2,6 +2,7 @@
 import { computed } from 'vue'
 
 import type { CheckUsageSummary } from '#core/check.ts'
+import SectionHeading from '@/components/common/SectionHeading.vue'
 import { checkUsageRows } from '@/format/checkUsageText'
 
 const props = defineProps<{
@@ -13,7 +14,7 @@ const rows = computed(() => checkUsageRows(props.summary))
 
 <template>
   <section class="check-section" aria-labelledby="checks-usage">
-    <h2 id="checks-usage" class="section-title">Usage</h2>
+    <SectionHeading id="checks-usage" :level="2">Usage</SectionHeading>
     <div class="usage">
       <table class="table">
         <thead>

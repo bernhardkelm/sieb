@@ -1,7 +1,9 @@
+import { DAY_MS } from '#core/timeUnits.ts'
 // @vitest-environment node
 import { describe, expect, it } from 'vitest'
 
-import type { InboxResponse, InboxSeenResponse, ValidationErrorBody } from '#core/apiTypes.ts'
+import type { ValidationErrorBody } from '#core/errorApiTypes.ts'
+import type { InboxResponse, InboxSeenResponse } from '#core/inboxApiTypes.ts'
 import { createDecision } from '#server/db/createDecision.ts'
 import { readSeenMarks } from '#server/db/inboxRepository.ts'
 import { insertProposal, resolveProposal } from '#server/db/proposalRepository.ts'
@@ -14,7 +16,6 @@ import { requestJson, TEST_NOW, testAppDeps } from '#server/http/__tests__/appFi
 
 const ALICE = { 'X-authentik-username': 'alice' }
 const BOB = { 'X-authentik-username': 'bob' }
-const DAY_MS = 24 * 60 * 60 * 1000
 const EXPIRES_AT = new Date(TEST_NOW.getTime() + 3 * DAY_MS).toISOString()
 const KEV_SINCE = new Date(TEST_NOW.getTime() - DAY_MS).toISOString()
 
@@ -239,6 +240,10 @@ describe('inbox routes', () => {
       severity: 'High',
       kev: true,
       title: null,
+      exposure: 'internal',
+      owners: ['third-party'],
+      packages: ['libssl3'],
+      namespaces: ['shop'],
       url: `http://localhost/inbox/proposals/${open}`,
       refs: { proposalId: open },
       imageRefs: [NGINX],

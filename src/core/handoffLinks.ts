@@ -22,6 +22,14 @@ export const HANDOFF_CLIENTS: Readonly<Record<HandoffTarget, HandoffClient>> = {
 export const PROMPT_LINK_LIMIT = 800
 
 /**
+ * Returns whether a prompt stays below the encoded link limit.
+ * @param {string} prompt - Prompt
+ * @returns {boolean} - True when a link can carry it uncut
+ */
+export const fitsLink = (prompt: string): boolean =>
+  encodeURIComponent(prompt).length < PROMPT_LINK_LIMIT
+
+/**
  * Builds a deep link with the prompt as its only query value, or refuses a prompt whose encoded
  * form does not stay below PROMPT_LINK_LIMIT, so a link never carries a cut-off prompt.
  * @param {string} base - Link up to and including the parameter name, such as claude://code/new?q=
@@ -29,9 +37,7 @@ export const PROMPT_LINK_LIMIT = 800
  * @returns {string | null} - Link, null when the prompt is too long
  */
 const promptLink = (base: string, prompt: string): string | null => {
-  const encoded = encodeURIComponent(prompt)
-
-  return encoded.length < PROMPT_LINK_LIMIT ? `${base}${encoded}` : null
+  return fitsLink(prompt) ? `${base}${encodeURIComponent(prompt)}` : null
 }
 
 /**

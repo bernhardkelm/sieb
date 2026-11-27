@@ -1,9 +1,10 @@
 import { HANDOFF_CLIENTS, handoffLink } from '#core/handoffLinks.ts'
 import type { HandoffPrompts } from '#core/handoffPrompt.ts'
 import { useClipboardCopy } from '@/composables/useClipboardCopy'
+import { PASTE_PROMPT_NOTE } from '@/format/handoffNotices'
 import type { HandoffPreference } from '@/format/handoffTargets'
 import { openDeepLink } from '@/router/deepLinkNavigation'
-import { notifySuccess, notifyWithAction } from '@/toast/toastManager'
+import { notifyWithAction } from '@/toast/toastManager'
 
 export interface HandoffOpen {
   /** Copies a prompt and confirms it with a toast, resolves whether it was copied */
@@ -20,7 +21,7 @@ export interface HandoffOpen {
  * @returns {HandoffOpen} - Open and copy functions
  */
 export const useHandoffOpen = (): HandoffOpen => {
-  const { copy } = useClipboardCopy()
+  const { copyWithNotice } = useClipboardCopy()
 
   /**
    * Copies a prompt and confirms it with a toast.
@@ -28,14 +29,8 @@ export const useHandoffOpen = (): HandoffOpen => {
    * @param {string} title - Toast title
    * @returns {Promise<boolean>} - Whether the prompt was copied
    */
-  const copyWithToast = async (prompt: string, title = 'Copied for Claude'): Promise<boolean> => {
-    if (!(await copy(prompt))) {
-      return false
-    }
-
-    notifySuccess(title, 'Paste the prompt into Claude.')
-    return true
-  }
+  const copyWithToast = (prompt: string, title = 'Copied for Claude'): Promise<boolean> =>
+    copyWithNotice(prompt, title, PASTE_PROMPT_NOTE)
 
   /**
    * Opens a deep link and offers the copy fallback in a toast, since nothing may handle it.

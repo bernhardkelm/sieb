@@ -1,11 +1,11 @@
 import type { DatabaseSync } from 'node:sqlite'
 
-import { DAY_MS } from '#core/statsRange.ts'
 import type { SourceKind } from '#core/types.ts'
 import { inTransaction } from '#server/db/inTransaction.ts'
 import { readOverviewStats } from '#server/db/readOverviewStats.ts'
 import { insertStatsSnapshot, oldestStatsSnapshotAt } from '#server/db/statsSnapshotRepository.ts'
 import { generateMockStatsHistory } from '#server/sources/mock/mockStatsHistory.ts'
+import { DAY_MS } from '#core/timeUnits.ts'
 
 /**
  * Seeds synthetic stats history in mock mode when no snapshot is older than a day. The history

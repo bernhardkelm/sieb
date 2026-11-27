@@ -1,4 +1,4 @@
-import type { ValidationIssue } from '#core/apiTypes.ts'
+import type { ValidationIssue } from '#core/errorApiTypes.ts'
 import type { CheckUsage } from '#core/check.ts'
 import { MAX_CHECK_MODEL_LENGTH, MAX_CHECK_MODELS } from '#core/checkLimits.ts'
 

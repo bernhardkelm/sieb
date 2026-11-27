@@ -2,7 +2,7 @@ import { getOAuthProtectedResourceMetadataUrl } from '@modelcontextprotocol/serv
 import type { Handler } from 'hono'
 import type { JWTVerifyGetKey } from 'jose'
 
-import type { ErrorBody } from '#core/apiTypes.ts'
+import type { ErrorBody } from '#core/errorApiTypes.ts'
 import { USER_AGENT_MAX } from '#core/proposalClient.ts'
 import { createBearerVerifier, type BearerVerifiers } from '#server/auth/bearerVerifier.ts'
 import { createDiscoveredJwks } from '#server/auth/discoveredJwks.ts'

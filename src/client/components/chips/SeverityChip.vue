@@ -36,7 +36,7 @@ const hint = computed(() => {
 
 <style scoped>
 .severity-chip {
-  min-width: calc(var(--space-base) * 15);
+  min-width: var(--col-severity);
   justify-content: center;
 }
 

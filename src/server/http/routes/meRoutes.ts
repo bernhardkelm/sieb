@@ -1,6 +1,6 @@
 import { Hono } from 'hono'
 
-import type { AuthMode, BuildInfo, MeResponse } from '#core/apiTypes.ts'
+import type { AuthMode, BuildInfo, MeResponse } from '#core/authApiTypes.ts'
 import type { AppEnv } from '#server/http/AppEnv.ts'
 
 /**

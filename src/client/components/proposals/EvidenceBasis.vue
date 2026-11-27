@@ -1,9 +1,12 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 
-import type { ProposalDetail } from '#core/apiTypes.ts'
+import type { ProposalDetail } from '#core/proposalApiTypes.ts'
 import { EVIDENCE_BASES } from '#core/proposal.ts'
+import BaseChip from '@/components/chips/BaseChip.vue'
+import CalloutBox from '@/components/common/CalloutBox.vue'
 import HintTooltip from '@/components/common/HintTooltip.vue'
+import AppIcon from '@/components/icons/AppIcon.vue'
 import { isWeakEvidence, uninspectedPrivateImages } from '@/components/proposals/proposalWarnings'
 import { shortImageName } from '@/format/imageName'
 import { EVIDENCE_BASIS_HINTS, EVIDENCE_BASIS_LABELS } from '@/format/proposalLabels'
@@ -27,23 +30,30 @@ const privateImages = computed(() => uninspectedPrivateImages(props.detail))
     <ul class="badges" aria-label="What Claude checked">
       <li v-for="{ basis, checked } in bases" :key="basis">
         <HintTooltip :text="EVIDENCE_BASIS_HINTS[basis]">
-          <span class="badge" :class="{ checked }" tabindex="0" :data-basis="basis">
-            <span class="mark" aria-hidden="true">{{ checked ? '✓' : '○' }}</span>
+          <BaseChip
+            class="badge"
+            :class="{ checked }"
+            :tone="checked ? 'accent' : 'neutral'"
+            :variant="checked ? 'framed' : 'pending'"
+            focusable
+            :data-basis="basis"
+          >
+            <AppIcon class="mark" :name="checked ? 'check' : 'circle'" />
             {{ EVIDENCE_BASIS_LABELS[basis] }}
             <span class="visually-hidden">{{ checked ? 'checked' : 'not checked' }}</span>
-          </span>
+          </BaseChip>
         </HintTooltip>
       </li>
     </ul>
-    <p v-if="weak" class="warning weak" role="alert">
+    <CalloutBox v-if="weak" as="p" tone="danger" class="weak" role="alert">
       <strong>Weak evidence: only the advisory was checked.</strong>
       Claude says not affected without looking at the code, the image or the runtime.
-    </p>
-    <p v-if="privateImages.length > 0" class="warning private" role="alert">
+    </CalloutBox>
+    <CalloutBox v-if="privateImages.length > 0" as="p" tone="warning" class="private" role="alert">
       <strong>Claude could not inspect the source of a private image.</strong>
       {{ privateImages.map(shortImageName).join(', ') }}: the own source is not in the evidence
       basis.
-    </p>
+    </CalloutBox>
   </div>
 </template>
 
@@ -63,51 +73,8 @@ const privateImages = computed(() => uninspectedPrivateImages(props.detail))
   list-style: none;
 }
 
-.badge {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--space-1);
-  height: var(--chip-height);
-  padding: 0 var(--space-1-5);
-  border: var(--border-width) dashed var(--color-border-strong);
-  border-radius: var(--radius-sm);
-  color: var(--color-text-subtle);
-  font-size: var(--font-size-xs);
-  font-weight: var(--font-weight-medium);
-  white-space: nowrap;
-}
-
-.badge.checked {
-  border-style: solid;
-  border-color: color-mix(in srgb, var(--color-accent) 40%, transparent);
-  background: var(--color-accent-wash);
-  color: var(--color-text);
-}
-
-.badge:focus-visible {
-  outline: var(--border-width-strong) solid var(--color-focus);
-  outline-offset: var(--border-width);
-}
-
 .mark {
-  color: var(--color-accent);
-}
-
-.badge:not(.checked) .mark {
-  color: var(--color-text-subtle);
-}
-
-.warning {
-  padding: var(--space-2) var(--space-3);
-  border-left: var(--border-width-strong) solid var(--color-danger);
-  border-radius: var(--radius-sm);
-  background: var(--color-danger-wash);
-  font-size: var(--font-size-sm);
-  overflow-wrap: anywhere;
-}
-
-.warning.private {
-  border-left-color: var(--color-warning);
-  background: var(--color-warning-wash);
+  --icon-size: var(--chip-icon-size);
+  --icon-stroke: var(--icon-stroke-bold);
 }
 </style>

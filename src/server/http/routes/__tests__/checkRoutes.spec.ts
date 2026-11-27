@@ -1,7 +1,7 @@
 // @vitest-environment node
 import { describe, expect, it } from 'vitest'
 
-import type { McpInfoResponse } from '#core/apiTypes.ts'
+import type { McpInfoResponse } from '#core/mcpApiTypes.ts'
 import type { CheckCreateResponse, ChecksResponse } from '#core/check.ts'
 import { checkFixture, PUBLIC_URL } from '#server/checks/__tests__/checkFixtures.ts'
 import { claimForWorker, recordResult } from '#server/checks/workerCommands.ts'

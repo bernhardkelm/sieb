@@ -1,7 +1,9 @@
 <script setup lang="ts" generic="C extends string">
 import { computed } from 'vue'
 
-import { ariaSort, type SortState } from '@/components/list/listSort'
+import AppIcon from '@/components/icons/AppIcon.vue'
+import type { SortState } from '@/components/list/listSort'
+import { ariaSort } from '@/components/list/sortState'
 
 const props = withDefaults(
   defineProps<{
@@ -38,16 +40,7 @@ const direction = computed(() =>
       @click="emit('sort', column)"
     >
       {{ short ?? columns[column].label }}
-      <svg
-        v-if="direction !== null"
-        class="indicator"
-        :class="direction"
-        viewBox="0 0 16 16"
-        aria-hidden="true"
-        focusable="false"
-      >
-        <path d="M8 3.5v9M4.5 9 8 12.5 11.5 9" />
-      </svg>
+      <AppIcon v-if="direction !== null" class="indicator" :class="direction" name="arrow" />
     </button>
   </span>
 </template>
@@ -81,15 +74,10 @@ const direction = computed(() =>
 
 /* the arrow sits in the column gap outside the label, so a tight column never truncates it */
 .indicator {
+  --icon-size: var(--sort-indicator-size);
+
   position: absolute;
   right: 100%;
-  width: var(--sort-indicator-size);
-  height: var(--sort-indicator-size);
-  fill: none;
-  stroke: currentColor;
-  stroke-width: 1.6;
-  stroke-linecap: round;
-  stroke-linejoin: round;
 }
 
 .end .indicator {

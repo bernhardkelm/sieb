@@ -12,7 +12,7 @@ import {
   type Behaviour,
   type FakeProcess,
 } from '#checker/__tests__/fakeRunner.ts'
-import { tarArchive } from '#checker/__tests__/tarFixtures.ts'
+import { tarArchive } from '#checker/tar/__tests__/tarFixtures.ts'
 import { checkLayout } from '#checker/workspace/checkLayout.ts'
 import { createCheckDirs, prepareWorkspace } from '#checker/workspace/prepareWorkspace.ts'
 import type { PulledImage } from '#checker/workspace/resolveImage.ts'

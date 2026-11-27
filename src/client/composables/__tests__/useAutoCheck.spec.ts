@@ -2,7 +2,7 @@ import { flushPromises } from '@vue/test-utils'
 import { createPinia, setActivePinia } from 'pinia'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-import type { InboxResponse } from '#core/apiTypes.ts'
+import type { InboxResponse } from '#core/inboxApiTypes.ts'
 import type { CheckCreateResponse, ChecksResponse } from '#core/check.ts'
 import { MAX_CHECK_FINDINGS } from '#core/checkLimits.ts'
 import { buildCheck, buildChecksResponse } from '@/__tests__/checkBuilders'

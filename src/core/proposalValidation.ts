@@ -1,4 +1,4 @@
-import type { ValidationIssue } from '#core/apiTypes.ts'
+import type { ValidationIssue } from '#core/errorApiTypes.ts'
 import { DECISION_SCOPES, type DecisionScope } from '#core/decision.ts'
 import { isPatchVerdict } from '#core/patchAction.ts'
 import {
@@ -6,15 +6,15 @@ import {
   PROPOSAL_CONFIDENCES,
   PROPOSAL_LIMITS as LIMITS,
   PROPOSAL_VERDICTS,
-  type ProposalInput,
 } from '#core/proposal.ts'
+import { readFix } from '#core/proposalFixReader.ts'
 import { applyFixAvailability } from '#core/proposalFixUpstream.ts'
+import type { ProposalInput } from '#core/proposalRecord.ts'
 import { readRelatedFindings, readRelatedReason } from '#core/proposalRelatedReaders.ts'
-import { readEvidence, readFix, readReferences, readReview } from '#core/proposalStructReaders.ts'
+import { readEvidence, readReferences, readReview } from '#core/proposalStructReaders.ts'
 import { readProposalEnum, readProposalList, readProposalText } from '#core/proposalTextReaders.ts'
 import { readMissing, readProposalJustification } from '#core/proposalVerdictReaders.ts'
-
-export type ProposalValidated<T> = { ok: true; value: T } | { ok: false; errors: ValidationIssue[] }
+import type { Validation } from '#core/validation.ts'
 
 type RawInput = Record<string, unknown>
 
@@ -64,12 +64,9 @@ const readImageRefs = (
  * are read by readRelatedFindings, their database rules apply on create.
  * @param {RawInput} raw - Raw input
  * @param {Date} now - Current time, for the review date
- * @returns {ProposalValidated<ProposalInput>} - Validated input or the list of errors
+ * @returns {Validation<ProposalInput>} - Validated input or the list of errors
  */
-export const validateProposalInput = (
-  raw: RawInput,
-  now: Date,
-): ProposalValidated<ProposalInput> => {
+export const validateProposalInput = (raw: RawInput, now: Date): Validation<ProposalInput> => {
   const errors: ValidationIssue[] = []
   const vulnId = readProposalText(
     raw.vulnId,

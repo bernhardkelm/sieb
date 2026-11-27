@@ -81,16 +81,18 @@ const { hidden } = useLabelColumns()
       </AllClear>
       <EmptyState v-else-if="cves.length === 0" title="No matches">
         No CVE matches these filters.
-        <BaseButton
-          v-if="hiddenCount > 0"
-          variant="ghost"
-          @click="filters = { ...filters, showDecided: true }"
-        >
-          Show decided
-        </BaseButton>
-        <BaseButton variant="ghost" @click="filters = emptyAggregateFilters()">
-          Reset filters
-        </BaseButton>
+        <template #actions>
+          <BaseButton
+            v-if="hiddenCount > 0"
+            variant="ghost"
+            @click="filters = { ...filters, showDecided: true }"
+          >
+            Show decided
+          </BaseButton>
+          <BaseButton variant="ghost" @click="filters = emptyAggregateFilters()">
+            Reset filters
+          </BaseButton>
+        </template>
       </EmptyState>
       <CveList
         v-else

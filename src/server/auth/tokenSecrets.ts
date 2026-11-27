@@ -37,6 +37,16 @@ export const hashTokenSecret = (secret: string): string =>
 export const displayPrefixOf = (secret: string): string => secret.slice(0, DISPLAY_PREFIX_LENGTH)
 
 /**
+ * Generates a new token secret together with the display prefix and the hash that are stored.
+ * @returns {{ secret: string; prefix: string; hash: string }} - Secret, shown to its owner once, display prefix and hash
+ */
+export const newTokenSecret = (): { secret: string; prefix: string; hash: string } => {
+  const secret = generateTokenSecret()
+
+  return { secret, prefix: displayPrefixOf(secret), hash: hashTokenSecret(secret) }
+}
+
+/**
  * Compares two sha-256 hex hashes in constant time.
  * @param {string} expected - Stored hash
  * @param {string} actual - Hash of the presented secret

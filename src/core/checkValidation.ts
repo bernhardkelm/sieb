@@ -1,4 +1,4 @@
-import type { ValidationIssue } from '#core/apiTypes.ts'
+import type { ValidationIssue } from '#core/errorApiTypes.ts'
 import {
   CHECK_PHASES,
   type CheckCreateRequest,
@@ -14,18 +14,17 @@ import {
 } from '#core/checkLimits.ts'
 import { readCheckUsage } from '#core/checkUsageValidation.ts'
 import { readPulledDigests } from '#core/pulledDigestValidation.ts'
-
-export type CheckValidation<T> = { ok: true; value: T } | { ok: false; errors: ValidationIssue[] }
+import type { Validation } from '#core/validation.ts'
 
 /**
  * Validates the body of POST /api/checks: 1 to MAX_CHECK_FINDINGS positive integer ids, repeated
  * ids collapse into the first.
  * @param {Record<string, unknown>} raw - Parsed request body
- * @returns {CheckValidation<CheckCreateRequest>} - Distinct ids in request order, or the errors
+ * @returns {Validation<CheckCreateRequest>} - Distinct ids in request order, or the errors
  */
 export const validateCheckCreate = (
   raw: Record<string, unknown>,
-): CheckValidation<CheckCreateRequest> => {
+): Validation<CheckCreateRequest> => {
   const ids = raw.findingIds
 
   if (ids === undefined) {
@@ -52,9 +51,9 @@ export const validateCheckCreate = (
 /**
  * Validates the body of a worker heartbeat.
  * @param {Record<string, unknown>} raw - Parsed request body
- * @returns {CheckValidation<WorkerHeartbeat>} - Phase, or the errors
+ * @returns {Validation<WorkerHeartbeat>} - Phase, or the errors
  */
-export const validateHeartbeat = (raw: Record<string, unknown>): CheckValidation<WorkerHeartbeat> =>
+export const validateHeartbeat = (raw: Record<string, unknown>): Validation<WorkerHeartbeat> =>
   (CHECK_PHASES as readonly unknown[]).includes(raw.phase)
     ? { ok: true, value: { phase: raw.phase as CheckPhase } }
     : {
@@ -93,11 +92,9 @@ const readOptionalText = (
  * Validates the body of a worker result. Error and reply are cut to their limits instead of
  * refused, so an overlong reply never leaves the check running until it times out.
  * @param {Record<string, unknown>} raw - Parsed request body
- * @returns {CheckValidation<WorkerResult>} - Result, or the errors
+ * @returns {Validation<WorkerResult>} - Result, or the errors
  */
-export const validateWorkerResult = (
-  raw: Record<string, unknown>,
-): CheckValidation<WorkerResult> => {
+export const validateWorkerResult = (raw: Record<string, unknown>): Validation<WorkerResult> => {
   const errors: ValidationIssue[] = []
   const status = raw.status === 'done' || raw.status === 'failed' ? raw.status : null
   const error = readOptionalText(raw.error, 'error', MAX_CHECK_ERROR_LENGTH, errors)

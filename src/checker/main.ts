@@ -2,6 +2,7 @@ import { mkdir } from 'node:fs/promises'
 import { performance } from 'node:perf_hooks'
 import { setTimeout as sleep } from 'node:timers/promises'
 
+import { errorMessage } from '#core/errorMessage.ts'
 import { createWorkerApi } from '#checker/api/workerApi.ts'
 import { runCheck } from '#checker/check/runCheck.ts'
 import { wipeStaleChecks } from '#checker/check/wipe.ts'
@@ -9,7 +10,7 @@ import { runWorkerLoop } from '#checker/check/workerLoop.ts'
 import { readCheckerConfig } from '#checker/checkerConfig.ts'
 import { STOPPED_REASON } from '#checker/failureReason.ts'
 import { processRunner } from '#checker/process/processRunner.ts'
-import { errorMessage, printable } from '#checker/safeText.ts'
+import { printable } from '#checker/safeText.ts'
 
 /**
  * Writes a log line to stdout with control characters replaced, since lines carry untrusted

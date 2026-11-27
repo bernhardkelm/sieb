@@ -2,7 +2,7 @@ import type {
   FindingDetailResponse,
   FindingsSeenRequest,
   FindingsSeenResponse,
-} from '#core/apiTypes.ts'
+} from '#core/findingApiTypes.ts'
 import type { FindingQuery } from '#core/findingQuery.ts'
 import type { FindingView } from '#core/findingView.ts'
 import { apiRequest } from '@/api/apiRequest'

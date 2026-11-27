@@ -2,7 +2,7 @@ import { createPinia, setActivePinia } from 'pinia'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { nextTick } from 'vue'
 
-import type { StatsResponse } from '#core/apiTypes.ts'
+import type { StatsResponse } from '#core/statsApiTypes.ts'
 import type { StatsRange } from '#core/statsRange.ts'
 import { buildStatsResponse } from '@/__tests__/statsBuilders'
 import { fetchStats } from '@/api/statsApi'

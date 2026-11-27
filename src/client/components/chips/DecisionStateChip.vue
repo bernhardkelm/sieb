@@ -4,7 +4,7 @@ import { computed } from 'vue'
 import type { DecisionJustification, DecisionStatus } from '#core/decision.ts'
 import type { EffectiveDecision } from '#core/effectiveDecision.ts'
 import BaseChip from '@/components/chips/BaseChip.vue'
-import type { ChipTone } from '@/components/chips/chipTone'
+import { DECISION_STATE_TONES } from '@/components/chips/chipTones'
 import HintTooltip from '@/components/common/HintTooltip.vue'
 import { JUSTIFICATION_LABELS, STATE_LABELS, STATUS_LABELS } from '@/format/labels'
 import { formatAbsolute } from '@/format/relativeTime'
@@ -20,14 +20,6 @@ const props = withDefaults(
   }>(),
   { status: null, justification: null },
 )
-
-const TONES: Record<EffectiveDecision['state'], ChipTone> = {
-  active: 'success',
-  fix_planned: 'accent',
-  expired: 'warning',
-  revoked: 'neutral',
-  reopened: 'danger',
-}
 
 const ACTIVE_HINTS: Record<DecisionStatus, string> = {
   not_affected: 'Not affected, alerts muted',
@@ -69,6 +61,8 @@ const reason = computed(() =>
 
 <template>
   <HintTooltip :text="reason">
-    <BaseChip :tone="TONES[effective.state]" dot>{{ label }}</BaseChip>
+    <BaseChip :tone="DECISION_STATE_TONES[effective.state]" variant="dot">
+      {{ label }}
+    </BaseChip>
   </HintTooltip>
 </template>

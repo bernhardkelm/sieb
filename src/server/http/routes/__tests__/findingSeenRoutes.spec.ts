@@ -1,7 +1,9 @@
+import { DAY_MS } from '#core/timeUnits.ts'
 // @vitest-environment node
 import { describe, expect, it } from 'vitest'
 
-import type { FindingsSeenResponse, ValidationErrorBody } from '#core/apiTypes.ts'
+import type { ValidationErrorBody } from '#core/errorApiTypes.ts'
+import type { FindingsSeenResponse } from '#core/findingApiTypes.ts'
 import type { FindingView } from '#core/findingView.ts'
 import { readSeenFindingIds } from '#server/db/findingSeenRepository.ts'
 import { markSeen, readSeenMarks } from '#server/db/inboxRepository.ts'
@@ -13,7 +15,6 @@ import { requestJson, TEST_NOW, testAppDeps } from '#server/http/__tests__/appFi
 
 const ALICE = { 'X-authentik-username': 'alice' }
 const BOB = { 'X-authentik-username': 'bob' }
-const DAY_MS = 24 * 60 * 60 * 1000
 const OLD = 1 // nginx, first seen ten days ago
 const RECENT = 2 // redis, first seen a day ago
 

@@ -1,5 +1,6 @@
 import type { DecisionStatus } from '#core/decision.ts'
 import type { ReopenReason } from '#core/effectiveDecision.ts'
+import type { Exposure } from '#core/exposure.ts'
 import type { Finding } from '#core/finding.ts'
 import type { ProposalConfidence, ProposalVerdict } from '#core/proposal.ts'
 import type { ExpectedDecisionId } from '#core/proposalFreshness.ts'
@@ -38,11 +39,23 @@ export interface InboxProposal {
 /** Open finding as the Inbox needs it */
 export type InboxFinding = Pick<
   Finding,
-  'id' | 'vulnId' | 'imageRef' | 'severity' | 'kev' | 'title' | 'resolvedAt'
-> & { kevSince: string | null }
+  'id' | 'vulnId' | 'imageRef' | 'severity' | 'kev' | 'title' | 'resolvedAt' | 'exposure' | 'owner'
+> & {
+  kevSince: string | null
+  packages: string[] // packages of the open instances
+  namespaces: string[] // namespaces of the open instances
+}
+
+/** Labels an item collects from the open findings it covers, what the Inbox filters read */
+export interface InboxItemLabels {
+  exposure: Exposure | null // most exposed covered finding, null when unknown or none is covered
+  owners: string[] // distinct owner labels, sorted
+  packages: string[] // distinct packages of the open instances, sorted
+  namespaces: string[] // distinct namespaces of the open instances, sorted
+}
 
 /** Fields every Inbox row shows */
-interface InboxItemBase {
+interface InboxItemBase extends InboxItemLabels {
   key: string // stable identity, also what POST /api/inbox/seen takes
   at: string // proposal createdAt, reopenedAt, expiresAt or kevSince
   vulnId: string

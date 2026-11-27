@@ -1,6 +1,6 @@
 import { computed, type ComputedRef } from 'vue'
 
-import type { ProposalDetail } from '#core/apiTypes.ts'
+import type { ProposalDetail } from '#core/proposalApiTypes.ts'
 import {
   buildHandoffPrompts,
   handoffCommand,

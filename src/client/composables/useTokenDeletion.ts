@@ -1,7 +1,7 @@
 import { computed, nextTick, ref, type ComputedRef, type Ref } from 'vue'
 
 import { isTokenLive } from '#core/apiToken.ts'
-import type { ApiTokenView } from '#core/apiTypes.ts'
+import type { ApiTokenView } from '#core/tokenApiTypes.ts'
 import { notifyError, notifySuccess } from '@/toast/toastManager'
 
 export interface TokenDeletionDeps {

@@ -1,6 +1,8 @@
 import { execFile } from 'node:child_process'
 import { promisify } from 'node:util'
 
+import { errorMessage } from '#core/errorMessage.ts'
+
 const execFileAsync = promisify(execFile)
 
 /** Output limit, VulnerabilityReport lists reach several MB */
@@ -28,7 +30,7 @@ export const runKubectl: KubectlRunner = async (args) => {
     return stdout
   } catch (error) {
     const stderr = (error as { stderr?: string }).stderr?.trim()
-    const message = error instanceof Error ? error.message : String(error)
+    const message = errorMessage(error)
 
     throw new Error(`kubectl ${args.join(' ')} failed: ${stderr || message}`, { cause: error })
   }

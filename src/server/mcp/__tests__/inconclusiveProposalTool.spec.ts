@@ -63,6 +63,22 @@ describe('propose_decision with verdict inconclusive', () => {
     expect(properties.verdict?.description).toContain(
       'inconclusive: the evidence supports no verdict',
     )
+    expect(properties.verdict?.description).toContain(
+      'fix_planned with fix.availability upstream_pending, not needs_patch',
+    )
+    expect(properties.verdict?.description).toContain(
+      'KEV listed: prefer needs_patch or fix_planned over accepted',
+    )
+    expect(properties.confidence?.description).toContain(
+      'medium at most for a private image you could not inspect',
+    )
+    expect(properties.references?.description).toContain(
+      'never a search result or a page that came back empty',
+    )
+    expect(tool?.description).toContain(
+      'File one at the end of every triage without asking, inconclusive included; call' +
+        ' list_my_proposals first and do not repeat a rejected proposal without new evidence.',
+    )
     expect(properties.missing?.description).toContain('required with inconclusive only')
     expect(tool?.inputSchema.required).not.toContain('missing')
   })

@@ -2,7 +2,8 @@
 import { computed, ref, useId } from 'vue'
 
 import BaseButton from '@/components/common/BaseButton.vue'
-import CopyButton from '@/components/common/CopyButton.vue'
+import CalloutBox from '@/components/common/CalloutBox.vue'
+import CopyField from '@/components/common/CopyField.vue'
 import { mcpAddCommand } from '@/components/tokens/mcpSetup'
 
 const props = defineProps<{
@@ -14,7 +15,7 @@ const props = defineProps<{
 
 defineEmits<{ done: [] }>()
 
-const root = ref<HTMLElement | null>(null)
+const root = ref<InstanceType<typeof CalloutBox> | null>(null)
 const id = useId()
 
 const command = computed(() => mcpAddCommand(props.mcpUrl, props.secret))
@@ -24,15 +25,19 @@ const command = computed(() => mcpAddCommand(props.mcpUrl, props.secret))
  * @returns {void}
  */
 const focus = (): void => {
-  root.value?.focus()
+  const element = root.value?.$el as HTMLElement | undefined
+
+  element?.focus()
 }
 
 defineExpose({ focus })
 </script>
 
 <template>
-  <section
+  <CalloutBox
     ref="root"
+    as="section"
+    tone="warning"
     class="new-token-secret"
     tabindex="-1"
     :aria-labelledby="`${id}-title`"
@@ -42,41 +47,20 @@ defineExpose({ focus })
     <p :id="`${id}-warning`" class="warning">
       Copy the token now. sieb shows it only this once and cannot show it again.
     </p>
-    <div class="copy-row">
-      <code class="secret">{{ secret }}</code>
-      <CopyButton :value="secret" label="Copy token" />
-    </div>
-    <h4 class="label">Claude Code with this token</h4>
-    <div class="copy-row">
-      <code class="snippet">{{ command }}</code>
-      <CopyButton :value="command" label="Copy Claude Code command" />
-    </div>
+    <CopyField :value="secret" label="Copy token" emphasis />
+    <h4 class="label caps-label">Claude Code with this token</h4>
+    <CopyField :value="command" label="Copy Claude Code command" />
     <p class="note">
       Claude Code stores the token in plain text in <code>~/.claude.json</code>. Never commit an
       <code>.mcp.json</code> that contains it.
     </p>
-    <div class="actions">
+    <template #actions>
       <BaseButton variant="primary" @click="$emit('done')">Done</BaseButton>
-    </div>
-  </section>
+    </template>
+  </CalloutBox>
 </template>
 
 <style scoped>
-.new-token-secret {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-2);
-  padding: var(--space-3);
-  border: var(--border-width) solid var(--color-warning);
-  border-radius: var(--radius);
-  background: var(--color-warning-wash);
-}
-
-.new-token-secret:focus-visible {
-  outline: var(--border-width-strong) solid var(--color-focus);
-  outline-offset: var(--border-width);
-}
-
 .title {
   font-size: var(--font-size-md);
   font-weight: var(--font-weight-semibold);
@@ -89,48 +73,13 @@ defineExpose({ focus })
 
 .label {
   margin-top: var(--space-1);
-  color: var(--color-text-muted);
-  font-size: var(--font-size-xs);
-  font-weight: var(--font-weight-semibold);
-  letter-spacing: var(--letter-spacing-caps);
-  text-transform: uppercase;
-}
-
-.copy-row {
-  display: flex;
-  align-items: flex-start;
-  gap: var(--space-1);
-}
-
-.secret,
-.snippet {
-  flex: 1;
-  min-width: 0;
-  padding: var(--space-1-5) var(--space-2);
-  border: var(--border-width) solid var(--color-border);
-  border-radius: var(--radius-sm);
-  background: var(--color-surface);
-  font-family: var(--font-mono);
-  font-size: var(--font-size-sm);
-  overflow-wrap: anywhere;
-  user-select: all;
-}
-
-.secret {
-  font-weight: var(--font-weight-medium);
 }
 
 .note {
   color: var(--color-text-muted);
-  font-size: var(--font-size-sm);
 }
 
 .note code {
   font-family: var(--font-mono);
-}
-
-.actions {
-  display: flex;
-  justify-content: flex-end;
 }
 </style>

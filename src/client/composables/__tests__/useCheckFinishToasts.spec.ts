@@ -2,7 +2,7 @@ import { flushPromises } from '@vue/test-utils'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { defineComponent } from 'vue'
 
-import type { InboxResponse } from '#core/apiTypes.ts'
+import type { InboxResponse } from '#core/inboxApiTypes.ts'
 import type { CheckCreateResponse, ChecksResponse } from '#core/check.ts'
 import { buildCheck, buildChecksResponse } from '@/__tests__/checkBuilders'
 import { mountOnAppRoutes } from '@/__tests__/mountOnAppRoutes'

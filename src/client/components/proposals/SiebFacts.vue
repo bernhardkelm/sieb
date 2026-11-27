@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
 
-import type { ProposalDetail } from '#core/apiTypes.ts'
+import type { ProposalDetail } from '#core/proposalApiTypes.ts'
 import DecisionStateChip from '@/components/chips/DecisionStateChip.vue'
 import ImageFactsRow from '@/components/proposals/ImageFactsRow.vue'
 

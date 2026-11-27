@@ -79,7 +79,9 @@ useClearSelectionOnBackgroundClick(useTemplateRef<HTMLElement>('root'), triage.c
       />
       <EmptyState v-if="findings.length === 0" title="No matches">
         No findings to triage match these filters.
-        <BaseButton variant="ghost" @click="triage.resetFilters()">Reset filters</BaseButton>
+        <template #actions>
+          <BaseButton variant="ghost" @click="triage.resetFilters()">Reset filters</BaseButton>
+        </template>
       </EmptyState>
       <TriageList
         v-else

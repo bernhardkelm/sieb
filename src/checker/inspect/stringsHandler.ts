@@ -1,11 +1,11 @@
 import type { CallToolResult } from '@modelcontextprotocol/server'
 
+import { errorMessage } from '#core/errorMessage.ts'
 import type { CommandOptions, ExecCommand } from '#checker/inspect/execCommand.ts'
 import { stringsArgs } from '#checker/inspect/inspectArgs.ts'
 import { commandResult, toolError } from '#checker/inspect/inspectResult.ts'
 import { FILTER_INPUT_BYTES, filterLines } from '#checker/inspect/patternFilter.ts'
 import { workspaceFile } from '#checker/inspect/workspaceFile.ts'
-import { errorMessage } from '#checker/safeText.ts'
 
 /** Arguments of the strings tool */
 export interface StringsInput {

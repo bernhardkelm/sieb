@@ -1,4 +1,4 @@
-import type { BuildInfo, MeResponse } from '#core/apiTypes.ts'
+import type { BuildInfo, MeResponse } from '#core/authApiTypes.ts'
 import { apiRequest } from '@/api/apiRequest'
 import type { AuthMode } from '@/api/session'
 

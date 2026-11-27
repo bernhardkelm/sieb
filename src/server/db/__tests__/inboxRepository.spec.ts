@@ -18,7 +18,7 @@ import { buildSnapshot, NGINX, REDIS } from './dbFixtures.ts'
 const NOW = new Date('2026-06-01T12:00:00.000Z')
 
 describe('inbox repository', () => {
-  it('lists open findings with kev_since', () => {
+  it('lists open findings with kev_since, labels, packages and namespaces', () => {
     const db = openDatabase(MEMORY_DB)
 
     applySnapshot(
@@ -49,6 +49,10 @@ describe('inbox repository', () => {
         title: 'overflow',
         resolvedAt: null,
         kevSince: NOW.toISOString(),
+        exposure: 'internal',
+        owner: 'third-party',
+        packages: ['libssl3'],
+        namespaces: ['shop'],
       },
     ])
   })

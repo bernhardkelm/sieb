@@ -1,4 +1,4 @@
-import type { BulkDecisionSkip, BulkSkipReason } from '#core/apiTypes.ts'
+import type { BulkDecisionSkip, BulkSkipReason } from '#core/decisionApiTypes.ts'
 
 const SKIP_LABELS: Record<BulkSkipReason, string> = {
   decided: 'already decided',

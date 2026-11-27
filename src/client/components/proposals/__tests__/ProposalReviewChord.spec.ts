@@ -2,7 +2,7 @@ import { flushPromises, type VueWrapper } from '@vue/test-utils'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { reactive } from 'vue'
 
-import type { ProposalAcceptResponse, ProposalDetail } from '#core/apiTypes.ts'
+import type { ProposalAcceptResponse, ProposalDetail } from '#core/proposalApiTypes.ts'
 import { mountWithProviders } from '@/__tests__/mountWithProviders'
 import {
   buildDecisionView,

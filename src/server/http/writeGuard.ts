@@ -1,6 +1,6 @@
 import type { MiddlewareHandler } from 'hono'
 
-import type { ErrorBody } from '#core/apiTypes.ts'
+import type { ErrorBody } from '#core/errorApiTypes.ts'
 import type { AppEnv } from '#server/http/AppEnv.ts'
 
 const SAFE_METHODS = ['GET', 'HEAD', 'OPTIONS']

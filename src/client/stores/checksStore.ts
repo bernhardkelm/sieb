@@ -1,18 +1,17 @@
 import { defineStore } from 'pinia'
 import { computed, ref, shallowRef, watch } from 'vue'
 
-import type { CheckView, ChecksResponse } from '#core/check.ts'
+import type { ChecksResponse } from '#core/check.ts'
 import { ApiError } from '@/api/ApiError'
 import { errorMessage } from '@/api/apiRequest'
 import { cancelCheck, createChecks, fetchChecks } from '@/api/checksApi'
 import {
   checksPollInterval,
-  isOpenCheck,
   latestChecksByFinding,
   openChecksOf,
-  rowCheckOf,
 } from '@/components/checks/checkLookup'
 import { createInBatches, type CheckBatchResult } from '@/stores/checkBatches'
+import { createCheckLookups } from '@/stores/checkLookups'
 import { createChecksPolling } from '@/stores/checksPolling'
 import { useInboxStore } from '@/stores/inboxStore'
 import { useMcpStore } from '@/stores/mcpStore'
@@ -42,6 +41,11 @@ export const useChecksStore = defineStore('checks', () => {
   const workerOnline = computed(() => response.value?.workerOnline === true)
   const open = computed(() => openChecksOf(response.value))
   const latest = computed(() => latestChecksByFinding(response.value))
+  const running = computed(() => response.value?.running ?? null)
+  const queued = computed(() => response.value?.queued ?? [])
+  const recent = computed(() => response.value?.recent ?? [])
+  const usage = computed(() => response.value?.usage ?? null)
+  const { latestFor, openFor, rowCheckFor } = createCheckLookups(latest)
 
   const polling = createChecksPolling(
     () => refresh(),
@@ -119,32 +123,6 @@ export const useChecksStore = defineStore('checks', () => {
     polling.runNow()
   }
 
-  /**
-   * Returns the latest check of a finding, an open one first.
-   * @param {number} findingId - Finding id
-   * @returns {CheckView | null} - Check, null without one
-   */
-  const latestFor = (findingId: number): CheckView | null => latest.value.get(findingId) ?? null
-
-  /**
-   * Returns the queued or running check of a finding.
-   * @param {number} findingId - Finding id
-   * @returns {CheckView | null} - Open check, null without one
-   */
-  const openFor = (findingId: number): CheckView | null => {
-    const check = latestFor(findingId)
-
-    return check !== null && isOpenCheck(check) ? check : null
-  }
-
-  /**
-   * Returns the check a list row shows, an open or failed one.
-   * @param {number} findingId - Finding id
-   * @returns {CheckView | null} - Check, null without one
-   */
-  const rowCheckFor = (findingId: number): CheckView | null =>
-    rowCheckOf(latest.value.get(findingId))
-
   watch(mcpChecksEnabled, (value) => {
     if (value === false && response.value === null) {
       polling.stop()
@@ -158,6 +136,10 @@ export const useChecksStore = defineStore('checks', () => {
     enabled,
     workerOnline,
     open,
+    running,
+    queued,
+    recent,
+    usage,
     latestFor,
     openFor,
     rowCheckFor,

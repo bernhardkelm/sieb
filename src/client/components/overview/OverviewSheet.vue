@@ -12,6 +12,7 @@ import {
 import { ref } from 'vue'
 
 import CloseButton from '@/components/common/CloseButton.vue'
+import AppIcon from '@/components/icons/AppIcon.vue'
 import SourceCodeLink from '@/components/layout/SourceCodeLink.vue'
 import OverviewStats from '@/components/overview/OverviewStats.vue'
 
@@ -21,9 +22,7 @@ const open = ref(false)
 <template>
   <DialogRoot v-model:open="open">
     <DialogTrigger class="overview-trigger" aria-label="Overview">
-      <svg class="icon" viewBox="0 0 16 16" aria-hidden="true" focusable="false">
-        <path d="M2.5 13.5h11M4.5 11V8M8 11V4.5M11.5 11V6.5" />
-      </svg>
+      <AppIcon class="icon" name="chart" />
     </DialogTrigger>
     <DialogPortal>
       <DialogOverlay class="overlay" />
@@ -60,15 +59,6 @@ const open = ref(false)
 
 .overview-trigger:hover {
   color: var(--color-text);
-}
-
-.icon {
-  width: var(--icon-size);
-  height: var(--icon-size);
-  fill: none;
-  stroke: currentColor;
-  stroke-width: 1.6;
-  stroke-linecap: round;
 }
 
 .overlay {

@@ -2,15 +2,17 @@
 withDefaults(
   defineProps<{
     variant?: 'secondary' | 'primary' | 'danger' | 'ghost'
+    /** md is the control height, touch the touch target height for bars on phones */
+    size?: 'md' | 'touch'
     type?: 'button' | 'submit'
     disabled?: boolean
   }>(),
-  { variant: 'secondary', type: 'button', disabled: false },
+  { variant: 'secondary', size: 'md', type: 'button', disabled: false },
 )
 </script>
 
 <template>
-  <button :type="type" class="base-button" :class="variant" :disabled="disabled">
+  <button :type="type" class="base-button" :class="[variant, size]" :disabled="disabled">
     <slot />
   </button>
 </template>
@@ -38,6 +40,17 @@ withDefaults(
 
 .base-button:disabled {
   color: var(--color-text-subtle);
+}
+
+.base-button[aria-disabled='true'] {
+  cursor: default;
+  opacity: var(--opacity-disabled);
+}
+
+.touch {
+  min-width: var(--touch-target);
+  height: auto;
+  min-height: var(--touch-target);
 }
 
 .primary {

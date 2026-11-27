@@ -15,6 +15,11 @@ describe('inboxActionFor', () => {
     expect(inboxActionFor({ key: 'd' }, 'overlay')).toBeNull()
   })
 
+  it('maps / to the search on the page as Triage does', () => {
+    expect(inboxActionFor({ key: '/' }, 'page')).toBe('search')
+    expect(inboxActionFor({ key: '/' }, 'overlay')).toBeNull()
+  })
+
   it('lists the selection keys in the Inbox hints as Triage does', () => {
     expect(hintsForRoute(ROUTE_NAMES.INBOX).map((hint) => hint.label)).toEqual([
       'Accept',
@@ -23,6 +28,7 @@ describe('inboxActionFor', () => {
       'Select',
       'Select range',
       'Select all',
+      'Search',
       'Sync',
     ])
   })

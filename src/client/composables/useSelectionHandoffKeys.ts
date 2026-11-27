@@ -1,27 +1,10 @@
-import type { HandoffActions } from '@/composables/usePanelHandoff'
 import { useSelectionAutoCheck } from '@/composables/useSelectionAutoCheck'
 import { useSelectionHandoff } from '@/composables/useSelectionHandoff'
+import { claudeKeyOf } from '@/keyboard/handoffKeymap'
 import type { ShortcutScope } from '@/keyboard/triageKeymap'
 import { useChecksStore } from '@/stores/checksStore'
 import { useMcpStore } from '@/stores/mcpStore'
 import { runUnlessBlocked } from '@/toast/blockedNotice'
-
-interface KeyAction {
-  run: (actions: HandoffActions) => unknown
-  blockedBy: (actions: HandoffActions) => string | null
-}
-
-const KEYS: Record<string, KeyAction> = {
-  h: { run: (actions) => actions.copyPrompt(), blockedBy: (actions) => actions.promptBlockedBy() },
-  y: {
-    run: (actions) => actions.copyCommand(),
-    blockedBy: (actions) => actions.commandBlockedBy(),
-  },
-  H: {
-    run: (actions) => actions.openPreferred(),
-    blockedBy: (actions) => actions.openBlockedBy(),
-  },
-}
 
 /**
  * Handles the Claude keys on the page of a list with checked rows: Shift+H runs the default
@@ -41,31 +24,19 @@ export const useSelectionHandoffKeys = (): ((
   const autoCheck = useSelectionAutoCheck()
 
   return (event, scope) => {
-    if (
-      scope !== 'page' ||
-      !mcp.enabled ||
-      !selection.active.value ||
-      (['H', 'C'].includes(event.key) && !event.shiftKey)
-    ) {
+    const key =
+      scope === 'page' && mcp.enabled && selection.active.value ? claudeKeyOf(event) : null
+
+    if (key === null || (key === 'autoCheck' && !checks.enabled)) {
       return false
     }
 
-    if (event.key === 'C') {
-      if (!checks.enabled) {
-        return false
-      }
-
+    if (key === 'autoCheck') {
       void autoCheck.runOrExplain()
       return true
     }
 
-    const action = KEYS[event.key]
-
-    if (action === undefined) {
-      return false
-    }
-
-    runUnlessBlocked(action.blockedBy(selection), 'Not handed off', () => action.run(selection))
+    runUnlessBlocked(key.blockedBy(selection), 'Not handed off', () => key.run(selection))
     return true
   }
 }

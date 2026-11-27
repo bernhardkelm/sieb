@@ -1,6 +1,7 @@
 import type { ComputedRef } from 'vue'
 
 import type { InboxItem } from '#core/inbox/inboxItem.ts'
+import { ITEM_NOUN, PROPOSAL_NOUN } from '@/components/inbox/inboxBulkActions'
 import { NOTHING_TO_SEE } from '@/components/inbox/inboxBulkTargets'
 import type { InboxBulkCounts } from '@/components/inbox/inboxBulkCounts'
 import { isSelectable } from '@/components/inbox/inboxItems'
@@ -17,19 +18,18 @@ export interface InboxHintSources {
   seenTargets: ComputedRef<string[]>
   markSeen: () => Promise<void>
   bulk: InboxBulk
+  focusSearch: () => void
 }
 
 export const NOT_SELECTABLE = 'Re-opened decisions are decided one by one'
-
-const PROPOSAL: BulkNoun = { singular: 'proposal' }
-const ITEM: BulkNoun = { singular: 'item' }
 
 /**
  * Registers the Inbox hint actions: Accept and Reject open the dialogs for the checked
  * proposals as a and d do, Mark as seen marks the checked or the cursor item as s does, Select
  * and Select all check items as x and the select-all chord do; re-opened decisions are never
- * checked. With checked items the three actions count the items they act on.
- * @param {InboxHintSources} sources - Cursor, items, the mark action and the bulk actions
+ * checked, Search focuses the search input as / does. With checked items the three actions
+ * count the items they act on.
+ * @param {InboxHintSources} sources - Cursor, items, the mark, bulk and search actions
  * @returns {void}
  */
 export const useInboxHintActions = ({
@@ -38,6 +38,7 @@ export const useInboxHintActions = ({
   seenTargets,
   markSeen,
   bulk,
+  focusSearch,
 }: InboxHintSources): void => {
   /**
    * Returns why the cursor item cannot be checked.
@@ -70,25 +71,26 @@ export const useInboxHintActions = ({
       accept: {
         run: bulk.openAccept,
         blockedBy: () => bulk.acceptBlockedBy.value,
-        bulk: counted('accept', PROPOSAL),
+        bulk: counted('accept', PROPOSAL_NOUN),
       },
       reject: {
         run: bulk.openReject,
         blockedBy: () => bulk.rejectBlockedBy.value,
-        bulk: counted('reject', PROPOSAL),
+        bulk: counted('reject', PROPOSAL_NOUN),
       },
       markSeen: {
         run: () => {
           void markSeen()
         },
         blockedBy: () => (seenTargets.value.length > 0 ? null : NOTHING_TO_SEE),
-        bulk: counted('markSeen', ITEM),
+        bulk: counted('markSeen', ITEM_NOUN),
       },
       toggle: { run: cursor.toggleCurrent, blockedBy: notSelectable },
       selectAll: {
         run: cursor.selection.checkAll,
         blockedBy: () => (items.value.size === 0 ? 'No items listed' : null),
       },
+      search: { run: focusSearch },
     },
     cursor.refocus,
   )

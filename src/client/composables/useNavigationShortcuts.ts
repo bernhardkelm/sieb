@@ -1,9 +1,9 @@
 import { useRouter } from 'vue-router'
 
+import { useFeatures } from '@/composables/useFeatures'
 import { useWindowKeydown } from '@/composables/useWindowKeydown'
 import { isShortcutEvent, shortcutScope } from '@/keyboard/keyboardTarget'
 import { navItemsFor } from '@/router/navItems'
-import { useChecksStore } from '@/stores/checksStore'
 
 /**
  * Navigates to a view when its single-key shortcut from NAV_ITEMS is pressed outside text entries,
@@ -13,7 +13,7 @@ import { useChecksStore } from '@/stores/checksStore'
  */
 export const useNavigationShortcuts = (): void => {
   const router = useRouter()
-  const checks = useChecksStore()
+  const features = useFeatures()
 
   /**
    * Handles a global keydown.
@@ -25,7 +25,7 @@ export const useNavigationShortcuts = (): void => {
       return
     }
 
-    const item = navItemsFor(checks.enabled).find((candidate) => candidate.shortcut === event.key)
+    const item = navItemsFor(features.value).find((candidate) => candidate.shortcut === event.key)
 
     if (!item) {
       return

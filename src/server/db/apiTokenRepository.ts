@@ -7,9 +7,10 @@ import {
   type ApiTokenRow,
   type StoredApiToken,
 } from '#server/db/apiTokenRows.ts'
+import { MINUTE_MS } from '#core/timeUnits.ts'
 
 /** last_used_at is written at most once per this interval, so every MCP request is not a write */
-export const TOUCH_INTERVAL_MS = 60 * 1000
+export const TOUCH_INTERVAL_MS = MINUTE_MS
 
 /**
  * Reads one token of an owner.

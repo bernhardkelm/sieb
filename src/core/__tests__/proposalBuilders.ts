@@ -1,4 +1,4 @@
-import type { ProposalInput, ProposalProposer } from '#core/proposal.ts'
+import type { ProposalInput, ProposalProposer } from '#core/proposalRecord.ts'
 
 export const PROPOSER: ProposalProposer = {
   proposedBy: 'dev',

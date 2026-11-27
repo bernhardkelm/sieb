@@ -26,5 +26,3 @@ export interface DecisionInputError {
   field: DecisionField | null // null for errors about the whole input
   code: DecisionErrorCode
 }
-
-export type Validated<T> = { ok: true; value: T } | { ok: false; errors: DecisionInputError[] }

@@ -1,8 +1,9 @@
 <script setup lang="ts">
+import BaseButton from '@/components/common/BaseButton.vue'
+import { DECIDE_ACTIONS, MARK_SEEN_ACTION } from '@/components/inbox/inboxBulkActions'
 import type { InboxBulkCounts } from '@/components/inbox/inboxBulkCounts'
 import BulkActionButton from '@/components/list/BulkActionButton.vue'
 import SelectionBar from '@/components/list/SelectionBar.vue'
-import type { BulkNoun } from '@/format/bulkCount'
 import type { HintActionId } from '@/keyboard/hintActions'
 import { useHintActionsStore } from '@/stores/hintActionsStore'
 
@@ -17,11 +18,7 @@ defineEmits<{ clear: [] }>()
 
 const actions = useHintActionsStore()
 
-const ACTIONS: { id: HintActionId & keyof InboxBulkCounts; label: string; noun: BulkNoun }[] = [
-  { id: 'accept', label: 'Accept', noun: { singular: 'proposal' } },
-  { id: 'reject', label: 'Reject', noun: { singular: 'proposal' } },
-  { id: 'markSeen', label: 'Mark seen', noun: { singular: 'item' } },
-]
+const ACTIONS = [...DECIDE_ACTIONS, MARK_SEEN_ACTION]
 
 /**
  * Runs a hint action as its key does, leaving focus on the bar so a tap does not scroll the
@@ -39,7 +36,9 @@ const runAction = (id: HintActionId): void => {
     <BulkActionButton
       v-for="action in ACTIONS"
       :key="action.id"
+      :as="BaseButton"
       class="action"
+      size="touch"
       :label="action.label"
       :count="counts[action.id]"
       :noun="action.noun"
@@ -49,5 +48,3 @@ const runAction = (id: HintActionId): void => {
     />
   </SelectionBar>
 </template>
-
-<style scoped src="@/components/list/selectionAction.css"></style>

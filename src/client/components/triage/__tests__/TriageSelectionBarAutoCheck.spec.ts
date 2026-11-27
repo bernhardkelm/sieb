@@ -10,7 +10,7 @@ import { createChecks } from '@/api/checksApi'
 import TriageSelectionBar from '@/components/triage/TriageSelectionBar.vue'
 import { ALL_OPEN_REASON, OPEN_SKIP_REASON, WORKER_OFFLINE_REASON } from '@/format/checkBlockReason'
 import { useChecksStore } from '@/stores/checksStore'
-import { useHandoffSelectionStore } from '@/stores/handoffSelectionStore'
+import { useSelectionStore } from '@/stores/selectionStore'
 import { useMcpStore } from '@/stores/mcpStore'
 import { notifyNotice, notifySuccess } from '@/toast/toastManager'
 
@@ -37,7 +37,7 @@ const mountBar = (ids: number[]): VueWrapper => {
 
   setActivePinia(pinia)
   useMcpStore().info = { enabled: true, mcpUrl: null, oauth: false, claude: null }
-  useHandoffSelectionStore().register(() => ids.map((id) => buildFindingView({ id })))
+  useSelectionStore().register(() => ids.map((id) => buildFindingView({ id })))
   wrapper = mount(TriageSelectionBar, {
     props: { count: ids.length },
     global: { plugins: [pinia] },

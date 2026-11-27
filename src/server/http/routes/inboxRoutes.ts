@@ -1,6 +1,7 @@
 import { Hono } from 'hono'
 
-import type { ErrorBody, InboxResponse, InboxSeenResponse } from '#core/apiTypes.ts'
+import type { ErrorBody } from '#core/errorApiTypes.ts'
+import type { InboxResponse, InboxSeenResponse } from '#core/inboxApiTypes.ts'
 import { validateSeenKeys } from '#core/inbox/seenValidation.ts'
 import { markSeen } from '#server/db/inboxRepository.ts'
 import { inTransaction } from '#server/db/inTransaction.ts'

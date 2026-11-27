@@ -37,7 +37,10 @@ export const proposeDecisionInput = z.object({
   verdict: z
     .enum(PROPOSAL_VERDICTS)
     .describe(
-      'needs_patch becomes fix_planned with the patch action. Code that never runs in the' +
+      'needs_patch becomes fix_planned with the patch action; no fix published at a layer the' +
+        ' operator controls: fix_planned with fix.availability upstream_pending, not needs_patch.' +
+        ' KEV listed: prefer needs_patch or fix_planned over accepted, not_affected only with' +
+        ' strong evidence. Code that never runs in the' +
         ' workload (an unused tool, an unloaded library or module): not_affected,' +
         ' vulnerable_code_not_in_execute_path. Running but practically unreachable, with an' +
         ' upgrade as the fix: needs_patch or fix_planned, not not_affected.' +
@@ -52,7 +55,10 @@ export const proposeDecisionInput = z.object({
   summary: text(LIMITS.summary).describe('one or two plain sentences, the answer in short'),
   confidence: z
     .enum(PROPOSAL_CONFIDENCES)
-    .describe('medium at most for a private image you could not inspect'),
+    .describe(
+      'low for thin evidence that still supports the verdict; medium at most for a private image' +
+        ' you could not inspect',
+    ),
   presence: text(LIMITS.narrative)
     .optional()
     .describe('is the vulnerable component there, per image'),
@@ -82,7 +88,8 @@ export const proposeDecisionInput = z.object({
         .optional()
         .describe(
           'required for needs_patch and fix_planned: what the operator does now, true to what' +
-            ` the build references today. ${PATCH_ACTION_HINT}`,
+            ' the build references today, never a lookup ("check the release notes"): look it up' +
+            ` yourself and name the release, tag or digest. ${PATCH_ACTION_HINT}`,
         ),
       layer: z
         .enum(PATCH_LAYERS)
@@ -93,7 +100,8 @@ export const proposeDecisionInput = z.object({
         .optional()
         .describe(
           'the ordered steps with exact versions, tags, digests, file names and commands,' +
-            ' through deploy and how to confirm; say so when no file has to change',
+            ' through deploy and how to confirm; only steps the operator carries out, no lookups;' +
+            ' say so when no file has to change',
         ),
       effort: text(LIMITS.fixEffort)
         .optional()
@@ -135,7 +143,10 @@ export const proposeDecisionInput = z.object({
         .string()
         .max(40)
         .optional()
-        .describe('YYYY-MM-DD or ISO date-time, becomes the expiry'),
+        .describe(
+          'YYYY-MM-DD or ISO date-time, becomes the expiry; required with upstream_pending, the' +
+            ' day to look for the awaited release again',
+        ),
       why: text(LIMITS.reviewWhy).optional(),
     })
     .optional(),
@@ -161,7 +172,10 @@ export const proposeDecisionInput = z.object({
     .array(text(LIMITS.reference))
     .max(LIMITS.references)
     .optional()
-    .describe('http(s) links of the advisory, fix and release pages you actually read'),
+    .describe(
+      'http(s) links of the advisory, fix and release pages you actually read, every page a' +
+        ' deciding fact rests on; never a search result or a page that came back empty',
+    ),
   evidenceBasis: z
     .array(z.enum(EVIDENCE_BASES))
     .min(1)

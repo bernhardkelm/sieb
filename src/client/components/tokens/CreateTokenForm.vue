@@ -2,7 +2,7 @@
 import { computed, ref, useId } from 'vue'
 
 import { MAX_TOKEN_NAME_LENGTH, type ApiTokenScope } from '#core/apiToken.ts'
-import type { ApiTokenCreateRequest } from '#core/apiTypes.ts'
+import type { ApiTokenCreateRequest } from '#core/tokenApiTypes.ts'
 import BaseButton from '@/components/common/BaseButton.vue'
 import FieldErrors from '@/components/decision/FieldErrors.vue'
 import RadioChoice from '@/components/decision/RadioChoice.vue'
@@ -53,7 +53,7 @@ const focus = (): void => {
 
 /**
  * Creates the token unless the name is missing, and shows the server errors otherwise.
- * @returns {Promise<void>}
+ * @returns {Promise<void>} - Resolves once created or the errors shown
  */
 const submit = async (): Promise<void> => {
   submitted.value = true
@@ -130,49 +130,4 @@ defineExpose({ focus })
   </form>
 </template>
 
-<style scoped>
-.create-token-form {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-3);
-}
-
-.heading {
-  font-size: var(--font-size-md);
-  font-weight: var(--font-weight-semibold);
-}
-
-.field {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-1-5);
-}
-
-.label {
-  color: var(--color-text-muted);
-  font-size: var(--font-size-sm);
-  font-weight: var(--font-weight-medium);
-}
-
-.name {
-  height: var(--control-height);
-  padding: 0 var(--space-2);
-  border: var(--border-width) solid var(--color-border-strong);
-  border-radius: var(--radius);
-  background: var(--color-surface);
-}
-
-.note {
-  color: var(--color-text-subtle);
-  font-size: var(--font-size-sm);
-}
-
-.name[aria-invalid='true'] {
-  border-color: var(--color-danger);
-}
-
-.actions {
-  display: flex;
-  justify-content: flex-end;
-}
-</style>
+<style scoped src="@/components/tokens/createTokenForm.css"></style>

@@ -1,7 +1,7 @@
 import { defineStore } from 'pinia'
 import { computed, shallowRef } from 'vue'
 
-import type { McpInfoResponse } from '#core/apiTypes.ts'
+import type { McpInfoResponse } from '#core/mcpApiTypes.ts'
 import { fetchMcpInfo } from '@/api/tokensApi'
 import { createSharedVisiblePoll } from '@/stores/sharedVisiblePoll'
 
@@ -16,8 +16,8 @@ export const CONNECT_POLL_MS = 30_000
 /**
  * Holds whether the Claude integration (MCP, tokens, hand-off) is switched on and whether Claude
  * reaches sieb for the acting user, loaded once per page view and refreshed after token changes,
- * on focus and while a blocked hand-off waits for the connection. Until the answer arrives, and when it fails, the integration counts as off, so nothing Claude
- * related flashes up.
+ * on focus and while a blocked hand-off waits for the connection. Until the answer arrives, and
+ * when it fails, the integration counts as off, so nothing Claude related flashes up.
  */
 export const useMcpStore = defineStore('mcp', () => {
   const info = shallowRef<McpInfoResponse | null>(null)
@@ -41,10 +41,11 @@ export const useMcpStore = defineStore('mcp', () => {
   })
 
   /**
-   * Fetches the MCP info and keeps the answer, a failure counts as off.
+   * Fetches the MCP info and keeps the answer.
+   * @param {boolean} keepOnFailure - Whether a failure keeps the previous answer, else it counts as off
    * @returns {Promise<void>} - Resolves when the request settled
    */
-  const fetchInfo = (): Promise<void> => {
+  const fetchInfo = (keepOnFailure: boolean): Promise<void> => {
     fetchedAt = Date.now()
 
     return fetchMcpInfo().then(
@@ -52,7 +53,9 @@ export const useMcpStore = defineStore('mcp', () => {
         info.value = answer
       },
       () => {
-        info.value = null
+        if (!keepOnFailure) {
+          info.value = null
+        }
       },
     )
   }
@@ -62,7 +65,7 @@ export const useMcpStore = defineStore('mcp', () => {
    * @returns {Promise<void>} - Resolves when the request settled
    */
   const load = (): Promise<void> => {
-    loading ??= fetchInfo()
+    loading ??= fetchInfo(false)
 
     return loading
   }
@@ -72,16 +75,7 @@ export const useMcpStore = defineStore('mcp', () => {
    * without a reload. A failure keeps the previous answer.
    * @returns {Promise<void>} - Resolves when the request settled
    */
-  const refresh = (): Promise<void> => {
-    fetchedAt = Date.now()
-
-    return fetchMcpInfo().then(
-      (answer) => {
-        info.value = answer
-      },
-      () => undefined,
-    )
-  }
+  const refresh = (): Promise<void> => fetchInfo(true)
 
   /**
    * Refreshes the MCP info unless the last request started less than REFRESH_THROTTLE_MS ago,

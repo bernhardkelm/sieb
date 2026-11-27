@@ -1,5 +1,8 @@
+import { DECISION_KEYMAP } from '@/keyboard/decisionKeymap'
+import { AUTO_CHECK_HINT_KEYS, HANDOFF_KEYMAP } from '@/keyboard/handoffKeymap'
 import type { HintActionId } from '@/keyboard/hintActions'
 import { MODIFIER_KEY } from '@/keyboard/modifierKey'
+import { isAvailable, NO_FEATURES, type Feature, type Features } from '@/router/featureGate'
 import { ROUTE_NAMES, type RouteName } from '@/router/routeNames'
 
 export interface KeyboardHint {
@@ -9,11 +12,12 @@ export interface KeyboardHint {
   template?: string
   /** Action a click on the hint runs, absent for hints shown as text only */
   action?: HintActionId
-  /** Shown only with the Claude integration switched on */
-  mcp?: boolean
-  /** Shown only with Auto-check switched on */
-  checks?: boolean
+  /** Shown only while these features are switched on */
+  requires?: readonly Feature[]
 }
+
+const CLAUDE: readonly Feature[] = ['mcp']
+const AUTO_CHECK: readonly Feature[] = ['mcp', 'checks']
 
 const TREE: KeyboardHint = { keys: ['←', '→'], label: 'Collapse, expand' }
 const SEARCH: KeyboardHint = { keys: ['/'], label: 'Search', action: 'search' }
@@ -26,6 +30,7 @@ const INBOX: KeyboardHint[] = [
   { keys: ['x', 'Space'], label: 'Select', action: 'toggle' },
   { keys: ['⇧', '↑', '↓'], label: 'Select range' },
   { keys: [MODIFIER_KEY, 'A'], label: 'Select all', action: 'selectAll' },
+  SEARCH,
   SYNC,
 ]
 
@@ -37,36 +42,20 @@ export const KEYBOARD_HINTS: Record<RouteName, KeyboardHint[]> = {
     SYNC,
   ],
   [ROUTE_NAMES.TRIAGE]: [
-    { keys: ['a'], label: 'Accept', action: 'accept' },
-    { keys: ['n'], label: 'Not affected', action: 'notAffected' },
-    { keys: ['f'], label: 'Fix planned', action: 'fixPlanned' },
+    ...DECISION_KEYMAP.map(({ key, label, action }) => ({ keys: [key], label, action })),
     { keys: ['x', 'Space'], label: 'Select', action: 'toggle' },
     { keys: ['⇧', '↑', '↓'], label: 'Select range' },
     { keys: [MODIFIER_KEY, 'A'], label: 'Select all', action: 'selectAll' },
     SEARCH,
     SYNC,
-    {
-      keys: ['⇧', 'H'],
-      label: 'Open in Claude',
-      template: 'Open {n} in Claude',
-      action: 'handoffOpen',
-      mcp: true,
-    },
-    {
-      keys: ['h'],
-      label: 'Copy for Claude',
-      template: 'Copy {n} for Claude',
-      action: 'handoff',
-      mcp: true,
-    },
-    {
-      keys: ['y'],
-      label: 'Copy claude command',
-      template: 'Copy claude command for {n}',
-      action: 'handoffCommand',
-      mcp: true,
-    },
-    { keys: ['⇧', 'C'], label: 'Auto-check', action: 'autoCheck', mcp: true, checks: true },
+    ...HANDOFF_KEYMAP.map(({ hintKeys, label, template, hintId }) => ({
+      keys: hintKeys,
+      label,
+      template,
+      action: hintId,
+      requires: CLAUDE,
+    })),
+    { keys: AUTO_CHECK_HINT_KEYS, label: 'Auto-check', action: 'autoCheck', requires: AUTO_CHECK },
   ],
   [ROUTE_NAMES.IMAGES]: [TREE, SEARCH, SYNC],
   [ROUTE_NAMES.CVES]: [
@@ -91,15 +80,13 @@ export const KEYBOARD_HINTS: Record<RouteName, KeyboardHint[]> = {
 /**
  * Returns the shortcut hints of a view.
  * @param {unknown} routeName - Name of the current route
- * @param {boolean} mcpEnabled - Whether the Claude integration is on, its hints are left out otherwise
- * @param {boolean} checksEnabled - Whether Auto-check is on, its hint is left out otherwise
+ * @param {Features} features - Switched on features, hints of the others are left out
  * @returns {KeyboardHint[]} - Hints, the Inbox ones for unknown routes
  */
 export const hintsForRoute = (
   routeName: unknown,
-  mcpEnabled = false,
-  checksEnabled = false,
+  features: Features = NO_FEATURES,
 ): KeyboardHint[] =>
-  (KEYBOARD_HINTS[routeName as RouteName] ?? KEYBOARD_HINTS[ROUTE_NAMES.INBOX]).filter(
-    (hint) => (mcpEnabled || !hint.mcp) && (checksEnabled || !hint.checks),
+  (KEYBOARD_HINTS[routeName as RouteName] ?? KEYBOARD_HINTS[ROUTE_NAMES.INBOX]).filter((hint) =>
+    isAvailable(hint, features),
   )

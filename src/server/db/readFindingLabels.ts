@@ -1,6 +1,6 @@
 import type { DatabaseSync } from 'node:sqlite'
 
-import type { LabelsResponse } from '#core/apiTypes.ts'
+import type { LabelsResponse } from '#core/findingApiTypes.ts'
 import { summarizeFindingLabels } from '#core/findingLabels.ts'
 import { listOpenFindings } from '#server/db/findingRepository.ts'
 

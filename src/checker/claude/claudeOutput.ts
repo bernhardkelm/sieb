@@ -1,6 +1,7 @@
 import type { CheckUsage, WorkerResult } from '#core/check.ts'
 import { capText, MAX_CHECK_ERROR_LENGTH, MAX_CHECK_REPLY_LENGTH } from '#core/checkLimits.ts'
-import { cleanModels } from '#core/checkUsageValidation.ts'
+import { isPlainObject } from '#core/isPlainObject.ts'
+import { readUsage } from '#checker/claude/claudeUsage.ts'
 import { errorTail } from '#checker/process/errorTail.ts'
 import type { CapturedRun } from '#checker/process/runCaptured.ts'
 
@@ -21,68 +22,6 @@ const SUBTYPE_ERRORS: Record<string, string> = {
 }
 
 /**
- * Returns whether a value is a plain object.
- * @param {unknown} value - Value
- * @returns {boolean} - Whether it is a non-null, non-array object
- */
-const isRecord = (value: unknown): value is Record<string, unknown> =>
-  typeof value === 'object' && value !== null && !Array.isArray(value)
-
-/**
- * Reads a token count.
- * @param {unknown} value - Raw value
- * @returns {number} - Non-negative integer, 0 when missing or invalid
- */
-const count = (value: unknown): number =>
-  typeof value === 'number' && Number.isFinite(value) && value > 0 ? Math.round(value) : 0
-
-/**
- * Reads the models of modelUsage, the one with the most output tokens first.
- * @param {unknown} value - Raw modelUsage, an object keyed by model id
- * @returns {string[]} - Model ids, empty when the value has an unexpected shape
- */
-const readModels = (value: unknown): string[] => {
-  if (!isRecord(value)) {
-    return []
-  }
-
-  const ranked = Object.entries(value)
-    .slice(0, 50)
-    .map(([id, entry], index) => ({
-      id,
-      index,
-      output: isRecord(entry) ? count(entry.outputTokens) : 0,
-    }))
-    .sort((a, b) => b.output - a.output || a.index - b.index)
-
-  return cleanModels(ranked.map((model) => model.id)) ?? []
-}
-
-/**
- * Reads the usage of a result message.
- * @param {Record<string, unknown>} result - Parsed result message
- * @returns {CheckUsage | null} - Usage, null when the message carries none
- */
-const readUsage = (result: Record<string, unknown>): CheckUsage | null => {
-  const usage = isRecord(result.usage) ? result.usage : null
-  const cost = result.total_cost_usd
-
-  if (!usage && typeof cost !== 'number' && typeof result.num_turns !== 'number') {
-    return null
-  }
-
-  return {
-    inputTokens: count(usage?.input_tokens),
-    outputTokens: count(usage?.output_tokens),
-    cacheReadTokens: count(usage?.cache_read_input_tokens),
-    cacheCreationTokens: count(usage?.cache_creation_input_tokens),
-    costUsd: typeof cost === 'number' && Number.isFinite(cost) && cost >= 0 ? cost : null,
-    turns: count(result.num_turns),
-    models: readModels(result.modelUsage),
-  }
-}
-
-/**
  * Parses the stdout of claude -p --output-format json.
  * @param {string} stdout - Captured stdout
  * @returns {ClaudeOutput | null} - Usage, final reply and error flags, null when it is no result object
@@ -96,7 +35,7 @@ export const parseClaudeOutput = (stdout: string): ClaudeOutput | null => {
     return null
   }
 
-  if (!isRecord(parsed)) {
+  if (!isPlainObject(parsed)) {
     return null
   }
 

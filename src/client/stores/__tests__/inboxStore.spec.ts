@@ -1,7 +1,7 @@
 import { createPinia, setActivePinia } from 'pinia'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-import type { InboxResponse } from '#core/apiTypes.ts'
+import type { InboxResponse } from '#core/inboxApiTypes.ts'
 import type { InboxItem } from '#core/inbox/inboxItem.ts'
 import { expiringItem, kevItem, proposalItem } from '@/__tests__/inboxItemBuilders'
 import { fetchInbox, markInboxSeen } from '@/api/inboxApi'

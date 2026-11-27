@@ -1,30 +1,17 @@
-import { computed, onMounted, ref, type ComputedRef, type Ref } from 'vue'
+import { onMounted, type ComputedRef, type Ref } from 'vue'
 
 import type { DecisionFilter } from '#core/decisionFilter.ts'
 import type { DecisionView, FindingView } from '#core/findingView.ts'
-import { searchDecisions } from '@/components/decisions/decisionSearch'
-import {
-  DECISION_SORT_COLUMNS,
-  sortDecisions,
-  type DecisionSortColumn,
-} from '@/components/decisions/decisionSort'
-import {
-  countDecisionTabs,
-  decisionsInTab,
-  parseDecisionTab,
-} from '@/components/decisions/decisionTabs'
+import type { DecisionSortColumn } from '@/components/decisions/decisionSort'
 import { governedFindings } from '@/components/decisions/governedFindings'
 import { useCursorList } from '@/composables/useCursorList'
 import { useDecisionEditing, type DecisionEditing } from '@/composables/useDecisionEditing'
 import { useDecisionHintActions } from '@/composables/useDecisionHintActions'
-import { useExpandedGroup } from '@/composables/useExpandedGroup'
+import { useDecisionRows } from '@/composables/useDecisionRows'
 import { useFindingPanel } from '@/composables/useFindingPanel'
-import { useListSort, type ListSort } from '@/composables/useListSort'
-import { useNow } from '@/composables/useNow'
-import { useQueryParam } from '@/composables/useQueryParam'
+import type { ListSort } from '@/composables/useListSort'
 import { isControlTarget } from '@/keyboard/keyboardTarget'
-import { findingIdOfRowKey, findingRowKey, groupOfRowKey, groupRowKey } from '@/keyboard/rowKey'
-import { DECISION_QUERY, DECISION_TAB_QUERY } from '@/router/routeNames'
+import { findingIdOfRowKey, groupOfRowKey } from '@/keyboard/rowKey'
 import { useDecisionsStore } from '@/stores/decisionsStore'
 import { useFindingsStore } from '@/stores/findingsStore'
 
@@ -43,11 +30,8 @@ export interface DecisionsController extends DecisionEditing {
 }
 
 /**
- * Drives the decisions view: tabs per state in the `state` query param, search, the sort of the
- * `sort` and `dir` query params, the decision
- * expanded through the `decision` query param with its governed findings, the keyboard cursor,
- * e to edit, Backspace or Delete to revoke, c to re-confirm and o to open the governed finding.
- * These keys act on the cursor row, so they stay with a focused button, link or tab.
+ * Drives the decisions view on the rows of useDecisionRows: the keyboard cursor, e to edit,
+ * Backspace or Delete to revoke, c to re-confirm and o to open the governed finding. These keys act on the cursor row, so they stay with a focused button, link or tab.
  * @param {() => void} focusSearch - Focuses the search input
  * @returns {DecisionsController} - State and actions for the view
  */
@@ -55,42 +39,9 @@ export const useDecisionsController = (focusSearch: () => void): DecisionsContro
   const store = useDecisionsStore()
   const findings = useFindingsStore()
   const { openFinding } = useFindingPanel()
-  const now = useNow()
-  const tabParam = useQueryParam(DECISION_TAB_QUERY)
-  const expanded = useExpandedGroup(DECISION_QUERY)
-
+  const rows = useDecisionRows()
   const editing = useDecisionEditing()
-  const q = ref('')
-
-  const tab = computed({
-    get: () => parseDecisionTab(tabParam.value.value),
-    set: (value: DecisionFilter) => {
-      void tabParam.set(value)
-    },
-  })
-  const searched = computed(() => searchDecisions(store.items, q.value))
-  const counts = computed(() => countDecisionTabs(searched.value, now.value))
-  const sort = useListSort(DECISION_SORT_COLUMNS)
-  const decisions = computed(() =>
-    sortDecisions(decisionsInTab(searched.value, tab.value, now.value), sort.sort.value),
-  )
-  const expandedId = computed(() =>
-    expanded.value.value === null ? null : Number(expanded.value.value),
-  )
-  const expandedView = computed(
-    () => decisions.value.find((view) => view.decision.id === expandedId.value) ?? null,
-  )
-  const expandedFindings = computed(() =>
-    expandedView.value ? governedFindings(expandedView.value.decision, findings.items) : [],
-  )
-  const keys = computed(() =>
-    decisions.value.flatMap((view) => [
-      groupRowKey(view.decision.id),
-      ...(view.decision.id === expandedId.value
-        ? expandedFindings.value.map((finding) => findingRowKey(finding.id))
-        : []),
-    ]),
-  )
+  const { decisions, sort, expanded, expandedId, keys } = rows
 
   /**
    * Returns the decision of a row, the decision row itself or a governed finding below it.
@@ -180,14 +131,14 @@ export const useDecisionsController = (focusSearch: () => void): DecisionsContro
 
   return {
     ...editing,
-    q,
-    tab,
-    counts,
+    q: rows.q,
+    tab: rows.tab,
+    counts: rows.counts,
     decisions,
     sort,
     resetSort,
     expandedId,
-    expandedFindings,
+    expandedFindings: rows.expandedFindings,
     currentKey: cursor.currentKey,
     select: cursor.select,
     openFirstFinding: (view) => {

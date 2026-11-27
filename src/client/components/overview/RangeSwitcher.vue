@@ -1,7 +1,12 @@
 <script setup lang="ts">
 import { ToggleGroupItem, ToggleGroupRoot } from 'reka-ui'
 
-import { isStatsRange, STATS_RANGE_DAYS, STATS_RANGES, type StatsRange } from '#core/statsRange.ts'
+import {
+  isStatsRange,
+  STATS_RANGE_PERIODS,
+  STATS_RANGES,
+  type StatsRange,
+} from '#core/statsRange.ts'
 
 defineProps<{
   range: StatsRange
@@ -34,7 +39,7 @@ const onSelect = (value: unknown): void => {
       :key="option"
       class="item"
       :value="option"
-      :aria-label="`Last ${STATS_RANGE_DAYS[option]} days`"
+      :aria-label="`Last ${STATS_RANGE_PERIODS[option]}`"
     >
       {{ option }}
     </ToggleGroupItem>

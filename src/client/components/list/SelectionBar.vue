@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 
+import BaseButton from '@/components/common/BaseButton.vue'
 import BlockableButton from '@/components/common/BlockableButton.vue'
 import { useHintActionsStore } from '@/stores/hintActionsStore'
 
@@ -49,14 +50,16 @@ const onKeydown = (event: KeyboardEvent): void => {
     <span class="count">{{ label }}</span>
     <div class="manage">
       <BlockableButton
+        :as="BaseButton"
         class="action"
+        size="touch"
         :blocked-by="actions.reasonOf('selectAll')"
         :blocked-title="BLOCKED_TITLE"
         @press="actions.run('selectAll', false)"
       >
         Select all
       </BlockableButton>
-      <button type="button" class="action" @click="$emit('clear')">Clear</button>
+      <BaseButton class="action" size="touch" @click="$emit('clear')">Clear</BaseButton>
     </div>
     <div class="bulk scroll-row">
       <slot />
@@ -65,7 +68,6 @@ const onKeydown = (event: KeyboardEvent): void => {
 </template>
 
 <style scoped src="@/components/layout/scrollRow.css"></style>
-<style scoped src="@/components/list/selectionAction.css"></style>
 
 <style scoped>
 .selection-bar {

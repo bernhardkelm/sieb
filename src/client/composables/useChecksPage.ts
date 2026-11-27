@@ -1,22 +1,14 @@
-import {
-  computed,
-  onBeforeUnmount,
-  onMounted,
-  ref,
-  shallowRef,
-  type ComputedRef,
-  type Ref,
-} from 'vue'
+import { computed, onBeforeUnmount, onMounted, type ComputedRef, type Ref } from 'vue'
 
 import type { CheckView } from '#core/check.ts'
+import { useConfirmAction } from '@/composables/useConfirmAction'
+import { cancelConfirmText } from '@/format/checkText'
 import { useChecksStore } from '@/stores/checksStore'
 import { notifyError, notifySuccess } from '@/toast/toastManager'
 
 export interface ChecksPage {
   /** Whether nothing runs, waits or finished recently */
   empty: ComputedRef<boolean>
-  /** Running check waiting for the cancel confirmation, null while none is asked */
-  confirmTarget: Ref<CheckView | null>
   confirmOpen: Ref<boolean>
   /** Description of the cancel confirmation */
   confirmText: ComputedRef<string>
@@ -35,44 +27,18 @@ export interface ChecksPage {
  */
 export const useChecksPage = (): ChecksPage => {
   const checks = useChecksStore()
-  const confirmTarget = shallowRef<CheckView | null>(null)
-  const confirmOpen = ref(false)
-  const cancelling = ref(false)
   let release: (() => void) | null = null
 
-  const empty = computed(
-    () => checks.open.length === 0 && (checks.response?.recent.length ?? 0) === 0,
-  )
-
-  const confirmText = computed(() => {
-    const target = confirmTarget.value
-
-    return target === null
-      ? ''
-      : `Claude stops investigating ${target.vulnId} on ${target.imageRef} and files nothing.`
-  })
-
-  /**
-   * Cancels a check and reports the outcome.
-   * @param {CheckView} check - Queued or running check
-   * @returns {Promise<void>} - Resolves when the request settled
-   */
-  const cancel = async (check: CheckView): Promise<void> => {
-    if (cancelling.value) {
-      return
-    }
-
-    cancelling.value = true
-
+  const cancellation = useConfirmAction<CheckView>(async (check) => {
     try {
       await checks.cancel(check.id)
       notifySuccess('Check cancelled', check.vulnId)
     } catch (failure) {
       notifyError('Could not cancel the check', failure)
-    } finally {
-      cancelling.value = false
     }
-  }
+  })
+
+  const empty = computed(() => checks.open.length === 0 && checks.recent.length === 0)
 
   /**
    * Cancels a queued check, or opens the confirmation for a running one.
@@ -81,26 +47,11 @@ export const useChecksPage = (): ChecksPage => {
    */
   const requestCancel = (check: CheckView): void => {
     if (check.state === 'running') {
-      confirmTarget.value = check
-      confirmOpen.value = true
+      cancellation.ask(check)
       return
     }
 
-    void cancel(check)
-  }
-
-  /**
-   * Cancels the confirmed running check and closes the dialog.
-   * @returns {Promise<void>} - Resolves when the request settled
-   */
-  const confirmCancel = async (): Promise<void> => {
-    const target = confirmTarget.value
-
-    if (target !== null) {
-      await cancel(target)
-    }
-
-    confirmOpen.value = false
+    void cancellation.run(check)
   }
 
   onMounted(() => {
@@ -113,11 +64,12 @@ export const useChecksPage = (): ChecksPage => {
 
   return {
     empty,
-    confirmTarget,
-    confirmOpen,
-    confirmText,
-    cancelling,
+    confirmOpen: cancellation.open,
+    confirmText: computed(() => cancelConfirmText(cancellation.target.value)),
+    cancelling: cancellation.busy,
     requestCancel,
-    confirmCancel,
+    confirmCancel: async () => {
+      await cancellation.confirm()
+    },
   }
 }

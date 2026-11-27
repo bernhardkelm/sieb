@@ -11,9 +11,11 @@ import {
 import { useId } from 'vue'
 
 import { HANDOFF_TARGETS, type HandoffTarget } from '#core/handoffLinks.ts'
+import AppIcon from '@/components/icons/AppIcon.vue'
 import KeyHint from '@/components/common/KeyHint.vue'
 import HandoffDefaultMenu from '@/components/finding/HandoffDefaultMenu.vue'
 import { HANDOFF_OPTIONS } from '@/format/handoffTargets'
+import { HANDOFF_KEYS } from '@/keyboard/handoffKeymap'
 import { useHandoffTargetStore } from '@/stores/handoffTargetStore'
 import { useMcpStore } from '@/stores/mcpStore'
 
@@ -42,9 +44,7 @@ const describedBy = (help: string | null): string | undefined =>
 <template>
   <DropdownMenuRoot>
     <DropdownMenuTrigger class="chevron" aria-label="More ways to hand off to Claude">
-      <svg class="icon" viewBox="0 0 16 16" aria-hidden="true" focusable="false">
-        <path d="M4.5 6.5 8 10l3.5-3.5" />
-      </svg>
+      <AppIcon class="icon" name="chevron-down" />
     </DropdownMenuTrigger>
     <DropdownMenuPortal>
       <!-- as-child renders the surface from this template, Reka moves class attrs off its scoped root -->
@@ -54,7 +54,9 @@ const describedBy = (help: string | null): string | undefined =>
           <p v-if="mcp.connectReason !== null" :id="noteId" class="note">
             {{ mcp.connectReason }}
           </p>
-          <DropdownMenuLabel class="heading">Open in, prompt prefilled</DropdownMenuLabel>
+          <DropdownMenuLabel class="heading caps-label"
+            >Open in, prompt prefilled</DropdownMenuLabel
+          >
           <DropdownMenuItem
             v-for="target in HANDOFF_TARGETS"
             :key="target"
@@ -62,7 +64,9 @@ const describedBy = (help: string | null): string | undefined =>
             :disabled="mcp.connectReason !== null"
             :title="mcp.connectReason ?? undefined"
             :aria-describedby="describedBy(`${helpId}-${target}`)"
-            :aria-keyshortcuts="targets.preferred === target ? 'Shift+H' : undefined"
+            :aria-keyshortcuts="
+              targets.preferred === target ? HANDOFF_KEYS.open.shortcut : undefined
+            "
             @select="emit('open', target)"
           >
             <span class="text">
@@ -71,13 +75,21 @@ const describedBy = (help: string | null): string | undefined =>
                 HANDOFF_OPTIONS[target].help
               }}</span>
             </span>
-            <KeyHint v-if="targets.preferred === target" decorative :keys="['⇧', 'H']" />
+            <KeyHint
+              v-if="targets.preferred === target"
+              decorative
+              :keys="HANDOFF_KEYS.open.hintKeys"
+            />
           </DropdownMenuItem>
           <DropdownMenuSeparator class="separator" />
-          <DropdownMenuLabel class="heading">Copy</DropdownMenuLabel>
-          <DropdownMenuItem class="item" aria-keyshortcuts="h" @select="emit('copy', 'prompt')">
+          <DropdownMenuLabel class="heading caps-label">Copy</DropdownMenuLabel>
+          <DropdownMenuItem
+            class="item"
+            :aria-keyshortcuts="HANDOFF_KEYS.prompt.shortcut"
+            @select="emit('copy', 'prompt')"
+          >
             <span class="text">Copy prompt</span>
-            <KeyHint decorative :keys="['h']" />
+            <KeyHint decorative :keys="HANDOFF_KEYS.prompt.hintKeys" />
           </DropdownMenuItem>
           <DropdownMenuItem
             v-if="command !== null"
@@ -85,11 +97,11 @@ const describedBy = (help: string | null): string | undefined =>
             :disabled="mcp.connectReason !== null"
             :title="mcp.connectReason ?? undefined"
             :aria-describedby="describedBy(null)"
-            aria-keyshortcuts="y"
+            :aria-keyshortcuts="HANDOFF_KEYS.command.shortcut"
             @select="emit('copy', 'command')"
           >
             <span class="text">Copy claude command</span>
-            <KeyHint decorative :keys="['y']" />
+            <KeyHint decorative :keys="HANDOFF_KEYS.command.hintKeys" />
           </DropdownMenuItem>
           <DropdownMenuSeparator class="separator" />
           <HandoffDefaultMenu />
@@ -105,8 +117,8 @@ const describedBy = (help: string | null): string | undefined =>
 .chevron {
   display: inline-grid;
   place-items: center;
-  width: var(--control-height);
-  height: var(--control-height);
+  width: var(--segment-height, var(--control-height));
+  height: var(--segment-height, var(--control-height));
   padding: 0;
   border: 0;
   border-left: var(--border-width) solid var(--color-border);
@@ -123,8 +135,8 @@ const describedBy = (help: string | null): string | undefined =>
 
 @media (hover: none) and (pointer: coarse), (max-width: 639px) {
   .chevron {
-    width: var(--touch-target);
-    height: var(--touch-target);
+    width: var(--segment-height, var(--touch-target));
+    height: var(--segment-height, var(--touch-target));
   }
 }
 </style>

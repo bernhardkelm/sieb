@@ -13,3 +13,22 @@
   scrollbar-width: thin;
   scrollbar-color: var(--color-border-strong) transparent;
 }
+
+/* fades the trailing edge while more controls follow, a row that fits has no active scroll timeline */
+@supports (animation-timeline: scroll()) {
+  .scroll-row {
+    animation: scroll-row-fade linear both;
+    animation-timeline: scroll(self inline);
+  }
+}
+
+@keyframes scroll-row-fade {
+  0%,
+  95% {
+    mask-image: linear-gradient(to right, var(--ink) calc(100% - var(--space-6)), transparent);
+  }
+
+  100% {
+    mask-image: none;
+  }
+}

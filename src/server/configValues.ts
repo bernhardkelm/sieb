@@ -1,33 +1,24 @@
 import { KEV_SOURCES, type KevSourceKind } from '#core/kev.ts'
 import { DEFAULT_PUBLIC_REGISTRIES } from '#core/sourceAccess.ts'
 import { DEFAULT_USER_HEADER } from '#server/http/identity.ts'
-import { DEFAULT_PROMETHEUS_SERVICE } from '#server/sources/sourceQueries.ts'
+import { parseHttpUrl } from '#server/urlConfigValues.ts'
 
-export const DEFAULT_PROMETHEUS_URL = 'http://kube-prometheus-stack-prometheus.monitoring.svc:9090'
 export const DEFAULT_KEV_URL =
   'https://www.cisa.gov/sites/default/files/feeds/known_exploited_vulnerabilities.json'
 
-const NAME_SEGMENT = '[a-z0-9]([-a-z0-9]*[a-z0-9])?'
-const PROMETHEUS_SERVICE_PATTERN = new RegExp(`^${NAME_SEGMENT}/${NAME_SEGMENT}:${NAME_SEGMENT}$`)
 const HEADER_NAME_PATTERN = /^[A-Za-z0-9!#$%&'*+.^_`|~-]+$/
 const REGISTRY_PATTERN = /^[a-z0-9]([a-z0-9.-]*[a-z0-9])?(:\d{1,5})?$/
 
 /**
- * Parses a positive integer setting.
- * @param {string | undefined} value - Raw value
+ * Parses an integer between 1 and max.
+ * @param {string} value - Raw, non-empty value
  * @param {string} name - Variable name for the error message
- * @param {number} fallback - Value when unset
  * @param {number} max - Largest allowed value
  * @returns {number} - Parsed integer
  * @throws {Error} - When the value is not an integer between 1 and max
  */
-export const parsePositiveInt = (
-  value: string | undefined,
-  name: string,
-  fallback: number,
-  max: number,
-): number => {
-  const parsed = Number(value || fallback)
+export const parseIntUpTo = (value: string, name: string, max: number): number => {
+  const parsed = Number(value)
 
   if (!Number.isInteger(parsed) || parsed < 1 || parsed > max) {
     throw new Error(`${name} must be an integer between 1 and ${max}, got "${value}"`)
@@ -37,47 +28,20 @@ export const parsePositiveInt = (
 }
 
 /**
- * Validates the Prometheus service of the kubectl source.
- * @param {string | undefined} value - Raw SIEB_PROMETHEUS_SERVICE value
- * @returns {string} - Service as namespace/name:port
- * @throws {Error} - When the value does not have the namespace/name:port shape
- */
-export const parsePrometheusService = (value: string | undefined): string => {
-  const service = value?.trim() || DEFAULT_PROMETHEUS_SERVICE
-
-  if (!PROMETHEUS_SERVICE_PATTERN.test(service)) {
-    throw new Error(`SIEB_PROMETHEUS_SERVICE must look like namespace/name:port, got "${value}"`)
-  }
-
-  return service
-}
-
-/**
- * Validates an http or https URL setting.
+ * Parses a positive integer setting.
  * @param {string | undefined} value - Raw value
  * @param {string} name - Variable name for the error message
- * @param {string} fallback - URL when unset or blank
- * @returns {string} - URL
- * @throws {Error} - When the value is not an http or https URL
+ * @param {number} fallback - Value when unset or empty
+ * @param {number} max - Largest allowed value
+ * @returns {number} - Parsed integer
+ * @throws {Error} - When the value is not an integer between 1 and max
  */
-export const parseHttpUrl = (value: string | undefined, name: string, fallback: string): string => {
-  const url = value?.trim() || fallback
-
-  if (!URL.canParse(url) || !['http:', 'https:'].includes(new URL(url).protocol)) {
-    throw new Error(`${name} must be an http or https URL, got "${value}"`)
-  }
-
-  return url
-}
-
-/**
- * Validates the Prometheus base URL of the incluster source.
- * @param {string | undefined} value - Raw SIEB_PROMETHEUS_URL value
- * @returns {string} - URL
- * @throws {Error} - When the value is not an http or https URL
- */
-export const parsePrometheusUrl = (value: string | undefined): string =>
-  parseHttpUrl(value, 'SIEB_PROMETHEUS_URL', DEFAULT_PROMETHEUS_URL)
+export const parsePositiveInt = (
+  value: string | undefined,
+  name: string,
+  fallback: number,
+  max: number,
+): number => parseIntUpTo(value || String(fallback), name, max)
 
 /**
  * Validates the URL of the CISA KEV feed or a mirror of it.
@@ -168,10 +132,7 @@ export const parseBoolean = (
  * @throws {Error} - For an entry that is not a registry host with an optional port
  */
 export const parseRegistryList = (value: string | undefined): string[] => {
-  const entries = (value ?? '')
-    .split(',')
-    .map((entry) => entry.trim().toLowerCase())
-    .filter((entry) => entry !== '')
+  const entries = parseHostList(value)
 
   if (entries.length === 0) {
     return [...DEFAULT_PUBLIC_REGISTRIES]

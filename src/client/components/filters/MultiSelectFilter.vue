@@ -10,6 +10,7 @@ import {
 } from 'reka-ui'
 import { computed } from 'vue'
 
+import AppIcon from '@/components/icons/AppIcon.vue'
 import type { FilterOption } from '@/components/filters/filterOption'
 
 const props = defineProps<{
@@ -45,12 +46,10 @@ const onUpdate = (values: unknown[]): void => {
 
 <template>
   <PopoverRoot>
-    <PopoverTrigger class="trigger" :class="{ active: summary !== null }">
+    <PopoverTrigger class="menu-trigger trigger" :class="{ active: summary !== null }">
       {{ label }}
-      <span v-if="summary !== null" class="summary">{{ summary }}</span>
-      <svg class="caret" viewBox="0 0 16 16" aria-hidden="true" focusable="false">
-        <path d="M4.5 6.5 8 10l3.5-3.5" />
-      </svg>
+      <span v-if="summary !== null" class="menu-summary">{{ summary }}</span>
+      <AppIcon class="caret" name="chevron-down" />
     </PopoverTrigger>
     <PopoverPortal>
       <!-- as-child renders the surface from this template, Reka moves class attrs off its scoped root -->
@@ -61,14 +60,12 @@ const onUpdate = (values: unknown[]): void => {
         :collision-padding="8"
         :aria-label="label"
       >
-        <div class="content">
+        <div class="menu-content content">
           <CheckboxGroupRoot class="group" :model-value="model" @update:model-value="onUpdate">
             <label v-for="option in options" :key="option.value" class="option">
               <CheckboxRoot class="checkbox" :value="option.value">
                 <CheckboxIndicator class="indicator">
-                  <svg viewBox="0 0 16 16" aria-hidden="true" focusable="false">
-                    <path d="M3.5 8.5 6.5 11.5 12.5 4.5" />
-                  </svg>
+                  <AppIcon class="check-icon" name="check" />
                 </CheckboxIndicator>
               </CheckboxRoot>
               {{ option.label }}
@@ -83,61 +80,15 @@ const onUpdate = (values: unknown[]): void => {
   </PopoverRoot>
 </template>
 
+<style scoped src="@/components/filters/menuPopover.css"></style>
+
 <style scoped>
 .trigger {
   display: inline-flex;
-  align-items: center;
-  gap: var(--space-1);
-  height: var(--control-height);
-  padding: 0 var(--space-2);
-  border: var(--border-width) dashed var(--color-border-strong);
-  border-radius: var(--radius);
-  background: transparent;
-  color: var(--color-text-muted);
-  font-size: var(--font-size-sm);
-  white-space: nowrap;
-}
-
-.trigger:hover,
-.trigger[aria-expanded='true'] {
-  background: var(--color-hover);
-  color: var(--color-text);
-}
-
-.active {
-  border-style: solid;
-  color: var(--color-text);
-}
-
-.summary {
-  padding: 0 var(--space-1);
-  border-radius: var(--radius-sm);
-  background: var(--color-selected);
-  font-weight: var(--font-weight-medium);
-}
-
-.caret {
-  width: var(--icon-size);
-  height: var(--icon-size);
-  fill: none;
-  stroke: currentColor;
-  stroke-width: 1.4;
-  stroke-linecap: round;
-  stroke-linejoin: round;
 }
 
 .content {
-  z-index: var(--z-menu);
-  display: flex;
-  flex-direction: column;
   gap: var(--space-1);
-  min-width: var(--popover-min-width);
-  max-width: calc(100vw - 2 * var(--space-2));
-  padding: var(--space-1);
-  border-radius: var(--radius);
-  background: var(--color-surface-raised);
-  box-shadow: var(--shadow-md);
-  color: var(--color-text);
 }
 
 .group {
@@ -184,15 +135,11 @@ const onUpdate = (values: unknown[]): void => {
   height: 100%;
 }
 
-.indicator svg {
+.check-icon {
+  --icon-size: 100%;
+  --icon-stroke: var(--icon-stroke-bold);
+
   display: block;
-  width: 100%;
-  height: 100%;
-  fill: none;
-  stroke: currentColor;
-  stroke-width: 2;
-  stroke-linecap: round;
-  stroke-linejoin: round;
 }
 
 .clear {

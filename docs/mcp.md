@@ -471,8 +471,10 @@ question ("find X, then triage one") gets the answer in the first line, at most 
 then the five-line block of the triaged finding. When a filtered search returns nothing, the first
 line says so before Claude widens it and names the widened filter. "public" in a question means
 exposure `public` unless the user says registry or source, which is `sourceAccess`. For a
-third-party image sieb's tools and the public advisory are enough; when a tool outside sieb is
-refused, Claude does not retry with another one and names the check under Not checked.
+third-party image sieb's tools and the public advisory are enough; when an action outside sieb
+is refused, Claude does not repeat it through another tool, names that check under Not checked and
+continues with the others; a refused shell command does not rule out reading pages with the fetch
+tool, which asks for its own permission.
 
 When a connection lacks `sieb:propose`, `propose_decision` is not in Claude's tool list, and the
 server instructions tell Claude to say so plainly when asked to triage: the connection only reads,

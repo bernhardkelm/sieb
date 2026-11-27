@@ -1,4 +1,4 @@
-import type { ProposalAcceptRequest, ProposalDetail } from '#core/apiTypes.ts'
+import type { ProposalAcceptRequest, ProposalDetail } from '#core/proposalApiTypes.ts'
 import { isDecidableVerdict } from '#core/proposal.ts'
 import { ApiError } from '@/api/ApiError'
 import { acceptProposal, rejectProposal } from '@/api/proposalsApi'
@@ -8,6 +8,7 @@ import { useDataVersionStore } from '@/stores/dataVersionStore'
 import { useFindingsStore } from '@/stores/findingsStore'
 import { useProposalReviewStore } from '@/stores/proposalReviewStore'
 import { notifyError, notifySuccess } from '@/toast/toastManager'
+import { notifyUnlessValidation } from '@/toast/validationNotice'
 
 /** How a proposal command ended, failed carries the thrown value for the form */
 export type ProposalOutcome =
@@ -64,10 +65,7 @@ export const useProposalCommands = (): ProposalCommands => {
       return { kind: 'closed' }
     }
 
-    if (!(error instanceof ApiError && error.isValidation)) {
-      notifyError(title, error)
-    }
-
+    notifyUnlessValidation(title, error)
     return { kind: 'failed', error }
   }
 

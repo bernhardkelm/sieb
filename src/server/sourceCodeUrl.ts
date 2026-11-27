@@ -1,4 +1,4 @@
-import { parseHttpUrl } from '#server/configValues.ts'
+import { parseHttpUrl } from '#server/urlConfigValues.ts'
 
 export const UPSTREAM_REPOSITORY_URL = 'https://github.com/bernhardkelm/sieb'
 

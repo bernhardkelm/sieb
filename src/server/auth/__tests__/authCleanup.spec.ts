@@ -1,21 +1,21 @@
+import { DAY_MS } from '#core/timeUnits.ts'
 // @vitest-environment node
 import { describe, expect, it, vi } from 'vitest'
 
 import { buildProposalInput, PROPOSER } from '#core/__tests__/proposalBuilders.ts'
 import { startAuthCleanup } from '#server/auth/authCleanup.ts'
-import { listOwnTokens } from '#server/db/apiTokenRepository.ts'
-import { insertToken } from '#server/db/storeApiToken.ts'
 import {
   deleteStaleTokens,
   revokeLiveTokensOf,
   TOKEN_RETENTION_MS,
 } from '#server/db/apiTokenCleanup.ts'
+import { listOwnTokens } from '#server/db/apiTokenRepository.ts'
+import { insertToken } from '#server/db/apiTokenWrites.ts'
 import { MEMORY_DB, openDatabase } from '#server/db/openDatabase.ts'
 import { getProposal, insertProposal } from '#server/db/proposalRepository.ts'
 import { createSession } from '#server/db/sessionRepository.ts'
 
 const NOW = new Date('2026-06-01T12:00:00.000Z')
-const DAY_MS = 24 * 60 * 60 * 1000
 
 /**
  * Stores a token of an owner.

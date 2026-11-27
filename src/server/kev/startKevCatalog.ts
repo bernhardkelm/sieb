@@ -1,6 +1,7 @@
 import type { DatabaseSync } from 'node:sqlite'
 
 import type { Clock } from '#core/clock.ts'
+import { errorMessage } from '#core/errorMessage.ts'
 import type { ServerConfig } from '#server/config.ts'
 import { fetchKevFeed } from '#server/kev/fetchKevFeed.ts'
 import { createKevRefresher } from '#server/kev/kevRefresher.ts'
@@ -45,9 +46,7 @@ export const startKevCatalog = ({
       ? undefined
       : () => {
           sync.syncNow().catch((error: unknown) => {
-            log(
-              `[sieb] sync after KEV update failed: ${error instanceof Error ? error.message : String(error)}`,
-            )
+            log(`[sieb] sync after KEV update failed: ${errorMessage(error)}`)
           })
         },
   })

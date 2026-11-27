@@ -1,6 +1,8 @@
-import type { ValidationIssue } from '#core/apiTypes.ts'
-import { PROPOSAL_LIMITS as LIMITS, type ProposalRelatedFinding } from '#core/proposal.ts'
-import { isPlainObject, readProposalList, readProposalText } from '#core/proposalTextReaders.ts'
+import type { ValidationIssue } from '#core/errorApiTypes.ts'
+import { isPlainObject } from '#core/isPlainObject.ts'
+import { PROPOSAL_LIMITS as LIMITS } from '#core/proposal.ts'
+import type { ProposalRelatedFinding } from '#core/proposalRecord.ts'
+import { readProposalList, readProposalText } from '#core/proposalTextReaders.ts'
 
 /**
  * Reads one related finding: a positive integer findingId not listed before and an optional note

@@ -1,7 +1,7 @@
 import { Hono } from 'hono'
 import { bodyLimit } from 'hono/body-limit'
 
-import type { ErrorBody } from '#core/apiTypes.ts'
+import type { ErrorBody } from '#core/errorApiTypes.ts'
 import type { CheckContext } from '#server/checks/checkContext.ts'
 import type { AppEnv } from '#server/http/AppEnv.ts'
 import { pathGuard } from '#server/http/pathGuard.ts'
@@ -10,7 +10,7 @@ import { securityHeaders } from '#server/http/securityHeaders.ts'
 import { useErrorHandlers } from '#server/http/useErrorHandlers.ts'
 import { workerAuth } from '#server/http/workerAuth.ts'
 
-/** Largest worker body, a result with a reply of 4000 characters fits several times */
+/** Largest worker body, a result with a reply of MAX_CHECK_REPLY_LENGTH fits several times */
 export const MAX_WORKER_BODY_BYTES = 32 * 1024
 
 export interface WorkerAppDeps {

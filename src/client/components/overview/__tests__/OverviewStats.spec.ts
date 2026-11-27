@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { nextTick } from 'vue'
 
-import type { StatsResponse } from '#core/apiTypes.ts'
+import type { StatsResponse } from '#core/statsApiTypes.ts'
 import type { StatsRange } from '#core/statsRange.ts'
 import { mountWithRouter } from '@/__tests__/mountWithRouter'
 import { buildStatsResponse } from '@/__tests__/statsBuilders'

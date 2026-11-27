@@ -1,11 +1,12 @@
 import type { DatabaseSync } from 'node:sqlite'
 
-import { DAY_MS, STATS_RETENTION_DAYS } from '#core/statsRange.ts'
+import { STATS_RETENTION_DAYS } from '#core/statsRange.ts'
 import { readOverviewStats } from '#server/db/readOverviewStats.ts'
 import {
   deleteStatsSnapshotsBefore,
   insertStatsSnapshot,
 } from '#server/db/statsSnapshotRepository.ts'
+import { DAY_MS } from '#core/timeUnits.ts'
 
 /**
  * Stores the overview stats after a sync and deletes snapshots older than the retention. Call it

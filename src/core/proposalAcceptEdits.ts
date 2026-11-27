@@ -1,17 +1,17 @@
-import type { ValidationIssue } from '#core/apiTypes.ts'
+import type { ValidationIssue } from '#core/errorApiTypes.ts'
 import { DECISION_STATUSES } from '#core/decision.ts'
 import { readExpiry, readJustification, readLiteral, readText } from '#core/decisionFieldReaders.ts'
 import type { DecisionInputError } from '#core/decisionInputError.ts'
 import { mergeUpstream, readUpstreamPatch } from '#core/decisionUpstream.ts'
-import type { ProposalClaims } from '#core/proposal.ts'
+import { isPlainObject } from '#core/isPlainObject.ts'
 import {
   ACCEPT_EDIT_FIELDS,
   decisionValuesWith,
   proposalDecisionValues,
   type AcceptPlan,
 } from '#core/proposalAccept.ts'
-import { isPlainObject } from '#core/proposalTextReaders.ts'
-import type { ProposalValidated } from '#core/proposalValidation.ts'
+import type { ProposalClaims } from '#core/proposalRecord.ts'
+import type { Validation } from '#core/validation.ts'
 
 /**
  * Validates the edits of an accept and merges them over the proposal: status, justification
@@ -23,13 +23,13 @@ import type { ProposalValidated } from '#core/proposalValidation.ts'
  * @param {ProposalClaims} claims - Proposal claims
  * @param {unknown} edits - Raw edits, absent for none
  * @param {Date} now - Current time
- * @returns {ProposalValidated<AcceptPlan>} - Merged values with the edited fields, or the errors
+ * @returns {Validation<AcceptPlan>} - Merged values with the edited fields, or the errors
  */
 export const validateAcceptEdits = (
   claims: ProposalClaims,
   edits: unknown,
   now: Date,
-): ProposalValidated<AcceptPlan> => {
+): Validation<AcceptPlan> => {
   const raw = edits ?? {}
 
   if (!isPlainObject(raw)) {

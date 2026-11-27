@@ -1,4 +1,4 @@
-import type { ProposalAcceptRequest } from '#core/apiTypes.ts'
+import type { ProposalAcceptRequest } from '#core/proposalApiTypes.ts'
 import { JUSTIFIABLE_STATUS } from '#core/decision.ts'
 import type { AcceptedDecisionValues } from '#core/proposalAccept.ts'
 import { ApiError } from '@/api/ApiError'

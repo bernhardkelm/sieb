@@ -1,7 +1,7 @@
 import type { DatabaseSync } from 'node:sqlite'
 
-import type { ValidationIssue } from '#core/apiTypes.ts'
-import type { ProposalInput } from '#core/proposal.ts'
+import type { ValidationIssue } from '#core/errorApiTypes.ts'
+import type { ProposalInput } from '#core/proposalRecord.ts'
 import { getFinding } from '#server/db/findingRepository.ts'
 
 export interface RelatedFindingRules {

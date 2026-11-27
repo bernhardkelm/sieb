@@ -1,4 +1,5 @@
 import type { OverviewStats, SeverityCounts, StatsPoint } from '#core/overviewStats.ts'
+import { HOUR_MS } from '#core/timeUnits.ts'
 
 export interface MockHistoryOptions {
   days: number
@@ -7,8 +8,6 @@ export interface MockHistoryOptions {
 }
 
 const DEFAULT_OPTIONS: MockHistoryOptions = { days: 30, stepHours: 2, seed: 0x5eb }
-
-const HOUR_MS = 60 * 60 * 1000
 
 const NOISE = 0.06 // relative noise amplitude of the oldest point, fading to zero at the end
 

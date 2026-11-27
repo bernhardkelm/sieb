@@ -1,4 +1,4 @@
-import type { InboxResponse, InboxSeenRequest, InboxSeenResponse } from '#core/apiTypes.ts'
+import type { InboxResponse, InboxSeenRequest, InboxSeenResponse } from '#core/inboxApiTypes.ts'
 import { apiRequest } from '@/api/apiRequest'
 
 export const INBOX_URL = '/api/inbox'

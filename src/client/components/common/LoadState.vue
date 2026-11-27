@@ -1,18 +1,24 @@
 <script setup lang="ts">
 import BaseButton from '@/components/common/BaseButton.vue'
 
-defineProps<{
-  /** What is loading, such as "findings" */
-  subject: string
-  /** Failure of the last load, null while it is still loading */
-  error: string | null
-}>()
+withDefaults(
+  defineProps<{
+    /** What is loading, such as "findings" */
+    subject: string
+    /** Failure of the last load, null while it is still loading */
+    error: string | null
+    /** Message for a load that failed because the item does not exist, shown without Retry */
+    notFound?: string | null
+  }>(),
+  { notFound: null },
+)
 
 defineEmits<{ retry: [] }>()
 </script>
 
 <template>
   <p v-if="error === null" class="load-state" role="status">Loading {{ subject }}…</p>
+  <p v-else-if="notFound !== null" class="load-state" role="alert">{{ notFound }}</p>
   <div v-else class="load-state" role="alert">
     <p>Could not load {{ subject }}: {{ error }}</p>
     <BaseButton @click="$emit('retry')">Retry</BaseButton>

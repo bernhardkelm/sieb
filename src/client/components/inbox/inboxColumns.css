@@ -1,15 +1,14 @@
 /* checkbox, kind, severity, KEV, CVE, scope, detail, title, age, mark seen */
 .inbox-row {
-  --row-columns: var(--checkbox-size) calc(var(--space-base) * 22) calc(var(--space-base) * 15)
-    calc(var(--space-base) * 8) calc(var(--space-base) * 34) calc(var(--space-base) * 30)
-    calc(var(--space-base) * 64) minmax(0, 1fr) calc(var(--space-base) * 14)
-    calc(var(--space-base) * 12);
+  --row-columns: var(--checkbox-size) var(--col-inbox-kind) var(--col-severity) var(--col-kev)
+    var(--col-vuln-id) var(--col-inbox-scope) var(--col-inbox-detail) minmax(0, 1fr)
+    var(--col-inbox-age) var(--col-inbox-seen);
 }
 
 .inbox-row.no-kev {
-  --row-columns: var(--checkbox-size) calc(var(--space-base) * 22) calc(var(--space-base) * 15)
-    calc(var(--space-base) * 34) calc(var(--space-base) * 30) calc(var(--space-base) * 64)
-    minmax(0, 1fr) calc(var(--space-base) * 14) calc(var(--space-base) * 12);
+  --row-columns: var(--checkbox-size) var(--col-inbox-kind) var(--col-severity) var(--col-vuln-id)
+    var(--col-inbox-scope) var(--col-inbox-detail) minmax(0, 1fr) var(--col-inbox-age)
+    var(--col-inbox-seen);
 }
 
 .vuln-id,
@@ -74,15 +73,14 @@
 @container (max-width: 1100px) {
   .inbox-row,
   .inbox-row.no-kev {
-    --row-columns: var(--checkbox-size) calc(var(--space-base) * 22) calc(var(--space-base) * 15)
-      calc(var(--space-base) * 8) calc(var(--space-base) * 34) minmax(0, 1fr)
-      calc(var(--space-base) * 64) calc(var(--space-base) * 14) calc(var(--space-base) * 12);
+    --row-columns: var(--checkbox-size) var(--col-inbox-kind) var(--col-severity) var(--col-kev)
+      var(--col-vuln-id) minmax(0, 1fr) var(--col-inbox-detail) var(--col-inbox-age)
+      var(--col-inbox-seen);
   }
 
   .inbox-row.no-kev {
-    --row-columns: var(--checkbox-size) calc(var(--space-base) * 22) calc(var(--space-base) * 15)
-      calc(var(--space-base) * 34) minmax(0, 1fr) calc(var(--space-base) * 64)
-      calc(var(--space-base) * 14) calc(var(--space-base) * 12);
+    --row-columns: var(--checkbox-size) var(--col-inbox-kind) var(--col-severity) var(--col-vuln-id)
+      minmax(0, 1fr) var(--col-inbox-detail) var(--col-inbox-age) var(--col-inbox-seen);
   }
 
   .title {
@@ -94,14 +92,13 @@
 @container (min-width: 641px) and (max-width: 900px) {
   .inbox-row,
   .inbox-row.no-kev {
-    --row-columns: var(--checkbox-size) calc(var(--space-base) * 22) calc(var(--space-base) * 15)
-      calc(var(--space-base) * 8) calc(var(--space-base) * 34) minmax(0, 1fr) minmax(0, 1fr)
-      calc(var(--space-base) * 12);
+    --row-columns: var(--checkbox-size) var(--col-inbox-kind) var(--col-severity) var(--col-kev)
+      var(--col-vuln-id) minmax(0, 1fr) minmax(0, 1fr) var(--col-inbox-seen);
   }
 
   .inbox-row.no-kev {
-    --row-columns: var(--checkbox-size) calc(var(--space-base) * 22) calc(var(--space-base) * 15)
-      calc(var(--space-base) * 34) minmax(0, 1fr) minmax(0, 1fr) calc(var(--space-base) * 12);
+    --row-columns: var(--checkbox-size) var(--col-inbox-kind) var(--col-severity) var(--col-vuln-id)
+      minmax(0, 1fr) minmax(0, 1fr) var(--col-inbox-seen);
   }
 
   .at,
@@ -119,7 +116,7 @@
 
   .vuln-id {
     flex: 1 1 0;
-    min-width: calc(var(--space-base) * 24);
+    min-width: var(--row-key-min);
   }
 
   .scope,

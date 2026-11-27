@@ -1,22 +1,22 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
 
-import type { ProposalDetail } from '#core/apiTypes.ts'
+import type { ProposalDetail } from '#core/proposalApiTypes.ts'
 import BaseButton from '@/components/common/BaseButton.vue'
+import SectionHeading from '@/components/common/SectionHeading.vue'
 import BulkDecisionDialog from '@/components/decision/BulkDecisionDialog.vue'
 import BulkActionButton from '@/components/list/BulkActionButton.vue'
 import ClaimBox from '@/components/proposals/ClaimBox.vue'
 import ClaudeText from '@/components/proposals/ClaudeText.vue'
 import RelatedFindingRow from '@/components/proposals/RelatedFindingRow.vue'
 import { useRelatedFindingActions } from '@/composables/useRelatedFindingActions'
+import { FINDING_NOUN } from '@/format/bulkCount'
 import { countOf } from '@/format/count'
 import { useChecksStore } from '@/stores/checksStore'
 
 const props = defineProps<{
   detail: ProposalDetail
 }>()
-
-const NOUN = { singular: 'finding' }
 
 const checks = useChecksStore()
 const actions = useRelatedFindingActions(() => props.detail)
@@ -26,7 +26,7 @@ const title = computed(() => `Same cause, ${countOf(props.detail.related.length,
 
 <template>
   <section class="related-findings section" aria-labelledby="review-related">
-    <h3 id="review-related" class="section-title">{{ title }}</h3>
+    <SectionHeading id="review-related">{{ title }}</SectionHeading>
     <ClaimBox v-if="detail.proposal.relatedReason">
       <ClaudeText :text="detail.proposal.relatedReason" />
     </ClaimBox>
@@ -41,7 +41,7 @@ const title = computed(() => `Same cause, ${countOf(props.detail.related.length,
         label="Decide the same way"
         template="Decide {n} the same way"
         :count="actions.decideCount.value"
-        :noun="NOUN"
+        :noun="FINDING_NOUN"
         :blocked-by="actions.decideBlockedBy.value"
         blocked-title="Nothing to decide"
         @press="deciding = true"
@@ -52,7 +52,7 @@ const title = computed(() => `Same cause, ${countOf(props.detail.related.length,
         :as="BaseButton"
         label="Auto-check"
         :count="actions.checkCount.value"
-        :noun="NOUN"
+        :noun="FINDING_NOUN"
         :blocked-by="actions.checkBlockedBy.value"
         blocked-title="No Auto-check queued"
         hint="Queue an Auto-check per open, undecided finding of the same cause"
@@ -67,7 +67,7 @@ const title = computed(() => `Same cause, ${countOf(props.detail.related.length,
   </section>
 </template>
 
-<style scoped src="@/components/proposals/reviewSection.css"></style>
+<style scoped src="@/components/layout/panelSection.css"></style>
 
 <style scoped>
 .rows {

@@ -1,14 +1,15 @@
 <script setup lang="ts">
-import { computed, nextTick, onBeforeUnmount, onMounted, provide, ref, useId, watch } from 'vue'
+import { computed, provide, ref, useId } from 'vue'
 
 import { currentInstances } from '#core/instance.ts'
 import { packageOrigins } from '#core/packageOrigin.ts'
 import AutoCheckButton from '@/components/checks/AutoCheckButton.vue'
 import FindingCheckLine from '@/components/checks/FindingCheckLine.vue'
-import BaseButton from '@/components/common/BaseButton.vue'
 import CloseButton from '@/components/common/CloseButton.vue'
 import CopyButton from '@/components/common/CopyButton.vue'
 import LoadingSpinner from '@/components/common/LoadingSpinner.vue'
+import LoadState from '@/components/common/LoadState.vue'
+import SectionHeading from '@/components/common/SectionHeading.vue'
 import DecisionHistory from '@/components/decision/DecisionHistory.vue'
 import { STICKY_ACTIONS_TARGET } from '@/components/decision/stickyActionsTarget'
 import FindingDecisions from '@/components/finding/FindingDecisions.vue'
@@ -23,8 +24,10 @@ import { useFindingPanel } from '@/composables/useFindingPanel'
 import { useHandoff } from '@/composables/useHandoff'
 import { useHandoffHintActions } from '@/composables/useHandoffHintActions'
 import { usePanelDismiss } from '@/composables/usePanelDismiss'
+import { usePanelFocus } from '@/composables/usePanelFocus'
 import { usePanelSeen } from '@/composables/usePanelSeen'
 import { usePanelShortcuts } from '@/composables/usePanelShortcuts'
+import { useWindowKeydown } from '@/composables/useWindowKeydown'
 import { useFindingDetailStore } from '@/stores/findingDetailStore'
 import { useMcpStore } from '@/stores/mcpStore'
 
@@ -47,34 +50,7 @@ const origins = computed(() =>
     ? packageOrigins(currentInstances(store.detail.instances, store.detail.finding.resolvedAt))
     : [],
 )
-let opener: Element | null = null
-
-/**
- * Moves focus back to the row of a finding, or to the element focused before the panel opened,
- * once focus left with the panel. Focus a press outside the panel put elsewhere stays there.
- * @param {string} id - Finding id of the closed panel
- * @returns {void}
- */
-const restoreFocus = (id: string): void => {
-  if (document.activeElement !== null && document.activeElement !== document.body) {
-    opener = null
-    return
-  }
-
-  const row = document.querySelector<HTMLElement>(`[data-finding-id="${CSS.escape(id)}"]`)
-  const target = row ?? (opener instanceof HTMLElement && opener.isConnected ? opener : null)
-
-  target?.focus({ preventScroll: false })
-  opener = null
-}
-
-/**
- * Focuses the panel itself.
- * @returns {void}
- */
-const focusPanel = (): void => {
-  panel.value?.focus({ preventScroll: true })
-}
+const focusPanel = usePanelFocus(findingId, panel)
 
 /**
  * Marks the shown finding seen after a saved decision and focuses the panel again.
@@ -91,38 +67,7 @@ usePanelDismiss(panel, () => {
   void closeFinding()
 })
 
-watch(
-  findingId,
-  async (id, previous) => {
-    if (id === null) {
-      store.clear()
-
-      if (previous) {
-        await nextTick()
-        restoreFocus(previous)
-      }
-
-      return
-    }
-
-    void store.load(Number(id))
-
-    if (!previous) {
-      opener = document.activeElement
-      await nextTick()
-      focusPanel()
-    }
-  },
-  { immediate: true },
-)
-
-onMounted(() => {
-  window.addEventListener('keydown', onWindowKeydown)
-})
-
-onBeforeUnmount(() => {
-  window.removeEventListener('keydown', onWindowKeydown)
-})
+useWindowKeydown(onWindowKeydown)
 </script>
 
 <template>
@@ -156,35 +101,38 @@ onBeforeUnmount(() => {
       <FindingInboxLine :finding="store.detail.finding" />
       <FindingCheckLine :finding-id="store.detail.finding.id" />
       <section v-if="store.detail.kev" class="section" aria-labelledby="panel-kev">
-        <h3 id="panel-kev" class="section-title">Known exploited</h3>
+        <SectionHeading id="panel-kev">Known exploited</SectionHeading>
         <KevDetails :details="store.detail.kev" />
       </section>
       <section class="section" aria-labelledby="panel-decision">
-        <h3 id="panel-decision" class="section-title">Decision</h3>
+        <SectionHeading id="panel-decision">Decision</SectionHeading>
         <FindingDecisions :detail="store.detail" @saved="onSaved" />
       </section>
       <div :id="decisionActionsId" class="decision-actions" />
       <section v-if="origins.length > 0" class="section" aria-labelledby="panel-found-in">
-        <h3 id="panel-found-in" class="section-title">Found in</h3>
+        <SectionHeading id="panel-found-in">Found in</SectionHeading>
         <FoundIn :origins="origins" />
       </section>
       <section class="section" aria-labelledby="panel-instances">
-        <h3 id="panel-instances" class="section-title">
-          Instances <span class="count">{{ store.detail.instances.length }}</span>
-        </h3>
+        <SectionHeading id="panel-instances" :count="store.detail.instances.length">
+          Instances
+        </SectionHeading>
         <InstanceTable :instances="store.detail.instances" />
       </section>
       <section class="section" aria-labelledby="panel-history">
-        <h3 id="panel-history" class="section-title">History</h3>
+        <SectionHeading id="panel-history">History</SectionHeading>
         <DecisionHistory :events="store.detail.events" :decisions="store.detail.decisions" />
       </section>
     </div>
-    <div v-else-if="store.error" class="state" role="alert">
-      <p>{{ store.notFound ? 'This finding does not exist.' : 'Could not load the finding.' }}</p>
-      <BaseButton v-if="!store.notFound" @click="store.reload()">Retry</BaseButton>
-    </div>
-    <p v-else class="state">Loading…</p>
+    <LoadState
+      v-else
+      subject="the finding"
+      :error="store.error"
+      :not-found="store.notFound ? 'This finding does not exist.' : null"
+      @retry="store.reload()"
+    />
   </aside>
 </template>
 
 <style scoped src="@/components/layout/sidePanel.css"></style>
+<style scoped src="@/components/layout/panelSection.css"></style>

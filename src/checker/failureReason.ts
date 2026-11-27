@@ -1,6 +1,6 @@
 import { capText, MAX_CHECK_ERROR_LENGTH } from '#core/checkLimits.ts'
+import { errorMessage } from '#core/errorMessage.ts'
 import { CheckFailure } from '#checker/CheckFailure.ts'
-import { errorMessage } from '#checker/safeText.ts'
 
 /** Abort reason when sieb answers a heartbeat with 409 or 404 */
 export const CANCELLED_REASON = 'cancelled or timed out in sieb'

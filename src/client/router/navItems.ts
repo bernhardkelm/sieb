@@ -1,3 +1,4 @@
+import { isAvailable, type Feature, type Features } from '@/router/featureGate'
 import { ROUTE_NAMES, type RouteName } from '@/router/routeNames'
 
 export type NavIcon = 'triage' | 'inbox' | 'images' | 'cves' | 'decisions' | 'checks'
@@ -9,7 +10,7 @@ export interface NavItem {
   icon: NavIcon // shown above the label in the bottom navigation
   shortcut: string // single key that navigates to the view
   badge?: 'inbox' | 'checks' // count shown next to the label, open Inbox items or open checks
-  feature?: 'checks' // listed only while the feature is switched on
+  requires?: readonly Feature[] // listed only while these features are switched on
 }
 
 export const NAV_ITEMS: NavItem[] = [
@@ -30,14 +31,14 @@ export const NAV_ITEMS: NavItem[] = [
     icon: 'checks',
     shortcut: '6',
     badge: 'checks',
-    feature: 'checks',
+    requires: ['checks'],
   },
 ]
 
 /**
  * Returns the views the sidebar lists and their keys reach.
- * @param {boolean} checksEnabled - Whether Auto-check is switched on
+ * @param {Features} features - Switched on features
  * @returns {NavItem[]} - Nav items, the Checks view only with Auto-check on
  */
-export const navItemsFor = (checksEnabled: boolean): NavItem[] =>
-  NAV_ITEMS.filter((item) => item.feature !== 'checks' || checksEnabled)
+export const navItemsFor = (features: Features): NavItem[] =>
+  NAV_ITEMS.filter((item) => isAvailable(item, features))

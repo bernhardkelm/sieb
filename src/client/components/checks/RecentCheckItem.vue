@@ -6,6 +6,8 @@ import CheckChip from '@/components/checks/CheckChip.vue'
 import CheckFinding from '@/components/checks/CheckFinding.vue'
 import CheckReply from '@/components/checks/CheckReply.vue'
 import RetryCheckButton from '@/components/checks/RetryCheckButton.vue'
+import FactItem from '@/components/common/FactItem.vue'
+import FactList from '@/components/common/FactList.vue'
 import RelativeTime from '@/components/common/RelativeTime.vue'
 import { checkedImagesText, costText, usageText } from '@/format/checkResultText'
 import { formatCount } from '@/format/count'
@@ -26,43 +28,29 @@ const images = computed(() => checkedImagesText(props.check.pulledImages))
       <CheckChip :check="check" focusable />
       <RetryCheckButton :check="check" />
     </div>
-    <dl class="facts">
-      <div>
-        <dt>Requested by</dt>
-        <dd>{{ check.requestedBy }}</dd>
-      </div>
-      <div>
-        <dt>Finished</dt>
-        <dd><RelativeTime :value="check.finishedAt" fallback="not finished" /></dd>
-      </div>
-      <div v-if="check.durationMs !== null">
-        <dt>Duration</dt>
-        <dd>{{ formatElapsed(check.durationMs) }}</dd>
-      </div>
-      <div v-if="images !== null">
-        <dt>Checked images</dt>
-        <dd class="images">{{ images }}</dd>
-      </div>
-      <div v-if="check.usage?.models?.length">
-        <dt>Model</dt>
-        <dd>{{ check.usage.models.join(', ') }}</dd>
-      </div>
-      <div v-if="check.usage && check.usage.turns > 0">
-        <dt>Turns</dt>
-        <dd>{{ formatCount(check.usage.turns) }}</dd>
-      </div>
-      <div v-if="check.usage">
-        <dt>Usage</dt>
-        <dd>{{ usageText(check.usage) }}</dd>
-      </div>
-      <div v-if="cost !== null">
-        <dt>Cost</dt>
-        <dd>
-          {{ cost }}
-          <span class="estimate">API-equivalent estimate</span>
-        </dd>
-      </div>
-    </dl>
+    <FactList>
+      <FactItem label="Requested by">{{ check.requestedBy }}</FactItem>
+      <FactItem label="Finished">
+        <RelativeTime :value="check.finishedAt" fallback="not finished" />
+      </FactItem>
+      <FactItem v-if="check.durationMs !== null" label="Duration">
+        {{ formatElapsed(check.durationMs) }}
+      </FactItem>
+      <FactItem v-if="images !== null" label="Checked images">
+        <span class="images">{{ images }}</span>
+      </FactItem>
+      <FactItem v-if="check.usage?.models?.length" label="Model">
+        {{ check.usage.models.join(', ') }}
+      </FactItem>
+      <FactItem v-if="check.usage && check.usage.turns > 0" label="Turns">
+        {{ formatCount(check.usage.turns) }}
+      </FactItem>
+      <FactItem v-if="check.usage" label="Usage">{{ usageText(check.usage) }}</FactItem>
+      <FactItem v-if="cost !== null" label="Cost">
+        {{ cost }}
+        <span class="estimate">API-equivalent estimate</span>
+      </FactItem>
+    </FactList>
     <p v-if="check.state === 'failed'" class="error">{{ check.error ?? NO_FAILURE_REASON }}</p>
     <CheckReply v-if="check.reply" :reply="check.reply" />
   </li>
@@ -87,25 +75,7 @@ const images = computed(() => checkedImagesText(props.check.pulledImages))
   gap: var(--space-1) var(--space-3);
 }
 
-.facts {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-1) var(--space-5);
-  margin: 0;
-  font-size: var(--font-size-sm);
-}
-
-.facts dt {
-  color: var(--color-text-subtle);
-  font-size: var(--font-size-xs);
-}
-
-.facts dd {
-  margin: 0;
-  font-variant-numeric: tabular-nums;
-}
-
-.facts .images {
+.images {
   font-family: var(--font-mono);
   overflow-wrap: anywhere;
 }

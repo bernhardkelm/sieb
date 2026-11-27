@@ -1,10 +1,11 @@
 <script setup lang="ts">
-import type { ProposalDetail } from '#core/apiTypes.ts'
+import type { ProposalDetail } from '#core/proposalApiTypes.ts'
 import { isUpstreamPendingFix } from '#core/proposalFixUpstream.ts'
 import BaseChip from '@/components/chips/BaseChip.vue'
 import KevChip from '@/components/chips/KevChip.vue'
 import SeverityChip from '@/components/chips/SeverityChip.vue'
 import UpstreamPendingChip from '@/components/chips/UpstreamPendingChip.vue'
+import CalloutBox from '@/components/common/CalloutBox.vue'
 import RelativeTime from '@/components/common/RelativeTime.vue'
 import ConfidenceChip from '@/components/proposals/ConfidenceChip.vue'
 import VerdictChip from '@/components/proposals/VerdictChip.vue'
@@ -32,7 +33,7 @@ defineProps<{
       </span>
     </div>
     <div class="claim">
-      <span class="claim-label">Claude's verdict</span>
+      <span class="caps-label">Claude's verdict</span>
       <div class="verdict">
         <VerdictChip
           :verdict="detail.proposal.verdict"
@@ -51,7 +52,10 @@ defineProps<{
       <RelativeTime :value="detail.proposal.createdAt" />
     </p>
     <p v-if="detail.proposal.state !== 'open'" class="state" role="status">
-      <BaseChip :tone="detail.proposal.state === 'accepted' ? 'success' : 'neutral'" outline>
+      <BaseChip
+        :tone="detail.proposal.state === 'accepted' ? 'success' : 'neutral'"
+        variant="outline"
+      >
         {{ proposalStateLabel(detail.proposal) }}
       </BaseChip>
       <span>
@@ -64,10 +68,10 @@ defineProps<{
     <p v-if="detail.proposal.state === 'rejected' && detail.proposal.resolutionNote" class="note">
       {{ detail.proposal.resolutionNote }}
     </p>
-    <p v-if="detail.outdated" class="outdated" role="alert">
+    <CalloutBox v-if="detail.outdated" as="p" tone="warning" class="outdated" role="alert">
       <BaseChip tone="warning">Outdated</BaseChip>
       A decision on this target changed since Claude filed this. Check the current decisions below.
-    </p>
+    </CalloutBox>
   </div>
 </template>
 
@@ -80,8 +84,7 @@ defineProps<{
 
 .facts,
 .verdict,
-.state,
-.outdated {
+.state {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
@@ -99,14 +102,6 @@ defineProps<{
   gap: var(--space-1);
 }
 
-.claim-label {
-  color: var(--color-text-subtle);
-  font-size: var(--font-size-xs);
-  font-weight: var(--font-weight-semibold);
-  letter-spacing: var(--letter-spacing-caps);
-  text-transform: uppercase;
-}
-
 .proposer,
 .state {
   color: var(--color-text-muted);
@@ -119,12 +114,5 @@ defineProps<{
   color: var(--color-text-muted);
   white-space: pre-wrap;
   overflow-wrap: anywhere;
-}
-
-.outdated {
-  padding: var(--space-2) var(--space-3);
-  border-radius: var(--radius);
-  background: var(--color-warning-wash);
-  font-size: var(--font-size-sm);
 }
 </style>

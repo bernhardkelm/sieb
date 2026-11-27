@@ -2,7 +2,9 @@
 import { computed, onMounted } from 'vue'
 import { RouterLink } from 'vue-router'
 
+import BaseChip from '@/components/chips/BaseChip.vue'
 import RelativeTime from '@/components/common/RelativeTime.vue'
+import AppIcon from '@/components/icons/AppIcon.vue'
 import ClaimBox from '@/components/proposals/ClaimBox.vue'
 import ConfidenceChip from '@/components/proposals/ConfidenceChip.vue'
 import VerdictChip from '@/components/proposals/VerdictChip.vue'
@@ -34,15 +36,17 @@ onMounted(() => {
     <div class="line">
       <VerdictChip :verdict="proposal.verdict" :justification="proposal.justification" />
       <ConfidenceChip :confidence="proposal.confidence" />
-      <span v-if="outdated" class="outdated">outdated</span>
+      <BaseChip v-if="outdated" tone="warning" class="outdated">Outdated</BaseChip>
       <RouterLink
         class="open"
         :to="{
           name: ROUTE_NAMES.INBOX_PROPOSAL,
           params: { [PROPOSAL_PARAM]: String(proposal.id) },
         }"
-        >Open review →</RouterLink
       >
+        Open review
+        <AppIcon name="arrow-right" class="arrow" />
+      </RouterLink>
     </div>
     <p class="meta">{{ proposerLine(proposal) }} · <RelativeTime :value="proposal.createdAt" /></p>
   </ClaimBox>
@@ -62,9 +66,14 @@ onMounted(() => {
   font-weight: var(--font-weight-medium);
 }
 
-.outdated {
-  color: var(--color-warning);
-  font-size: var(--font-size-sm);
+.open {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+}
+
+.arrow {
+  --icon-size: var(--chevron-size);
 }
 
 .meta {

@@ -15,11 +15,6 @@
 
 .heading {
   padding: var(--space-1-5) var(--space-2) var(--space-1);
-  color: var(--color-text-subtle);
-  font-size: var(--font-size-xs);
-  font-weight: var(--font-weight-medium);
-  letter-spacing: var(--letter-spacing-caps);
-  text-transform: uppercase;
 }
 
 .item {
@@ -40,7 +35,7 @@
 
 .item[data-disabled] {
   cursor: default;
-  opacity: 0.55;
+  opacity: var(--opacity-disabled);
 }
 
 .note {
@@ -71,12 +66,5 @@
 }
 
 .icon {
-  flex: none;
-  width: var(--chevron-size);
-  height: var(--chevron-size);
-  fill: none;
-  stroke: currentColor;
-  stroke-width: 1.4;
-  stroke-linecap: round;
-  stroke-linejoin: round;
+  --icon-size: var(--chevron-size);
 }

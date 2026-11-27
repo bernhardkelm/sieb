@@ -1,9 +1,11 @@
 <script setup lang="ts">
 import { computed } from 'vue'
-import { RouterLink } from 'vue-router'
 
 import type { CheckView } from '#core/check.ts'
+import BaseChip from '@/components/chips/BaseChip.vue'
+import { CHECK_STATE_LOOKS } from '@/components/chips/chipTones'
 import HintTooltip from '@/components/common/HintTooltip.vue'
+import StatusDot from '@/components/common/StatusDot.vue'
 import { useSecondClock } from '@/composables/useSecondClock'
 import { checkChipHint, checkChipLabel } from '@/format/checkText'
 import { PROPOSAL_PARAM, ROUTE_NAMES } from '@/router/routeNames'
@@ -24,32 +26,35 @@ const proposalRoute = computed(() =>
     ? { name: ROUTE_NAMES.INBOX_PROPOSAL, params: { [PROPOSAL_PARAM]: props.check.proposalId } }
     : null,
 )
+
+/**
+ * Keeps a click on the proposal link from selecting the row behind it.
+ * @param {MouseEvent} event - Click
+ * @returns {void}
+ */
+const onClick = (event: MouseEvent): void => {
+  if (proposalRoute.value !== null) {
+    event.stopPropagation()
+  }
+}
 </script>
 
 <template>
   <span class="check-chip-host">
     <HintTooltip :text="checkChipHint(check)">
-      <RouterLink
-        v-if="proposalRoute"
+      <BaseChip
         class="check-chip"
-        :class="check.state"
+        :tone="CHECK_STATE_LOOKS[check.state].tone"
+        :variant="CHECK_STATE_LOOKS[check.state].variant"
         :to="proposalRoute"
-        :tabindex="focusable ? undefined : -1"
+        :focusable="focusable"
+        :tabindex="proposalRoute && !focusable ? -1 : undefined"
         :data-check-state="check.state"
-        @click.stop
+        @click="onClick"
       >
+        <StatusDot v-if="check.state === 'running'" tone="claim" />
         {{ label }}
-      </RouterLink>
-      <span
-        v-else
-        class="check-chip"
-        :class="check.state"
-        :tabindex="focusable ? 0 : undefined"
-        :data-check-state="check.state"
-      >
-        <span v-if="check.state === 'running'" class="dot" aria-hidden="true" />
-        {{ label }}
-      </span>
+      </BaseChip>
     </HintTooltip>
   </span>
 </template>
@@ -58,60 +63,5 @@ const proposalRoute = computed(() =>
 .check-chip-host {
   display: inline-flex;
   vertical-align: middle;
-}
-
-.check-chip {
-  --check-color: var(--color-text-muted);
-  --check-wash: transparent;
-
-  display: inline-flex;
-  flex: none;
-  align-items: center;
-  gap: var(--space-1);
-  height: var(--chip-height);
-  padding: 0 var(--space-1-5);
-  border: var(--border-width) solid var(--color-border);
-  border-radius: var(--radius-sm);
-  background: var(--check-wash);
-  color: var(--check-color);
-  font-family: var(--font-sans);
-  font-size: var(--font-size-xs);
-  font-weight: var(--font-weight-medium);
-  font-variant-numeric: tabular-nums;
-  line-height: 1;
-  text-decoration: none;
-  white-space: nowrap;
-}
-
-.running {
-  --check-color: var(--color-claim);
-  --check-wash: var(--color-claim-wash);
-
-  border-color: color-mix(in srgb, var(--check-color) 60%, transparent);
-}
-
-.failed {
-  --check-color: var(--color-danger);
-  --check-wash: var(--color-danger-wash);
-
-  border-color: transparent;
-}
-
-.done {
-  --check-color: var(--color-success);
-  --check-wash: var(--color-success-wash);
-
-  border-color: transparent;
-}
-
-a.check-chip:hover {
-  border-color: var(--check-color);
-}
-
-.dot {
-  width: var(--dot-size);
-  height: var(--dot-size);
-  border-radius: var(--radius-pill);
-  background: var(--check-color);
 }
 </style>

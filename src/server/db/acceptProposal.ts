@@ -1,13 +1,14 @@
 import type { DatabaseSync } from 'node:sqlite'
 
 import type { Decision, DecisionScope } from '#core/decision.ts'
+import { isDecidableVerdict } from '#core/proposal.ts'
 import type { AcceptPlan } from '#core/proposalAccept.ts'
-import { isDecidableVerdict, type Proposal, type ProposalProvenance } from '#core/proposal.ts'
 import {
   currentDecisionRefs,
   matchesExpectedDecisions,
   type ExpectedDecisionId,
 } from '#core/proposalFreshness.ts'
+import type { Proposal, ProposalProvenance } from '#core/proposalRecord.ts'
 import { createDecision } from '#server/db/createDecision.ts'
 import type { DecisionCommandResult } from '#server/db/decisionCommandResult.ts'
 import { findCurrentDecision, listDecisionsByVuln } from '#server/db/decisionRepository.ts'

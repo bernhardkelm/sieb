@@ -1,7 +1,12 @@
 import { describe, expect, it } from 'vitest'
 
 import { MAX_OPEN_CHECKS } from '#core/checkLimits.ts'
-import { queueRoomReason } from '@/format/checkBlockReason'
+import {
+  findingCheckReason,
+  NOT_PUBLIC_REASON,
+  queueRoomReason,
+  RESOLVED_REASON,
+} from '@/format/checkBlockReason'
 
 describe('queueRoomReason', () => {
   it('lets every selection pass that fits into the room left', () => {
@@ -22,5 +27,29 @@ describe('queueRoomReason', () => {
   it('reports a full queue, also one beyond the cap', () => {
     expect(queueRoomReason(500, 1)).toBe('The queue is full (500 open checks).')
     expect(queueRoomReason(503, 1)).toBe('The queue is full (500 open checks).')
+  })
+})
+
+describe('findingCheckReason', () => {
+  const target = {
+    enabled: true,
+    workerOnline: true,
+    sourceAccess: 'public' as const,
+    resolved: false,
+    open: null,
+  }
+
+  it('names a resolved private finding as resolved, as the server does', () => {
+    expect(findingCheckReason({ ...target, resolved: true, sourceAccess: 'private' })).toBe(
+      RESOLVED_REASON,
+    )
+  })
+
+  it('names an open private finding as not public', () => {
+    expect(findingCheckReason({ ...target, sourceAccess: 'private' })).toBe(NOT_PUBLIC_REASON)
+  })
+
+  it('lets an open public finding pass with the worker online', () => {
+    expect(findingCheckReason(target)).toBeNull()
   })
 })

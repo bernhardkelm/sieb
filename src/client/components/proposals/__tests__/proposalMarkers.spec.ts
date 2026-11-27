@@ -6,7 +6,7 @@ import { defineComponent, h } from 'vue'
 import { createMemoryHistory, createRouter, RouterView } from 'vue-router'
 
 import { buildFindingView } from '#core/__tests__/coreBuilders.ts'
-import type { ProposalListItem } from '#core/apiTypes.ts'
+import type { ProposalListItem } from '#core/proposalApiTypes.ts'
 import { buildProposalItem, IMAGE } from '@/__tests__/proposalDetailBuilders'
 import { fetchProposals } from '@/api/proposalsApi'
 import FindingDecisions from '@/components/finding/FindingDecisions.vue'

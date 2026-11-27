@@ -1,6 +1,6 @@
 import { Hono } from 'hono'
 
-import type { LabelsResponse } from '#core/apiTypes.ts'
+import type { LabelsResponse } from '#core/findingApiTypes.ts'
 import { readFindingLabels } from '#server/db/readFindingLabels.ts'
 import type { AppEnv } from '#server/http/AppEnv.ts'
 import type { RouteDeps } from '#server/http/RouteDeps.ts'

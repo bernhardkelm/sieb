@@ -3,16 +3,19 @@ import { computed } from 'vue'
 
 import { INBOX_KINDS, type InboxCounts } from '#core/inbox/inboxItem.ts'
 import BaseButton from '@/components/common/BaseButton.vue'
+import { DECIDE_ACTIONS, MARK_SEEN_ACTION } from '@/components/inbox/inboxBulkActions'
 import type { InboxBulkCounts } from '@/components/inbox/inboxBulkCounts'
 import BulkActionButton from '@/components/list/BulkActionButton.vue'
 import ListSummary from '@/components/list/ListSummary.vue'
-import type { BulkNoun } from '@/format/bulkCount'
 import { countOf, formatCount } from '@/format/count'
 import type { HintActionId } from '@/keyboard/hintActions'
 import { useHintActionsStore } from '@/stores/hintActionsStore'
 
 const props = defineProps<{
+  /** Counts of the items passing the filters */
   counts: InboxCounts
+  /** Items in the Inbox before the filters */
+  total: number
   checkedCount: number
   /** Items the mark button marks, the checked ones or the cursor item */
   seenCount: number
@@ -31,12 +34,11 @@ const NOUNS = {
   kev: ['new KEV', 'new KEV'],
 } as const
 
-const BULK: { id: HintActionId & keyof InboxBulkCounts; label: string; noun: BulkNoun }[] = [
-  { id: 'accept', label: 'Accept', noun: { singular: 'proposal' } },
-  { id: 'reject', label: 'Reject', noun: { singular: 'proposal' } },
-]
-
-const ITEM = { singular: 'item' }
+const shown = computed(() =>
+  props.counts.total === props.total
+    ? countOf(props.total, 'item')
+    : `${formatCount(props.counts.total)} of ${countOf(props.total, 'item')}`,
+)
 
 const parts = computed(() =>
   INBOX_KINDS.filter((kind) => props.counts[kind] > 0).map((kind) => {
@@ -58,7 +60,7 @@ const runAction = (id: HintActionId): void => {
 
 <template>
   <ListSummary>
-    <span>{{ countOf(counts.total, 'item') }}</span>
+    <span>{{ shown }}</span>
     <span v-for="part in parts" :key="part"> · {{ part }}</span>
     <span v-if="checkedCount > 0" class="checked">
       · {{ checkedCount }} selected<span class="shortcut"
@@ -68,7 +70,7 @@ const runAction = (id: HintActionId): void => {
     <template #actions>
       <template v-if="checkedCount > 0">
         <BulkActionButton
-          v-for="action in BULK"
+          v-for="action in DECIDE_ACTIONS"
           :key="action.id"
           :as="BaseButton"
           class="bulk-button"
@@ -84,10 +86,10 @@ const runAction = (id: HintActionId): void => {
           :as="BaseButton"
           class="bulk-button"
           variant="ghost"
-          label="Mark seen"
-          :count="bulkCounts.markSeen"
-          :noun="ITEM"
-          :blocked-by="actions.reasonOf('markSeen')"
+          :label="MARK_SEEN_ACTION.label"
+          :count="bulkCounts[MARK_SEEN_ACTION.id]"
+          :noun="MARK_SEEN_ACTION.noun"
+          :blocked-by="actions.reasonOf(MARK_SEEN_ACTION.id)"
           blocked-title="Not available"
           @press="$emit('markSeen')"
         />
@@ -106,12 +108,6 @@ const runAction = (id: HintActionId): void => {
 
 kbd {
   font-size: var(--font-size-xs);
-}
-
-.bulk-button[aria-disabled='true'] {
-  color: var(--color-text-subtle);
-  cursor: default;
-  opacity: 0.55;
 }
 
 @media (hover: none) and (pointer: coarse) {

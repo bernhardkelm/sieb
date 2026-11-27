@@ -151,43 +151,6 @@ onMounted(() => {
 .variant-sidebar .severity-mix {
   padding: 0 var(--space-2);
 }
-
-.variant-sheet {
-  --stat-value-size: var(--font-size-xl);
-  --sparkline-height: var(--sparkline-height-lg);
-  --range-item-size: var(--touch-target);
-  --color-stat-surface: var(--color-page);
-  --color-stat-surface-hover: var(--color-sidebar);
-
-  gap: var(--space-3);
-}
-
-.variant-sheet .grid {
-  gap: var(--stat-gap-lg);
-}
-
-.variant-sheet .grid > * {
-  min-height: var(--touch-target);
-  padding: var(--space-2) var(--space-3);
-}
-
-.variant-sheet .header,
-.variant-sheet .state {
-  padding-left: 0;
-}
-
-.variant-sheet .title {
-  font-size: var(--font-size-sm);
-}
-
-/* short viewport: the last panel row goes first, then the hints (AppSidebar) */
-@media (max-height: 759px) {
-  .variant-sidebar .grid > .secondary {
-    display: none;
-  }
-
-  .variant-sidebar .grid > .wide-when-short {
-    grid-column: 1 / -1;
-  }
-}
 </style>
+
+<style scoped src="@/components/overview/overviewVariants.css"></style>
