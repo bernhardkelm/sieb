@@ -1,6 +1,6 @@
 {
   "name": "sieb",
-  "version": "0.6.1",
+  "version": "0.6.2",
   "private": true,
   "description": "Triage app for Trivy Operator findings: decide each finding, silence its Prometheus alerts per CVE and image, optionally with proposals from Claude",
   "license": "AGPL-3.0-or-later",
