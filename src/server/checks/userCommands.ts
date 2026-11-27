@@ -24,7 +24,12 @@ export const queueForUser = (
 ): CheckCreateResponse => {
   const { queued, skipped } = queueChecks(
     context.db,
-    { findingIds, requestedBy: actor, publicRegistries: context.publicRegistries },
+    {
+      findingIds,
+      requestedBy: actor,
+      publicRegistries: context.publicRegistries,
+      credentialVault: context.privateVault,
+    },
     context.clock(),
   )
   const positions = new Map(

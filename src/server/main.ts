@@ -6,11 +6,13 @@ import { startAuthCleanup } from '#server/auth/authCleanup.ts'
 import { startChecks } from '#server/checks/startChecks.ts'
 import { systemClock } from '#server/clock.ts'
 import { readConfig } from '#server/config.ts'
+import { createCredentialVault } from '#server/credentials/credentialVault.ts'
 import { readKevCatalogIds } from '#server/db/kevCatalogRepository.ts'
 import { openDatabase } from '#server/db/openDatabase.ts'
 import { createApp } from '#server/http/createApp.ts'
 import { createMetricsApp } from '#server/http/metricsApp.ts'
 import { startKevCatalog } from '#server/kev/startKevCatalog.ts'
+import { privateAccessLine } from '#server/privateAccessLine.ts'
 import { createSource } from '#server/sources/createSource.ts'
 import { backfillMockStats } from '#server/sources/mock/backfillMockStats.ts'
 import { startupWarnings } from '#server/startupWarnings.ts'
@@ -31,7 +33,8 @@ const main = (): void => {
   const db = openDatabase(config.dbPath)
   const source = createSource(config, clock, () => readKevCatalogIds(db))
   const sync = createSyncService({ db, source, clock })
-  const checks = startChecks({ config, db, clock })
+  const vault = config.credentialsKey === null ? null : createCredentialVault(config.credentialsKey)
+  const checks = startChecks({ config, db, clock, vault })
   const app = createApp({
     source: config.source,
     kevSource: config.kevSource,
@@ -53,6 +56,7 @@ const main = (): void => {
     publicRegistries: config.publicRegistries,
     sourceCodeUrl: config.sourceCodeUrl,
     checks: checks?.context ?? null,
+    credentials: { vault },
   })
 
   const server = serve({ fetch: app.fetch, hostname: config.host, port: config.port }, (info) => {
@@ -85,6 +89,12 @@ const main = (): void => {
   const authCleanup = startAuthCleanup({ db, clock })
 
   console.log(`[sieb] auth mode ${config.authMode}`)
+  const privateAccess = privateAccessLine(config)
+
+  if (privateAccess !== null) {
+    console.log(privateAccess)
+  }
+
   for (const warning of startupWarnings(config)) {
     console.warn(warning)
   }

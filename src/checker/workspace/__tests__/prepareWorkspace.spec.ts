@@ -12,6 +12,7 @@ import {
   type Behaviour,
   type FakeProcess,
 } from '#checker/__tests__/fakeRunner.ts'
+import { writeClaudeFiles } from '#checker/claude/writeClaudeFiles.ts'
 import { tarArchive } from '#checker/tar/__tests__/tarFixtures.ts'
 import { checkLayout } from '#checker/workspace/checkLayout.ts'
 import { createCheckDirs, prepareWorkspace } from '#checker/workspace/prepareWorkspace.ts'
@@ -49,7 +50,7 @@ describe('prepareWorkspace', () => {
 
     await createCheckDirs(layout)
 
-    const result = await prepareWorkspace(CLAIM, images, layout, {
+    const result = await prepareWorkspace(CLAIM.checkId, images, layout, {
       runner: fake.runner,
       config,
       signal: new AbortController().signal,
@@ -87,9 +88,11 @@ describe('prepareWorkspace', () => {
     }
   })
 
-  it('writes the image config, the inventory, the MCP config with mode 600 and the settings', async () => {
+  it('writes the image config, the inventory, and with writeClaudeFiles the MCP config with mode 600 and the settings', async () => {
     await prepare()
     const root = join(workdir, 'check-7')
+
+    await writeClaudeFiles(CLAIM, checkLayout(workdir, 7), testConfig(workdir))
 
     expect(
       await readFile(join(root, 'workspace/images/1-1.27/image-config.json'), 'utf8'),

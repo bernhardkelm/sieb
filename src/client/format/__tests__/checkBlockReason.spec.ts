@@ -7,6 +7,7 @@ import {
   queueRoomReason,
   RESOLVED_REASON,
 } from '@/format/checkBlockReason'
+import { NO_ACCESS_REASON } from '@/format/accessText'
 
 describe('queueRoomReason', () => {
   it('lets every selection pass that fits into the room left', () => {
@@ -51,5 +52,36 @@ describe('findingCheckReason', () => {
 
   it('lets an open public finding pass with the worker online', () => {
     expect(findingCheckReason(target)).toBeNull()
+  })
+})
+
+describe('findingCheckReason with check access', () => {
+  const target = {
+    enabled: true,
+    workerOnline: true,
+    sourceAccess: 'private' as const,
+    resolved: false,
+    open: null,
+  }
+  const access = (level: 'public' | 'credential' | 'none') => ({
+    imageRef: 'registry.example.com/acme/shop',
+    level,
+    credentialId: level === 'credential' ? 3 : null,
+    credentialLabel: level === 'credential' ? 'Acme registry' : null,
+  })
+
+  it('lets a private image pass that a registry credential covers', () => {
+    expect(findingCheckReason({ ...target, checkAccess: [access('credential')] })).toBeNull()
+  })
+
+  it('names the missing credential instead of public images only', () => {
+    expect(findingCheckReason({ ...target, checkAccess: [access('none')] })).toBe(NO_ACCESS_REASON)
+    expect(findingCheckReason(target)).toBe(NOT_PUBLIC_REASON)
+  })
+
+  it('still names a resolved finding first', () => {
+    expect(findingCheckReason({ ...target, resolved: true, checkAccess: [access('none')] })).toBe(
+      RESOLVED_REASON,
+    )
   })
 })

@@ -5,8 +5,10 @@ import type {
   ProposalImageFacts,
   ProposalListItem,
 } from '#core/proposalApiTypes.ts'
+import type { AccessScope } from '#core/accessScope.ts'
 import type { Finding } from '#core/finding.ts'
 import type { DecisionView, FindingView } from '#core/findingView.ts'
+import { imageCheckAccessOf } from '#core/imageCheckAccess.ts'
 import { proposalDecisionValues } from '#core/proposalAccept.ts'
 import { currentDecisionRefs, isProposalOutdated } from '#core/proposalFreshness.ts'
 import type { Proposal } from '#core/proposalRecord.ts'
@@ -29,6 +31,7 @@ export interface ProposalViewContext {
   now: Date
   publicRegistries: readonly string[]
   kevDetails: boolean // whether the stored CISA catalog is the KEV source
+  scopes?: readonly AccessScope[] // usable credentials, empty while private access is off
 }
 
 /**
@@ -81,7 +84,7 @@ export const listProposalItems = (
  * @param {string} imageRef - Image
  * @param {FindingView | undefined} finding - Finding of the vulnerability in it
  * @param {readonly DecisionView[]} decisions - Decision views of the vulnerability
- * @param {ProposalViewContext & { versions: Map<number, ProposalImageFacts['versions']> }} context - Registries and versions
+ * @param {ProposalViewContext & { versions: Map<number, ProposalImageFacts['versions']> }} context - Registries, credentials and versions
  * @returns {ProposalImageFacts} - Facts
  */
 const toImageFacts = (
@@ -99,6 +102,11 @@ const toImageFacts = (
   exposure: finding?.exposure ?? null,
   owner: finding?.owner ?? null,
   sourceAccess: sourceAccess(imageRef, finding?.owner ?? null, context.publicRegistries),
+  checkAccess: imageCheckAccessOf(
+    { imageRef, owner: finding?.owner ?? null },
+    context.publicRegistries,
+    context.scopes ?? [],
+  ),
   versions: finding ? (context.versions.get(finding.id) ?? []) : [],
   workloads: finding?.workloads ?? [],
   decision: decisions.find((view) => view.decision.id === finding?.decision?.id) ?? null,
@@ -110,7 +118,7 @@ const toImageFacts = (
  * review panel.
  * @param {DatabaseSync} db - Open database
  * @param {number} id - Proposal id
- * @param {ProposalViewContext} context - Time, public registries and KEV source
+ * @param {ProposalViewContext} context - Time, public registries, KEV source and usable credentials
  * @returns {ProposalDetail | null} - Detail, null for an unknown proposal
  */
 export const getProposalDetail = (

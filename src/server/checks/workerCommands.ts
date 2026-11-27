@@ -25,7 +25,11 @@ export const claimForWorker = (context: CheckContext): WorkerClaim | null => {
 
   const { claimed, skipped } = claimCheck(
     context.db,
-    { publicRegistries: context.publicRegistries, timeoutSeconds: context.timeoutSeconds },
+    {
+      publicRegistries: context.publicRegistries,
+      timeoutSeconds: context.timeoutSeconds,
+      credentialVault: context.privateVault,
+    },
     context.clock(),
   )
 
@@ -82,7 +86,7 @@ export const recordHeartbeat = (
 /**
  * Ends a running check with the worker's result, links the proposal its token filed and
  * deletes the token. The exported digests are stored with the tags the finding's instances
- * name for them.
+ * name for them, and the repository the worker checked out with them.
  * @param {CheckContext} context - Check context
  * @param {number} id - Check id
  * @param {WorkerResult} result - Validated result
@@ -115,6 +119,7 @@ export const recordResult = (
             reply: result.reply,
             pulledDigest: result.pulledDigest ?? null,
             pulledImages: checkedImagesOf(digests, listInstances(context.db, check.findingId)),
+            source: result.source ?? null,
           },
           context.clock(),
         )

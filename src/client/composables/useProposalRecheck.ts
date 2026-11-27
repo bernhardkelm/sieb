@@ -7,7 +7,11 @@ import {
   isOwnImage,
   type HandoffPrompts,
 } from '#core/handoffPrompt.ts'
-import { handoffInputOf, recheckImages } from '@/components/proposals/recheckTargets'
+import {
+  handoffInputOf,
+  recheckImages,
+  type RecheckImage,
+} from '@/components/proposals/recheckTargets'
 import { useAutoCheck } from '@/composables/useAutoCheck'
 import { availabilityReason, findingCheckReason } from '@/format/checkBlockReason'
 import { useChecksStore } from '@/stores/checksStore'
@@ -32,9 +36,21 @@ export interface ProposalRecheck {
 }
 
 /**
- * Re-checks the target findings of a proposal: with Auto-check switched on and a public target
- * image it queues Auto-checks of the open target findings with public images, with the block
- * reasons of every Auto-check; else it hands the first open target finding over to Claude.
+ * Returns whether Auto-check reaches a target image: public, or covered by a registry
+ * credential as the server reports it in checkAccess, as the side panel decides.
+ * @param {RecheckImage} image - Target image with an open finding
+ * @returns {boolean} - True when an Auto-check can pull it
+ */
+const isCheckable = (image: RecheckImage): boolean =>
+  image.checkAccess === undefined
+    ? image.sourceAccess === 'public'
+    : image.checkAccess.level !== 'none'
+
+/**
+ * Re-checks the target findings of a proposal: with Auto-check switched on and a target image
+ * it reaches, public or through a registry credential, it queues Auto-checks of the open target
+ * findings with such images, with the block reasons of every Auto-check; else it hands the
+ * first open target finding over to Claude.
  * @param {() => ProposalDetail} detail - Getter of the reviewed proposal
  * @returns {ProposalRecheck} - Mode, block reason, in-flight state, hand-off texts and run
  */
@@ -43,9 +59,9 @@ export const useProposalRecheck = (detail: () => ProposalDetail): ProposalRechec
   const { submitting, submit } = useAutoCheck()
 
   const images = computed(() => recheckImages(detail()))
-  const publicImages = computed(() => images.value.filter((i) => i.sourceAccess === 'public'))
+  const reachable = computed(() => images.value.filter(isCheckable))
   const queueable = computed(() =>
-    publicImages.value.filter((image) => checks.openFor(image.findingId) === null),
+    reachable.value.filter((image) => checks.openFor(image.findingId) === null),
   )
 
   const mode = computed(() => {
@@ -53,11 +69,11 @@ export const useProposalRecheck = (detail: () => ProposalDetail): ProposalRechec
       return null
     }
 
-    return checks.enabled && publicImages.value.length > 0 ? 'auto' : 'handoff'
+    return checks.enabled && reachable.value.length > 0 ? 'auto' : 'handoff'
   })
 
   const blockedBy = computed(() => {
-    const [first] = publicImages.value
+    const [first] = reachable.value
 
     if (queueable.value.length > 0 || first === undefined) {
       return availabilityReason({ enabled: checks.enabled, workerOnline: checks.workerOnline })
@@ -69,6 +85,7 @@ export const useProposalRecheck = (detail: () => ProposalDetail): ProposalRechec
       sourceAccess: first.sourceAccess,
       resolved: false,
       open: checks.openFor(first.findingId),
+      ...(first.checkAccess === undefined ? {} : { checkAccess: [first.checkAccess] }),
     })
   })
 

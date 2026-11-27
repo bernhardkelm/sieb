@@ -7,7 +7,10 @@ import { parseFindingQuery } from '#core/findingQuery.ts'
 import { isRecentFinding } from '#core/findingRecency.ts'
 import { validateSeenFindingIds } from '#core/findingSeen.ts'
 import type { FindingView } from '#core/findingView.ts'
+import { imageCheckAccessOf } from '#core/imageCheckAccess.ts'
 import { sourceAccess } from '#core/sourceAccess.ts'
+import type { CredentialVault } from '#server/credentials/credentialVault.ts'
+import { listUsableScopes } from '#server/db/credentialRepository.ts'
 import { markFindingsSeen, readSeenFindingIds } from '#server/db/findingSeenRepository.ts'
 import { getFindingDetail, listFindingViews } from '#server/db/findingViews.ts'
 import { inTransaction } from '#server/db/inTransaction.ts'
@@ -23,6 +26,7 @@ import type { RouteDeps } from '#server/http/RouteDeps.ts'
 export type FindingRouteDeps = RouteDeps & {
   publicRegistries: readonly string[]
   checksEnabled: boolean // pending=checking reads the open checks only with Auto-check on
+  credentialVault?: CredentialVault | null // vault of usable credentials, null while private access is off
 }
 
 /**
@@ -31,8 +35,8 @@ export type FindingRouteDeps = RouteDeps & {
  * the Inbox of the acting user and the open checks, each with `seen` for the acting user within
  * the recent window; POST /seen marks recent findings seen for the acting user; GET /:id answers
  * the detail of the side panel, with the CISA catalog entry of a KEV listed finding when the KEV
- * source is cisa and the source access of its image.
- * @param {FindingRouteDeps} deps - Database, clock, KEV source, public registries and Auto-check state
+ * source is cisa, the source access of its image and how Auto-check reaches it.
+ * @param {FindingRouteDeps} deps - Database, clock, KEV source, public registries, Auto-check state and credential vault
  * @returns {Hono<AppEnv>} - Routes, mounted at /api/findings
  */
 export const createFindingRoutes = ({
@@ -41,6 +45,7 @@ export const createFindingRoutes = ({
   kevSource,
   publicRegistries,
   checksEnabled,
+  credentialVault = null,
 }: FindingRouteDeps): Hono<AppEnv> => {
   const routes = new Hono<AppEnv>()
 
@@ -102,6 +107,13 @@ export const createFindingRoutes = ({
     return c.json<FindingDetailResponse>({
       ...detail,
       sourceAccess: sourceAccess(imageRef, owner, publicRegistries),
+      checkAccess: [
+        imageCheckAccessOf(
+          { imageRef, owner },
+          publicRegistries,
+          listUsableScopes(db, credentialVault),
+        ),
+      ],
     })
   })
 

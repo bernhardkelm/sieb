@@ -42,6 +42,7 @@ export const usePanelAutoCheck = (): PanelAutoCheck => {
       sourceAccess: loaded.sourceAccess,
       resolved: loaded.finding.resolvedAt !== null,
       open: checks.openFor(loaded.finding.id),
+      checkAccess: loaded.checkAccess,
     })
   })
 

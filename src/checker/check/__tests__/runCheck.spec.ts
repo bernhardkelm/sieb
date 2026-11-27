@@ -12,6 +12,7 @@ import { CLAIM, PULLED, testConfig } from '#checker/__tests__/checkFixtures.ts'
 import { createFakeRunner, toolBehaviour, type Behaviour } from '#checker/__tests__/fakeRunner.ts'
 import type { WorkerApi } from '#checker/api/workerApi.ts'
 import { runCheck } from '#checker/check/runCheck.ts'
+import { localPreparer } from '#checker/prepare/localPreparer.ts'
 import { wipeStaleChecks } from '#checker/check/wipe.ts'
 
 describe('runCheck', () => {
@@ -60,6 +61,7 @@ describe('runCheck', () => {
       api,
       runner,
       config: testConfig(workdir),
+      preparer: localPreparer,
       now: options.now ?? (() => performance.now()),
       stopSignal: options.stopSignal ?? new AbortController().signal,
       log: () => undefined,
@@ -161,7 +163,7 @@ describe('runCheck', () => {
     expect(result.durationMs).toBe(0)
   })
 
-  it('wipes the directory when preparing fails', async () => {
+  it('wipes the directory and reports no pulled image when the primary pull fails', async () => {
     const { result, left } = await run({
       tools: {
         'crane config': (proc) => {
@@ -171,11 +173,8 @@ describe('runCheck', () => {
       },
     })
 
-    expect(result).toMatchObject({
-      status: 'failed',
-      error: `image pull failed: MANIFEST_UNKNOWN (Pulled ${PULLED.ref}, resolved from the tag at check time; the scanned digest is unknown.)`,
-      pulledDigest: PULLED.digest,
-    })
+    expect(result).toMatchObject({ status: 'failed', error: 'image pull failed: MANIFEST_UNKNOWN' })
+    expect(result).not.toHaveProperty('pulledDigest')
     expect(left).toEqual([])
   })
 

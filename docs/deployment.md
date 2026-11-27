@@ -198,6 +198,57 @@ The worker settings, its security model, the Claude credential and the manifests
 [auto-check.md](auto-check.md), the routes and rules in [api.md](api.md#auto-check), and example
 alerts in [prometheus-rules.md](prometheus-rules.md#auto-check-alerts).
 
+### Private access
+
+Auto-check can also pull private images and clone the source of your own images from GitHub,
+GitLab (gitlab.com or self-hosted) and Docker Hub, with read credentials users enter on sieb's
+Access page. It needs two more secrets on sieb, both optional:
+
+| Variable | Meaning |
+| --- | --- |
+| `SIEB_CREDENTIALS_KEY_FILE` or `SIEB_CREDENTIALS_KEY` | File with, or value of, the key that seals the stored credentials: 32 random bytes in base64, for example from `openssl rand -base64 32`. A malformed key refuses to start; without one, credentials can neither be stored nor used and Auto-check covers public images only |
+| `SIEB_FETCHER_SECRET_FILE` or `SIEB_FETCHER_SECRET` | File with, or value of, the bearer secret of the worker's fetcher container, at least 32 characters without whitespace and different from `SIEB_WORKER_SECRET`. Without it the fetcher routes answer 404 and private images stay ineligible |
+
+Setting a variable and its `_FILE` variant together is refused. Prefer the `_FILE` variants with
+the Secret mounted as a file. Only the fetcher gets `SIEB_FETCHER_SECRET`; the checker container
+that runs Claude keeps only `SIEB_WORKER_SECRET` and never receives a credential. With both
+secrets set, every image a stored registry credential covers can be queued, there is no allow
+list. The routes are in [api.md](api.md#access-credentials).
+
+Private access needs the worker in its two-container layout, see
+[auto-check.md](auto-check.md#two-containers): a worker in single-container mode claims the
+checks of private images too and fails them with "the image needs a registry credential, which
+only the fetcher container uses (SIEB_FETCHER_URL)". For a self-hosted GitLab or registry behind
+a private CA, mount the CA certificate into the fetcher at `/etc/ssl/certs/<hash>.0` (`<hash>`
+from `openssl x509 -hash -noout -in ca.crt`, a ConfigMap item with `subPath`, read-only): crane
+and git run with a stripped environment, so `SSL_CERT_FILE` and `GIT_SSL_CAINFO` do not reach
+them. The git server has to allow fetching a commit by its id (Git protocol v2, or
+`uploadpack.allowReachableSHA1InWant`), otherwise the source is the default branch. Details in
+[auto-check.md](auto-check.md#self-hosted-gitlab-or-registry).
+
+- **What leaves your cluster.** During an Auto-check of a private image Claude reads the image's
+  files and, for your own images, the cloned source code, and what it reads is sent to Anthropic
+  like the rest of the check. Store credentials only for images and repositories your
+  organisation allows to share with Claude, and scope them with a path prefix and least-privilege
+  read tokens.
+- **The database holds sealed secrets.** Credentials are sealed with AES-256-GCM under the key,
+  bound to their row, provider, hosts and path prefix; the database alone does not reveal them,
+  the database together with the key does. Whoever can write the database but lacks the key
+  cannot point a stored secret at another host, the changed credential no longer opens and
+  covers nothing, so it neither makes an image eligible nor shadows another credential. Keep the
+  key in a Secret apart from backups of the database volume.
+- **Key rotation.** sieb has no re-encryption. A new key makes every stored credential unreadable:
+  the Access page marks them, they cover nothing, and each secret has to be entered again (or the
+  credential deleted and added again). Removing the key turns private access off and hides the
+  stored credentials until the key is back.
+- **Credential test egress.** The Test action runs in sieb itself, so sieb's pod needs HTTPS
+  (443, or the port a self-hosted host names) to the registries and git hosts of the
+  credentials, for Docker Hub `registry-1.docker.io` and `auth.docker.io`, see
+  [NetworkPolicy](#networkpolicy). sieb refuses cluster-internal names and connects only to
+  public addresses, so a host that resolves to the pod network, the cluster or a metadata
+  endpoint is never reached. A registry or GitLab on a private address or an internal name, such
+  as an in-cluster registry, cannot be tested from sieb; the fetcher still uses its credentials.
+
 ## Kubernetes
 
 Example manifests, adapt namespace, hostname, storage and the labels of your Prometheus and ingress
@@ -573,8 +624,10 @@ spec:
 ```
 
 If you also restrict egress, allow DNS, the Kubernetes API, Prometheus, for the `cisa` KEV source
-HTTPS to `www.cisa.gov`, and in oidc mode (or with MCP OAuth) HTTPS to the issuer host, which sieb
-contacts for discovery, the token exchange and the key set. When authentik runs in the same
+HTTPS to `www.cisa.gov`, in oidc mode (or with MCP OAuth) HTTPS to the issuer host, which sieb
+contacts for discovery, the token exchange and the key set, and with
+[private access](#private-access) HTTPS to the registries and git hosts of the stored
+credentials, which the credential test reaches. When authentik runs in the same
 cluster, allow its namespace and port instead; when it is reached through its public hostname,
 the traffic leaves through the ingress controller's address. A NetworkPolicy cannot match host
 names, so either allow port 443 to addresses outside the cluster, use an egress proxy or a CNI with

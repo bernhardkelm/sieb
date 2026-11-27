@@ -11,8 +11,9 @@ const docsLink = computed(() => docsLinkOf(me.sourceCodeUrl, AUTO_CHECK_DOCS_PAT
 
 <template>
   <EmptyState title="Auto-check is off" align="start">
-    With Auto-check, a worker in the cluster runs headless Claude on findings of public images, one
-    at a time, and Claude files a normal proposal to the Inbox. An operator switches it on with
+    With Auto-check, a worker in the cluster runs headless Claude on findings of public images, and
+    of private ones a credential on the Access page covers, one at a time, and Claude files a normal
+    proposal to the Inbox. An operator switches it on with
     <code>SIEB_CHECKS_ENABLED</code> and deploys the worker.
     <template #actions>
       <a v-if="docsLink" :href="docsLink" target="_blank" rel="noopener noreferrer">

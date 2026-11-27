@@ -1,7 +1,9 @@
 import type { CheckView } from '#core/check.ts'
 import { findingCheckBlocker } from '#core/checkEligibility.ts'
 import { MAX_OPEN_CHECKS } from '#core/checkLimits.ts'
+import type { ImageCheckAccess } from '#core/privateAccess.ts'
 import type { SourceAccess } from '#core/sourceAccess.ts'
+import { NO_ACCESS_REASON } from '@/format/accessText'
 import { formatCount } from '@/format/count'
 
 export const CHECKS_OFF_REASON = 'Auto-check is not switched on for this sieb.'
@@ -22,6 +24,8 @@ export interface FindingCheckTarget extends CheckAvailability {
   resolved: boolean
   /** Queued or running check of the finding, null without one */
   open: CheckView | null
+  /** How Auto-check reaches the images, absent from servers without private access */
+  checkAccess?: ImageCheckAccess[]
 }
 
 /**
@@ -39,7 +43,8 @@ export const availabilityReason = ({ enabled, workerOnline }: CheckAvailability)
 
 /**
  * Returns why the finding cannot be checked, lasting reasons before the offline worker, which
- * may come back any moment. Resolved goes before not public, in the order the server uses.
+ * may come back any moment. Resolved goes before no access, in the order the server uses; an
+ * image a registry credential covers counts as reachable.
  * @param {FindingCheckTarget} target - Feature state and the finding facts
  * @returns {string | null} - Reason, null while a check can be queued
  */
@@ -48,10 +53,17 @@ export const findingCheckReason = (target: FindingCheckTarget): string | null =>
     return CHECKS_OFF_REASON
   }
 
-  const blocker = findingCheckBlocker(target)
+  const blocker = findingCheckBlocker({
+    ...target,
+    credentialAccess: target.checkAccess?.some((access) => access.level === 'credential') === true,
+  })
 
   if (blocker !== null) {
-    return blocker === 'resolved' ? RESOLVED_REASON : NOT_PUBLIC_REASON
+    if (blocker === 'resolved') {
+      return RESOLVED_REASON
+    }
+
+    return target.checkAccess === undefined ? NOT_PUBLIC_REASON : NO_ACCESS_REASON
   }
 
   if (target.open !== null) {

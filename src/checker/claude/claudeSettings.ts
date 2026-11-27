@@ -40,7 +40,8 @@ const denyTree = (path: string): string => `Read(/${path}/**)`
 /**
  * Builds the settings file of a check: dontAsk mode with an explicit allow list, so every other
  * call is denied instead of prompted, no shell, file tools confined to the workspace, no writes,
- * WebFetch limited to the allowed hosts, and the check's MCP config and settings unreadable.
+ * WebFetch limited to the allowed hosts, and the check's MCP config and settings unreadable, with
+ * a shared workspace also the whole private check directory.
  * @param {CheckLayout} layout - Check paths
  * @param {string[]} webDomains - Hosts WebFetch may reach
  * @returns {Record<string, unknown>} - Settings JSON for --settings
@@ -61,6 +62,7 @@ export const claudeSettings = (
       'Write',
       'NotebookEdit',
       ...OUTSIDE_PATHS.map(denyTree),
+      ...(layout.sharedWorkspace ? [denyTree(layout.root)] : []),
       `Read(/${layout.mcpConfig})`,
       `Read(/${layout.settings})`,
     ],

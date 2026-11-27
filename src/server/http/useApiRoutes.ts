@@ -8,6 +8,10 @@ import type { RouteDeps } from '#server/http/RouteDeps.ts'
 import { createBulkDecisionRoutes } from '#server/http/routes/bulkDecisionRoutes.ts'
 import { createBulkProposalRoutes } from '#server/http/routes/bulkProposalRoutes.ts'
 import { createCheckRoutes, createChecksDisabledRoutes } from '#server/http/routes/checkRoutes.ts'
+import {
+  createCredentialRoutes,
+  type CredentialSetup,
+} from '#server/http/routes/credentialRoutes.ts'
 import { createCveRoutes } from '#server/http/routes/cveRoutes.ts'
 import { createDecisionRoutes } from '#server/http/routes/decisionRoutes.ts'
 import { createFindingRoutes } from '#server/http/routes/findingRoutes.ts'
@@ -34,13 +38,14 @@ export interface ApiRouteSetup extends RouteDeps {
   publicRegistries: readonly string[] // registries whose images count as public
   build: BuildInfo // version and source code link /api/me answers
   checks: CheckContext | null // Auto-check context, null serves the disabled stand-in
+  credentials: CredentialSetup // credential vault, a test fetch and limits
 }
 
 /**
  * Mounts the health check and the resource routers under /api, the token routes only with MCP
  * and the check routes only with checks.
  * @param {Hono<AppEnv>} app - App, after the /api guards are mounted
- * @param {ApiRouteSetup} setup - Route dependencies, data source, sync service, auth mode, logger, MCP settings, public registries, build info, check context
+ * @param {ApiRouteSetup} setup - Route dependencies, data source, sync service, auth mode, logger, MCP settings, public registries, build info, check context, credential setup
  * @returns {void}
  */
 export const useApiRoutes = (
@@ -59,6 +64,7 @@ export const useApiRoutes = (
     publicRegistries,
     build,
     checks,
+    credentials,
   }: ApiRouteSetup,
 ): void => {
   const deps = { db, clock, kevSource }
@@ -67,14 +73,26 @@ export const useApiRoutes = (
   app.route('/api/me', createMeRoutes(authMode, build))
   app.route(
     '/api/findings',
-    createFindingRoutes({ ...deps, publicRegistries, checksEnabled: checks !== null }),
+    createFindingRoutes({
+      ...deps,
+      publicRegistries,
+      checksEnabled: checks !== null,
+      credentialVault: checks?.privateVault ?? null,
+    }),
   )
   app.route('/api/images', createImageRoutes(deps))
   app.route('/api/cves', createCveRoutes(deps))
   app.route('/api/decisions/bulk', createBulkDecisionRoutes(deps))
   app.route('/api/decisions', createDecisionRoutes(deps))
   app.route('/api/proposals', createBulkProposalRoutes({ ...deps, log }))
-  app.route('/api/proposals', createProposalRoutes({ ...deps, publicRegistries }))
+  app.route(
+    '/api/proposals',
+    createProposalRoutes({
+      ...deps,
+      publicRegistries,
+      credentialVault: checks?.privateVault ?? null,
+    }),
+  )
   app.route('/api/proposals', createProposalReviewRoutes({ ...deps, log }))
   app.route('/api/sync', createSyncRoutes({ ...deps, sync }))
   app.route('/api/stats', createStatsRoutes(deps))
@@ -87,6 +105,16 @@ export const useApiRoutes = (
   app.route(
     '/api/checks',
     checks === null ? createChecksDisabledRoutes() : createCheckRoutes(checks),
+  )
+  app.route(
+    '/api/credentials',
+    createCredentialRoutes({
+      db,
+      clock,
+      log,
+      ...credentials,
+      fetcherConfigured: checks?.fetcherConfigured ?? false,
+    }),
   )
   app.route(
     '/api/mcp-info',

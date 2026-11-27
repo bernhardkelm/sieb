@@ -4,6 +4,7 @@ import type { Exposure } from '#core/exposure.ts'
 import type { DecisionView } from '#core/findingView.ts'
 import type { PackageVersion } from '#core/instance.ts'
 import type { KevDetails } from '#core/kev.ts'
+import type { ImageCheckAccess } from '#core/privateAccess.ts'
 import type { ProposalState } from '#core/proposal.ts'
 import type { AcceptedDecisionValues } from '#core/proposalAccept.ts'
 import type { ExpectedDecisionId } from '#core/proposalFreshness.ts'
@@ -34,6 +35,7 @@ export interface ProposalImageFacts {
   exposure: Exposure | null
   owner: string | null
   sourceAccess: SourceAccess // now, the proposal keeps its own snapshot in proposal.sourceAccess
+  checkAccess?: ImageCheckAccess // how Auto-check reaches the image now, the server always sets it
   versions: PackageVersion[] // package, installed and fixed version of the current instances
   workloads: string[] // namespace/kind/name
   decision: DecisionView | null // decision governing the image now

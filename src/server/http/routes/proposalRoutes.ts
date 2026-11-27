@@ -3,6 +3,8 @@ import { Hono } from 'hono'
 import type { ProposalDetail, ProposalListItem } from '#core/proposalApiTypes.ts'
 import { nonBlank } from '#core/decisionFieldReaders.ts'
 import { PROPOSAL_STATES, type ProposalState } from '#core/proposal.ts'
+import type { CredentialVault } from '#server/credentials/credentialVault.ts'
+import { listUsableScopes } from '#server/db/credentialRepository.ts'
 import { getProposalDetail, listProposalItems } from '#server/db/proposalViews.ts'
 import type { AppEnv } from '#server/http/AppEnv.ts'
 import { parseId } from '#server/http/pathParams.ts'
@@ -11,17 +13,18 @@ import type { RouteDeps } from '#server/http/RouteDeps.ts'
 
 export interface ProposalRouteDeps extends RouteDeps {
   publicRegistries: readonly string[]
+  credentialVault?: CredentialVault | null // vault of usable credentials, null while private access is off
 }
 
 /**
  * Creates the proposal read routes: GET / lists proposals, ?state= open (default), accepted,
  * rejected, superseded or all and ?vulnId=; GET /:id answers the review detail with sieb's facts
- * per image and the current decisions.
- * @param {ProposalRouteDeps} deps - Database, clock, KEV source, public registries
+ * per image, how Auto-check reaches each, and the current decisions.
+ * @param {ProposalRouteDeps} deps - Database, clock, KEV source, public registries and credential vault
  * @returns {Hono<AppEnv>} - Routes, mounted at /api/proposals
  */
 export const createProposalRoutes = (deps: ProposalRouteDeps): Hono<AppEnv> => {
-  const { db, clock, kevSource, publicRegistries } = deps
+  const { db, clock, kevSource, publicRegistries, credentialVault = null } = deps
   const routes = new Hono<AppEnv>()
 
   routes.get('/', (c) => {
@@ -49,6 +52,7 @@ export const createProposalRoutes = (deps: ProposalRouteDeps): Hono<AppEnv> => {
             now: clock(),
             publicRegistries,
             kevDetails: kevSource === 'cisa',
+            scopes: listUsableScopes(db, credentialVault),
           })
 
     return detail ? c.json<ProposalDetail>(detail) : notFound(c)

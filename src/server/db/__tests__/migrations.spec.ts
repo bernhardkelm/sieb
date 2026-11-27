@@ -23,6 +23,7 @@ describe('openDatabase', () => {
 
     expect(schemaVersion(db)).toBe(MIGRATIONS.length)
     expect(tables).toEqual([
+      'access_credentials',
       'api_tokens',
       'checks',
       'decision_baselines',
@@ -36,6 +37,7 @@ describe('openDatabase', () => {
       'kev_feed',
       'mcp_connections',
       'sessions',
+      'sqlite_sequence',
       'stats_snapshots',
       'sync_runs',
     ])

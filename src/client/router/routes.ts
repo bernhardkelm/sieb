@@ -64,6 +64,12 @@ export const routes: RouteRecordRaw[] = [
     meta: { title: 'Checks' },
   },
   {
+    path: '/access',
+    name: ROUTE_NAMES.ACCESS,
+    component: () => import('@/views/AccessView.vue'),
+    meta: { title: 'Access' },
+  },
+  {
     path: '/:pathMatch(.*)*',
     redirect: { name: ROUTE_NAMES.TRIAGE, params: {} },
   },

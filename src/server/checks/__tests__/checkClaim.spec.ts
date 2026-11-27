@@ -47,7 +47,7 @@ describe('claim skip paths', () => {
     expect(claimForWorker(context)).toBeNull()
     expect(getCheck(db, check?.id ?? 0)).toMatchObject({
       state: 'failed',
-      error: 'The image is no longer public.',
+      error: 'The image is no longer public or covered by a registry credential.',
     })
   })
 

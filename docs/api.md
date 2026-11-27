@@ -47,7 +47,7 @@ Checked before identity:
 | `GET /api/me`                      | `{ username, authMode, version, sourceCodeUrl }`: the acting user, `header` or `oidc` so the client knows whether a 401 means log in again, and the running version with the link to its source code (`SIEB_SOURCE_URL`, otherwise the upstream tag) |
 | `GET /api/findings`                | Findings in triage order, more parameters under [Finding filters](#finding-filters); `view=inbox\|all` (default `all`), `includeResolved`, `q`, `severity`, `exposure`, `owner` (comma lists, `owner` takes free-form owner labels), `newSince`, `kev` (`true` or `1` keeps KEV listed findings only); every finding carries `seen`, see [Seen findings](#seen-findings) |
 | `POST /api/findings/seen`          | Mark findings seen for the acting user, `{ ids: [...] }`, answers `{ ignored }`, see [Seen findings](#seen-findings) |
-| `GET /api/findings/:id`            | Finding detail: instances with where Trivy found the package, see [Found in](#found-in), decisions, history, `kev`, the CISA catalog entry, see [KEV source](#kev-source), and `sourceAccess` of the image, see [Source access](#source-access)                                                                                                            |
+| `GET /api/findings/:id`            | Finding detail: instances with where Trivy found the package, see [Found in](#found-in), decisions, history, `kev`, the CISA catalog entry, see [KEV source](#kev-source), `sourceAccess` of the image, see [Source access](#source-access), and `checkAccess`, how Auto-check reaches the image, see [Access credentials](#access-credentials) |
 | `GET /api/images`, `GET /api/cves` | Open findings aggregated per image or per CVE, `includeResolved=true` adds resolved ones                                                                                                                                  |
 | `GET /api/decisions`               | Decisions with their state, `state=active\|expiring\|expired\|revoked\|reopened\|fix_planned\|upstream_pending`                                                                                                            |
 | `POST /api/decisions`              | Create an image-scoped or all-scope decision, `{ vulnId, scope, imageRef?, status, justification?, reason, expiresAt?, upstreamPending?, waitingFor? }`                                                                   |
@@ -74,6 +74,11 @@ Checked before identity:
 | `GET /api/checks`                  | `{ enabled, workerOnline, running, queued, recent, usage }`: the Auto-check queue and its usage, see [Auto-check](#auto-check) |
 | `POST /api/checks`                 | Queue checks, `{ findingIds: [...] }`, answers `{ queued, skipped }` |
 | `DELETE /api/checks/:id`           | Cancel a queued or running check, answers 204 |
+| `GET /api/credentials`             | `{ enabled, fetcherConfigured, credentials }`: the read credentials Auto-check uses for private images and source code, see [Access credentials](#access-credentials) |
+| `POST /api/credentials`            | Store a credential, `{ provider, label, uses, registryHost?, gitHost?, pathPrefix, repoMapping?, username?, secret }` |
+| `PATCH /api/credentials/:id`       | Change a credential, `secret` only to replace the stored one |
+| `DELETE /api/credentials/:id`      | Delete a credential, answers 204 |
+| `POST /api/credentials/:id/test`   | Test a credential against the images and repositories it covers, answers the credential with `lastTest` |
 
 ## Login (oidc mode)
 
@@ -646,7 +651,9 @@ A check is `queued`, `running`, `done`, `failed` or `cancelled`; queued and runn
 A running check has a `phase` of `preparing`, `investigating` or `reporting`. Rules:
 
 - Only open findings whose image has source access `public` (see [Source access](#source-access))
-  can be queued, each finding has at most one open check.
+  or is covered by a stored registry credential while private access is on (see
+  [Access credentials](#access-credentials)) can be queued, each finding has at most one open
+  check. A covered own image (owner `self`) counts as checkable too.
 - At most 500 checks are open at once, a guard against accidental floods; there is no daily limit.
   Findings beyond that are skipped as `queue_full`. The client blocks a bulk Auto-check whose
   checks do not all fit into the room left, counted from the last `GET /api/checks`.
@@ -655,7 +662,8 @@ A running check has a `phase` of `preparing`, `investigating` or `reporting`. Ru
   `SIEB_CHECK_TIMEOUT_SECONDS` plus one minute, fails with an error saying so. sieb evaluates this
   on every claim, heartbeat and read of `/api/checks` and every 30 seconds.
 - A queued check fails without starting when, by the time it is claimed, its finding is gone or
-  resolved, its image is no longer public, or sieb knows neither a digest nor a tag of the scanned
+  resolved, its image is neither public nor covered by a usable registry credential any more, or
+  sieb knows neither a digest nor a tag of the scanned
   image: sieb never hands out a bare image ref, which would pull `latest`.
 - With `SIEB_AUTH=oidc`, when sieb refuses a login because the user lost the required group, it
   also fails that user's open checks and deletes the running check's token. sieb cannot see a
@@ -669,7 +677,11 @@ A running check has a `phase` of `preparing`, `investigating` or `reporting`. Ru
 The routes answer `Cache-Control: no-store`; writes follow the [Request rules](#request-rules) and
 need the acting user. A check is answered as `CheckView` from `src/core/check.ts`:
 `{ id, findingId, vulnId, imageRef, requestedBy, state, phase, position, createdAt, startedAt,
-finishedAt, durationMs, error, proposalId, usage, reply, pulledDigest, pulledImages }`.
+finishedAt, durationMs, error, proposalId, usage, reply, pulledDigest, pulledImages, source }`.
+`source` is the repository the worker checked out for the primary image,
+`{ repoUrl, revision, fromLabel }` with `revision` the commit or `null` for the default branch and
+`fromLabel` true when the image's source label named the repository; `null` without one and for
+checks that ended before the field existed.
 `pulledDigest` is the digest of the primary image the worker reports it exported, `null` when it
 reported none. `pulledImages` lists every exported image, primary first, as `{ digest, tag }`,
 with the tag an instance of the finding names for that digest (for a pull by tag the claimed
@@ -711,7 +723,8 @@ every write 404 `{ "error": "checks_disabled" }`.
 
 Served only on `SIEB_WORKER_PORT`, the main port answers 404 for `/worker`. Every request needs
 `Authorization: Bearer <SIEB_WORKER_SECRET>`, compared in constant time, else 401
-`{ "error": "unauthorized" }`. There is no `Host` check on this listener, the worker reaches it by
+`{ "error": "unauthorized" }`; the two [fetcher routes](#fetcher-routes) take only
+`SIEB_FETCHER_SECRET` instead, and the fetcher secret passes nowhere else. There is no `Host` check on this listener, the worker reaches it by
 service name and the secret is the defence. Bodies are JSON of at most 32 KiB (413 otherwise) and
 are validated against the types in `src/core/check.ts` (400 `validation` otherwise).
 
@@ -733,7 +746,7 @@ are validated against the types in `src/core/check.ts` (400 `validation` otherwi
   `{ "error": "check_not_running" }` once the check was cancelled or timed out, which tells the
   worker to stop.
 - `POST /worker/checks/:id/result` takes
-  `{ "status": "done" | "failed", "error", "durationMs", "usage", "reply", "pulledDigest", "pulledDigests" }` and
+  `{ "status": "done" | "failed", "error", "durationMs", "usage", "reply", "pulledDigest", "pulledDigests", "source" }` and
   answers 204, 409 for a check that is no longer running, 404 for an unknown one. `error` is cut
   to 500 and `reply` to 4000 characters, counted in code points (`capText` in
   `src/core/checkLimits.ts`, which also holds the bounds of the timeout and the turns).
@@ -741,7 +754,11 @@ are validated against the types in `src/core/check.ts` (400 `validation` otherwi
   optional too, the digests of every exported image, primary first: repeated digests count once,
   entries past the third are dropped, and a list that does not start with `pulledDigest` is
   refused (`invalid`). A result of an older worker without the list counts `pulledDigest` as its
-  single image.
+  single image. `source` is optional, `null` or `CheckedSource` `{ repoUrl, revision, fromLabel }`:
+  `repoUrl` an https repository URL without credentials of at most 500 characters, stored
+  normalised as `https://<host>/<path>.git`, `revision` `null` or a commit of 7 to 64 hex digits,
+  `fromLabel` a boolean (`source.repoUrl`, `source.revision`, `source.fromLabel`: `required`,
+  `invalid`).
 
 `token` is a token of the requester named `Auto-check #<id>` with scope `propose`, minted on
 claim outside the 20 live token cap and the user-facing lifetimes, and expiring 10 minutes after
@@ -771,6 +788,175 @@ Schema step 15 adds the nullable column `decision_proposals.client_kind`, checke
 
 Schema step 18 adds `checks.pulled_images`, the exported images as a JSON array of
 `{ digest, tag }`, checked with `json_valid`. Existing checks keep `null`.
+
+#### Fetcher routes
+
+The fetcher pulls a check's images and clones its source into the volume it shares with the
+checker, so only it ever holds a credential, and only per check. Without `SIEB_FETCHER_SECRET`
+both routes answer 404 `{ "error": "not_found" }` whatever is sent, and private images stay
+ineligible. Answers carry `Cache-Control: no-store`; an unknown check answers 404, a check that
+is not running 409 `{ "error": "check_not_running" }`. The types are in `src/core/privateAccess.ts`.
+
+- `POST /worker/checks/:id/access` takes `{}` and answers `FetchAccess`
+  `{ "registries": [{ "host", "label", "username", "secret" }], "images": [WorkerClaimImage] }`:
+  the login of the registry credential that covers the check's image, for the registry host as
+  the claim's image names it (for example `index.docker.io`), never a login for another host,
+  with the credential's `label`, which a refused login names in the failure
+  (`the registry refused the login of credential '<label>': ...`), and the images
+  of the check as a claim lists them (primary first, at most 3). The fetcher pulls exactly these
+  and refuses an answer without them, so a checker that names other images cannot make it pull
+  them with the check's login. A public image without a covering credential answers
+  `"registries": []`. A finding without any pullable image left answers 409
+  `{ "error": "not_pullable" }`, which fails the preparation with `the image is no longer
+  pullable`; any other 404 or 409 with `the check is no longer running in sieb`.
+- `POST /worker/checks/:id/source` takes `SourceRequest`
+  `{ "imageRef", "sourceLabel", "revisionLabel" }`, what the fetcher read from the pulled primary
+  image (`org.opencontainers.image.source` and `.revision`, each `null` or at most 500
+  characters; `imageRef` the repository, at most 300 characters). An `imageRef` that is not the
+  check's image answers 400 `validation` with `imageRef` `not_claimed`. It answers `SourceAnswer`,
+  either `{ "grant": { "repoUrl", "revision", "username", "secret" } }` or
+  `{ "skip": "no_repository" | "no_credential" | "not_https" | "foreign_repository" }`. sieb
+  tries the repository the source label names when it is an https URL on a git host a credential
+  covers and belongs to the image's own owner, else the repository the longest matching
+  `repoMapping` derives from the image. The owner is the first path segment, the GitHub user or organisation, the GitLab
+  top-level group or the Docker Hub namespace: `ghcr.io/acme/shop` takes the label
+  `https://github.com/acme/shop` but ignores `https://github.com/acme-platform/base`, as a base
+  image of another owner leaves it, and a label an image sets to reach a repository of another
+  owner never selects one. A mapping counts only for images its own credential covers as a
+  registry credential.
+  `repoUrl` is `https://<host>/<path>.git` without credentials, the host always a git host of a
+  stored credential. `revision` is the revision label when it is a commit of 7 to 64 hex digits,
+  and only for the label's own repository or an image without source label, else `null` for the
+  default branch. `skip` is `not_https` for an `http`, `ssh` or scp-like label without mapping,
+  `no_credential` when no git credential covers the repository, `foreign_repository` when the
+  label names a repository of another owner and no mapping covers the image, `no_repository`
+  otherwise.
+
+Each handed-out credential updates its `lastUsedAt` and writes one log line with the check, the
+credential id and the registry host or repository, never the username or secret.
+
+## Access credentials
+
+Read credentials that let Auto-check pull private images and clone the source of own images,
+for GitHub (`ghcr.io`, `github.com`), GitLab (`registry.gitlab.com` and `gitlab.com`, or a
+self-hosted instance) and Docker Hub. They need `SIEB_CREDENTIALS_KEY` (see
+[Deployment](deployment.md#private-access)); a registry credential makes an image checkable only
+while Auto-check, the key and `SIEB_FETCHER_SECRET` are all set. A credential covers a registry
+host and/or a git host plus a path prefix, matched in whole segments; when several cover a
+target, the longest prefix wins. There is no allow list: every image a registry credential
+covers is eligible for Auto-check.
+
+The routes need the acting user (401 `{ "error": "unauthorized" }` without one), follow the
+[Request rules](#request-rules) for writes and answer `Cache-Control: no-store`. Without the key,
+`GET /api/credentials` answers `{ "enabled": false, "fetcherConfigured": …, "credentials": [] }`
+and every other request 404 `{ "error": "credentials_disabled" }`. Any signed-in user may add,
+change, test and delete any credential, like the shared check queue.
+
+A credential is answered as `AccessCredentialView`
+`{ id, provider, label, uses, registryHost, gitHost, pathPrefix, repoMapping, username, createdBy,
+createdAt, updatedAt, lastUsedAt, lastTest, secretReadable }`, never with its secret.
+`secretReadable` is false when the configured key cannot open the stored secret: it was sealed
+with another key, or its row was changed outside sieb (see Storage below). Such a credential
+covers nothing until its secret is entered again: `checkAccess` answers `none` for its images,
+queueing skips them as `not_public`, it shadows no other credential and the fetcher gets no login
+from it. `lastUsedAt` is the last time it was handed to the fetcher.
+
+- `GET /api/credentials` answers `{ enabled, fetcherConfigured, credentials }`, oldest first.
+  `fetcherConfigured` is false while Auto-check or `SIEB_FETCHER_SECRET` is off.
+- `POST /api/credentials` answers 201 with the view. Validation, per field `required`,
+  `invalid`, `too_long`, `not_allowed` or `outside_scope`:
+  - `provider` is `github`, `gitlab` or `dockerhub`;
+  - `label` is trimmed, 1 to 64 characters without control characters;
+  - `uses` is a non-empty list of `registry` and `git` the provider supports (Docker Hub has no
+    git, `not_allowed`);
+  - `registryHost` and `gitHost` default to the provider's hosts and are stored only for the uses
+    the credential has; only GitLab takes custom hosts (others `not_allowed`), a lower-case DNS
+    name with at least one dot and an optional port, no IP address; Docker Hub aliases fold into
+    `docker.io`;
+  - `pathPrefix` is required, `''` covers the whole host; it is stored trimmed, lower case and
+    without leading and trailing slashes, at most 200 characters of path segments
+    (`[a-z0-9_][a-z0-9._-]*`, no `.` or `..`);
+  - `repoMapping` is `null` or `{ registryPrefix, repoPrefix }`, each `host/path` without scheme,
+    stored lower case without trailing slash; `repoPrefix` needs a path. Both stay within the
+    credential (`outside_scope` otherwise): `registryPrefix` on its registry host and within its
+    path prefix, `repoPrefix` within the same path prefix on its git host, for a credential
+    without the use Git on the provider's git host (`github.com`, `gitlab.com` for
+    `registry.gitlab.com`) or, for a self-hosted GitLab, on any host. Docker Hub has no git host
+    and so no mapping; its images get their source from the source label alone;
+  - `username` is required for GitLab and Docker Hub and optional for GitHub, `secret` required
+    on create; both are printable ASCII without spaces, at most 200 and 4096 characters, a
+    username without `:`.
+
+  At most 50 credentials are stored (409 `{ "error": "too_many_credentials" }`), and two
+  credentials may not claim the same host and prefix for a shared use (409
+  `{ "error": "duplicate_scope" }`).
+- `PATCH /api/credentials/:id` takes the same fields, merged over the stored ones, and answers the
+  view; `secret` replaces the stored secret, leaving it out keeps it. A change of a credential
+  whose secret was sealed with another key needs a new `secret` (409
+  `{ "error": "secret_unreadable" }`), and so does a change of the provider or to a registry or
+  git host the credential did not have (409 `{ "error": "secret_required" }`): a stored token is
+  write-only and never goes to a host it was not entered for. Removing a use needs none. Every
+  change drops `lastTest`.
+- `DELETE /api/credentials/:id` answers 204, an unknown id 404. Revoke the token at the provider
+  too.
+- `POST /api/credentials/:id/test` takes `{}`, tests the credential from sieb over HTTPS and
+  answers the view with the new `lastTest` `{ at, registry, git }`, each part
+  `{ checked, ok, failures }` with at most 5 failures `{ target, reason }`, `null` for a use the
+  credential lacks. The registry part resolves the manifest (`HEAD /v2/<path>/manifests/<digest
+  or tag>`) of up to 20 images of sieb's findings the credential covers, open ones first, with
+  the OCI distribution auth flow: an anonymous request, then on 401 the Bearer token from the
+  `WWW-Authenticate` realm with basic auth (Docker Hub through `registry-1.docker.io` and
+  `auth.docker.io`) or basic auth itself. The git part asks
+  `GET https://<host>/<path>.git/info/refs?service=git-upload-pack` with basic auth for up to 20
+  repositories the credential covers, those the repository mappings derive from sieb's images
+  and those checks reported as checked out. Every request goes over https to port 443, or to the
+  port the credential's host names, and only to public addresses: sieb refuses cluster-internal
+  names (single labels, `localhost`, `*.local`, `*.svc`, `*.cluster.local`, `*.internal`,
+  `*.home.arpa`), resolves every other host itself, refuses it when any address is loopback, private (RFC 1918), CGNAT (`100.64.0.0/10`),
+  link-local with the cloud metadata endpoints, unique-local IPv6, unspecified, multicast or
+  reserved, also mapped into IPv6 or NAT64, and connects to exactly the addresses it vetted, so
+  DNS rebinding cannot swap them (`address not allowed`, `port not allowed`); this applies to
+  the token realms too. A registry or GitLab on a private address or an internal name, such as an
+  in-cluster registry, therefore cannot be tested from sieb, while the fetcher still uses its
+  credential. Requests never follow a redirect (`redirect refused`), send the credential to a
+  token realm only on a host of the credential, the registry's API host or a known auth host of
+  its provider (`ghcr.io` for GitHub, `gitlab.com` for `registry.gitlab.com`, `auth.docker.io`
+  for Docker Hub; none for a self-hosted GitLab, whose realm must be its registry or git host),
+  never on a parent domain (`token realm on another host` otherwise), and stop after 10 seconds
+  each and 45 seconds per test (`timeout`). Other reasons are `401 unauthorized`,
+  `403 forbidden`, `not found`, `429 rate limited`, `unreachable`, `no token` and
+  `unexpected answer`. A secret the key cannot open answers 409 `secret_unreadable`. A credential is tested at most once per 30 seconds and at most 3 tests
+  run at once, else 429 `{ "error": "test_cooldown" }` or `{ "error": "tests_busy" }` with
+  `Retry-After: 30`; a test that did not run, such as one answering `secret_unreadable`, does
+  not count.
+
+Each create, update, delete and test writes one log line with the acting user, id, provider,
+label, hosts and prefix (a test adds `registry=<ok>/<checked>` and `git=…`), never the username
+or secret.
+
+**Storage.** Username and secret are sealed together with AES-256-GCM under
+`SIEB_CREDENTIALS_KEY`, a random 12-byte nonce per seal, and as associated data a seal format
+version, the row id, the provider, the registry and git host and the path prefix. A ciphertext
+copied into another row, or a row whose provider, hosts or prefix a database writer changed,
+fails to open, so a sealed secret cannot be pointed at another host; a change through the API
+seals it again for the new fields. The ciphertext starts with the format version byte (1), so a
+later format can tell its rows apart. Each row stores the id of the key that sealed
+it, a truncated sha-256 of the key. Provider, hosts, prefix, mapping and username stay readable,
+the username so the list can show it.
+
+Schema step 20 adds the table `access_credentials` (`provider`, `label`, `uses` as a JSON array,
+`registry_host`, `git_host`, `path_prefix`, `repo_mapping` as JSON, `username`,
+`secret_ciphertext` and `secret_nonce` as blobs, `key_id`, `created_by`, `created_at`,
+`updated_at`, `last_used_at`, `last_test` as JSON) with checks on provider, uses, the lengths, the
+blob types and the JSON shapes, and at least one host per row; ids are never reused. It also adds
+`checks.source`, the checked out repository as a JSON object; existing checks keep `null`.
+
+`checkAccess` in the finding detail lists how Auto-check reaches the finding's image as
+`ImageCheckAccess` `{ imageRef, level, credentialId, credentialLabel }`: `level` is `credential`
+when a usable registry credential covers it (with its id and label), else `public` for source
+access `public`, else `none`. While private access is off it is never `credential`. The MCP
+`sourceAccess` stays as it was: it says whether Claude can read the source in a hand-off, not
+what Auto-check can pull.
 
 ## MCP endpoint
 

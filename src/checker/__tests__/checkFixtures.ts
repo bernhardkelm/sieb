@@ -1,5 +1,6 @@
 import type { WorkerClaim } from '#core/check.ts'
 import type { CheckerConfig } from '#checker/checkerConfig.ts'
+import type { PreparedCheck } from '#checker/prepare/prepareTypes.ts'
 import type { WorkspaceImages } from '#checker/workspace/prepareWorkspace.ts'
 import type { PulledImage } from '#checker/workspace/resolveImage.ts'
 
@@ -33,6 +34,8 @@ export const testConfig = (workdir: string): CheckerConfig => ({
   webDomains: ['nvd.nist.gov', '*.github.com'],
   model: null,
   effort: null,
+  fetcher: null,
+  sharedDir: '/shared',
 })
 
 /** The pulled image of CLAIM, resolved from its tag */
@@ -49,3 +52,6 @@ export const WORKSPACE: WorkspaceImages = {
   prepared: [{ ...PULLED, dir: 'images/1-1.27' }],
   skipped: [],
 }
+
+/** The prepared check of CLAIM in single-container mode */
+export const PREPARED: PreparedCheck = { images: WORKSPACE, source: { missing: 'no_fetcher' } }

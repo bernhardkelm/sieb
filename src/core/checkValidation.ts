@@ -13,6 +13,7 @@ import {
   MAX_CHECK_REPLY_LENGTH,
 } from '#core/checkLimits.ts'
 import { readCheckUsage } from '#core/checkUsageValidation.ts'
+import { readCheckedSource } from '#core/checkedSourceValidation.ts'
 import { readPulledDigests } from '#core/pulledDigestValidation.ts'
 import type { Validation } from '#core/validation.ts'
 
@@ -90,7 +91,8 @@ const readOptionalText = (
 
 /**
  * Validates the body of a worker result. Error and reply are cut to their limits instead of
- * refused, so an overlong reply never leaves the check running until it times out.
+ * refused, so an overlong reply never leaves the check running until it times out. A source is
+ * kept only when present, so a result of an older worker reads as before.
  * @param {Record<string, unknown>} raw - Parsed request body
  * @returns {Validation<WorkerResult>} - Result, or the errors
  */
@@ -101,6 +103,7 @@ export const validateWorkerResult = (raw: Record<string, unknown>): Validation<W
   const reply = readOptionalText(raw.reply, 'reply', MAX_CHECK_REPLY_LENGTH, errors)
   const usage = readCheckUsage(raw.usage, errors)
   const pulled = readPulledDigests(raw, errors)
+  const source = readCheckedSource(raw.source, errors)
   const durationMs = raw.durationMs
 
   if (status === null) {
@@ -125,6 +128,7 @@ export const validateWorkerResult = (raw: Record<string, unknown>): Validation<W
       usage,
       reply,
       ...pulled,
+      ...(source === undefined ? {} : { source }),
     },
   }
 }

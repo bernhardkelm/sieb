@@ -152,7 +152,7 @@ describe('Auto-check button', () => {
 
     expect(notifyNotice).toHaveBeenCalledWith(
       'No check queued',
-      'Skipped 1: 1 not on a public image.',
+      'Skipped 1: 1 without access to the image.',
     )
   })
 

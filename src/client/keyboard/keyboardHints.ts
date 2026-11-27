@@ -75,6 +75,7 @@ export const KEYBOARD_HINTS: Record<RouteName, KeyboardHint[]> = {
     SYNC,
   ],
   [ROUTE_NAMES.CHECKS]: [SYNC],
+  [ROUTE_NAMES.ACCESS]: [SYNC],
 }
 
 /**

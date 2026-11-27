@@ -1,7 +1,7 @@
 // @vitest-environment node
 import { describe, expect, it } from 'vitest'
 
-import { CLAIM, testConfig, WORKSPACE } from '#checker/__tests__/checkFixtures.ts'
+import { CLAIM, PREPARED, testConfig } from '#checker/__tests__/checkFixtures.ts'
 import { claudeArgs, claudeEnv, mcpConfig } from '#checker/claude/claudeInvocation.ts'
 import { claudeSettings } from '#checker/claude/claudeSettings.ts'
 import { workspacePrompt } from '#checker/claude/workspacePrompt.ts'
@@ -65,7 +65,7 @@ describe('claude invocation', () => {
 
   it('never puts a secret or the sieb token on the command line or into the env', () => {
     const exposed = JSON.stringify([
-      claudeArgs(workspacePrompt(CLAIM, config.platform, WORKSPACE), layout, 40, domains),
+      claudeArgs(workspacePrompt(CLAIM, config.platform, PREPARED), layout, 40, domains),
       claudeEnv(config.credential.kind, config.path, layout),
       claudeSettings(layout, domains),
     ])

@@ -7,22 +7,27 @@ import {
   DropdownMenuTrigger,
 } from 'reka-ui'
 import { computed, ref } from 'vue'
+import { RouterLink } from 'vue-router'
 
 import { logout } from '@/api/authApi'
 import AppIcon from '@/components/icons/AppIcon.vue'
 import ApiTokensDialog from '@/components/tokens/ApiTokensDialog.vue'
+import { ROUTE_NAMES } from '@/router/routeNames'
+import { useChecksStore } from '@/stores/checksStore'
 import { useMcpStore } from '@/stores/mcpStore'
 import { useMeStore } from '@/stores/meStore'
 import { notifyError } from '@/toast/toastManager'
 
 const me = useMeStore()
 const mcp = useMcpStore()
+const checks = useChecksStore()
 
 const tokensOpen = ref(false)
 
+const hasAccess = computed(() => checks.enabled)
 const hasTokens = computed(() => mcp.enabled)
 const hasLogout = computed(() => me.authMode === 'oidc')
-const hasMenu = computed(() => hasTokens.value || hasLogout.value)
+const hasMenu = computed(() => hasAccess.value || hasTokens.value || hasLogout.value)
 
 /**
  * Ends the session and navigates to the address the server returns.
@@ -49,6 +54,9 @@ const onLogout = async (): Promise<void> => {
         <!-- as-child renders the surface from this template, Reka moves class attrs off its scoped root -->
         <DropdownMenuContent as-child align="end" :side-offset="4" :collision-padding="8">
           <div class="content">
+            <DropdownMenuItem v-if="hasAccess" as-child class="item">
+              <RouterLink :to="{ name: ROUTE_NAMES.ACCESS }">Access</RouterLink>
+            </DropdownMenuItem>
             <DropdownMenuItem v-if="hasTokens" class="item" @select="tokensOpen = true">
               API tokens…
             </DropdownMenuItem>
@@ -111,6 +119,11 @@ const onLogout = async (): Promise<void> => {
   border-radius: var(--radius-sm);
   outline: none;
   cursor: pointer;
+}
+
+a.item {
+  color: inherit;
+  text-decoration: none;
 }
 
 .item[data-highlighted] {

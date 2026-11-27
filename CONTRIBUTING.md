@@ -78,6 +78,9 @@ src/
     claude/        claude -p arguments, environment, permission settings, prompt, output parsing
     inspect/       stdio MCP server with the read-only binary tools Claude gets instead of a shell
     process/       process runner with process groups, captured runs with timeout and abort
+    prepare/       the checker's side of the workspace: local pull or the fetcher's loopback endpoint
+    fetcher/       fetcher process sieb-fetcher: config, loopback endpoint, sieb access client, pulls
+    source/        source checkout of the fetcher: labels, git environment and steps, size cap
   client/    Vue 3 SPA (@/*)
     assets/        main.css composes tokens.css and base.css
     api/           typed fetch helpers, one module per API resource

@@ -6,7 +6,7 @@
 
 Sift through Trivy findings, triage what matters, silence the rest.
 
-sieb is a small, keyboard-driven triage inbox for the vulnerability findings of the
+sieb is a small triage inbox for the vulnerability findings of the
 [Trivy Operator](https://github.com/aquasecurity/trivy-operator). It syncs the findings of your
 cluster from Prometheus and the `VulnerabilityReport` resources into SQLite, lets you decide per CVE
 and image (not affected, accepted, fix planned), and exports every effective decision on `/metrics`
@@ -64,7 +64,7 @@ as `sieb_suppressed{vuln_id, image_ref}`. Your Prometheus alert rules drop the s
   Claude's reply and a Retry action, and the usage of the last 7 and 30 days; a toast tells you
   when one of your checks ends. See [docs/auto-check.md](docs/auto-check.md)
 - Single Node process with an embedded SQLite file, no external database
-- Fully keyboard driven: shortcuts per view, clickable in the sidebar, and `a`, `n` or `f` decide
+- Keyboard shortcuts per view, clickable in the sidebar, and `a`, `n` or `f` decide
   all checked rows in one dialog. The Inbox, Triage and tree lists are virtualized, phones get a bottom tab bar
   and a selection bar. Light and dark theme
 

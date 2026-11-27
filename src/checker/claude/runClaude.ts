@@ -4,10 +4,10 @@ import { CheckFailure } from '#checker/CheckFailure.ts'
 import { claudeArgs, claudeEnv } from '#checker/claude/claudeInvocation.ts'
 import { claudeResult } from '#checker/claude/claudeOutput.ts'
 import { workspacePrompt } from '#checker/claude/workspacePrompt.ts'
+import type { PreparedCheck } from '#checker/prepare/prepareTypes.ts'
 import type { ProcessRunner } from '#checker/process/processRunner.ts'
 import { runCaptured } from '#checker/process/runCaptured.ts'
 import type { CheckLayout } from '#checker/workspace/checkLayout.ts'
-import type { WorkspaceImages } from '#checker/workspace/prepareWorkspace.ts'
 
 const STDOUT_MAX_BYTES = 8 * 1024 * 1024
 
@@ -23,7 +23,7 @@ export interface ClaudeRunContext {
  * Runs headless Claude Code in the check workspace and maps its output to result parts. The
  * credential reaches Claude on file descriptor 3.
  * @param {WorkerClaim} claim - Claimed check
- * @param {WorkspaceImages} images - Prepared and skipped images, named in the prompt
+ * @param {PreparedCheck} prepared - Prepared and skipped images and the source, named in the prompt
  * @param {CheckLayout} layout - Prepared check paths
  * @param {ClaudeRunContext} context - Runner, config, abort signal and time left
  * @returns {Promise<Omit<WorkerResult, 'durationMs'>>} - Status, error, usage and reply
@@ -31,12 +31,12 @@ export interface ClaudeRunContext {
  */
 export const runClaude = async (
   claim: WorkerClaim,
-  images: WorkspaceImages,
+  prepared: PreparedCheck,
   layout: CheckLayout,
   context: ClaudeRunContext,
 ): Promise<Omit<WorkerResult, 'durationMs'>> => {
   const { config } = context
-  const prompt = workspacePrompt(claim, config.platform, images)
+  const prompt = workspacePrompt(claim, config.platform, prepared)
   const run = await runCaptured(
     context.runner,
     {

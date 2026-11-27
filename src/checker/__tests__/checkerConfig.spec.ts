@@ -48,6 +48,8 @@ describe('readCheckerConfig', () => {
       webDomains: DEFAULT_WEB_DOMAINS,
       model: null,
       effort: null,
+      fetcher: null,
+      sharedDir: '/shared',
     })
   })
 

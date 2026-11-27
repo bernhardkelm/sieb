@@ -3,6 +3,7 @@ import { join } from 'node:path'
 
 import { errorMessage } from '#core/errorMessage.ts'
 import { CHECK_DIR_PREFIX } from '#checker/workspace/checkLayout.ts'
+import { logTag } from '#checker/logTag.ts'
 
 /**
  * Removes a check directory, logging instead of throwing when that fails.
@@ -14,7 +15,7 @@ export const wipeCheckDir = async (dir: string, log: (line: string) => void): Pr
   try {
     await rm(dir, { recursive: true, force: true, maxRetries: 2 })
   } catch (error) {
-    log(`[sieb-checker] could not wipe ${dir}: ${errorMessage(error)}`)
+    log(`${logTag()} could not wipe ${dir}: ${errorMessage(error)}`)
   }
 }
 

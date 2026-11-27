@@ -2,6 +2,7 @@ import type { DatabaseSync } from 'node:sqlite'
 
 import { DEFAULT_PUBLIC_REGISTRIES } from '#core/sourceAccess.ts'
 import { createCheckContext, type CheckContext } from '#server/checks/checkContext.ts'
+import type { CredentialVault } from '#server/credentials/credentialVault.ts'
 import { buildSnapshot } from '#server/db/__tests__/dbFixtures.ts'
 import { MEMORY_DB, openDatabase } from '#server/db/openDatabase.ts'
 import { applySnapshot } from '#server/sync/applySnapshot.ts'
@@ -44,11 +45,16 @@ const findingOf = (db: DatabaseSync, imageRef: string): number =>
 /**
  * Opens a database with public, private, unknown and resolved findings and a check context
  * whose clock starts at START.
- * @param {{ timeoutSeconds?: number; maxTurns?: number }} settings - Check settings to replace
+ * @param {{ timeoutSeconds?: number; maxTurns?: number; fetcherSecret?: string | null; vault?: CredentialVault | null }} settings - Check settings, fetcher secret and credential vault to replace
  * @returns {CheckFixture} - Fixture
  */
 export const checkFixture = (
-  settings: { timeoutSeconds?: number; maxTurns?: number } = {},
+  settings: {
+    timeoutSeconds?: number
+    maxTurns?: number
+    fetcherSecret?: string | null
+    vault?: CredentialVault | null
+  } = {},
 ): CheckFixture => {
   const db = openDatabase(MEMORY_DB)
   const gone = 'index.docker.io/library/gone'
@@ -74,7 +80,12 @@ export const checkFixture = (
     log: (line) => logs.push(line),
     publicRegistries: DEFAULT_PUBLIC_REGISTRIES,
     publicUrl: PUBLIC_URL,
-    config: { timeoutSeconds: settings.timeoutSeconds ?? 1200, maxTurns: settings.maxTurns ?? 60 },
+    config: {
+      timeoutSeconds: settings.timeoutSeconds ?? 1200,
+      maxTurns: settings.maxTurns ?? 60,
+      fetcherSecret: settings.fetcherSecret ?? null,
+    },
+    vault: settings.vault ?? null,
   })
 
   return {

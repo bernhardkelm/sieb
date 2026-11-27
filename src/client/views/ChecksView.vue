@@ -26,8 +26,9 @@ const { empty, confirmOpen, confirmText, cancelling, requestCancel, confirmCance
     <ChecksDisabled v-else-if="!checks.enabled" />
     <template v-else>
       <EmptyState v-if="empty" title="No checks yet">
-        Pick Auto-check on a finding of a public image, in its panel or for selected rows in Triage.
-        Claude checks one finding at a time and files a proposal to the Inbox.
+        Pick Auto-check on a finding of a public image, or of one a credential on the Access page
+        covers, in its panel or for selected rows in Triage. Claude checks one finding at a time and
+        files a proposal to the Inbox.
         <template v-if="!checks.workerOnline" #actions>
           <p class="offline">The worker is offline right now.</p>
         </template>

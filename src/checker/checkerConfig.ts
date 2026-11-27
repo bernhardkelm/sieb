@@ -2,7 +2,12 @@ import { resolve } from 'node:path'
 
 import { MAX_WORKER_POLL_SECONDS } from '#core/checkLimits.ts'
 import { parseClaudeEffort, type ClaudeEffort } from '#checker/config/claudeEffort.ts'
-import { boundedInt, required, workerUrl } from '#checker/config/configValues.ts'
+import { boundedInt, platformValue, required, workerUrl } from '#checker/config/configValues.ts'
+import {
+  DEFAULT_SHARED_DIR,
+  readFetcherLink,
+  type FetcherLink,
+} from '#checker/config/fetcherLink.ts'
 import { secretValue, type ReadSecretFile } from '#checker/config/secretValue.ts'
 import { parseWebDomains } from '#checker/config/webDomains.ts'
 
@@ -25,15 +30,15 @@ export interface CheckerConfig {
   webDomains: string[] // hosts WebFetch may reach
   model: string | null // passed as --model, null keeps the account default
   effort: ClaudeEffort | null // passed as --effort, null keeps Claude Code's default
+  fetcher: FetcherLink | null // two-container mode, null pulls public images in this container
+  sharedDir: string // absolute mount of the fetcher's shared workspace volume
 }
 
 export const DEFAULT_WORKDIR = '/work'
 export const DEFAULT_POLL_SECONDS = 10
 export const DEFAULT_IMAGE_MAX_BYTES = 4 * 1024 ** 3
-export const DEFAULT_PLATFORM = 'linux/amd64'
 const DEFAULT_PATH = '/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin'
 export const MODEL_PATTERN = /^[a-z0-9][a-z0-9.\-[\]]{0,63}$/
-const PLATFORM_PATTERN = /^[a-z0-9]+\/[a-z0-9]+(\/[a-z0-9]+)?$/
 const OAUTH_VARIABLE = 'CLAUDE_CODE_OAUTH_TOKEN'
 const API_KEY_VARIABLE = 'ANTHROPIC_API_KEY'
 // variables that would take precedence over the configured credential in Claude Code
@@ -87,11 +92,7 @@ export const readCheckerConfig = (
   readFile?: ReadSecretFile,
 ): CheckerConfig => {
   const url = workerUrl(required(env, 'SIEB_WORKER_URL'))
-  const platform = env.SIEB_CHECKER_PLATFORM?.trim() || DEFAULT_PLATFORM
-
-  if (!PLATFORM_PATTERN.test(platform)) {
-    throw new Error(`SIEB_CHECKER_PLATFORM must look like os/arch, got "${platform}"`)
-  }
+  const platform = platformValue(env.SIEB_CHECKER_PLATFORM)
 
   const model = env.SIEB_CHECKER_MODEL?.trim() || null
 
@@ -99,17 +100,25 @@ export const readCheckerConfig = (
     throw new Error(`SIEB_CHECKER_MODEL must be a model alias or id such as opus, got "${model}"`)
   }
 
+  const fetcher = readFetcherLink(env, readFile)
   const workerSecret = secretValue(env, 'SIEB_WORKER_SECRET', readFile)
 
   if (workerSecret === null) {
     throw new Error('SIEB_WORKER_SECRET is required, directly or as SIEB_WORKER_SECRET_FILE')
   }
 
+  const workdir = resolve(env.SIEB_CHECKER_WORKDIR?.trim() || DEFAULT_WORKDIR)
+  const sharedDir = resolve(env.SIEB_CHECKER_SHARED_DIR?.trim() || DEFAULT_SHARED_DIR)
+
+  if (fetcher !== null && sharedDir === workdir) {
+    throw new Error('SIEB_CHECKER_SHARED_DIR must differ from SIEB_CHECKER_WORKDIR')
+  }
+
   return {
     workerUrl: url,
     workerSecret,
     credential: readCredential(env, readFile),
-    workdir: resolve(env.SIEB_CHECKER_WORKDIR?.trim() || DEFAULT_WORKDIR),
+    workdir,
     pollSeconds: boundedInt(
       env.SIEB_CHECKER_POLL_SECONDS,
       'SIEB_CHECKER_POLL_SECONDS',
@@ -126,5 +135,7 @@ export const readCheckerConfig = (
     webDomains: parseWebDomains(env.SIEB_CHECKER_WEB_DOMAINS),
     model,
     effort: parseClaudeEffort(env.SIEB_CHECKER_EFFORT),
+    fetcher,
+    sharedDir,
   }
 }

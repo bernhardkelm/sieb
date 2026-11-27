@@ -15,7 +15,7 @@ const EMPTY = { render: () => null }
 
 /**
  * Mounts a component inside the tooltip provider with a fresh Pinia, on a memory router with the
- * app paths of the Checks, Triage, Inbox and proposal routes, so links resolve as in the app.
+ * app paths of the Checks, Access, Triage, Inbox and proposal routes, so links resolve as in the app.
  * @param {Component} component - Component under test
  * @param {Record<string, unknown>} props - Its props
  * @param {string} path - Starting path
@@ -31,6 +31,7 @@ export const mountOnAppRoutes = async (
     history: createMemoryHistory(),
     routes: [
       { path: '/checks', name: ROUTE_NAMES.CHECKS, component: EMPTY },
+      { path: '/access', name: ROUTE_NAMES.ACCESS, component: EMPTY },
       { path: '/triage', name: ROUTE_NAMES.TRIAGE, component: EMPTY },
       {
         path: '/inbox',

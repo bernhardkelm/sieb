@@ -149,6 +149,50 @@ describe('ProposalReview of an inconclusive proposal', () => {
     expect(own.querySelector('.proposal-actions .handoff-button')).not.toBeNull()
   })
 
+  it('re-checks a private image a registry credential covers, as the side panel does', async () => {
+    vi.mocked(createChecks).mockResolvedValue({
+      queued: [buildCheck({ findingId: 1 })],
+      skipped: [],
+    })
+    await review(
+      buildChecksResponse(),
+      buildInconclusiveDetail({}, [
+        buildImageFacts({
+          sourceAccess: 'private',
+          checkAccess: {
+            imageRef: IMAGE,
+            level: 'credential',
+            credentialId: 3,
+            credentialLabel: 'Registry',
+          },
+        }),
+      ]),
+    )
+
+    buttonByText('Re-check').click()
+    await flushPromises()
+
+    expect(createChecks).toHaveBeenCalledWith([1])
+  })
+
+  it('hands off a public image the server reports as unreachable', async () => {
+    const panel = await review(
+      buildChecksResponse(),
+      buildInconclusiveDetail({}, [
+        buildImageFacts({
+          checkAccess: {
+            imageRef: IMAGE,
+            level: 'none',
+            credentialId: null,
+            credentialLabel: null,
+          },
+        }),
+      ]),
+    )
+
+    expect(actionTexts(panel)).not.toContain('Re-check')
+  })
+
   it('opens the decision form without a status and saves the reviewer decision', async () => {
     const accepted: ProposalAcceptResponse = {
       proposal: buildProposal({ state: 'accepted', resolution: 'accepted_edited' }),

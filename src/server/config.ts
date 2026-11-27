@@ -14,6 +14,7 @@ import {
   parseRegistryList,
   parseUserHeader,
 } from '#server/configValues.ts'
+import { readCredentialsKey } from '#server/credentialConfigValues.ts'
 import { readOAuthConfig, type OAuthConfig } from '#server/mcpConfigValues.ts'
 import { parseAuthMode, readOidcConfig, type OidcConfig } from '#server/oidcConfigValues.ts'
 import { MAX_PORT, parseMetricsPort } from '#server/portConfigValues.ts'
@@ -61,6 +62,7 @@ export interface ServerConfig {
   publicRegistries: string[] // registry hosts whose images count as public for source access
   sourceCodeUrl: string | null // source code link of a fork, null links the upstream release tag
   checks: CheckConfig | null // Auto-check queue and worker listener, null while SIEB_CHECKS_ENABLED is off
+  credentialsKey: Buffer | null // seals stored access credentials, null turns private access off
 }
 
 /**
@@ -71,7 +73,7 @@ export interface ServerConfig {
  * SIEB_AUTH=oidc needs the OIDC client, the public URL and the metrics port, and never uses the
  * dev user, not even outside production. Its client must differ from the MCP OAuth client, whose
  * access tokens /mcp accepts by audience. SIEB_CHECKS_ENABLED needs MCP, the public URL, the
- * worker port and the worker secret.
+ * worker port and the worker secret. A malformed SIEB_CREDENTIALS_KEY refuses to start.
  * @param {Record<string, string | undefined>} env - Environment
  * @param {string} cwd - Directory relative paths resolve against
  * @returns {ServerConfig} - Validated configuration
@@ -131,5 +133,6 @@ export const readConfig = (env: Record<string, string | undefined>, cwd: string)
     publicRegistries: parseRegistryList(env.SIEB_PUBLIC_REGISTRIES),
     sourceCodeUrl: parseSourceCodeUrl(env.SIEB_SOURCE_URL),
     checks: readCheckConfig(env, { mcpEnabled, publicUrl, port, metricsPort }),
+    credentialsKey: readCredentialsKey(env),
   }
 }

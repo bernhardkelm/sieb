@@ -23,6 +23,7 @@ describe('Auto-check config', () => {
     expect(readConfig(ON, CWD).checks).toEqual({
       workerPort: 9300,
       workerSecret: SECRET,
+      fetcherSecret: null,
       timeoutSeconds: 1200,
       maxTurns: 60,
     })

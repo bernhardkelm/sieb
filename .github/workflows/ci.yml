@@ -118,7 +118,7 @@ jobs:
           tags: sieb-checker:ci
           cache-from: type=gha,scope=checker
 
-      # the module graph loads, the config check refuses to start, the inspect server answers
+      # the module graphs load, both config checks refuse to start, the inspect server answers
       - name: Smoke test the checker image
         run: |
           set -euo pipefail
@@ -126,6 +126,11 @@ jobs:
           refusal="$("${run[@]}" sieb-checker:ci 2>&1 || true)"
           echo "$refusal"
           grep -qx '\[sieb-checker\] SIEB_WORKER_URL is required' <<<"$refusal"
+          # the fetcher runs under a uid of its own that shares only the group with the checker
+          fetcher="$("${run[@]}" --user 1001:1000 sieb-checker:ci src/checker/fetcher/fetcherMain.ts 2>&1 || true)"
+          echo "$fetcher"
+          grep -qx '\[sieb-fetcher\] SIEB_WORKER_URL is required' <<<"$fetcher"
+          "${run[@]}" --entrypoint git sieb-checker:ci --version
           "${run[@]}" --entrypoint claude sieb-checker:ci --version
           # SIEB_CHECKER_MODEL and SIEB_CHECKER_EFFORT need these flags in the pinned Claude Code
           help="$("${run[@]}" --entrypoint claude sieb-checker:ci --help)"

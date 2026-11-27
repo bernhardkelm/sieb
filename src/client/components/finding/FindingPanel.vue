@@ -12,6 +12,7 @@ import LoadState from '@/components/common/LoadState.vue'
 import SectionHeading from '@/components/common/SectionHeading.vue'
 import DecisionHistory from '@/components/decision/DecisionHistory.vue'
 import { STICKY_ACTIONS_TARGET } from '@/components/decision/stickyActionsTarget'
+import CheckAccessFact from '@/components/finding/CheckAccessFact.vue'
 import FindingDecisions from '@/components/finding/FindingDecisions.vue'
 import FindingHeader from '@/components/finding/FindingHeader.vue'
 import FoundIn from '@/components/finding/FoundIn.vue'
@@ -28,12 +29,14 @@ import { usePanelFocus } from '@/composables/usePanelFocus'
 import { usePanelSeen } from '@/composables/usePanelSeen'
 import { usePanelShortcuts } from '@/composables/usePanelShortcuts'
 import { useWindowKeydown } from '@/composables/useWindowKeydown'
+import { useChecksStore } from '@/stores/checksStore'
 import { useFindingDetailStore } from '@/stores/findingDetailStore'
 import { useMcpStore } from '@/stores/mcpStore'
 
 const { findingId, closeFinding } = useFindingPanel()
 const store = useFindingDetailStore()
 const mcp = useMcpStore()
+const checks = useChecksStore()
 const markShown = usePanelSeen()
 const { prompts: handoffPrompts, command: handoffCommand } = useHandoff()
 
@@ -100,6 +103,10 @@ useWindowKeydown(onWindowKeydown)
       />
       <FindingInboxLine :finding="store.detail.finding" />
       <FindingCheckLine :finding-id="store.detail.finding.id" />
+      <CheckAccessFact
+        v-if="checks.enabled && store.detail.checkAccess?.length"
+        :access="store.detail.checkAccess"
+      />
       <section v-if="store.detail.kev" class="section" aria-labelledby="panel-kev">
         <SectionHeading id="panel-kev">Known exploited</SectionHeading>
         <KevDetails :details="store.detail.kev" />

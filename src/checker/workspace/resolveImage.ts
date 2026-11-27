@@ -1,9 +1,8 @@
-import type { WorkerClaim, WorkerClaimImage } from '#core/check.ts'
+import type { WorkerClaimImage } from '#core/check.ts'
 import { isImageDigest } from '#core/checkPrompt.ts'
-import { claimImages } from '#checker/api/claimImages.ts'
 import { CheckFailure } from '#checker/CheckFailure.ts'
 import { errorTail } from '#checker/process/errorTail.ts'
-import type { CheckLayout } from '#checker/workspace/checkLayout.ts'
+import type { ToolLayout } from '#checker/workspace/checkLayout.ts'
 import { digestOfRef, repositoryOf } from '#checker/workspace/imageRef.ts'
 import { runTool, type ToolContext } from '#checker/workspace/runTool.ts'
 
@@ -23,14 +22,14 @@ export interface PulledImage {
  * reference, else the digest the tag points to now, resolved with crane digest, so config and
  * export read the same image.
  * @param {WorkerClaimImage} image - Claim image
- * @param {CheckLayout} layout - Check paths
+ * @param {ToolLayout} layout - Tool paths
  * @param {ToolContext} context - Runner, config, abort signal and deadline
  * @returns {Promise<PulledImage>} - Reference by digest
  * @throws {CheckFailure} - When the tag cannot be resolved
  */
 const resolveImage = async (
   image: WorkerClaimImage,
-  layout: CheckLayout,
+  layout: ToolLayout,
   context: ToolContext,
 ): Promise<PulledImage> => {
   const repository = repositoryOf(image.imageRef)
@@ -62,22 +61,22 @@ const resolveImage = async (
 }
 
 /**
- * Resolves every image of the claim to a digest, primary first. Only a pull by tag runs crane
+ * Resolves every image of a claim to a digest, primary first. Only a pull by tag runs crane
  * digest, and a claim carries one of those only as its single image.
- * @param {WorkerClaim} claim - Claimed check
- * @param {CheckLayout} layout - Check paths
+ * @param {WorkerClaimImage[]} images - Images of the claim, see claimImages
+ * @param {ToolLayout} layout - Tool paths
  * @param {ToolContext} context - Runner, config, abort signal and deadline
  * @returns {Promise<PulledImage[]>} - References by digest
  * @throws {CheckFailure} - When a tag cannot be resolved
  */
 export const resolveImages = async (
-  claim: WorkerClaim,
-  layout: CheckLayout,
+  images: WorkerClaimImage[],
+  layout: ToolLayout,
   context: ToolContext,
 ): Promise<PulledImage[]> => {
   const pulled: PulledImage[] = []
 
-  for (const image of claimImages(claim)) {
+  for (const image of images) {
     pulled.push(await resolveImage(image, layout, context))
   }
 

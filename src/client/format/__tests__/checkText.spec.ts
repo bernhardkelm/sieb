@@ -67,7 +67,7 @@ describe('check create notice', () => {
 
     expect(notice).toEqual({
       title: 'Auto-check queued at #4',
-      description: 'Skipped 3: 2 not on a public image, 1 already queued or running.',
+      description: 'Skipped 3: 2 without access to the image, 1 already queued or running.',
       none: false,
     })
   })

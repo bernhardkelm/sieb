@@ -60,3 +60,22 @@ export const workerUrl = (value: string): string => {
 
   return value.replace(/\/+$/, '')
 }
+
+export const DEFAULT_PLATFORM = 'linux/amd64'
+const PLATFORM_PATTERN = /^[a-z0-9]+\/[a-z0-9]+(\/[a-z0-9]+)?$/
+
+/**
+ * Reads SIEB_CHECKER_PLATFORM, the platform exported from multi-platform images.
+ * @param {string | undefined} value - Raw variable
+ * @returns {string} - Platform such as linux/amd64
+ * @throws {Error} - When it does not look like os/arch or os/arch/variant
+ */
+export const platformValue = (value: string | undefined): string => {
+  const platform = value?.trim() || DEFAULT_PLATFORM
+
+  if (!PLATFORM_PATTERN.test(platform)) {
+    throw new Error(`SIEB_CHECKER_PLATFORM must look like os/arch, got "${platform}"`)
+  }
+
+  return platform
+}

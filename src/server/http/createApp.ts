@@ -10,6 +10,7 @@ import type { KevSourceKind } from '#core/kev.ts'
 import { DEFAULT_PUBLIC_REGISTRIES } from '#core/sourceAccess.ts'
 import type { SourceKind } from '#core/types.ts'
 import type { CheckContext } from '#server/checks/checkContext.ts'
+import type { CredentialSetup } from '#server/http/routes/credentialRoutes.ts'
 import type { AppEnv } from '#server/http/AppEnv.ts'
 import { hostGuard } from '#server/http/hostGuard.ts'
 import { DEFAULT_USER_HEADER } from '#server/http/identity.ts'
@@ -51,6 +52,7 @@ export interface AppDeps {
   publicRegistries?: readonly string[] // registries whose images count as public, DEFAULT_PUBLIC_REGISTRIES by default
   sourceCodeUrl?: string | null // source code link of a fork, null links the upstream release tag
   checks?: CheckContext | null // Auto-check context shared with the worker listener, null disables /api/checks writes
+  credentials?: CredentialSetup // credential vault, a test fetch and limits, no vault by default
 }
 
 /**
@@ -64,12 +66,13 @@ export interface AppDeps {
  * 6. MCP enabled only: /mcp outside /api with its own chain (Origin, body limit, bearer token,
  *    rate limit), never reading the forward-auth header, and the OAuth metadata under /.well-known
  * 7. /api guards: same-origin JSON writes, MAX_BODY_BYTES bodies, header mode identity
- * 8. /api routes, /api/tokens answers 404 mcp_disabled without MCP and /api/checks writes 404
- *    checks_disabled without checks; bearer tokens never pass here
+ * 8. /api routes, /api/tokens answers 404 mcp_disabled without MCP, /api/checks writes 404
+ *    checks_disabled without checks and /api/credentials writes 404 credentials_disabled without
+ *    the credentials key; bearer tokens never pass here
  * 9. /metrics scrape target, unauthenticated, when served on this port
  * 10. with a static directory, the built client with a fallback to index.html for client routes
  * 11. JSON 404 for unknown paths and a logged JSON 500 for errors
- * @param {AppDeps} deps - Data and KEV source, database, sync service, clock, dev user, user header, allowed hosts, static dir, logger, MCP settings, version, auth mode and OIDC settings, metrics placement, public registries, source code link, check context
+ * @param {AppDeps} deps - Data and KEV source, database, sync service, clock, dev user, user header, allowed hosts, static dir, logger, MCP settings, version, auth mode and OIDC settings, metrics placement, public registries, source code link, check context, credential setup
  * @returns {Hono<AppEnv>} - App
  */
 export const createApp = ({
@@ -96,6 +99,7 @@ export const createApp = ({
   publicRegistries = DEFAULT_PUBLIC_REGISTRIES,
   sourceCodeUrl = null,
   checks = null,
+  credentials = { vault: null },
 }: AppDeps): Hono<AppEnv> => {
   const app = new Hono<AppEnv>()
   const deps = { db, clock, kevSource }
@@ -143,6 +147,7 @@ export const createApp = ({
     publicRegistries,
     build: { version, sourceCodeUrl: sourceCodeUrlOf(version, sourceCodeUrl) },
     checks,
+    credentials,
   })
   if (serveMetrics) {
     app.route('/metrics', createMetricsRoutes({ ...deps, checks }))

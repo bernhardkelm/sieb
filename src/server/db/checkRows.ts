@@ -1,4 +1,5 @@
 import type { CheckedImage, CheckPhase, CheckState, CheckUsage, CheckView } from '#core/check.ts'
+import type { CheckedSource } from '#core/privateAccess.ts'
 
 export interface CheckRow {
   id: number
@@ -20,6 +21,7 @@ export interface CheckRow {
   reply: string | null
   pulled_digest: string | null
   pulled_images: string | null
+  source: string | null
 }
 
 /** Stored check with the fields the client view leaves out */
@@ -43,6 +45,7 @@ export interface StoredCheck {
   reply: string | null
   pulledDigest: string | null
   pulledImages: CheckedImage[] | null // null for checks that ended before schema step 18
+  source: CheckedSource | null // null without a checked out repository and before schema step 20
 }
 
 /**
@@ -71,6 +74,7 @@ export const toStoredCheck = (row: CheckRow): StoredCheck => ({
   pulledDigest: row.pulled_digest,
   pulledImages:
     row.pulled_images === null ? null : (JSON.parse(row.pulled_images) as CheckedImage[]),
+  source: row.source === null ? null : (JSON.parse(row.source) as CheckedSource),
 })
 
 /**
@@ -125,4 +129,5 @@ export const toCheckView = (check: StoredCheck, position: number | null = null):
   reply: check.reply,
   pulledDigest: check.pulledDigest,
   pulledImages: pulledImagesOf(check),
+  source: check.source,
 })

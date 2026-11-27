@@ -1,0 +1,27 @@
+ol {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  margin: 0;
+  padding-left: var(--space-5);
+}
+
+.part {
+  margin-top: var(--space-2);
+  font-weight: var(--font-weight-medium);
+}
+
+.part:first-child {
+  margin-top: 0;
+}
+
+.tip {
+  margin-top: var(--space-2);
+  color: var(--color-text-muted);
+}
+
+code {
+  font-family: var(--font-mono);
+  font-size: var(--font-size-sm);
+  overflow-wrap: anywhere;
+}

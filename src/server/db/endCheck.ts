@@ -2,6 +2,7 @@ import type { DatabaseSync } from 'node:sqlite'
 
 import type { ApiToken } from '#core/apiToken.ts'
 import type { CheckedImage, CheckUsage } from '#core/check.ts'
+import type { CheckedSource } from '#core/privateAccess.ts'
 import { getCheck } from '#server/db/checkRepository.ts'
 import type { StoredCheck } from '#server/db/checkRows.ts'
 import { dropCheckToken } from '#server/db/checkTokens.ts'
@@ -16,6 +17,7 @@ export interface CheckOutcome {
   reply: string | null
   pulledDigest?: string | null // done and failed results of the worker only
   pulledImages?: CheckedImage[] // done and failed results of the worker only, primary first
+  source?: CheckedSource | null // done and failed results of the worker only
 }
 
 /** An ended check and its deleted token, null when the check had none or it was gone */
@@ -79,7 +81,7 @@ export const endCheck = (
     const { changes } = db
       .prepare(
         `UPDATE checks SET state = ?, finished_at = ?, error = ?, duration_ms = ?, usage = ?,
-           reply = ?, proposal_id = ?, pulled_digest = ?, pulled_images = ?
+           reply = ?, proposal_id = ?, pulled_digest = ?, pulled_images = ?, source = ?
          WHERE id = ? AND state IN ('queued', 'running')`,
       )
       .run(
@@ -92,6 +94,7 @@ export const endCheck = (
         proposalId,
         outcome.pulledDigest ?? null,
         outcome.pulledImages?.length ? JSON.stringify(outcome.pulledImages) : null,
+        outcome.source ? JSON.stringify(outcome.source) : null,
         check.id,
       )
 

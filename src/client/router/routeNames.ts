@@ -6,6 +6,7 @@ export const ROUTE_NAMES = {
   CVES: 'cves',
   DECISIONS: 'decisions',
   CHECKS: 'checks',
+  ACCESS: 'access',
 } as const
 
 export type RouteName = (typeof ROUTE_NAMES)[keyof typeof ROUTE_NAMES]

@@ -1,3 +1,5 @@
+import type { CheckedSource } from '#core/privateAccess.ts'
+
 /** Life cycle of an Auto-check, queued and running are open */
 export const CHECK_STATES = ['queued', 'running', 'done', 'failed', 'cancelled'] as const
 
@@ -50,6 +52,7 @@ export interface CheckView {
   reply: string | null // Claude's final reply, plain text, untrusted
   pulledDigest?: string | null // digest the worker reports it exported, the server always sets it
   pulledImages?: CheckedImage[] // images the worker reports it exported, primary first, the server always sets it
+  source?: CheckedSource | null // repository the worker checked out, null without one
 }
 
 /** One image a check exported, with the tag sieb knows for its digest */
@@ -133,4 +136,5 @@ export interface WorkerResult {
   reply: string | null // Claude's final reply, at most MAX_CHECK_REPLY_LENGTH code points
   pulledDigest?: string | null // digest of the exported primary image, optional
   pulledDigests?: string[] // digests of every exported image, primary first, absent from older workers
+  source?: CheckedSource | null // repository checked out for the primary image, absent from older workers
 }

@@ -4,7 +4,7 @@ import { countOf, formatCount } from '@/format/count'
 export const CHECK_SKIP_LABELS: Record<CheckSkipReason, string> = {
   not_found: 'not found',
   resolved: 'resolved',
-  not_public: 'not on a public image',
+  not_public: 'without access to the image',
   already_open: 'already queued or running',
   queue_full: 'over the queue limit',
 }
@@ -19,7 +19,7 @@ export interface CheckCreateNotice {
 /**
  * Summarises the skipped findings of a create answer per reason.
  * @param {CheckCreateResponse['skipped']} skipped - Skipped findings
- * @returns {string} - Text such as "Skipped 2: 1 not on a public image, 1 resolved.", empty for none
+ * @returns {string} - Text such as "Skipped 2: 1 without access to the image, 1 resolved.", empty for none
  */
 export const skippedSummary = (skipped: CheckCreateResponse['skipped']): string => {
   if (skipped.length === 0) {

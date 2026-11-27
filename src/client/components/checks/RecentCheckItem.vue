@@ -9,6 +9,7 @@ import RetryCheckButton from '@/components/checks/RetryCheckButton.vue'
 import FactItem from '@/components/common/FactItem.vue'
 import FactList from '@/components/common/FactList.vue'
 import RelativeTime from '@/components/common/RelativeTime.vue'
+import { checkedSourceText } from '@/format/accessText'
 import { checkedImagesText, costText, usageText } from '@/format/checkResultText'
 import { formatCount } from '@/format/count'
 import { formatElapsed, NO_FAILURE_REASON } from '@/format/checkText'
@@ -19,6 +20,7 @@ const props = defineProps<{
 
 const cost = computed(() => costText(props.check.usage?.costUsd ?? null))
 const images = computed(() => checkedImagesText(props.check.pulledImages))
+const source = computed(() => (props.check.source ? checkedSourceText(props.check.source) : null))
 </script>
 
 <template>
@@ -38,6 +40,9 @@ const images = computed(() => checkedImagesText(props.check.pulledImages))
       </FactItem>
       <FactItem v-if="images !== null" label="Checked images">
         <span class="images">{{ images }}</span>
+      </FactItem>
+      <FactItem v-if="source !== null" label="Source">
+        <span class="images">{{ source }}</span>
       </FactItem>
       <FactItem v-if="check.usage?.models?.length" label="Model">
         {{ check.usage.models.join(', ') }}

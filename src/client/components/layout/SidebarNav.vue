@@ -43,11 +43,7 @@ const badgeOf = (item: NavItem): number => {
           </span>
           <span class="glyph">
             <AppIcon class="icon" :name="NAV_ICONS[item.icon]" />
-            <span
-              v-if="badgeOf(item) > 0"
-              class="badge"
-              :class="{ quiet: item.badge === 'checks' }"
-            >
+            <span v-if="badgeOf(item) > 0" class="badge">
               {{ formatCount(badgeOf(item)) }}<span class="visually-hidden">&nbsp;open</span>
             </span>
           </span>
@@ -115,13 +111,6 @@ const badgeOf = (item: NavItem): number => {
   font-variant-numeric: tabular-nums;
   line-height: calc(var(--space-base) * 4.5);
   text-align: center;
-}
-
-/* open checks are a queue, not work that waits on the user */
-.quiet {
-  background: var(--color-sidebar);
-  box-shadow: inset 0 0 0 var(--border-width) var(--color-border-strong);
-  color: var(--color-text-muted);
 }
 </style>
 

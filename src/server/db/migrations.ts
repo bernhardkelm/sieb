@@ -20,6 +20,7 @@ import { MIGRATION_16 } from '#server/db/migrations/migration16.ts'
 import { MIGRATION_17 } from '#server/db/migrations/migration17.ts'
 import { MIGRATION_18 } from '#server/db/migrations/migration18.ts'
 import { MIGRATION_19 } from '#server/db/migrations/migration19.ts'
+import { MIGRATION_20 } from '#server/db/migrations/migration20.ts'
 
 /** Schema steps, step n brings the database to user_version n */
 export const MIGRATIONS: string[] = [
@@ -42,6 +43,7 @@ export const MIGRATIONS: string[] = [
   MIGRATION_17,
   MIGRATION_18,
   MIGRATION_19,
+  MIGRATION_20,
 ]
 
 /**

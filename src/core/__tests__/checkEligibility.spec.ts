@@ -26,9 +26,34 @@ describe('eligibilityFactsOf', () => {
     expect(eligibilityFactsOf(PUBLIC, DEFAULT_PUBLIC_REGISTRIES)).toEqual({
       resolved: false,
       sourceAccess: 'public',
+      credentialAccess: false,
     })
     expect(
       eligibilityFactsOf({ ...PUBLIC, owner: 'self', resolvedAt: 't' }, DEFAULT_PUBLIC_REGISTRIES),
-    ).toEqual({ resolved: true, sourceAccess: 'private' })
+    ).toEqual({ resolved: true, sourceAccess: 'private', credentialAccess: false })
+  })
+
+  it('makes an own image checkable once a registry credential covers it', () => {
+    const own = { resolvedAt: null, imageRef: 'registry.gitlab.com/acme/shop', owner: 'self' }
+    const scope = {
+      id: 1,
+      label: 'GitLab',
+      uses: ['registry' as const],
+      registryHost: 'registry.gitlab.com',
+      gitHost: null,
+      pathPrefix: 'acme',
+      repoMapping: null,
+    }
+    const covered = eligibilityFactsOf(own, DEFAULT_PUBLIC_REGISTRIES, [scope])
+    const elsewhere = eligibilityFactsOf(own, DEFAULT_PUBLIC_REGISTRIES, [
+      { ...scope, pathPrefix: 'other' },
+    ])
+
+    expect(covered).toEqual({ resolved: false, sourceAccess: 'private', credentialAccess: true })
+    expect(findingCheckBlocker(covered)).toBeNull()
+    expect(findingCheckBlocker(elsewhere)).toBe('not_public')
+    expect(
+      findingCheckBlocker({ resolved: true, sourceAccess: 'private', credentialAccess: true }),
+    ).toBe('resolved')
   })
 })

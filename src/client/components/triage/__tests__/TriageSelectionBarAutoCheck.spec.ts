@@ -79,7 +79,7 @@ describe('TriageSelectionBar Auto-check', () => {
     expect(createChecks).toHaveBeenCalledWith([1, 3])
     expect(notifySuccess).toHaveBeenCalledWith(
       'Auto-check queued at #1',
-      'Skipped 1: 1 not on a public image.',
+      'Skipped 1: 1 without access to the image.',
     )
   })
 

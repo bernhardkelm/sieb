@@ -11,7 +11,9 @@ import { NO_PULL_REF_ERROR } from '#core/checkPrompt.ts'
 import { checkPullRef, type CheckPull } from '#core/checkPull.ts'
 import type { Finding } from '#core/finding.ts'
 import type { FindingInstance } from '#core/instance.ts'
+import type { CredentialVault } from '#server/credentials/credentialVault.ts'
 import { getCheck } from '#server/db/checkRepository.ts'
+import { listUsableScopes } from '#server/db/credentialRepository.ts'
 import type { CheckRow, StoredCheck } from '#server/db/checkRows.ts'
 import { toStoredCheck } from '#server/db/checkRows.ts'
 import { mintCheckToken } from '#server/db/checkTokens.ts'
@@ -32,18 +34,19 @@ export interface ClaimedCheck {
 export interface ClaimContext {
   publicRegistries: readonly string[]
   timeoutSeconds: number
+  credentialVault?: CredentialVault | null // vault of usable credentials, null while private access is off
 }
 
 /** Result of one claim: the started check and the queued ones that could not start */
 export interface ClaimResult {
   claimed: ClaimedCheck | null
-  skipped: StoredCheck[] // failed at claim: finding gone, resolved, no longer public or not pullable
+  skipped: StoredCheck[] // failed at claim: finding gone, resolved, no longer reachable or not pullable
 }
 
 const BLOCKER_ERRORS: Record<CheckBlocker, string> = {
   not_found: 'The finding no longer exists.',
   resolved: 'The finding was resolved before the check started.',
-  not_public: 'The image is no longer public.',
+  not_public: 'The image is no longer public or covered by a registry credential.',
 }
 
 /**
@@ -93,16 +96,17 @@ const startCheck = (
 /**
  * Starts the oldest queued check in one transaction unless a check is running: mints the propose
  * token of its requester and marks it running in phase preparing. Queued checks whose finding
- * is gone, resolved or no longer public, or whose image has neither a digest nor a tag, fail on
- * the way.
+ * is gone, resolved or neither public nor covered by a usable registry credential, or whose
+ * image has neither a digest nor a tag, fail on the way.
  * @param {DatabaseSync} db - Open database
- * @param {ClaimContext} context - Public registries and check timeout
+ * @param {ClaimContext} context - Public registries, check timeout and credential vault
  * @param {Date} now - Claim time
  * @returns {ClaimResult} - Started check with its token secret, and the checks that failed at claim
  */
 export const claimCheck = (db: DatabaseSync, context: ClaimContext, now: Date): ClaimResult =>
   inTransaction(db, () => {
     const skipped: StoredCheck[] = []
+    const scopes = listUsableScopes(db, context.credentialVault ?? null)
 
     if (db.prepare(`SELECT 1 FROM checks WHERE state = 'running'`).get() !== undefined) {
       return { claimed: null, skipped }
@@ -110,7 +114,9 @@ export const claimCheck = (db: DatabaseSync, context: ClaimContext, now: Date): 
 
     for (let next = oldestQueued(db); next !== null; next = oldestQueued(db)) {
       const finding = getFinding(db, next.findingId)
-      const blocker = findingCheckBlocker(eligibilityFactsOf(finding, context.publicRegistries))
+      const blocker = findingCheckBlocker(
+        eligibilityFactsOf(finding, context.publicRegistries, scopes),
+      )
       const instances = finding === null ? [] : listInstances(db, finding.id)
       const pull = finding === null ? null : checkPullRef(finding.imageRef, instances)
 
