@@ -22,6 +22,7 @@ export interface CloneMiss {
   ok: false
   reason: 'clone_failed' | 'too_large'
   detail: string // short reason for the log, may still hold untrusted server text
+  timedOut?: true // a git step ran out of time, so the server's answer is unknown
 }
 
 /** One finished git step */
@@ -98,7 +99,7 @@ export const gitMiss = (name: string, step: GitStep, signal: AbortSignal): Clone
   }
 
   if (run.timedOut) {
-    return { ok: false, reason: 'clone_failed', detail: `${name} timed out` }
+    return { ok: false, reason: 'clone_failed', detail: `${name} timed out`, timedOut: true }
   }
 
   if (run.exit.code !== 0) {

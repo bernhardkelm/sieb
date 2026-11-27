@@ -13,6 +13,7 @@ import {
 import { commandResult, toolError } from '#checker/inspect/inspectResult.ts'
 import { runLines } from '#checker/inspect/linesHandler.ts'
 import type { LineFilter } from '#checker/inspect/patternFilter.ts'
+import { createRegistryHandlers, type RegistryHandlers } from '#checker/inspect/registryHandlers.ts'
 import { createStringsHandler, type StringsInput } from '#checker/inspect/stringsHandler.ts'
 import { workspaceFile } from '#checker/inspect/workspaceFile.ts'
 
@@ -28,7 +29,7 @@ export interface InspectDeps {
 }
 
 /** One handler per inspect tool */
-export interface InspectHandlers {
+export interface InspectHandlers extends RegistryHandlers {
   strings: (input: StringsInput) => Promise<CallToolResult>
   readelf: (
     input: { path: string; mode: ReadelfMode } & Partial<LineFilter>,
@@ -42,7 +43,8 @@ export interface InspectHandlers {
 
 /**
  * Creates the inspect tool handlers. Every path must resolve to a file inside the workspace,
- * every command runs without a shell, with PATH only, a timeout and an output cap.
+ * every command runs without a shell, with PATH only, a timeout and an output cap; the
+ * registry tools read public images anonymously.
  * @param {InspectDeps} deps - Workspace, command runner and limits
  * @returns {InspectHandlers} - Handlers by tool name
  */
@@ -130,5 +132,6 @@ export const createInspectHandlers = (deps: InspectDeps): InspectHandlers => {
       runFiltered('objdump', path, (file) => objdumpArgs(file, mode, symbol), filter),
     unzip_list: ({ path }) => run('unzip', path, unzipArgs),
     jq: ({ path, filter }) => run('jq', path, (file) => jqArgs(file, filter), JQ_MAX_FILE_BYTES),
+    ...createRegistryHandlers(deps),
   }
 }

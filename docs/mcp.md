@@ -228,17 +228,21 @@ sieb only knows what Trivy scanned. A vulnerability missing from sieb means "not
 scanned image as of the last successful sync", never "safe", and the server instructions tell
 Claude to say so with the sync time.
 
-`check_vulnerability`, `get_finding`, `get_image` and `search_findings` rows carry `sourceAccess`
-per image: `private` only for own images (owner `self`), `public` for images of a registry in
-`SIEB_PUBLIC_REGISTRIES` with another owner, `unknown` for every other registry and for a ref
-without one. For `private` images the server instructions depend on the client: Claude Code
-(clientInfo name `claude-code`, which the terminal, the Code tab of the Claude app and the IDE
-extensions send at the handshake) is told that the repository is probably on the machine, to check
-whether the working directory is it (git remote, Dockerfile or build config naming the image) and
-otherwise to ask for its path before concluding. Every other client hears that only advisory-level
-checks are possible unless it runs inside that repository. The triage prompt asks for the
-repository the same way. For an `unknown` image Claude is told it may or may not be inspectable,
-so it tries to pull it.
+`check_vulnerability`, `get_finding`, `get_image` and `search_findings` rows carry two facts per
+image, see [Image access](api.md#image-access): `ownership`, `own` for owner `self`, else
+`third_party`, and `imageVisibility`, whether the image can be pulled: `public` anonymously,
+`credential` only with a registry credential stored in sieb (what Auto-check uses), `restricted`
+not without a login, `unknown` not probed yet or the probe failed. `get_finding` and
+`check_vulnerability` probe own images without a fresh answer first and wait at most 3 seconds;
+`get_image` and `search_findings` answer from the cache. For own images the server instructions
+depend on the client: Claude Code (clientInfo name `claude-code`, which the terminal, the Code
+tab of the Claude app and the IDE extensions send at the handshake) is told that the repository
+is probably on the machine, to check whether the working directory is it (git remote, Dockerfile
+or build config naming the image) and otherwise to ask for its path before concluding. An
+Auto-check hears that the repository is in `source/` when the workspace has one. Every other
+client hears that only advisory-level checks are possible unless it runs inside that
+repository. The triage prompt asks for the repository the same way. For an `unknown` image
+Claude is told to try pulling it.
 
 `get_finding` and `check_vulnerability` name the configured KEV source as `kevSource` (`cisa`,
 `prometheus` or `none`). Only `cisa` fills `kevCatalog` with the CISA dates and text. For a KEV
@@ -337,7 +341,7 @@ upstream" chip. Accepting carries it over to the decision (`upstreamPending`, `w
 
 `evidenceBasis` is required and must be honest:
 `advisory` (advisory and sieb data), `upstream_source`, `image`, `own_source` (the repository
-that builds the image) or `runtime`. For a private image Claude cannot inspect, the basis is
+that builds the image) or `runtime`. For an own image Claude cannot inspect, the basis is
 `advisory` and the confidence low or medium, and a `not_affected` resting on `advisory` alone is
 weak evidence.
 
@@ -415,7 +419,7 @@ the tooltip names how many of the listed findings an action covers.
 ## Triage prompt and hand-off
 
 The MCP prompt `triage_finding` takes a `findingId` or a `vulnId` and walks Claude through an
-investigation: facts from sieb and earlier decisions, source access, presence, reachability,
+investigation: facts from sieb and earlier decisions, image access, presence, reachability,
 exposure, evidence and its basis, fix path, review date, unknowns and confidence. With
 `sieb:propose` it ends in `propose_decision` (after checking `list_my_proposals`), filed without
 asking first, since a proposal changes nothing until a human accepts it. The detail goes into the
@@ -470,7 +474,7 @@ table or verdict block; Claude offers a proposal only when a decision is actuall
 question ("find X, then triage one") gets the answer in the first line, at most three bullets,
 then the five-line block of the triaged finding. When a filtered search returns nothing, the first
 line says so before Claude widens it and names the widened filter. "public" in a question means
-exposure `public` unless the user says registry or source, which is `sourceAccess`. For a
+exposure `public` unless the user says registry or source, which is `imageVisibility`. For a
 third-party image sieb's tools and the public advisory are enough; when an action outside sieb
 is refused, Claude does not repeat it through another tool, names that check under Not checked and
 continues with the others; a refused shell command does not rule out reading pages with the fetch

@@ -6,9 +6,7 @@ import {
   scopesCollide,
   type AccessScope,
 } from '#core/accessScope.ts'
-import { imageCheckAccessOf } from '#core/imageCheckAccess.ts'
 import { splitImageRef } from '#core/imageRefParts.ts'
-import { DEFAULT_PUBLIC_REGISTRIES } from '#core/sourceAccess.ts'
 
 const SCOPE: AccessScope = {
   id: 1,
@@ -82,25 +80,5 @@ describe('coveringScope', () => {
     expect(
       scopesCollide({ ...SCOPE, uses: ['registry'] }, { ...SCOPE, id: 2, uses: ['git'] }),
     ).toBe(false)
-  })
-})
-
-describe('imageCheckAccessOf', () => {
-  it('names the credential, else public, else none', () => {
-    const own = { imageRef: 'ghcr.io/acme/app', owner: 'self' }
-
-    expect(imageCheckAccessOf(own, DEFAULT_PUBLIC_REGISTRIES, [SCOPE])).toEqual({
-      imageRef: 'ghcr.io/acme/app',
-      level: 'credential',
-      credentialId: 1,
-      credentialLabel: 'acme',
-    })
-    expect(imageCheckAccessOf(own, DEFAULT_PUBLIC_REGISTRIES, [])).toMatchObject({
-      level: 'none',
-      credentialId: null,
-    })
-    expect(
-      imageCheckAccessOf({ ...own, owner: null }, DEFAULT_PUBLIC_REGISTRIES, []),
-    ).toMatchObject({ level: 'public' })
   })
 })

@@ -2,11 +2,16 @@ import { z } from 'zod'
 
 import { VERDICT_STATES, verdictState } from '#core/decisionStateFilter.ts'
 import { EXPOSURES } from '#core/exposure.ts'
+import {
+  IMAGE_OWNERSHIPS,
+  IMAGE_VISIBILITIES,
+  imageAccessOf,
+  type ImageAccessSources,
+} from '#core/imageVisibility.ts'
 import type { FindingView } from '#core/findingView.ts'
 import type { PackageVersion } from '#core/instance.ts'
 import { SEVERITIES } from '#core/severity.ts'
 import { findingUrl } from '#core/siebLinks.ts'
-import { SOURCE_ACCESS_LEVELS, sourceAccess } from '#core/sourceAccess.ts'
 
 const MAX_ROW_LIST = 10
 
@@ -25,11 +30,14 @@ export const findingRowSchema = z.object({
   kev: z.boolean(),
   exposure: z.enum(EXPOSURES).nullable().describe('null when the workload has no exposure label'),
   owner: z.string().nullable().describe('self marks own images'),
-  sourceAccess: z
-    .enum(SOURCE_ACCESS_LEVELS)
+  imageVisibility: z
+    .enum(IMAGE_VISIBILITIES)
     .describe(
-      'public: upstream source and image can be checked, private or unknown: advisory-level only',
+      'whether the image can be pulled: public anonymously, credential only with a registry credential stored in sieb (Auto-check), restricted not without a login, unknown not probed yet or the probe failed',
     ),
+  ownership: z
+    .enum(IMAGE_OWNERSHIPS)
+    .describe('own (owner self): its repository may be on this machine, else third_party'),
   versions: z.array(packageVersionSchema).describe(`installed and fixed, at most ${MAX_ROW_LIST}`),
   workloads: z.array(z.string()).describe(`namespace/kind/name, at most ${MAX_ROW_LIST}`),
   workloadCount: z.number().int(),
@@ -60,14 +68,14 @@ export const toVersionRows = (versions: readonly PackageVersion[]): FindingRow['
  * @param {FindingView} finding - Finding with its governing decision
  * @param {readonly PackageVersion[]} versions - Versions of its current instances
  * @param {string} base - Link base
- * @param {readonly string[]} publicRegistries - Registries whose images count as public
+ * @param {ImageAccessSources} sources - Probe results, public registries and credentials
  * @returns {FindingRow} - Row
  */
 export const toFindingRow = (
   finding: FindingView,
   versions: readonly PackageVersion[],
   base: string,
-  publicRegistries: readonly string[],
+  sources: ImageAccessSources,
 ): FindingRow => ({
   id: finding.id,
   vulnId: finding.vulnId,
@@ -77,7 +85,7 @@ export const toFindingRow = (
   kev: finding.kev,
   exposure: finding.exposure,
   owner: finding.owner,
-  sourceAccess: sourceAccess(finding.imageRef, finding.owner, publicRegistries),
+  ...imageAccessOf(finding, sources),
   versions: toVersionRows(versions.slice(0, MAX_ROW_LIST)),
   workloads: finding.workloads.slice(0, MAX_ROW_LIST),
   workloadCount: finding.workloadCount,

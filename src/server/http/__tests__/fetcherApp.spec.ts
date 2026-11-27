@@ -218,7 +218,7 @@ describe('POST /worker/checks/:id/source', () => {
       status: 200,
       body: {
         grant: {
-          repoUrl: 'https://gitlab.example.com/acme/shop.git',
+          repoUrls: ['https://gitlab.example.com/acme/shop.git'],
           revision: COMMIT,
           username: 'deploy-bot',
           secret: GITLAB_SECRET,
@@ -230,7 +230,7 @@ describe('POST /worker/checks/:id/source', () => {
   it('resolves by the mapping without a label, or when the label is not https or not covered', async () => {
     const fixture = setup()
     const { checkId } = await claimOf(fixture, fixture.findings.own)
-    const mapped = { repoUrl: 'https://gitlab.example.com/acme/shop.git' }
+    const mapped = { repoUrls: ['https://gitlab.example.com/acme/shop.git'] }
 
     expect((await source(fixture, checkId, { revisionLabel: COMMIT })).body).toMatchObject({
       grant: { ...mapped, revision: COMMIT },
@@ -253,27 +253,43 @@ describe('POST /worker/checks/:id/source', () => {
     })
   })
 
-  it('skips without a mapping for a missing, non-https or foreign repository', async () => {
+  it('falls back to the default mapping of a credential without repoMapping', async () => {
+    const fixture = setup({ mapping: false })
+    const { checkId } = await claimOf(fixture, fixture.findings.own)
+    const login = {
+      repoUrls: ['https://gitlab.example.com/acme/shop.git'],
+      revision: null,
+      username: 'deploy-bot',
+      secret: GITLAB_SECRET,
+    }
+
+    for (const sourceLabel of [
+      null,
+      'git@gitlab.example.com:acme/shop.git',
+      'https://gitlab.example.com/other/shop',
+    ]) {
+      expect((await source(fixture, checkId, { sourceLabel })).body).toEqual({ grant: login })
+    }
+  })
+
+  it('grants an anonymous clone of an own-owner label on a known git host, else the default mapping', async () => {
     const fixture = setup({ mapping: false })
     const { checkId } = await claimOf(fixture, fixture.findings.own)
 
-    expect((await source(fixture, checkId)).body).toEqual({ skip: 'no_repository' })
     expect(
-      (await source(fixture, checkId, { sourceLabel: 'git@gitlab.example.com:acme/shop.git' }))
-        .body,
+      (await source(fixture, checkId, { sourceLabel: 'https://github.com/acme/shop' })).body,
     ).toEqual({
-      skip: 'not_https',
+      grant: {
+        repoUrls: ['https://github.com/acme/shop.git'],
+        revision: null,
+        username: null,
+        secret: null,
+      },
     })
     expect(
-      (await source(fixture, checkId, { sourceLabel: 'https://evil.example.org/acme/shop' })).body,
-    ).toEqual({
-      skip: 'no_credential',
-    })
-    expect(
-      (await source(fixture, checkId, { sourceLabel: 'https://gitlab.example.com/other/shop' }))
-        .body,
-    ).toEqual({
-      skip: 'foreign_repository',
+      (await source(fixture, checkId, { sourceLabel: 'https://git.example.org/acme/shop' })).body,
+    ).toMatchObject({
+      grant: { repoUrls: ['https://gitlab.example.com/acme/shop.git'], username: 'deploy-bot' },
     })
   })
 
@@ -328,6 +344,8 @@ describe('result with source', () => {
             repoUrl: 'https://gitlab.example.com/acme/shop.git',
             revision: COMMIT,
             fromLabel: false,
+            refKind: 'tag',
+            ref: 'v1.27.0',
           },
         })
       ).status,
@@ -340,6 +358,8 @@ describe('result with source', () => {
       repoUrl: 'https://gitlab.example.com/acme/shop.git',
       revision: COMMIT,
       fromLabel: false,
+      refKind: 'tag',
+      ref: 'v1.27.0',
     })
   })
 

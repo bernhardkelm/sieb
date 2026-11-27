@@ -8,7 +8,7 @@ import { buildProposalInput, PROPOSER } from '#core/__tests__/proposalBuilders.t
 import { validateAcceptEdits } from '#core/proposalAcceptEdits.ts'
 import type { ExpectedDecisionId } from '#core/proposalFreshness.ts'
 import type { ProposalInput } from '#core/proposalRecord.ts'
-import { DEFAULT_PUBLIC_REGISTRIES } from '#core/sourceAccess.ts'
+import { DEFAULT_PUBLIC_REGISTRIES } from '#core/registryHost.ts'
 import { acceptProposal } from '#server/db/acceptProposal.ts'
 import { createDecision } from '#server/db/createDecision.ts'
 import { createProposal } from '#server/db/createProposal.ts'
@@ -77,16 +77,16 @@ const accept = (
 }
 
 describe('createProposal', () => {
-  it('stores the proposal with source access and the governing decisions', () => {
+  it('stores the proposal with image access and the governing decisions', () => {
     const db = seededDatabase(NOW)
     const id = propose(db, { imageRefs: [REDIS, NGINX].sort() })
 
     expect(getProposal(db, id)).toMatchObject({
       state: 'open',
       proposedBy: 'dev',
-      sourceAccess: [
-        { imageRef: NGINX, access: 'public' },
-        { imageRef: REDIS, access: 'public' },
+      imageAccess: [
+        { imageRef: NGINX, imageVisibility: 'public', ownership: 'third_party' },
+        { imageRef: REDIS, imageVisibility: 'public', ownership: 'third_party' },
       ],
       basisDecisions: [
         { imageRef: NGINX, decisionId: null, updatedAt: null },

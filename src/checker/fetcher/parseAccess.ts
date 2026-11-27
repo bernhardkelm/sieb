@@ -12,6 +12,7 @@ import { CheckFailure } from '#checker/CheckFailure.ts'
 import { fullCommit, repoUrlOf } from '#checker/source/sourceValues.ts'
 
 const MAX_REGISTRIES = 10
+const MAX_REPO_URLS = 3
 const HOST_PATTERN = /^[a-z0-9]([a-z0-9.-]{0,251}[a-z0-9])?(:\d{1,5})?$/
 // printable ASCII without spaces, so neither a docker config nor a git header can be split
 const SECRET_PATTERN = /^[\x21-\x7e]{1,4096}$/
@@ -78,9 +79,23 @@ export const parseFetchAccess = (body: unknown): FetchAccess => {
 }
 
 /**
+ * Returns whether a grant's login is acceptable: both parts null for an anonymous clone, or a
+ * username and secret that cannot split the git header.
+ * @param {unknown} username - Raw username
+ * @param {unknown} secret - Raw secret
+ * @returns {boolean} - Whether the login is anonymous or valid
+ */
+const isGrantLogin = (username: unknown, secret: unknown): boolean =>
+  (username === null && secret === null) ||
+  (typeof username === 'string' &&
+    USERNAME_PATTERN.test(username) &&
+    typeof secret === 'string' &&
+    SECRET_PATTERN.test(secret))
+
+/**
  * Validates sieb's answer of POST /worker/checks/:id/source.
  * @param {unknown} body - Parsed JSON body
- * @returns {SourceAnswer} - A clone grant with a normalised https URL, or a skip reason
+ * @returns {SourceAnswer} - A clone grant with 1 to 3 normalised https URLs, or a skip reason
  * @throws {CheckFailure} - When the answer has an unexpected shape, without echoing it
  */
 export const parseSourceAnswer = (body: unknown): SourceAnswer => {
@@ -93,26 +108,26 @@ export const parseSourceAnswer = (body: unknown): SourceAnswer => {
   }
 
   const grant = isPlainObject(body) && isPlainObject(body.grant) ? body.grant : null
-  const repoUrl = repoUrlOf(grant?.repoUrl)
+  const urls = Array.isArray(grant?.repoUrls) ? grant.repoUrls : []
+  const repoUrls = urls.map(repoUrlOf).filter((url) => url !== null)
 
   if (
     grant === null ||
-    repoUrl === null ||
+    urls.length === 0 ||
+    urls.length > MAX_REPO_URLS ||
+    repoUrls.length !== urls.length ||
     !(grant.revision === null || typeof grant.revision === 'string') ||
-    typeof grant.username !== 'string' ||
-    !USERNAME_PATTERN.test(grant.username) ||
-    typeof grant.secret !== 'string' ||
-    !SECRET_PATTERN.test(grant.secret)
+    !isGrantLogin(grant.username, grant.secret)
   ) {
     throw new CheckFailure('sieb sent an invalid source answer')
   }
 
   return {
     grant: {
-      repoUrl,
-      revision: fullCommit(grant.revision),
-      username: grant.username,
-      secret: grant.secret,
+      repoUrls,
+      revision: fullCommit(grant.revision as string | null),
+      username: grant.username as string | null,
+      secret: grant.secret as string | null,
     },
   }
 }

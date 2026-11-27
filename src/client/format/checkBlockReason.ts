@@ -1,18 +1,28 @@
 import type { CheckView } from '#core/check.ts'
 import { findingCheckBlocker } from '#core/checkEligibility.ts'
 import { MAX_OPEN_CHECKS } from '#core/checkLimits.ts'
+import type { ImageOwnership, ImageVisibility } from '#core/imageVisibility.ts'
 import type { ImageCheckAccess } from '#core/privateAccess.ts'
-import type { SourceAccess } from '#core/sourceAccess.ts'
 import { NO_ACCESS_REASON } from '@/format/accessText'
 import { formatCount } from '@/format/count'
 
 export const CHECKS_OFF_REASON = 'Auto-check is not switched on for this sieb.'
 export const WORKER_OFFLINE_REASON = 'The Auto-check worker is offline, try again once it polls.'
 export const NOT_PUBLIC_REASON =
-  'Auto-check covers public images only; use Claude Code in the repository.'
+  'Auto-check covers images it can pull anonymously or with a stored credential; use Claude Code in the repository.'
 export const RESOLVED_REASON = 'The finding is resolved, nothing left to check.'
 export const ALL_OPEN_REASON = 'Every selected finding already has an open check.'
 export const OPEN_SKIP_REASON = 'Findings with an open check are skipped.'
+export const COVERED_SKIP_REASON =
+  'Findings an open proposal already covers as related findings are skipped.'
+
+/**
+ * Names the open proposal that already covers a finding as a related finding.
+ * @param {number} proposalId - Covering proposal
+ * @returns {string} - Reason text
+ */
+export const coveredReason = (proposalId: number): string =>
+  `Already covered by proposal #${proposalId}, which lists this finding as related.`
 
 export interface CheckAvailability {
   enabled: boolean
@@ -20,12 +30,15 @@ export interface CheckAvailability {
 }
 
 export interface FindingCheckTarget extends CheckAvailability {
-  sourceAccess: SourceAccess
+  visibility: ImageVisibility
+  ownership: ImageOwnership
   resolved: boolean
   /** Queued or running check of the finding, null without one */
   open: CheckView | null
   /** How Auto-check reaches the images, absent from servers without private access */
   checkAccess?: ImageCheckAccess[]
+  /** Open proposal that lists the finding in its relatedFindings, null or absent without one */
+  coveredByProposal?: number | null
 }
 
 /**
@@ -43,8 +56,9 @@ export const availabilityReason = ({ enabled, workerOnline }: CheckAvailability)
 
 /**
  * Returns why the finding cannot be checked, lasting reasons before the offline worker, which
- * may come back any moment. Resolved goes before no access, in the order the server uses; an
- * image a registry credential covers counts as reachable.
+ * may come back any moment. Resolved goes before no access, in the order the server uses; the
+ * visibility already counts an image a registry credential covers as reachable, and an own
+ * image of unknown visibility stays queueable since the server probes it when queueing.
  * @param {FindingCheckTarget} target - Feature state and the finding facts
  * @returns {string | null} - Reason, null while a check can be queued
  */
@@ -54,11 +68,12 @@ export const findingCheckReason = (target: FindingCheckTarget): string | null =>
   }
 
   const blocker = findingCheckBlocker({
-    ...target,
-    credentialAccess: target.checkAccess?.some((access) => access.level === 'credential') === true,
+    resolved: target.resolved,
+    visibility: target.visibility,
+    ownership: target.ownership,
   })
 
-  if (blocker !== null) {
+  if (blocker !== null && blocker !== 'visibility_unknown') {
     if (blocker === 'resolved') {
       return RESOLVED_REASON
     }
@@ -72,11 +87,15 @@ export const findingCheckReason = (target: FindingCheckTarget): string | null =>
       : `A check of this finding is already queued at #${target.open.position ?? '?'}.`
   }
 
+  if (target.coveredByProposal !== undefined && target.coveredByProposal !== null) {
+    return coveredReason(target.coveredByProposal)
+  }
+
   return availabilityReason(target)
 }
 
 /**
- * Returns why the checked rows cannot be checked; private images among them are skipped by the
+ * Returns why the checked rows cannot be checked; images Auto-check cannot pull are skipped by the
  * server and named in the toast instead.
  * @param {CheckAvailability} availability - Feature and worker state
  * @param {number} withoutOpen - Checked findings without an open check

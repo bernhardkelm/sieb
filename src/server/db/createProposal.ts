@@ -8,7 +8,8 @@ import {
   type ProposalInput,
   type ProposalProposer,
 } from '#core/proposalRecord.ts'
-import { sourceAccess } from '#core/sourceAccess.ts'
+import { imageAccessOf } from '#core/imageVisibility.ts'
+import type { CredentialVault } from '#server/credentials/credentialVault.ts'
 import { listDecisionsByVuln } from '#server/db/decisionRepository.ts'
 import { listFindingsByVuln } from '#server/db/findingRepository.ts'
 import { inTransaction } from '#server/db/inTransaction.ts'
@@ -21,11 +22,13 @@ import {
   resolveProposal,
 } from '#server/db/proposalRepository.ts'
 import { relatedFindingIssues } from '#server/db/relatedFindingIssues.ts'
+import { readImageAccessSources } from '#server/visibility/imageAccessSources.ts'
 
 export interface CreateProposalContext {
   proposer: ProposalProposer
   checkId?: number | null // Auto-check whose token files it, null or absent for every other caller
   publicRegistries: readonly string[]
+  credentialVault?: CredentialVault | null // vault of usable credentials for the visibility snapshot, null while private access is off
   now: Date
 }
 
@@ -56,13 +59,19 @@ const findReplaced = (
  * suppression changes.
  * @param {DatabaseSync} db - Open database
  * @param {ProposalInput} input - Validated proposal
- * @param {CreateProposalContext} context - Proposer, public registries and current time
+ * @param {CreateProposalContext} context - Proposer, public registries, credential vault and current time
  * @returns {CreateProposalResult} - Stored proposal with the replaced id, or the refusal
  */
 export const createProposal = (
   db: DatabaseSync,
   input: ProposalInput,
-  { proposer, checkId = null, publicRegistries, now }: CreateProposalContext,
+  {
+    proposer,
+    checkId = null,
+    publicRegistries,
+    credentialVault = null,
+    now,
+  }: CreateProposalContext,
 ): CreateProposalResult =>
   inTransaction(db, () => {
     const open = new Map(
@@ -108,14 +117,15 @@ export const createProposal = (
       })
     }
 
+    const sources = readImageAccessSources(db, { publicRegistries, credentialVault })
     const id = insertProposal(
       db,
       {
         ...input,
         ...proposer,
-        sourceAccess: images.map((imageRef) => ({
+        imageAccess: images.map((imageRef) => ({
           imageRef,
-          access: sourceAccess(imageRef, open.get(imageRef)?.owner ?? null, publicRegistries),
+          ...imageAccessOf({ imageRef, owner: open.get(imageRef)?.owner ?? null }, sources),
         })),
         basisDecisions: currentDecisionRefs(input, listDecisionsByVuln(db, input.vulnId)),
         createdAt: at,

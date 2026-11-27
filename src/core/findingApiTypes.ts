@@ -1,7 +1,7 @@
 import type { FindingDetail } from '#core/findingView.ts'
 import type { KevSourceKind } from '#core/kev.ts'
 import type { ImageCheckAccess } from '#core/privateAccess.ts'
-import type { SourceAccess } from '#core/sourceAccess.ts'
+import type { ImageAccess } from '#core/imageVisibility.ts'
 
 /** Optional finding labels present on open findings and the KEV source, absent ones are hidden in the UI */
 export interface LabelsResponse {
@@ -20,8 +20,7 @@ export interface FindingsSeenResponse {
   ignored: number[] // valid ids of unknown findings or ones outside the recent window, not marked
 }
 
-/** Answer of GET /api/findings/:id: the side panel detail with the source access of the image */
-export interface FindingDetailResponse extends FindingDetail {
-  sourceAccess: SourceAccess
+/** Answer of GET /api/findings/:id: the side panel detail with the visibility and ownership of the image */
+export interface FindingDetailResponse extends FindingDetail, ImageAccess {
   checkAccess?: ImageCheckAccess[] // how Auto-check reaches the finding's image, the server always sets it
 }

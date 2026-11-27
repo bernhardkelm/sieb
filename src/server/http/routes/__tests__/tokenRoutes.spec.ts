@@ -328,7 +328,7 @@ describe('token deletion', () => {
       proposedBy: 'alice',
       tokenId: token.id,
       clientLabel: 'mac',
-      sourceAccess: [],
+      imageAccess: [],
       basisDecisions: [],
       createdAt: TEST_NOW.toISOString(),
     })

@@ -28,7 +28,7 @@ const searchPending = async (pending: string[]): Promise<SearchResult> => {
   insertProposal(deps.db, {
     ...buildProposalInput({ scope: 'all', imageRefs: null }),
     ...PROPOSER,
-    sourceAccess: [],
+    imageAccess: [],
     basisDecisions: [],
     createdAt: MCP_NOW.toISOString(),
   })

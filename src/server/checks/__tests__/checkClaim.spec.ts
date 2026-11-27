@@ -17,6 +17,7 @@ import { failChecksOf, REFUSED_REQUESTER_ERROR } from '#server/db/failChecksOf.t
 import { queueChecks } from '#server/db/queueChecks.ts'
 import { hashTokenSecret } from '#server/auth/tokenSecrets.ts'
 import { findTokenByHash } from '#server/db/apiTokenRepository.ts'
+import { storePullProbe } from '#server/visibility/pullProbeRepository.ts'
 
 describe('claim skip paths', () => {
   it('fails a queued check whose finding is gone and claims the next', () => {
@@ -43,6 +44,7 @@ describe('claim skip paths', () => {
     const [check] = queueForUser(context, 'alice', [findings.nginx]).queued
 
     db.prepare(`UPDATE findings SET owner = 'self' WHERE id = ?`).run(findings.nginx)
+    storePullProbe(db, NGINX, { result: 'restricted', reason: '401 unauthorized' }, START)
 
     expect(claimForWorker(context)).toBeNull()
     expect(getCheck(db, check?.id ?? 0)).toMatchObject({
@@ -142,7 +144,7 @@ describe('queue cap', () => {
       { findingId: findings.nginx, reason: 'already_open' },
     ])
     expect(queueChecks(db, { ...request, findingIds: [findings.own] }, START).skipped).toEqual([
-      { findingId: findings.own, reason: 'not_public' },
+      { findingId: findings.own, reason: 'visibility_unknown' },
     ])
   })
 })

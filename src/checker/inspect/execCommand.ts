@@ -6,7 +6,8 @@ const STDERR_TAIL_BYTES = 2000
 
 /** Limits of one inspect command */
 export interface CommandOptions {
-  path: string // PATH, the only variable the command gets
+  path: string // PATH, the only variable the command gets besides env
+  env?: Record<string, string> // fixed variables a command needs, never taken from the environment
   cwd: string
   timeoutMs: number
   maxBytes: number // stdout cap, the command is stopped there
@@ -30,7 +31,8 @@ export type ExecCommand = (
 ) => Promise<CommandOutput>
 
 /**
- * Runs a binary without a shell, with PATH as its whole environment. It is killed at the timeout
+ * Runs a binary without a shell, with PATH and the fixed variables of the options as its whole
+ * environment. It is killed at the timeout
  * or once stdout reaches the cap; stderr only keeps its tail, so a flood of warnings neither
  * stops the command nor hides its exit code.
  * @param {string} file - Binary name, looked up in PATH
@@ -43,7 +45,7 @@ export const execCommand: ExecCommand = (file, args, options) =>
     // no own process group: the worker's kill of Claude's group must reach the command too
     const child = spawn(file, args, {
       cwd: options.cwd,
-      env: { PATH: options.path },
+      env: { ...options.env, PATH: options.path },
       stdio: ['pipe', 'pipe', 'pipe'],
     })
     let timedOut = false

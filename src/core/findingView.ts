@@ -21,6 +21,7 @@ export interface FindingView extends FindingSummary {
   effective: EffectiveDecision | null
   inInbox: boolean
   seen?: boolean // acting user saw it, set by GET /api/findings, true only within the recent window
+  coveredByProposal?: number | null // newest open proposal listing it in relatedFindings, set by the finding routes
 }
 
 /** Decision with its state and the number of open findings it governs */

@@ -23,7 +23,7 @@ describe('Auto-check eligibility with stored credentials', () => {
       storeCredential(db, vault)
 
       expect(queueForUser(context, 'alice', [findings.own]).skipped).toEqual([
-        { findingId: findings.own, reason: 'not_public' },
+        { findingId: findings.own, reason: 'visibility_unknown' },
       ])
     }
   })
@@ -52,7 +52,8 @@ describe('Auto-check eligibility with stored credentials', () => {
     expect(claimForWorker(context)).toBeNull()
     expect(getCheck(db, queued?.id ?? 0)).toMatchObject({
       state: 'failed',
-      error: 'The image is no longer public or covered by a registry credential.',
+      error:
+        'sieb could not tell whether the image can be pulled anonymously, and no registry credential covers it.',
     })
   })
 
@@ -81,7 +82,7 @@ describe('Auto-check eligibility with stored credentials', () => {
       `/api/findings/${fixture.findings.other}`,
     )
 
-    expect(own.body.sourceAccess).toBe('private')
+    expect(own.body).toMatchObject({ ownership: 'own', imageVisibility: 'credential' })
     expect(own.body.checkAccess).toEqual([
       {
         imageRef: 'registry.example.com/acme/shop',

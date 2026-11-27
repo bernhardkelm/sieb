@@ -1,6 +1,7 @@
 // @vitest-environment node
 import { describe, expect, it } from 'vitest'
 
+import type { CheckedSource } from '#core/privateAccess.ts'
 import { CLAIM, PREPARED, PULLED } from '#checker/__tests__/checkFixtures.ts'
 import { workspacePrompt } from '#checker/claude/workspacePrompt.ts'
 import type { SourceMissReason } from '#checker/prepare/prepareTypes.ts'
@@ -102,23 +103,42 @@ describe('workspacePrompt', () => {
 })
 
 describe('workspacePrompt source', () => {
-  const checked = (revision: string | null) =>
+  const C = 'c'.repeat(40)
+  const checked = (source: Partial<CheckedSource>) =>
     workspacePrompt(CLAIM, 'linux/amd64', {
       ...PREPARED,
-      source: { checked: { repoUrl: 'https://github.com/acme/app', revision, fromLabel: true } },
+      source: {
+        checked: {
+          repoUrl: 'https://github.com/acme/app',
+          revision: C,
+          fromLabel: true,
+          refKind: 'label',
+          ref: null,
+          ...source,
+        },
+      },
     })
 
-  it('describes source/ at a commit or at the default branch and allows own_source for it', () => {
-    expect(checked('c'.repeat(40))).toContain(
-      `source/: the repository https://github.com/acme/app (named by the image's source label) at commit ${'c'.repeat(40)}, without .git and ignore files.`,
+  it('describes source/ at the label commit and allows own_source for it', () => {
+    expect(checked({})).toContain(
+      `source/: the repository https://github.com/acme/app (named by the image's source label) at commit ${C}, the image's revision label, without .git and ignore files.`,
     )
-    expect(checked(null)).toContain(
-      'at its default branch, which may differ from the code the image was built from',
-    )
-    expect(checked(null)).toContain(
+    expect(checked({})).toContain(
       'evidenceBasis may claim own_source only for what you read in source/.',
     )
-    expect(checked(null)).not.toContain('There is no source/')
+    expect(checked({})).not.toContain('There is no source/')
+  })
+
+  it('describes source/ at the git tag of the image tag or at the default branch', () => {
+    expect(checked({ refKind: 'tag', ref: '1.1.3', fromLabel: false })).toContain(
+      `(mapped from the image repository) at tag 1.1.3 (commit ${C}), the git tag matching the image tag, without`,
+    )
+    expect(checked({ refKind: 'default_branch' })).toContain(
+      `at its default branch (commit ${C}), which may differ from the code the image was built from`,
+    )
+    expect(checked({ refKind: 'default_branch', revision: null })).toContain(
+      'at its default branch, which may differ from the code the image was built from',
+    )
   })
 
   it('lists a missing source under unknowns with the reason and forbids own_source', () => {
@@ -133,6 +153,9 @@ describe('workspacePrompt source', () => {
     )
     expect(missing('no_credential')).toContain('(sieb holds no git credential for the repository)')
     expect(missing('clone_failed')).toContain('(the clone failed)')
+    expect(missing('needs_credential')).toContain(
+      '(the repository is not public and sieb holds no git credential for it)',
+    )
     expect(missing('too_large')).toContain('(the checkout passes the source size cap)')
   })
 })

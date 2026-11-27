@@ -45,7 +45,8 @@ const openPanel = async (
     decisions: [],
     events: [],
     kev: null,
-    sourceAccess: 'private',
+    imageVisibility: 'unknown',
+    ownership: 'own',
   })
   mounted = await mountWithRouter(FindingPanel, '/inbox?finding=1')
   useMcpStore().info = enabled

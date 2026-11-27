@@ -13,6 +13,7 @@ import { READ_ONLY_TOOL, toolResult } from '#server/mcp/toolResult.ts'
 import { exposureNoteSchema } from '#server/mcp/views/exposureNote.ts'
 import { findingRowSchema, toFindingRow } from '#server/mcp/views/findingRow.ts'
 import { lastSyncSchema, readLastSync } from '#server/mcp/views/lastSync.ts'
+import { toolImageSources } from '#server/mcp/mcpImageAccess.ts'
 
 export const SEARCH_LIMIT_MAX = 50
 
@@ -95,6 +96,7 @@ export const registerSearchFindingsTool = (
     },
     (input) => {
       const base = linkBase(deps.baseUrl)
+      const sources = toolImageSources(deps)
       const { findings, notes } = searchFindings(deps, toFindingQuery(input), actor)
       const page = {
         offset: input.offset,
@@ -128,7 +130,7 @@ export const registerSearchFindingsTool = (
         ...page,
         exposureNote: exposureNote(shown.map((finding) => finding.exposure)),
         findings: shown.map((finding) =>
-          toFindingRow(finding, versions.get(finding.id) ?? [], base, deps.publicRegistries),
+          toFindingRow(finding, versions.get(finding.id) ?? [], base, sources),
         ),
       })
     },

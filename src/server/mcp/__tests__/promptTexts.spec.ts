@@ -140,19 +140,27 @@ describe('serverInstructions', () => {
       const other = serverInstructions(canPropose, false)
 
       expect(code).toContain(
-        'private: an own image (owner self), its repository is probably on this machine: if the' +
+        'own (owner self): its repository is probably on this machine: if the' +
           ' working directory is not it, ask for its path before concluding.',
       )
       expect(code).not.toContain('unless you run in its repository')
       expect(other).toContain(
-        "private: an own image (owner self), advisory and sieb's data only unless you run in" +
-          ' its repository.',
+        "own (owner self): advisory and sieb's data only unless you run in" + ' its repository.',
       )
       expect(other).not.toContain('working directory')
     }
   })
 
-  it('explains the KEV source and the unknown source access in both variants', () => {
+  it('tells an Auto-check that the repository of an own image is in source/', () => {
+    const text = serverInstructions(true, false, true)
+
+    expect(text).toContain(
+      'own (owner self): its repository is in source/ when the workspace has one.',
+    )
+    expect(text).not.toContain('unless you run in its repository')
+  })
+
+  it('explains the KEV source and the image access in both variants', () => {
     for (const text of [
       serverInstructions(true),
       serverInstructions(false),
@@ -160,8 +168,12 @@ describe('serverInstructions', () => {
     ]) {
       expect(text).toContain('kevCatalog is null by design')
       expect(text).toContain('(see kevNote), no contradiction')
-      expect(text).toContain('may or may not be inspectable, try pulling it')
-      expect(text).toContain('private: an own image (owner self)')
+      expect(text).toContain('unknown: try pulling it')
+      expect(text).toContain('ownership per image: own (owner self)')
+      expect(text).toContain(
+        'imageVisibility: public pulls anonymously, credential only with the login stored in sieb, restricted needs a login',
+      )
+      expect(text).not.toContain('sourceAccess')
       expect(text).toContain('advisory-only evidence is acceptable')
       expect(text).toContain('never repeat a refused action through another tool')
       expect(text).toContain(
@@ -203,6 +215,9 @@ describe('triageWorkflow', () => {
         ' working directory is it',
     )
     expect(text).toContain('say so and ask for its local path')
+    expect(text).toContain('2. Image access: note ownership and imageVisibility per image.')
+    expect(text).toContain('in an Auto-check it is in source/ when the workspace has one')
+    expect(text).not.toMatch(/sourceAccess|private image/)
     expect(text).not.toContain(PLAIN)
     expect(text).not.toContain(MIXED)
   })

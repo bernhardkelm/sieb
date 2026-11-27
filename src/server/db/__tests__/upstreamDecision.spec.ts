@@ -8,7 +8,7 @@ import { buildProposalInput, PROPOSER } from '#core/__tests__/proposalBuilders.t
 import type { DecisionInput } from '#core/decision.ts'
 import type { ProposalFix } from '#core/proposal.ts'
 import { validateAcceptEdits } from '#core/proposalAcceptEdits.ts'
-import { DEFAULT_PUBLIC_REGISTRIES } from '#core/sourceAccess.ts'
+import { DEFAULT_PUBLIC_REGISTRIES } from '#core/registryHost.ts'
 import { acceptProposal } from '#server/db/acceptProposal.ts'
 import { createDecision } from '#server/db/createDecision.ts'
 import { createProposal } from '#server/db/createProposal.ts'

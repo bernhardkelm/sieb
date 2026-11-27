@@ -25,6 +25,7 @@ import { decisionSummarySchema, toDecisionSummary } from '#server/mcp/views/deci
 import { exposureNoteSchema } from '#server/mcp/views/exposureNote.ts'
 import { findingRowSchema, toFindingRow } from '#server/mcp/views/findingRow.ts'
 import { foundInSchema, toFoundIn } from '#server/mcp/views/foundIn.ts'
+import { probeToolImages, toolImageSources } from '#server/mcp/mcpImageAccess.ts'
 
 const MAX_INSTANCES = 50
 
@@ -120,7 +121,7 @@ export const registerGetFindingTool = (
       outputSchema,
       annotations: READ_ONLY_TOOL,
     },
-    (input) => {
+    async (input) => {
       const id =
         input.findingId ??
         (input.vulnId && input.imageRef ? findFindingId(deps, input.vulnId, input.imageRef) : null)
@@ -137,11 +138,15 @@ export const registerGetFindingTool = (
         )
       }
 
-      const detail = getFindingDetail(deps.db, id, deps.clock(), deps.kevSource === 'cisa')
+      const known = getFindingDetail(deps.db, id, deps.clock(), deps.kevSource === 'cisa')
 
-      if (!detail) {
+      if (!known) {
         return toolError(`unknown finding ${id}`)
       }
+
+      await probeToolImages(deps, [known.finding])
+
+      const detail = getFindingDetail(deps.db, id, deps.clock(), deps.kevSource === 'cisa') ?? known
 
       const base = linkBase(deps.baseUrl)
       const { finding, instances } = detail
@@ -149,7 +154,7 @@ export const registerGetFindingTool = (
 
       return toolResult({
         finding: {
-          ...toFindingRow(finding, distinctPackageVersions(current), base, deps.publicRegistries),
+          ...toFindingRow(finding, distinctPackageVersions(current), base, toolImageSources(deps)),
           lastSeen: finding.lastSeen,
         },
         exposureNote: exposureNote([finding.exposure]),

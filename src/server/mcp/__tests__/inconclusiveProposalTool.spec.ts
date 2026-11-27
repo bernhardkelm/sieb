@@ -70,7 +70,7 @@ describe('propose_decision with verdict inconclusive', () => {
       'KEV listed: prefer needs_patch or fix_planned over accepted',
     )
     expect(properties.confidence?.description).toContain(
-      'medium at most for a private image you could not inspect',
+      'medium at most for an own image you could not inspect',
     )
     expect(properties.references?.description).toContain(
       'never a search result or a page that came back empty',

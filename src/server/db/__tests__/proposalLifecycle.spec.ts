@@ -23,7 +23,7 @@ describe('proposal lifecycle', () => {
       insertProposal(db, {
         ...buildProposalInput({ imageRefs: [`img/${index}`] }),
         ...PROPOSER,
-        sourceAccess: [],
+        imageAccess: [],
         basisDecisions: [],
         createdAt: NOW.toISOString(),
       })
@@ -48,7 +48,7 @@ describe('proposal lifecycle', () => {
     const id = insertProposal(db, {
       ...buildProposalInput({ verdict: 'needs_patch', justification: null }),
       ...PROPOSER,
-      sourceAccess: [],
+      imageAccess: [],
       basisDecisions: [],
       createdAt: NOW.toISOString(),
     })

@@ -1,5 +1,5 @@
 import { normalizeHost, type RegistryAuth } from '#core/privateAccess.ts'
-import { registryOf } from '#core/sourceAccess.ts'
+import { registryOf } from '#core/registryHost.ts'
 import { CheckFailure } from '#checker/CheckFailure.ts'
 
 // registry answers of crane when it refused the login it was given

@@ -16,12 +16,12 @@ export const isWeakEvidence = (detail: ProposalDetail): boolean => {
 }
 
 /**
- * Lists the target images with private source access, now or when proposed, while the evidence
- * basis lacks the own source, so Claude could not have inspected them.
+ * Lists the own target images, now or when proposed, while the evidence basis lacks the own
+ * source, so Claude did not inspect their repository.
  * @param {ProposalDetail} detail - Proposal detail
- * @returns {string[]} - Image refs, empty when the own source was checked or none is private
+ * @returns {string[]} - Image refs, empty when the own source was checked or none is own
  */
-export const uninspectedPrivateImages = (detail: ProposalDetail): string[] => {
+export const uninspectedOwnImages = (detail: ProposalDetail): string[] => {
   if (detail.proposal.evidenceBasis.includes('own_source')) {
     return []
   }
@@ -29,13 +29,13 @@ export const uninspectedPrivateImages = (detail: ProposalDetail): string[] => {
   const refs = new Set<string>()
 
   for (const image of detail.images) {
-    if (image.sourceAccess === 'private') {
+    if (image.ownership === 'own') {
       refs.add(image.imageRef)
     }
   }
 
-  for (const entry of detail.proposal.sourceAccess) {
-    if (entry.access === 'private') {
+  for (const entry of detail.proposal.imageAccess) {
+    if (entry.ownership === 'own') {
       refs.add(entry.imageRef)
     }
   }

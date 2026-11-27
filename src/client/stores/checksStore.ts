@@ -104,10 +104,17 @@ export const useChecksStore = defineStore('checks', () => {
    * Queues checks for findings in requests of at most MAX_CHECK_FINDINGS, then refetches once,
    * so the queue and chips update.
    * @param {readonly number[]} findingIds - Finding ids
+   * @param {boolean} force - Queues findings an open proposal already covers
    * @returns {Promise<CheckBatchResult>} - Queued and skipped findings, the failed request if any
    */
-  const create = async (findingIds: readonly number[]): Promise<CheckBatchResult> => {
-    const result = await createInBatches(createChecks, findingIds)
+  const create = async (
+    findingIds: readonly number[],
+    force = false,
+  ): Promise<CheckBatchResult> => {
+    const result = await createInBatches(
+      (ids) => (force ? createChecks(ids, true) : createChecks(ids)),
+      findingIds,
+    )
 
     polling.runNow()
     return result

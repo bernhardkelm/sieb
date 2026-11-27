@@ -1,5 +1,6 @@
 import { BlockList, isIP } from 'node:net'
 
+import { ADDRESS_NOT_ALLOWED } from '#core/accessTestVerdict.ts'
 import { isInternalHostName } from '#core/internalHostNames.ts'
 
 // loopback, private, CGNAT, link-local (cloud metadata), documentation, benchmark, multicast, reserved
@@ -123,8 +124,8 @@ export const urlRefusal = (url: URL, ports: readonly number[]): string | null =>
   }
 
   if (isIP(host) !== 0) {
-    return isPublicAddress(host) ? null : 'address not allowed'
+    return isPublicAddress(host) ? null : ADDRESS_NOT_ALLOWED
   }
 
-  return isInternalHostName(host) ? 'address not allowed' : null
+  return isInternalHostName(host) ? ADDRESS_NOT_ALLOWED : null
 }

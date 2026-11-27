@@ -4,7 +4,6 @@ import type { ProposalDetail, ProposalListItem } from '#core/proposalApiTypes.ts
 import { nonBlank } from '#core/decisionFieldReaders.ts'
 import { PROPOSAL_STATES, type ProposalState } from '#core/proposal.ts'
 import type { CredentialVault } from '#server/credentials/credentialVault.ts'
-import { listUsableScopes } from '#server/db/credentialRepository.ts'
 import { getProposalDetail, listProposalItems } from '#server/db/proposalViews.ts'
 import type { AppEnv } from '#server/http/AppEnv.ts'
 import { parseId } from '#server/http/pathParams.ts'
@@ -52,7 +51,7 @@ export const createProposalRoutes = (deps: ProposalRouteDeps): Hono<AppEnv> => {
             now: clock(),
             publicRegistries,
             kevDetails: kevSource === 'cisa',
-            scopes: listUsableScopes(db, credentialVault),
+            credentialVault,
           })
 
     return detail ? c.json<ProposalDetail>(detail) : notFound(c)

@@ -4,7 +4,6 @@ import {
   type AccessTestPart,
   type AccessTestResult,
   type AccessUse,
-  type CheckedSource,
   type ImageCheckAccess,
 } from '#core/privateAccess.ts'
 import { formatCount } from '@/format/count'
@@ -19,8 +18,6 @@ export const NO_ACCESS_REASON =
 
 export const UNREADABLE_REASON =
   'The token cannot be opened: it was stored with another SIEB_CREDENTIALS_KEY, or the credential was changed outside sieb. Edit the credential and enter the token again.'
-
-const SHORT_REVISION_LENGTH = 7
 
 /**
  * Returns what a credential covers, one pattern per use.
@@ -107,19 +104,6 @@ export const checkAccessText = (access: ImageCheckAccess): string => {
   return access.level === 'credential'
     ? `Via ${access.credentialLabel ?? 'a credential'}`
     : 'No access'
-}
-
-/**
- * Returns the repository and revision a check read, the revision shortened.
- * @param {CheckedSource} source - Checked out source
- * @returns {string} - Such as "gitlab.example.com/acme/shop@3f2a9c1" or "…, default branch"
- */
-export const checkedSourceText = (source: CheckedSource): string => {
-  const repo = source.repoUrl.replace(/^https:\/\//u, '').replace(/\.git$/u, '')
-
-  return source.revision === null
-    ? `${repo}, default branch`
-    : `${repo}@${source.revision.slice(0, SHORT_REVISION_LENGTH)}`
 }
 
 /**

@@ -10,7 +10,13 @@ import {
   ALL_OPEN_REASON,
   RESOLVED_REASON,
 } from '@/format/checkBlockReason'
-import { checkCreateNotice, costText, skippedSummary, usageText } from '@/format/checkResultText'
+import {
+  checkCreateNotice,
+  costText,
+  skippedSummary,
+  usageText,
+  VISIBILITY_UNKNOWN_HINT,
+} from '@/format/checkResultText'
 import { checkChipHint, checkChipLabel, formatElapsed } from '@/format/checkText'
 import { docsLinkOf } from '@/format/docsLink'
 
@@ -81,6 +87,33 @@ describe('check create notice', () => {
     ).toEqual({ title: 'No check queued', description: 'Skipped 1: 1 resolved.', none: true })
     expect(skippedSummary([])).toBe('')
   })
+
+  it('names the proposals that already cover skipped findings', () => {
+    expect(
+      skippedSummary([
+        { findingId: 1, reason: 'covered_by_proposal', proposalId: 12 },
+        { findingId: 2, reason: 'covered_by_proposal', proposalId: 14 },
+        { findingId: 3, reason: 'covered_by_proposal', proposalId: 12 },
+      ]),
+    ).toBe('Skipped 3: 3 already covered by proposals #12, #14.')
+    expect(skippedSummary([{ findingId: 1, reason: 'covered_by_proposal' }])).toBe(
+      'Skipped 1: 1 already covered by a proposal.',
+    )
+  })
+
+  it('explains a skip for an image sieb could not probe yet', () => {
+    expect(
+      skippedSummary([
+        { findingId: 1, reason: 'visibility_unknown' },
+        { findingId: 2, reason: 'resolved' },
+      ]),
+    ).toBe(
+      `Skipped 2: 1 with an image sieb could not probe yet, 1 resolved. ${VISIBILITY_UNKNOWN_HINT}`,
+    )
+    expect(skippedSummary([{ findingId: 1, reason: 'not_public' }])).not.toContain(
+      VISIBILITY_UNKNOWN_HINT,
+    )
+  })
 })
 
 describe('usage texts', () => {
@@ -104,22 +137,19 @@ describe('usage texts', () => {
 describe('check block reasons', () => {
   const ready = { enabled: true, workerOnline: true, resolved: false, open: null }
 
-  it('blocks on the feature, the worker, an open check, a resolved finding and the source access', () => {
-    expect(findingCheckReason({ ...ready, sourceAccess: 'public' })).toBeNull()
-    expect(findingCheckReason({ ...ready, enabled: false, sourceAccess: 'public' })).toBe(
-      CHECKS_OFF_REASON,
+  it('blocks on the feature, the worker, an open check, a resolved finding and the visibility', () => {
+    const pub = { ...ready, visibility: 'public' as const, ownership: 'third_party' as const }
+
+    expect(findingCheckReason(pub)).toBeNull()
+    expect(findingCheckReason({ ...pub, enabled: false })).toBe(CHECKS_OFF_REASON)
+    expect(findingCheckReason({ ...pub, workerOnline: false })).toBe(WORKER_OFFLINE_REASON)
+    expect(findingCheckReason({ ...pub, open: buildCheck({ position: 2 }) })).toBe(
+      'A check of this finding is already queued at #2.',
     )
-    expect(findingCheckReason({ ...ready, workerOnline: false, sourceAccess: 'public' })).toBe(
-      WORKER_OFFLINE_REASON,
-    )
-    expect(
-      findingCheckReason({ ...ready, sourceAccess: 'public', open: buildCheck({ position: 2 }) }),
-    ).toBe('A check of this finding is already queued at #2.')
-    expect(findingCheckReason({ ...ready, resolved: true, sourceAccess: 'public' })).toBe(
-      RESOLVED_REASON,
-    )
-    expect(findingCheckReason({ ...ready, sourceAccess: 'private' })).toBe(NOT_PUBLIC_REASON)
-    expect(findingCheckReason({ ...ready, sourceAccess: 'unknown' })).toBe(NOT_PUBLIC_REASON)
+    expect(findingCheckReason({ ...pub, resolved: true })).toBe(RESOLVED_REASON)
+    expect(findingCheckReason({ ...pub, visibility: 'restricted' })).toBe(NOT_PUBLIC_REASON)
+    expect(findingCheckReason({ ...pub, visibility: 'unknown' })).toBe(NOT_PUBLIC_REASON)
+    expect(findingCheckReason({ ...pub, visibility: 'unknown', ownership: 'own' })).toBeNull()
   })
 
   it('blocks a selection only when nothing is left to queue', () => {

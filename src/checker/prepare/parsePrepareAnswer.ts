@@ -1,6 +1,8 @@
 import { capText, MAX_CHECK_ERROR_LENGTH } from '#core/checkLimits.ts'
 import { isImageDigest, isImageTag } from '#core/checkPrompt.ts'
+import { isGitTagName } from '#core/gitTagName.ts'
 import { isPlainObject } from '#core/isPlainObject.ts'
+import { CHECKED_REF_KINDS } from '#core/privateAccess.ts'
 import { CheckFailure } from '#checker/CheckFailure.ts'
 import {
   SOURCE_MISS_REASONS,
@@ -84,7 +86,11 @@ const isSourceOutcome = (value: unknown): value is SourceOutcome => {
     isPlainObject(checked) &&
     repoUrlOf(checked.repoUrl) === checked.repoUrl &&
     (checked.revision === null || isCommit(checked.revision)) &&
-    typeof checked.fromLabel === 'boolean'
+    typeof checked.fromLabel === 'boolean' &&
+    CHECKED_REF_KINDS.some((kind) => kind === checked.refKind) &&
+    (checked.refKind === 'tag'
+      ? typeof checked.ref === 'string' && isGitTagName(checked.ref)
+      : checked.ref === null)
   )
 }
 

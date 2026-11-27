@@ -9,12 +9,14 @@ accepts or rejects the proposal. The routes, states and timeouts are described i
 
 ## What it does and what it does not
 
-- **Public images, and private ones through the fetcher.** Without credentials the worker pulls
-  public images anonymously (see [source access](api.md#source-access)). With
-  [private access](#private-access) set up and the worker running as
-  [two containers](#two-containers), the fetcher container pulls private images with the
-  credentials sieb stores and checks out the source of your own images; Claude never sees a
-  credential.
+- **Pullable images, and private ones through the fetcher.** Without credentials the worker
+  pulls images anonymously: third-party images on a registry of `SIEB_PUBLIC_REGISTRIES`, and
+  own images that sieb's pull probe saw anonymously pullable (see
+  [Image access](api.md#image-access)), so an own image on a public registry needs no
+  credential. With [private access](#private-access) set up and the worker running as
+  [two containers](#two-containers), the fetcher container pulls the images a stored credential
+  covers. In two-container mode the fetcher also checks out the source of the primary image,
+  public repositories without a login; Claude never sees a credential.
 - **One check at a time.** sieb runs at most one check, the worker claims the oldest queued one.
   Run a single worker replica.
 - **No cluster access.** The worker needs no service account and never talks to the Kubernetes
@@ -32,11 +34,12 @@ accepts or rejects the proposal. The routes, states and timeouts are described i
   [Auto-check tokens](mcp.md#auto-check-tokens)), WebFetch on an
   [allow list](#web-access) of advisory and source hosts, and WebSearch. Claude has no shell.
   With the fetcher, also `source/`: the repository of the primary image at the commit its
-  `org.opencontainers.image.revision` label names, or at the default branch, without `.git`.
+  `org.opencontainers.image.revision` label names, else at the git tag that matches the image
+  tag (`<tag>`, then `v<tag>`), else at the default branch, without `.git`.
 - **What Claude does not see:** no registry or git credential, no running container, no
   cluster, no images of other findings and no files of the worker. Without `source/` the prompt
-  names the reason (no repository label or mapping, no credential, clone failed, size cap, no
-  fetcher), Claude lists the source under unknowns and must not claim `own_source` as evidence
+  names the reason (no repository label or mapping, no credential, a private repository without
+  credential, clone failed, size cap, no fetcher), Claude lists the source under unknowns and must not claim `own_source` as evidence
   basis. A verdict that depends on how the image is deployed names that under *Not checked*.
 
 ## Enabling it in sieb
@@ -59,10 +62,20 @@ worker port to sieb's Service, for example as port `worker` with `targetPort` 31
 
 - **Queueing.** The Auto-check button in the finding panel, or `Shift+C`, queues the panel's
   finding; in Triage the selection bar and `Shift+C` queue the checked rows, sent in requests of
-  at most 100 findings. The button names the reason when it cannot queue, for example a private
-  image, a resolved finding or an offline worker. The queue holds at most 500 open checks: a
-  selection whose checks do not all fit is not queued at all, the button names the room left.
-  A toast reports the queued findings and the skipped ones with their reason.
+  at most 100 findings. The button names the reason when it cannot queue, for example an image
+  sieb cannot pull, a resolved finding or an offline worker. The queue holds at most 500 open
+  checks: a selection whose checks do not all fit is not queued at all, the button names the
+  room left. A toast reports the queued findings and the skipped ones with their reason.
+- **Own images.** Before it queues an own image (owner `self`) without a fresh answer, sieb
+  probes whether the image can be pulled anonymously, see [Image access](api.md#image-access).
+  A probe that does not answer within a few seconds, one held back by the rate limit, or one that
+  fails skips the finding as `visibility_unknown`. A timeout or the rate limit passes, so try
+  again a minute later; a registry on a private or in-cluster address is never probed, so add a
+  registry credential for it.
+- **Covered by a proposal.** A finding an open proposal already lists as a related finding is
+  skipped as *already covered by proposal #N*, with a link to its review. When every finding of
+  the request is covered, the toast and the panel button offer *Check anyway*, which queues them
+  regardless. The finding a proposal targets itself is not affected.
 - **Checks page.** The Checks page (key `6`, in the navigation while Auto-check is on, with the
   open checks as a badge) shows the running check with its phase, the queue in claim order, and
   the 50 most recent ended checks with requester, duration, the checked images (tag and short
@@ -103,6 +116,15 @@ allows to share with Claude.
   the credential on the images and repositories it covers and shows the counts and the failures.
   Edit changes label, prefix, mapping and username, and replaces the token only when a new one is
   typed. Delete asks first; revoke the token at the provider too.
+- **Test before saving.** *Test and save* tests the token on the images and repositories it
+  covers before anything is stored, and stores it only when, per use, at least one target is
+  reachable and none refused the login (401 or 403); a single image that moved on does not
+  block. A failed test keeps the form open with the result per use, the failures and their
+  reasons, and the token stays in its field, hidden. A prefix that covers nothing sieb has seen
+  cannot prove the token and is refused too. *Test only* runs the same test without saving.
+  Editing the label alone saves without a test. For a host on a private or in-cluster address,
+  which sieb never tests, the form offers *Save without a test: sieb cannot reach this host, the
+  fetcher still can*; the list then marks the credential as saved without a test.
 - **Tokens are write-only.** The token field is never prefilled, and sieb never shows a stored
   token again.
 - **Path prefix.** The path within the hosts a credential covers, matched in whole segments:
@@ -113,18 +135,32 @@ allows to share with Claude.
   repository prefix to find the repository to clone, for example `ghcr.io/your-org/` to
   `github.com/your-org/` maps `ghcr.io/your-org/shop` to `github.com/your-org/shop`. Both
   prefixes stay within the credential's own hosts and path prefix, so a mapping applies only to
-  images that credential covers.
+  images that credential covers. An explicit mapping needs a git credential for the repository.
+- **Default mapping.** A credential with both uses and no explicit mapping maps by its provider:
+  GitHub `ghcr.io/<owner>/<name>` to `github.com/<owner>/<name>`, GitLab
+  `<registry host>/<path>` to `<git host>/<path>`, where a nested image name such as
+  `group/project/image` tries `group/project/image`, then `group/project` (at most three
+  candidates, the first that clones wins). An own image on `ghcr.io` or `registry.gitlab.com`
+  gets the same default without any credential, cloned anonymously, so a public repository needs
+  no setup and no build label. An explicit mapping replaces the default; an own source label
+  wins over both.
 - **Source label.** A label counts only when its repository belongs to the image's owner (the
   first path segment, `your-org` above), so a label inherited from a base image of another
-  owner, or one an image sets to reach other code, never picks the repository.
+  owner, or one an image sets to reach other code, never picks the repository. Without a git
+  credential for it, the fetcher clones the label's repository anonymously, but only on
+  github.com, gitlab.com or the git host of a stored credential with the git use (any other
+  host gives `no_credential`); a private repository then fails, and Claude is told the source
+  needs a credential.
 - **Changing hosts.** Changing the provider or adding a host needs the token again, so a stored
-  token never goes to a host it was not entered for. Test runs at most every 30 seconds per
-  credential and only to public addresses.
+  token never goes to a host it was not entered for. Test runs at most every 10 seconds per
+  credential, a test of entered values at most every 10 seconds per user, and only to public
+  addresses.
 - **Finding panel.** Per image, the fact *Auto-check access* says *Public*, *Via* the covering
   credential, or *No access* with a link to the Access page, and the Auto-check button names the
   missing credential as its block reason.
-- **Checks page.** A recent check that cloned source shows it as *Source*, the repository with
-  the short revision, or the default branch when the image named none.
+- **Checks page.** A recent check that cloned source shows it as *Source*: the repository with
+  the short commit of the revision label, *at tag v1.1.3* with the short commit when the git tag
+  of the image tag was used, or *default branch*.
 
 Tokens with the least access, as the Access page explains them per provider:
 
@@ -192,14 +228,21 @@ pod sieb-checker
    the checker named; an answer without them fails the preparation, and so does a finding
    without any pullable image left (`the image is no longer pullable`).
 3. It reads the `org.opencontainers.image.source` and `org.opencontainers.image.revision` labels
-   of the primary image and asks sieb for the source (`POST /worker/checks/<id>/source`). For a
-   grant it runs `git init`, a depth-1 `git fetch` of the commit over https, the default branch
-   when the commit is unknown or not a full commit id, and `git checkout`, into
-   `<shared>/check-<id>/source/`; then it deletes `.git` and the ignore files, contains the
-   symlinks like those of an image, and checks the size cap. The clone gets at most five minutes.
+   of the primary image and asks sieb for the source (`POST /worker/checks/<id>/source`). A
+   grant lists one to three repository URLs and a login, or none for an anonymous clone. For
+   each URL in turn the fetcher runs `git init` and a depth-1 `git fetch` over https: of the
+   revision commit when the label gave a full commit id, else of `refs/tags/<tag>` and then
+   `refs/tags/v<tag>` for the primary image's tag (not for `latest` or a digest-only image, and
+   only for tag names of letters, digits and `._+-` without `..`), else of the default branch;
+   then `git checkout` into `<shared>/check-<id>/source/` and `git rev-parse` for the commit. It
+   deletes `.git` and the ignore files, contains the symlinks like those of an image, and checks
+   the size cap. All attempts together get at most five minutes. An anonymous grant whose URLs
+   all fail to clone ends as `needs_credential`: the repository is private, store a git
+   credential for it.
 4. The checker reads the answer, checks that it can read the workspace and runs Claude in
-   `<shared>/check-<id>/` as before. The result carries `source` (repository URL, commit or
-   `null` for the default branch, and whether the label named the repository). At the end the
+   `<shared>/check-<id>/` as before. The result carries `source` (repository URL, commit, whether
+   the label named the repository, `refKind` `label`, `tag` or `default_branch` and the tag as
+   `ref`). At the end the
    checker posts `/release`, and the fetcher wipes the check from both of its volumes; it also
    wipes leftovers at its start and before every preparation.
 
@@ -227,7 +270,8 @@ two-container layout whenever private access is on.
   has to allow that: Git protocol v2, which GitLab and GitHub serve (a plain `git http-backend`
   needs the `Git-Protocol` request header passed on as `GIT_PROTOCOL`), or
   `uploadpack.allowReachableSHA1InWant` for protocol v0. Otherwise the fetcher falls back to the
-  default branch, which may differ from the code the image was built from.
+  git tag of the image tag and then to the default branch, which may differ from the code the
+  image was built from.
 
 ```yaml
 apiVersion: v1
@@ -432,11 +476,13 @@ WebFetch reaches only the hosts of `SIEB_CHECKER_WEB_DOMAINS`. A rule matches it
 
 | Purpose | Hosts |
 | --- | --- |
-| CVE databases and advisories | `nvd.nist.gov`, `services.nvd.nist.gov`, `cve.org`, `www.cve.org`, `cveawg.mitre.org`, `www.cisa.gov`, `osv.dev`, `api.osv.dev` |
-| Source hosting | `github.com`, `api.github.com`, `raw.githubusercontent.com` |
+| CVE databases and advisories | `nvd.nist.gov`, `services.nvd.nist.gov`, `cve.org`, `www.cve.org`, `cveawg.mitre.org`, `www.cisa.gov`, `osv.dev`, `api.osv.dev`, `advisories.gitlab.com`, `rustsec.org`, `api.first.org` (EPSS) |
+| Source hosting | `github.com`, `api.github.com`, `raw.githubusercontent.com`, `gitlab.com` |
+| Upstream advisories | `openssl-library.org`, `curl.se`, `nginx.org`, `nodejs.org` |
+| Platform releases | `update.k3s.io`, `docs.k3s.io` |
 | Go | `pkg.go.dev`, `go.dev`, `proxy.golang.org`, `vuln.go.dev` |
-| Distro trackers | `security-tracker.debian.org`, `tracker.debian.org`, `ubuntu.com`, `launchpad.net`, `security.alpinelinux.org`, `secdb.alpinelinux.org`, `pkgs.alpinelinux.org`, `access.redhat.com`, `bugzilla.redhat.com`, `www.suse.com`, `lists.suse.com`, `bugzilla.suse.com`, `bodhi.fedoraproject.org`, `alas.aws.amazon.com`, `linux.oracle.com`, `errata.almalinux.org`, `errata.rockylinux.org`, `packages.wolfi.dev` |
-| Package registries | `www.npmjs.com`, `registry.npmjs.org`, `pypi.org`, `crates.io`, `rubygems.org`, `central.sonatype.com`, `repo1.maven.org`, `search.maven.org` |
+| Distro trackers | `security-tracker.debian.org`, `tracker.debian.org`, `packages.debian.org`, `sources.debian.org`, `salsa.debian.org`, `ubuntu.com`, `launchpad.net`, `packages.ubuntu.com`, `security.alpinelinux.org`, `secdb.alpinelinux.org`, `pkgs.alpinelinux.org`, `gitlab.alpinelinux.org`, `access.redhat.com`, `bugzilla.redhat.com`, `www.suse.com`, `lists.suse.com`, `bugzilla.suse.com`, `bodhi.fedoraproject.org`, `alas.aws.amazon.com`, `linux.oracle.com`, `errata.almalinux.org`, `errata.rockylinux.org`, `packages.wolfi.dev` |
+| Package registries | `www.npmjs.com`, `registry.npmjs.org`, `pypi.org`, `crates.io`, `rubygems.org`, `central.sonatype.com`, `repo1.maven.org`, `search.maven.org`, `www.nuget.org`, `api.nuget.org`, `packagist.org` |
 | Image registries | `hub.docker.com`, `quay.io`, `ghcr.io` |
 
 Claude Code also lets WebFetch reach a built-in set of preapproved documentation hosts without a
@@ -455,8 +501,9 @@ your own distro and ecosystems.
 The inspect server is a stdio MCP server shipped with the worker. Claude Code starts it for each
 check with the workspace as its only argument and `PATH` as its only configured variable; it
 inherits Claude's environment on top (`HOME`, `TMPDIR`, the quiet variables and Claude Code's
-session variables), without the Claude credential. The commands it runs get `PATH` only. Its
-tools are read-only and named `mcp__inspect__<tool>`:
+session variables), without the Claude credential. The commands it runs get `PATH` only, crane
+of the registry tools also a `DOCKER_CONFIG` that does not exist. Its tools are read-only and
+named `mcp__inspect__<tool>`, which the settings allow as `mcp__inspect__*`:
 
 | Tool | Arguments | Runs |
 | --- | --- | --- |
@@ -465,6 +512,8 @@ tools are read-only and named `mcp__inspect__<tool>`:
 | `objdump` | `path`, `mode`: `private_headers`, `section_headers`, `disassemble_symbol`, `symbol` for the latter, and the same `pattern` filter | `objdump -p`, `-h -w` or `-d --no-show-raw-insn --disassemble=<symbol>` |
 | `unzip_list` | `path` | `unzip -l`, lists without extracting |
 | `jq` | `path` of a `.json` file up to 64 MiB, `filter` up to 500 characters | `jq -M -- <filter> <path>` |
+| `registry_tags` | `repository` of a public image without tag or digest, `prefix`, `limit` (1 to 500, default 100) | `crane ls --omit-digest-tags <repository>`, tags filtered by prefix in Node |
+| `registry_image` | `ref` of a public image with tag or digest, `platform` (default `linux/amd64`) | `crane digest`, `crane manifest` and `crane config --platform <platform>`, answered as JSON: digest, platforms, created, labels, the OCI base image labels and up to 60 history steps |
 
 Every path is resolved with all symlinks followed and must be a regular file inside the
 workspace; absolute paths, `..` and symlinks that lead outside are refused. Commands run without
@@ -474,7 +523,18 @@ while only the tail of stderr is kept, so a failing command reports its exit cod
 writes there. With a `pattern`, `strings` reads at most 32 MiB of strings output and says so when
 matches past that point are missing. `readelf` and `objdump` take the same filter and apply it before the cap; output still over the cap ends with the number of dropped lines and a hint to add or narrow the pattern. A symbol
 for `disassemble_symbol` may contain letters, digits and `_ . $ @` only. A jq filter must not use
-`import`, `include`, `env`, `$ENV`, `input_filename` or the module search builtins. objdump disassembles only code of the worker's own architecture, so run the worker on nodes
+`import`, `include`, `env`, `$ENV`, `input_filename` or the module search builtins. The registry
+tools read public images anonymously, for example whether `nginx/nginx-unprivileged:1.31.8-alpine`
+was rebuilt after a fix: crane runs with `PATH` and a `DOCKER_CONFIG` that does not exist as its
+whole environment, so it never finds a login, and each of its calls gets the 30 second timeout;
+the tag listing reads at most 4 MiB, manifest and config at most 256 KiB and 1 MiB, and the answer
+keeps the 64 KiB cap. A reference must be lower case, without option syntax and at most 300
+characters, and its registry a public DNS name without port or IP address on the default list of
+public registries (`docker.io` and its aliases, `mirror.gcr.io`, `ghcr.io`, `quay.io`,
+`registry.k8s.io`, `gcr.io`, `public.ecr.aws`, `mcr.microsoft.com`, `cgr.dev`); a reference
+without registry means Docker Hub, a single name an official image under `library/`. The list
+keeps these tools from becoming a channel to any host, like the WebFetch list; the
+[NetworkPolicy](#networkpolicy) keeps private addresses closed. objdump disassembles only code of the worker's own architecture, so run the worker on nodes
 that match `SIEB_CHECKER_PLATFORM`; readelf, strings and the other tools read any architecture. Go build
 information needs no tool of its own: syft records the Go modules of binaries in
 `inventory.json`.

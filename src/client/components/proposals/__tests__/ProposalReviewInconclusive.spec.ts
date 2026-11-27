@@ -143,13 +143,15 @@ describe('ProposalReview of an inconclusive proposal', () => {
 
     const own = await review(
       buildChecksResponse(),
-      buildInconclusiveDetail({}, [buildImageFacts({ sourceAccess: 'private' })]),
+      buildInconclusiveDetail({}, [
+        buildImageFacts({ imageVisibility: 'restricted', ownership: 'own' }),
+      ]),
     )
 
     expect(own.querySelector('.proposal-actions .handoff-button')).not.toBeNull()
   })
 
-  it('re-checks a private image a registry credential covers, as the side panel does', async () => {
+  it('re-checks an own image a registry credential covers, as the side panel does', async () => {
     vi.mocked(createChecks).mockResolvedValue({
       queued: [buildCheck({ findingId: 1 })],
       skipped: [],
@@ -158,7 +160,8 @@ describe('ProposalReview of an inconclusive proposal', () => {
       buildChecksResponse(),
       buildInconclusiveDetail({}, [
         buildImageFacts({
-          sourceAccess: 'private',
+          imageVisibility: 'credential',
+          ownership: 'own',
           checkAccess: {
             imageRef: IMAGE,
             level: 'credential',
@@ -175,11 +178,12 @@ describe('ProposalReview of an inconclusive proposal', () => {
     expect(createChecks).toHaveBeenCalledWith([1])
   })
 
-  it('hands off a public image the server reports as unreachable', async () => {
+  it('hands off an image the server reports as not pullable', async () => {
     const panel = await review(
       buildChecksResponse(),
       buildInconclusiveDetail({}, [
         buildImageFacts({
+          imageVisibility: 'restricted',
           checkAccess: {
             imageRef: IMAGE,
             level: 'none',

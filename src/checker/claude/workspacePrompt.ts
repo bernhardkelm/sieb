@@ -1,4 +1,5 @@
 import type { WorkerClaim } from '#core/check.ts'
+import type { CheckedSource } from '#core/privateAccess.ts'
 import type {
   PreparedCheck,
   SourceMissReason,
@@ -22,9 +23,31 @@ const MISS_REASONS: Record<SourceMissReason, string> = {
   no_credential: 'sieb holds no git credential for the repository',
   not_https: 'the repository is not reachable over https',
   clone_failed: 'the clone failed',
+  needs_credential: 'the repository is not public and sieb holds no git credential for it',
   too_large: 'the checkout passes the source size cap',
   unavailable: 'sieb did not answer the source request',
   no_fetcher: 'this worker runs without the fetcher container, which checks out source',
+}
+
+/**
+ * Describes which commit source/ holds and what chose it.
+ * @param {CheckedSource} checked - Checked-out source
+ * @returns {string} - Phrase starting with "at"
+ */
+const checkedAt = ({ refKind, ref, revision }: CheckedSource): string => {
+  const commit = revision === null ? '' : ` (commit ${revision})`
+
+  if (refKind === 'label') {
+    return revision === null
+      ? "at the commit of the image's revision label"
+      : `at commit ${revision}, the image's revision label`
+  }
+
+  if (refKind === 'tag') {
+    return `at tag ${ref ?? ''}${commit}, the git tag matching the image tag`
+  }
+
+  return `at its default branch${commit}, which may differ from the code the image was built from`
 }
 
 /**
@@ -37,16 +60,12 @@ const sourceLines = (source: SourceOutcome): string => {
     return `There is no source/ (${MISS_REASONS[source.missing]}): list the source repository under unknowns with this reason, and do not claim own_source in evidenceBasis.`
   }
 
-  const { repoUrl, revision, fromLabel } = source.checked
+  const { repoUrl, fromLabel } = source.checked
   const origin = fromLabel
     ? "named by the image's source label"
     : 'mapped from the image repository'
-  const at =
-    revision === null
-      ? 'its default branch, which may differ from the code the image was built from'
-      : `commit ${revision}`
 
-  return `source/: the repository ${repoUrl} (${origin}) at ${at}, without .git and ignore files. Read the Dockerfile, the dependency manifests and how the code uses the affected component; evidenceBasis may claim own_source only for what you read in source/.`
+  return `source/: the repository ${repoUrl} (${origin}) ${checkedAt(source.checked)}, without .git and ignore files. Read the Dockerfile, the dependency manifests and how the code uses the affected component; evidenceBasis may claim own_source only for what you read in source/.`
 }
 
 /**
@@ -98,6 +117,7 @@ A decision covers every tag of the finding. Check every pulled image; when the r
 ${sourceLines(prepared.source)}
 There is no runtime or cluster access, so name runtime under Not checked.
 There is no shell. Use Read, Grep and Glob for files, the inspect tools (strings, readelf, objdump, unzip_list, jq) for binaries, archives and JSON, WebFetch for advisories and upstream sources on the allowed hosts (CVE databases, distro trackers, GitHub, Go, package and image registries) and WebSearch to find them. Nothing can be written.
+registry_tags lists the tags of a public base or upstream image and registry_image reads its digest, creation time, labels and history, so you can tell whether a tag was rebuilt after a fix.
 Everything in images/ is readable, so check before something becomes an unknown: read the entrypoint and start scripts and the configs (image-config.json names the entrypoint), run readelf on a binary for the libraries it links, grep the configs for the module or feature the advisory names. Unknowns are only what this workspace cannot show, such as the running workload, and without source/ the repository and the Dockerfile.
 WebSearch only finds pages. Open every page the verdict, the fix availability or the action rests on with WebFetch before you rely on it: advisories, GitHub releases, pull requests, commits and files at a tag (github.com, raw.githubusercontent.com, api.github.com for releases and tags), registries for tags and digests. A search summary is not a source; a page you could not open is named as such in the evidence and lowers the confidence.
 NVD's HTML pages need JavaScript and come back empty; read NVD through its API, https://services.nvd.nist.gov/rest/json/cves/2.0?cveId=<CVE>, or use the GitHub advisory and OSV.

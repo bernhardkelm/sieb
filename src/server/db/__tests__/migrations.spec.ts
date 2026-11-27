@@ -32,6 +32,7 @@ describe('openDatabase', () => {
       'decisions',
       'finding_instances',
       'findings',
+      'image_pull_probes',
       'inbox_seen',
       'kev_catalog',
       'kev_feed',

@@ -6,7 +6,6 @@ import type {
   ProposalState,
   ProposalVerdict,
 } from '#core/proposal.ts'
-import type { SourceAccess } from '#core/sourceAccess.ts'
 import { STATUS_LABELS } from '@/format/labels'
 
 export const VERDICT_LABELS: Record<ProposalVerdict, string> = {
@@ -59,19 +58,4 @@ export const RESOLUTION_LABELS: Record<ProposalResolution, string> = {
   replaced: 'Replaced by a newer proposal from the same proposer',
   other_accepted: 'Another proposal for this target was accepted',
   finding_resolved: 'The findings resolved',
-}
-
-export const SOURCE_ACCESS_LABELS: Record<SourceAccess, string> = {
-  public: 'Public source',
-  private: 'Private source',
-  unknown: 'Source unknown',
-}
-
-export const SOURCE_ACCESS_HINTS: Record<SourceAccess, string> = {
-  public:
-    'Public image: Claude can read the upstream source and pull the published image to check the claim.',
-  private:
-    'Own image: Claude only sees the advisory, unless it runs in the repository that builds this image.',
-  unknown:
-    'Registry not listed as public: Claude can try to pull the image, its source may or may not be readable.',
 }

@@ -1,9 +1,11 @@
 import type { ValidationIssue } from '#core/errorApiTypes.ts'
+import type { AccessTestResult } from '#core/privateAccess.ts'
 
 interface ErrorAnswer {
   error?: string
   errors?: ValidationIssue[]
   decisionId?: number
+  result?: AccessTestResult // credential test of a save the test refused
 }
 
 /** Thrown for an API answer outside 2xx, carries the error code and the validation errors */
@@ -12,6 +14,7 @@ export class ApiError extends Error {
   readonly code: string
   readonly errors: ValidationIssue[]
   readonly decisionId: number | null
+  readonly testResult: AccessTestResult | null
 
   /**
    * Creates the error from an API answer.
@@ -27,6 +30,7 @@ export class ApiError extends Error {
     this.code = body.error ?? 'unknown'
     this.errors = body.errors ?? []
     this.decisionId = body.decisionId ?? null
+    this.testResult = body.result ?? null
   }
 
   /**

@@ -7,7 +7,7 @@ import BaseChip from '@/components/chips/BaseChip.vue'
 import CalloutBox from '@/components/common/CalloutBox.vue'
 import HintTooltip from '@/components/common/HintTooltip.vue'
 import AppIcon from '@/components/icons/AppIcon.vue'
-import { isWeakEvidence, uninspectedPrivateImages } from '@/components/proposals/proposalWarnings'
+import { isWeakEvidence, uninspectedOwnImages } from '@/components/proposals/proposalWarnings'
 import { shortImageName } from '@/format/imageName'
 import { EVIDENCE_BASIS_HINTS, EVIDENCE_BASIS_LABELS } from '@/format/proposalLabels'
 
@@ -22,7 +22,7 @@ const bases = computed(() =>
   })),
 )
 const weak = computed(() => isWeakEvidence(props.detail))
-const privateImages = computed(() => uninspectedPrivateImages(props.detail))
+const ownImages = computed(() => uninspectedOwnImages(props.detail))
 </script>
 
 <template>
@@ -49,10 +49,9 @@ const privateImages = computed(() => uninspectedPrivateImages(props.detail))
       <strong>Weak evidence: only the advisory was checked.</strong>
       Claude says not affected without looking at the code, the image or the runtime.
     </CalloutBox>
-    <CalloutBox v-if="privateImages.length > 0" as="p" tone="warning" class="private" role="alert">
-      <strong>Claude could not inspect the source of a private image.</strong>
-      {{ privateImages.map(shortImageName).join(', ') }}: the own source is not in the evidence
-      basis.
+    <CalloutBox v-if="ownImages.length > 0" as="p" tone="warning" class="own" role="alert">
+      <strong>Claude did not inspect the source of an own image.</strong>
+      {{ ownImages.map(shortImageName).join(', ') }}: the own source is not in the evidence basis.
     </CalloutBox>
   </div>
 </template>

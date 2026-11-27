@@ -1,13 +1,14 @@
 import type { Context } from 'hono'
 
+import type { AccessTestRefusal } from '#core/accessTestVerdict.ts'
 import type { ErrorBody } from '#core/errorApiTypes.ts'
 import type { AccessCredentialView } from '#core/privateAccess.ts'
+import type { CredentialCommandResult } from '#server/credentials/credentialCommands.ts'
 import type { CredentialContext } from '#server/credentials/credentialContext.ts'
-import {
-  secretReadable,
-  type CredentialCommandResult,
-} from '#server/credentials/credentialCommands.ts'
 import { credentialLogLine } from '#server/credentials/credentialLogLine.ts'
+import { secretReadable } from '#server/credentials/credentialSecrets.ts'
+import type { RefusedSave, ThrottledTest } from '#server/credentials/credentialTestGate.ts'
+import { TEST_COOLDOWN_MS, type TestRefusal } from '#server/credentials/testThrottle.ts'
 import { toCredentialView, type CredentialRow } from '#server/db/credentialRows.ts'
 import type { AppEnv } from '#server/http/AppEnv.ts'
 import { requireActor } from '#server/http/identity.ts'
@@ -51,3 +52,26 @@ export const commandAnswer = (
     status,
   )
 }
+
+/**
+ * Answers a test the throttle did not start: 429 with Retry-After.
+ * @param {Context<AppEnv>} c - Request context
+ * @param {TestRefusal} refusal - test_cooldown or tests_busy
+ * @returns {Response} - Response
+ */
+export const testThrottled = (c: Context<AppEnv>, refusal: TestRefusal): Response => {
+  c.header('Retry-After', String(Math.ceil(TEST_COOLDOWN_MS / 1000)))
+  return c.json<ErrorBody>({ error: refusal }, 429)
+}
+
+/**
+ * Answers a save the test did not let through: 429 when the test could not start, else 422
+ * with the verdict as error and the result, which never carries the secret.
+ * @param {Context<AppEnv>} c - Request context
+ * @param {ThrottledTest | RefusedSave} outcome - Refusal of the gate
+ * @returns {Response} - Response
+ */
+export const saveRefused = (c: Context<AppEnv>, outcome: ThrottledTest | RefusedSave): Response =>
+  'throttled' in outcome
+    ? testThrottled(c, outcome.throttled)
+    : c.json<AccessTestRefusal>({ error: outcome.refused, result: outcome.result }, 422)

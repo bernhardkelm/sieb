@@ -7,6 +7,7 @@ import { MIGRATIONS, runMigrations, schemaVersion } from '#server/db/migrations.
 import { MIGRATION_14 } from '#server/db/migrations/migration14.ts'
 import { MIGRATION_15 } from '#server/db/migrations/migration15.ts'
 import { MEMORY_DB } from '#server/db/openDatabase.ts'
+import { accessColumn } from '#server/db/__tests__/proposalAccessColumn.ts'
 import { getProposal } from '#server/db/proposalRepository.ts'
 
 /**
@@ -25,7 +26,7 @@ const insertProposal = (
   const { lastInsertRowid } = db
     .prepare(
       `INSERT INTO decision_proposals (vuln_id, scope, image_refs, target_key, verdict, summary,
-       confidence, evidence, unknowns, refs, evidence_basis, source_access, proposed_by,
+       confidence, evidence, unknowns, refs, evidence_basis, ${accessColumn(db)}, proposed_by,
        proposed_via, token_id, client_label, basis_decisions, created_at${columns.map((c) => `, ${c}`).join('')})
      VALUES (?, 'image', '["img/a"]', '["img/a"]', 'needs_patch', 'Reachable.', 'high',
        '[]', '[]', '[]', '["image"]', '[]', 'alice', 'token', 1, 'laptop', '[]', 't'${columns.map(() => ', ?').join('')})`,

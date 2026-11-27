@@ -84,11 +84,18 @@ describe('ProposalReview', () => {
     expect(links[0]!.rel).toBe('noopener noreferrer')
   })
 
-  it('warns about advisory-only evidence and an uninspected private image', async () => {
+  it('warns about advisory-only evidence and an uninspected own image', async () => {
     const panel = await review(
       buildProposalDetail({
         proposal: buildProposal({ evidenceBasis: ['advisory'], imageRefs: [OWN_IMAGE] }),
-        images: [buildImageFacts({ imageRef: OWN_IMAGE, owner: 'self', sourceAccess: 'private' })],
+        images: [
+          buildImageFacts({
+            imageRef: OWN_IMAGE,
+            owner: 'self',
+            imageVisibility: 'restricted',
+            ownership: 'own',
+          }),
+        ],
       }),
     )
     const alerts = [...panel.querySelectorAll('.evidence-basis [role="alert"]')].map(
@@ -96,8 +103,11 @@ describe('ProposalReview', () => {
     )
 
     expect(alerts[0]).toContain('Weak evidence: only the advisory was checked')
-    expect(alerts[1]).toContain('Claude could not inspect the source of a private image')
-    expect(panel.querySelector('[data-access="private"]')!.textContent).toContain('Private source')
+    expect(alerts[1]).toContain('Claude did not inspect the source of an own image')
+    expect(panel.querySelector('[data-ownership="own"]')!.textContent).toContain('Own image')
+    expect(panel.querySelector('[data-visibility="restricted"]')!.textContent).toContain(
+      'Not pullable',
+    )
   })
 
   it('renders Claude text as plain text and highlights unknowns', async () => {

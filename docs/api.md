@@ -45,9 +45,9 @@ Checked before identity:
 | ---------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `GET /api/health`                  | `{ status, source }`, no Host check                                                                                                                                                                                       |
 | `GET /api/me`                      | `{ username, authMode, version, sourceCodeUrl }`: the acting user, `header` or `oidc` so the client knows whether a 401 means log in again, and the running version with the link to its source code (`SIEB_SOURCE_URL`, otherwise the upstream tag) |
-| `GET /api/findings`                | Findings in triage order, more parameters under [Finding filters](#finding-filters); `view=inbox\|all` (default `all`), `includeResolved`, `q`, `severity`, `exposure`, `owner` (comma lists, `owner` takes free-form owner labels), `newSince`, `kev` (`true` or `1` keeps KEV listed findings only); every finding carries `seen`, see [Seen findings](#seen-findings) |
+| `GET /api/findings`                | Findings in triage order, more parameters under [Finding filters](#finding-filters); `view=inbox\|all` (default `all`), `includeResolved`, `q`, `severity`, `exposure`, `owner` (comma lists, `owner` takes free-form owner labels), `newSince`, `kev` (`true` or `1` keeps KEV listed findings only); every finding carries `seen`, see [Seen findings](#seen-findings), and `coveredByProposal`, the newest open proposal listing it in `relatedFindings` (`null` without one) |
 | `POST /api/findings/seen`          | Mark findings seen for the acting user, `{ ids: [...] }`, answers `{ ignored }`, see [Seen findings](#seen-findings) |
-| `GET /api/findings/:id`            | Finding detail: instances with where Trivy found the package, see [Found in](#found-in), decisions, history, `kev`, the CISA catalog entry, see [KEV source](#kev-source), `sourceAccess` of the image, see [Source access](#source-access), and `checkAccess`, how Auto-check reaches the image, see [Access credentials](#access-credentials) |
+| `GET /api/findings/:id`            | Finding detail: instances with where Trivy found the package, see [Found in](#found-in), decisions, history, `kev`, the CISA catalog entry, see [KEV source](#kev-source), `imageVisibility` and `ownership` of the image, see [Image access](#image-access), and `checkAccess`, how Auto-check reaches the image, see [Access credentials](#access-credentials) |
 | `GET /api/images`, `GET /api/cves` | Open findings aggregated per image or per CVE, `includeResolved=true` adds resolved ones                                                                                                                                  |
 | `GET /api/decisions`               | Decisions with their state, `state=active\|expiring\|expired\|revoked\|reopened\|fix_planned\|upstream_pending`                                                                                                            |
 | `POST /api/decisions`              | Create an image-scoped or all-scope decision, `{ vulnId, scope, imageRef?, status, justification?, reason, expiresAt?, upstreamPending?, waitingFor? }`                                                                   |
@@ -72,11 +72,12 @@ Checked before identity:
 | `POST /api/tokens/cleanup`         | Delete all own revoked and expired tokens, answers `{ deleted }`                                                                                                                                                          |
 | `GET /api/mcp-info`                | `{ enabled, mcpUrl, oauth, claude, checksEnabled }`: whether MCP is on, the endpoint URL, whether OAuth is configured, whether Claude reaches sieb for the acting user and whether Auto-check is on                      |
 | `GET /api/checks`                  | `{ enabled, workerOnline, running, queued, recent, usage }`: the Auto-check queue and its usage, see [Auto-check](#auto-check) |
-| `POST /api/checks`                 | Queue checks, `{ findingIds: [...] }`, answers `{ queued, skipped }` |
+| `POST /api/checks`                 | Queue checks, `{ findingIds: [...], force? }`, answers `{ queued, skipped }` |
 | `DELETE /api/checks/:id`           | Cancel a queued or running check, answers 204 |
 | `GET /api/credentials`             | `{ enabled, fetcherConfigured, credentials }`: the read credentials Auto-check uses for private images and source code, see [Access credentials](#access-credentials) |
-| `POST /api/credentials`            | Store a credential, `{ provider, label, uses, registryHost?, gitHost?, pathPrefix, repoMapping?, username?, secret }` |
-| `PATCH /api/credentials/:id`       | Change a credential, `secret` only to replace the stored one |
+| `POST /api/credentials`            | Store a credential once its test passed, `{ provider, label, uses, registryHost?, gitHost?, pathPrefix, repoMapping?, username?, secret, confirmUntested? }` |
+| `PATCH /api/credentials/:id`       | Change a credential, `secret` only to replace the stored one; a change beyond the label is stored once its test passed |
+| `POST /api/credentials/test`       | Test entered credential values without storing anything, answers `AccessTestResult` |
 | `DELETE /api/credentials/:id`      | Delete a credential, answers 204 |
 | `POST /api/credentials/:id/test`   | Test a credential against the images and repositories it covers, answers the credential with `lastTest` |
 
@@ -418,7 +419,8 @@ A proposal (`Proposal` in `src/core/proposal.ts`) carries:
   `relatedReason` (one sentence up to 1000 characters, `null` without related findings) names it;
   the rules are in [mcp.md](mcp.md#same-cause). `[]` and `null` for proposals stored before schema
   step 19. Accepting decides only the target, a related finding is decided on its own.
-- Snapshots: `sourceAccess` (`[{ imageRef, access }]` when proposed) and `basisDecisions`
+- Snapshots: `imageAccess` (`[{ imageRef, imageVisibility, ownership }]` when proposed, see
+  [Image access](#image-access)) and `basisDecisions`
   (`[{ imageRef, decisionId, updatedAt }]`, the decisions governing the targets when proposed,
   `imageRef` `null` for the all-scope target).
 - Proposer: `proposedBy` (the sieb user of the token or OAuth login), `proposedVia` (`token` or
@@ -454,8 +456,8 @@ a decision governing one of its targets was created, changed or revoked since it
 `GET /api/proposals/:id` answers `ProposalDetail`, the list item plus:
 
 - `images`: sieb's own facts per image (the targets, for scope all every image with an open
-  finding): `{ imageRef, findingId, open, severity, score, kev, exposure, owner, sourceAccess,
-  versions: [{ package, installedVersion, fixedVersion }], workloads, decision }`, `decision` being
+  finding): `{ imageRef, findingId, open, severity, score, kev, exposure, owner, imageVisibility,
+  ownership, checkAccess, versions: [{ package, installedVersion, fixedVersion }], workloads, decision }`, `decision` being
   the `DecisionView` governing the image now.
 - `allScopeDecision`: the current all-scope decision of the CVE or `null`.
 - `currentDecisionIds`: `[{ imageRef, decisionId, updatedAt }]`, the governing decision per
@@ -470,9 +472,9 @@ a decision governing one of its targets was created, changed or revoked since it
   `inconclusive`, which has no status of its own.
 - `kevCatalog`: the CISA catalog entry, `null` for other KEV sources.
 - `related`: sieb's facts per related finding in the filed order: `{ findingId, note, vulnId,
-  imageRef, open, sourceAccess, versions, decision, effective }`, `decision` and `effective` of the
-  decision governing it now (`null` when undecided), `vulnId`, `imageRef` and `sourceAccess` `null`
-  once sieb no longer holds the finding.
+  imageRef, open, imageVisibility, ownership, versions, decision, effective }`, `decision` and
+  `effective` of the decision governing it now (`null` when undecided), `vulnId`, `imageRef`,
+  `imageVisibility` and `ownership` `null` once sieb no longer holds the finding.
 
 `POST /api/proposals/:id/accept` takes
 `{ "expectedDecisionIds": [{ "imageRef", "decisionId", "updatedAt" }], "edits"?: { "status", "justification", "reason", "expiresAt", "upstreamPending", "waitingFor" } }`.
@@ -531,14 +533,49 @@ of the single reject, and gives every proposal the same reason.
 | `not_open`       | skipped, accepted, rejected or superseded meanwhile, also by an earlier entry     |
 | `not_found`      | no such proposal                                                                  |
 
-### Source access
+### Image access
 
-`sourceAccess` tells whether the source behind an image can be checked from outside: `private` only
-for own images (owner `self`), `public` for images of a registry in `SIEB_PUBLIC_REGISTRIES` with
-another owner, `unknown` for every other registry and for a ref without one, since such an image
-may or may not be pullable. An image without a registry
-host counts as Docker Hub. It appears in the finding detail, the proposal detail and the MCP
-finding rows.
+Two separate facts describe each image. They appear in the finding detail, the proposal detail
+(with a snapshot per target in `proposal.imageAccess`) and the MCP finding rows.
+
+- `ownership`: `own` for the owner label `self`, else `third_party`.
+- `imageVisibility`, whether the image can be pulled:
+
+| Value        | Meaning                                                                                 |
+| ------------ | --------------------------------------------------------------------------------------- |
+| `public`     | pullable anonymously                                                                    |
+| `credential` | not known to be public, but a usable registry credential covers it                     |
+| `restricted` | the anonymous pull was refused and no credential covers it                              |
+| `unknown`    | not probed yet, the probe failed for another reason, or a third-party image elsewhere   |
+
+A third-party image on a registry of `SIEB_PUBLIC_REGISTRIES` counts as `public` without a
+probe; one that turns out private fails at the fetcher's pull with the registry's reason. A
+third-party image on any other registry is `credential` when a credential covers it, else
+`unknown`. An image without a registry host counts as Docker Hub.
+
+Own images are probed on demand, never in the background: when the finding detail of an own
+image is requested (the answer waits at most 1.5 seconds for the probe), before checks are
+queued (at most 6 seconds) and in the MCP tools `get_finding` and `check_vulnerability` (at
+most 3 seconds); the hand-off and the lists answer from the cache. The probe sends
+`HEAD /v2/<path>/manifests/<digest or tag>` without credentials and, on a `Bearer` challenge,
+asks the challenge's realm for an anonymous pull token and repeats the HEAD with it; it reads no
+manifest body and pulls nothing. `200` is `public`, `401` or `403` (also from the token realm)
+`restricted`, anything else, a timeout (5 seconds per request, 8 per probe) or a refused address
+a failure. It uses the credential test's fetch: https only, port 443 or the port the image ref
+names, no redirects, and only public addresses, so a registry on a private or in-cluster address
+is never probed and stays `unknown`. A cached answer stays fresh for 7 days when `public`, 24
+hours when `restricted` and 1 hour after a failure; a stale answer still counts until the next
+probe replaces it. Concurrent requests share one probe per image, and at most 10 probes start
+per minute across sieb; an image beyond that keeps its cached or `unknown` visibility. Mock mode
+probes nothing.
+
+Schema step 21 adds the table `image_pull_probes` (`image_ref` as key, `result` `public`,
+`restricted` or `failed`, an optional short `reason`, `probed_at`). It renames
+`decision_proposals.source_access` to `image_access` and rewrites its entries to
+`{ imageRef, imageVisibility, ownership }`: a former `private` entry becomes `own` and `unknown`,
+`public` becomes `third_party` and `public`, `unknown` becomes `third_party` and `unknown`. It
+adds `refKind` (`label` when a commit is stored, else `default_branch`) and `ref` `null` to every
+stored `checks.source`.
 
 ## Found in
 
@@ -650,10 +687,10 @@ never gets cluster access for this; how the worker runs is described in
 A check is `queued`, `running`, `done`, `failed` or `cancelled`; queued and running count as open.
 A running check has a `phase` of `preparing`, `investigating` or `reporting`. Rules:
 
-- Only open findings whose image has source access `public` (see [Source access](#source-access))
-  or is covered by a stored registry credential while private access is on (see
-  [Access credentials](#access-credentials)) can be queued, each finding has at most one open
-  check. A covered own image (owner `self`) counts as checkable too.
+- Only open findings whose image has the visibility `public` or `credential` (see
+  [Image access](#image-access) and [Access credentials](#access-credentials)) can be queued,
+  each finding has at most one open check. Ownership plays no part: an own image that is
+  anonymously pullable is checkable without a credential.
 - At most 500 checks are open at once, a guard against accidental floods; there is no daily limit.
   Findings beyond that are skipped as `queue_full`. The client blocks a bulk Auto-check whose
   checks do not all fit into the room left, counted from the last `GET /api/checks`.
@@ -703,12 +740,20 @@ field existed; a worker result without it is accepted, unknown or malformed ids 
   `averageDurationMs` the done and failed checks with a duration. `costUsd` is the sum of the
   API-equivalent estimates `claude -p` reports (billed with an API key, counted against plan limits with a subscription), and `null`
   when no check in the window reported one; `averageDurationMs` is `null` without such a check.
-- `POST /api/checks` takes `{ "findingIds": [...] }`, 1 to 100 positive integers (`required`,
-  `invalid`, `too_many`), repeated ids count once. It answers
-  `{ "queued": [...], "skipped": [{ "findingId", "reason" }] }`, with the reasons `not_found`,
-  `resolved`, `not_public`, `already_open` and `queue_full`, checked in this order. The first
-  three come from `findingCheckBlocker` in `src/core/checkEligibility.ts`, which the claim and
-  the client use as well.
+- `POST /api/checks` takes `{ "findingIds": [...], "force"?: boolean }`, 1 to 100 positive
+  integers (`required`, `invalid`, `too_many`), repeated ids count once, `force` a boolean
+  (`invalid`). It first probes the own images without a fresh probe answer, see
+  [Image access](#image-access). It answers
+  `{ "queued": [...], "skipped": [{ "findingId", "reason", "proposalId"? }] }`, with the reasons
+  `not_found`, `resolved`, `not_public` (neither public nor covered by a credential),
+  `visibility_unknown` (an own image of unknown visibility and no credential covering it: the
+  probe did not answer in time, the rate limit held it back, or it failed, which it always does
+  for a registry on a private or in-cluster address; add a registry credential for those), `already_open`, `covered_by_proposal` and
+  `queue_full`, checked in this order. The first four come from `findingCheckBlocker` in
+  `src/core/checkEligibility.ts`, which the claim and the client use as well. `covered_by_proposal`
+  carries `proposalId`, the newest open proposal that lists the finding in its `relatedFindings`;
+  a proposal's own targets are not covered. `force: true` queues covered findings anyway and
+  changes nothing else.
   The Retry action on a failed or cancelled check, on the Checks page and in the finding panel,
   sends this request again for the check's finding.
 - `DELETE /api/checks/:id` cancels a queued or running check of any user and answers 204. A running check's
@@ -754,11 +799,15 @@ are validated against the types in `src/core/check.ts` (400 `validation` otherwi
   optional too, the digests of every exported image, primary first: repeated digests count once,
   entries past the third are dropped, and a list that does not start with `pulledDigest` is
   refused (`invalid`). A result of an older worker without the list counts `pulledDigest` as its
-  single image. `source` is optional, `null` or `CheckedSource` `{ repoUrl, revision, fromLabel }`:
-  `repoUrl` an https repository URL without credentials of at most 500 characters, stored
-  normalised as `https://<host>/<path>.git`, `revision` `null` or a commit of 7 to 64 hex digits,
-  `fromLabel` a boolean (`source.repoUrl`, `source.revision`, `source.fromLabel`: `required`,
-  `invalid`).
+  single image. `source` is optional, `null` or `CheckedSource`
+  `{ repoUrl, revision, fromLabel, refKind, ref }`: `repoUrl` an https repository URL without
+  credentials of at most 500 characters, stored normalised as `https://<host>/<path>.git`,
+  `revision` `null` or the checked-out commit of 7 to 64 hex digits, `fromLabel` a boolean,
+  `refKind` what chose the commit (`label` for the revision label, `tag` for the git tag matching
+  the image tag, `default_branch`), `ref` the tag for `tag` (letters, digits and `._+-`, at most
+  129 characters, no `..`, not starting with `-` or `.`, not ending in `.` or `.lock`) and `null`
+  otherwise (`source.repoUrl`, `source.revision`, `source.fromLabel`, `source.refKind`,
+  `source.ref`: `required`, `invalid`).
 
 `token` is a token of the requester named `Auto-check #<id>` with scope `propose`, minted on
 claim outside the 20 live token cap and the user-facing lifetimes, and expiring 10 minutes after
@@ -814,20 +863,32 @@ is not running 409 `{ "error": "check_not_running" }`. The types are in `src/cor
   image (`org.opencontainers.image.source` and `.revision`, each `null` or at most 500
   characters; `imageRef` the repository, at most 300 characters). An `imageRef` that is not the
   check's image answers 400 `validation` with `imageRef` `not_claimed`. It answers `SourceAnswer`,
-  either `{ "grant": { "repoUrl", "revision", "username", "secret" } }` or
-  `{ "skip": "no_repository" | "no_credential" | "not_https" | "foreign_repository" }`. sieb
-  tries the repository the source label names when it is an https URL on a git host a credential
-  covers and belongs to the image's own owner, else the repository the longest matching
-  `repoMapping` derives from the image. The owner is the first path segment, the GitHub user or organisation, the GitLab
+  either `{ "grant": { "repoUrls", "revision", "username", "secret" } }` or
+  `{ "skip": "no_repository" | "no_credential" | "not_https" | "foreign_repository" }`.
+  `repoUrls` holds 1 to 3 repositories the fetcher tries in order until one clones. sieb takes,
+  in this order: the repository the source label names when it is an https URL of the image's
+  own owner, with the git credential that covers it or else without a login, the latter only on
+  github.com, gitlab.com or the git host of a stored credential with the git use
+  (`no_credential` on any other host); the repository the
+  longest matching `repoMapping` derives from the image, which needs a git credential
+  (`no_credential` otherwise); the default mapping of a credential with both uses and no
+  `repoMapping` (GitHub `ghcr.io/<owner>/<name>` to `github.com/<owner>/<name>`, GitLab
+  `<registry host>/<path>` to `<git host>/<path>`, for a nested image name up to three paths
+  longest first, `defaultRepoMapping` in `src/core/defaultRepoMapping.ts`), with the covering git
+  credential; and for an own image on `ghcr.io` or `registry.gitlab.com` the same default
+  without any credential. `username` and `secret` are both `null` for an anonymous clone of a
+  public repository; sieb does not probe the repository, the clone decides, and an anonymous
+  clone that fails on every URL leaves the workspace without `source/` with the reason
+  `needs_credential`. The owner is the first path segment, the GitHub user or organisation, the GitLab
   top-level group or the Docker Hub namespace: `ghcr.io/acme/shop` takes the label
   `https://github.com/acme/shop` but ignores `https://github.com/acme-platform/base`, as a base
   image of another owner leaves it, and a label an image sets to reach a repository of another
   owner never selects one. A mapping counts only for images its own credential covers as a
   registry credential.
-  `repoUrl` is `https://<host>/<path>.git` without credentials, the host always a git host of a
-  stored credential. `revision` is the revision label when it is a commit of 7 to 64 hex digits,
-  and only for the label's own repository or an image without source label, else `null` for the
-  default branch. `skip` is `not_https` for an `http`, `ssh` or scp-like label without mapping,
+  Each URL is `https://<host>/<path>.git` without credentials. `revision` is the revision label
+  when it is a commit of 7 to 64 hex digits, and only for the label's own repository or an image
+  without source label, else `null`: the fetcher then tries the git tag of the primary image's tag
+  (`<tag>`, then `v<tag>`, never for `latest`) and else the default branch. `skip` is `not_https` for an `http`, `ssh` or scp-like label without mapping,
   `no_credential` when no git credential covers the repository, `foreign_repository` when the
   label names a repository of another owner and no mapping covers the image, `no_repository`
   otherwise.
@@ -889,27 +950,33 @@ from it. `lastUsedAt` is the last time it was handed to the fetcher.
 
   At most 50 credentials are stored (409 `{ "error": "too_many_credentials" }`), and two
   credentials may not claim the same host and prefix for a shared use (409
-  `{ "error": "duplicate_scope" }`).
+  `{ "error": "duplicate_scope" }`). Both are checked before the test, see
+  [Test before storing](#test-before-storing), and the passing test is stored as `lastTest`.
 - `PATCH /api/credentials/:id` takes the same fields, merged over the stored ones, and answers the
   view; `secret` replaces the stored secret, leaving it out keeps it. A change of a credential
   whose secret was sealed with another key needs a new `secret` (409
   `{ "error": "secret_unreadable" }`), and so does a change of the provider or to a registry or
   git host the credential did not have (409 `{ "error": "secret_required" }`): a stored token is
-  write-only and never goes to a host it was not entered for. Removing a use needs none. Every
-  change drops `lastTest`.
+  write-only and never goes to a host it was not entered for. Removing a use needs none. A
+  change of anything but the label, a new `secret` included, is tested first like a create and
+  its passing test replaces `lastTest`; a change of the label alone runs no test and keeps
+  `lastTest`.
 - `DELETE /api/credentials/:id` answers 204, an unknown id 404. Revoke the token at the provider
   too.
 - `POST /api/credentials/:id/test` takes `{}`, tests the credential from sieb over HTTPS and
   answers the view with the new `lastTest` `{ at, registry, git }`, each part
-  `{ checked, ok, failures }` with at most 5 failures `{ target, reason }`, `null` for a use the
-  credential lacks. The registry part resolves the manifest (`HEAD /v2/<path>/manifests/<digest
+  `{ checked, ok, failures, denied, blocked }` with at most 5 failures `{ target, reason }`,
+  `null` for a use the credential lacks. `denied` counts the targets that answered
+  `401 unauthorized` or `403 forbidden` and `blocked` those refused as `address not allowed`,
+  both over all failures (absent in tests stored before 0.6.1); `untested: true` marks a credential saved
+  with `confirmUntested`. The registry part resolves the manifest (`HEAD /v2/<path>/manifests/<digest
   or tag>`) of up to 20 images of sieb's findings the credential covers, open ones first, with
   the OCI distribution auth flow: an anonymous request, then on 401 the Bearer token from the
   `WWW-Authenticate` realm with basic auth (Docker Hub through `registry-1.docker.io` and
   `auth.docker.io`) or basic auth itself. The git part asks
   `GET https://<host>/<path>.git/info/refs?service=git-upload-pack` with basic auth for up to 20
-  repositories the credential covers, those the repository mappings derive from sieb's images
-  and those checks reported as checked out. Every request goes over https to port 443, or to the
+  repositories the credential covers, those the repository mappings derive from sieb's images,
+  those the default mappings name for them and those checks reported as checked out. Every request goes over https to port 443, or to the
   port the credential's host names, and only to public addresses: sieb refuses cluster-internal
   names (single labels, `localhost`, `*.local`, `*.svc`, `*.cluster.local`, `*.internal`,
   `*.home.arpa`), resolves every other host itself, refuses it when any address is loopback, private (RFC 1918), CGNAT (`100.64.0.0/10`),
@@ -925,14 +992,21 @@ from it. `lastUsedAt` is the last time it was handed to the fetcher.
   never on a parent domain (`token realm on another host` otherwise), and stop after 10 seconds
   each and 45 seconds per test (`timeout`). Other reasons are `401 unauthorized`,
   `403 forbidden`, `not found`, `429 rate limited`, `unreachable`, `no token` and
-  `unexpected answer`. A secret the key cannot open answers 409 `secret_unreadable`. A credential is tested at most once per 30 seconds and at most 3 tests
+  `unexpected answer`. A secret the key cannot open answers 409 `secret_unreadable`. A credential is tested at most once per 10 seconds and at most 3 tests
   run at once, else 429 `{ "error": "test_cooldown" }` or `{ "error": "tests_busy" }` with
-  `Retry-After: 30`; a test that did not run, such as one answering `secret_unreadable`, does
-  not count.
+  `Retry-After: 10`; a test that did not run, such as one answering `secret_unreadable`, does
+  not count. This test stores its outcome whatever it is; it never removes the credential.
+- `POST /api/credentials/test` takes an `AccessCredentialInput` and answers the
+  `AccessTestResult` of those values, the same test as above, without storing anything and
+  without a log line. For a stored credential it takes `{ id, ...changes }`, merged over the
+  stored fields like a PATCH, and uses the stored secret unless `secret` gives a new one; the
+  stored secret never goes to a new provider or host (409 `secret_required`), one the key cannot
+  open answers 409 `secret_unreadable`, an unknown id 404 and an `id` that is no positive integer
+  400. The same address rules, limits and throttle apply as for the tests of entered values below.
 
-Each create, update, delete and test writes one log line with the acting user, id, provider,
-label, hosts and prefix (a test adds `registry=<ok>/<checked>` and `git=…`), never the username
-or secret.
+Each create, update, delete and test of a stored credential writes one log line with the acting
+user, id, provider, label, hosts and prefix (a test adds `registry=<ok>/<checked>` and `git=…`),
+never the username or secret. A dry run and a save the test refused write none.
 
 **Storage.** Username and secret are sealed together with AES-256-GCM under
 `SIEB_CREDENTIALS_KEY`, a random 12-byte nonce per seal, and as associated data a seal format
@@ -953,10 +1027,46 @@ blob types and the JSON shapes, and at least one host per row; ids are never reu
 
 `checkAccess` in the finding detail lists how Auto-check reaches the finding's image as
 `ImageCheckAccess` `{ imageRef, level, credentialId, credentialLabel }`: `level` is `credential`
-when a usable registry credential covers it (with its id and label), else `public` for source
-access `public`, else `none`. While private access is off it is never `credential`. The MCP
-`sourceAccess` stays as it was: it says whether Claude can read the source in a hand-off, not
-what Auto-check can pull.
+when a usable registry credential covers it (with its id and label), else `public` for the
+visibility `public`, else `none`. While private access is off it is never `credential`. Unlike
+`imageVisibility`, which prefers `public` over `credential` because it describes the image,
+`checkAccess` names the credential first, since the fetcher then pulls with it.
+
+### Test before storing
+
+`POST /api/credentials` and a `PATCH` beyond the label test the submitted values first, with the
+secret held in memory only; the test is the one of `POST /api/credentials/:id/test`, with a
+submitted repository mapping in place of the stored one. Only a test that lets the save through
+stores anything. Per use the credential has, the test passes when at least one target was
+reachable and no target answered `401 unauthorized` or `403 forbidden`; other failures of single
+targets, such as `not found` for an image that moved on or a `timeout`, do not block while one
+target of that use passed. Otherwise the request answers 422 with the result and writes
+nothing, no row, no change and no log line; the body never carries the secret:
+
+```json
+{ "error": "test_failed", "result": { "at": "…", "registry": { "checked": 2, "ok": 1, "failures": […], "denied": 1, "blocked": 0 }, "git": null } }
+```
+
+| `error` | When |
+| --- | --- |
+| `test_failed` | A target of any use answered 401 or 403, or no target of a use was reachable |
+| `nothing_to_test` | A use covers no image or repository sieb has seen, so the token cannot be proven; fix the path prefix or mapping |
+| `untestable` | Every target of a use was refused as `address not allowed`, a host on a private or in-cluster address sieb never tests; send the request again with `confirmUntested: true` to store it untested |
+
+When the uses differ, the first code of the table that applies to one of them is answered.
+Validation errors (400) and the 409 refusals (`duplicate_scope`, `too_many_credentials`,
+`secret_required`, `secret_unreadable`) come first and run no test.
+
+With `confirmUntested: true` (a boolean, 400 `invalid` otherwise) a save whose only obstacle is
+`untestable` is stored, and its `lastTest` carries `untested: true`; it never lets a refused
+login or a prefix without targets through. `confirmUntested` is not stored.
+
+Tests of entered values, the dry run included, are throttled per user like stored credentials
+are per credential: one at a time and one start per 10 seconds per user, sharing the limit of 3
+running tests (429 `test_cooldown` or `tests_busy`). A save of exactly the values, secret
+included, that the same user tested within those 10 seconds reuses that result instead of a
+second run, so Test only followed by a save sends no further requests; sieb keeps only an HMAC of
+the values under a key that lives in memory, never the secret.
 
 ## MCP endpoint
 

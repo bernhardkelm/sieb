@@ -1,5 +1,5 @@
 import { KEV_SOURCES, type KevSourceKind } from '#core/kev.ts'
-import { DEFAULT_PUBLIC_REGISTRIES } from '#core/sourceAccess.ts'
+import { DEFAULT_PUBLIC_REGISTRIES } from '#core/registryHost.ts'
 import { DEFAULT_USER_HEADER } from '#server/http/identity.ts'
 import { parseHttpUrl } from '#server/urlConfigValues.ts'
 

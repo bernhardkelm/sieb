@@ -3,6 +3,7 @@ import { request, type RequestOptions } from 'node:https'
 import type { LookupFunction } from 'node:net'
 import { Readable } from 'node:stream'
 
+import { ADDRESS_NOT_ALLOWED } from '#core/accessTestVerdict.ts'
 import { isPublicAddress, urlRefusal } from '#server/credentials/probe/publicAddress.ts'
 
 /** A probe request refused before or instead of connecting, its message is the short reason */
@@ -28,7 +29,7 @@ export const vettedLookup =
       if (error !== null) {
         callback(error, '', 0)
       } else if (addresses.length === 0 || !addresses.every((a) => isPublicAddress(a.address))) {
-        callback(new ProbeRefused('address not allowed'), '', 0)
+        callback(new ProbeRefused(ADDRESS_NOT_ALLOWED), '', 0)
       } else if (options.all === true) {
         callback(null, addresses)
       } else {

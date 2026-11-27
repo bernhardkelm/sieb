@@ -9,6 +9,7 @@ import type { ToolContext } from '#checker/workspace/runTool.ts'
 export const SOURCE_MISS_REASONS = [
   ...SOURCE_SKIP_REASONS,
   'clone_failed',
+  'needs_credential', // anonymous clone failed: the repository is not public, sieb holds no git credential for it
   'too_large',
   'unavailable', // sieb's source endpoint did not answer
   'no_fetcher', // single-container mode

@@ -1,11 +1,12 @@
 import type { DatabaseSync } from 'node:sqlite'
 
-import { DEFAULT_PUBLIC_REGISTRIES } from '#core/sourceAccess.ts'
+import { DEFAULT_PUBLIC_REGISTRIES } from '#core/registryHost.ts'
 import { createCheckContext, type CheckContext } from '#server/checks/checkContext.ts'
 import type { CredentialVault } from '#server/credentials/credentialVault.ts'
 import { buildSnapshot } from '#server/db/__tests__/dbFixtures.ts'
 import { MEMORY_DB, openDatabase } from '#server/db/openDatabase.ts'
 import { applySnapshot } from '#server/sync/applySnapshot.ts'
+import type { PullProber } from '#server/visibility/pullProber.ts'
 
 export const START = new Date('2026-06-01T12:00:00.000Z')
 export const PUBLIC_URL = 'https://sieb.example.com'
@@ -19,7 +20,7 @@ export const DIGEST = `sha256:${'ab'.repeat(32)}`
 export interface CheckFindings {
   nginx: number // public, open, digest and tag
   redis: number // public, open, tag only
-  own: number // owner self, private
+  own: number // owner self, never probed
   other: number // unknown registry
   resolved: number // public, resolved
 }
@@ -45,7 +46,7 @@ const findingOf = (db: DatabaseSync, imageRef: string): number =>
 /**
  * Opens a database with public, private, unknown and resolved findings and a check context
  * whose clock starts at START.
- * @param {{ timeoutSeconds?: number; maxTurns?: number; fetcherSecret?: string | null; vault?: CredentialVault | null }} settings - Check settings, fetcher secret and credential vault to replace
+ * @param {{ timeoutSeconds?: number; maxTurns?: number; fetcherSecret?: string | null; vault?: CredentialVault | null; pullProber?: PullProber | null }} settings - Check settings, fetcher secret, credential vault and pull prober to replace
  * @returns {CheckFixture} - Fixture
  */
 export const checkFixture = (
@@ -54,6 +55,7 @@ export const checkFixture = (
     maxTurns?: number
     fetcherSecret?: string | null
     vault?: CredentialVault | null
+    pullProber?: PullProber | null
   } = {},
 ): CheckFixture => {
   const db = openDatabase(MEMORY_DB)
@@ -86,6 +88,7 @@ export const checkFixture = (
       fetcherSecret: settings.fetcherSecret ?? null,
     },
     vault: settings.vault ?? null,
+    pullProber: settings.pullProber ?? null,
   })
 
   return {
@@ -131,7 +134,7 @@ export const insertTokenProposal = (
     db
       .prepare(
         `INSERT INTO decision_proposals (vuln_id, scope, image_refs, target_key, verdict, summary,
-           confidence, evidence, unknowns, refs, evidence_basis, source_access, proposed_by,
+           confidence, evidence, unknowns, refs, evidence_basis, image_access, proposed_by,
            proposed_via, token_id, client_label, basis_decisions, created_at)
          VALUES (?, 'image', ?, ?, 'needs_patch', 'Reachable.', 'high', '[]', '[]', '[]',
            '["image"]', '[]', ?, 'token', ?, 'claude-code', '[]', ?)`,

@@ -1,9 +1,17 @@
 import { computed, type ComputedRef } from 'vue'
 
+import type { FindingView } from '#core/findingView.ts'
+import type { SelectionHandoffFinding } from '#core/selectionHandoff.ts'
 import { useAutoCheck } from '@/composables/useAutoCheck'
 import { allOf, type BulkCount } from '@/format/bulkCount'
-import { OPEN_SKIP_REASON, queueRoomReason, selectionCheckReason } from '@/format/checkBlockReason'
+import {
+  COVERED_SKIP_REASON,
+  OPEN_SKIP_REASON,
+  queueRoomReason,
+  selectionCheckReason,
+} from '@/format/checkBlockReason'
 import { useChecksStore } from '@/stores/checksStore'
+import { useFindingsStore } from '@/stores/findingsStore'
 import { useSelectionStore } from '@/stores/selectionStore'
 import { notifyNotice } from '@/toast/toastManager'
 
@@ -23,9 +31,29 @@ export interface SelectionAutoCheck {
 }
 
 /**
+ * Returns the open proposal that covers a checked row, read from the row when the list hands
+ * over full findings, else from the findings store.
+ * @param {SelectionHandoffFinding | undefined} row - Checked row
+ * @param {FindingView | undefined} stored - The finding in the findings store
+ * @returns {number | null} - Covering proposal, null without one
+ */
+const coveredBy = (
+  row: SelectionHandoffFinding | undefined,
+  stored: FindingView | undefined,
+): number | null => {
+  const value =
+    row !== undefined && 'coveredByProposal' in row
+      ? row.coveredByProposal
+      : stored?.coveredByProposal
+
+  return typeof value === 'number' ? value : null
+}
+
+/**
  * Queues Auto-checks for the checked rows of the active list, read from the selection store the
  * hand-off uses. Rows with an open check are left out before the request; the server skips
- * private images and names them in the toast. A selection with more checks than the queue has
+ * images it cannot pull and findings an open proposal covers and names them in the toast, which
+ * offers Check anyway for covered ones. Covered rows count as skipped in the partial count. A selection with more checks than the queue has
  * room for is blocked as a whole, the room counted from the open checks of the checks store.
  * @param {() => readonly number[]} source - Finding ids to check instead of the checked rows
  * @returns {SelectionAutoCheck} - Whether rows are checked, block reason and run
@@ -33,6 +61,7 @@ export interface SelectionAutoCheck {
 export const useSelectionAutoCheck = (source?: () => readonly number[]): SelectionAutoCheck => {
   const checks = useChecksStore()
   const selection = useSelectionStore()
+  const findings = useFindingsStore()
   const { submitting, submit } = useAutoCheck()
   const findingIds = computed(() => (source ? source() : selection.findingIds))
 
@@ -46,9 +75,17 @@ export const useSelectionAutoCheck = (source?: () => readonly number[]): Selecti
   )
   const bulkCount = computed<BulkCount>(() => {
     const selected = findingIds.value.length
+    const rows = new Map(selection.findings.map((finding) => [finding.id, finding]))
+    const uncovered = candidates.value.filter(
+      (id) => coveredBy(rows.get(id), findings.byId.get(id)) === null,
+    )
+    const skipped = [
+      ...(candidates.value.length < selected ? [OPEN_SKIP_REASON] : []),
+      ...(uncovered.length < candidates.value.length ? [COVERED_SKIP_REASON] : []),
+    ]
 
-    return candidates.value.length < selected
-      ? { affected: candidates.value.length, selected, skipped: [OPEN_SKIP_REASON] }
+    return uncovered.length < selected
+      ? { affected: uncovered.length, selected, skipped }
       : allOf(selected)
   })
 

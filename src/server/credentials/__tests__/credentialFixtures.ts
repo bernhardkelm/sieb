@@ -55,7 +55,7 @@ export const storeCredential = (
   const result = createCredential(
     db,
     vault,
-    { write: write.value, actor: 'alice' },
+    { write: write.value, actor: 'alice', lastTest: null },
     new Date('2026-06-01T12:00:00.000Z'),
   )
 

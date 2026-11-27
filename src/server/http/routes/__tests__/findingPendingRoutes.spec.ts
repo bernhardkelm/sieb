@@ -33,7 +33,7 @@ const pendingApp = async (checksEnabled = true): Promise<ReturnType<typeof creat
   insertProposal(fixture.db, {
     ...buildProposalInput(),
     ...PROPOSER,
-    sourceAccess: [],
+    imageAccess: [],
     basisDecisions: [],
     createdAt: START.toISOString(),
   })

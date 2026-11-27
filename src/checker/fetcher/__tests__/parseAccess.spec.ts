@@ -7,7 +7,7 @@ const LOGIN = { host: 'ghcr.io', username: 'bot', secret: 'ghp_secret' }
 const DIGEST = `sha256:${'a'.repeat(64)}`
 const IMAGES = [{ imageRef: `ghcr.io/acme/app@${DIGEST}`, imageDigest: DIGEST, tag: '1.0' }]
 const GRANT = {
-  repoUrl: 'https://GitHub.com/acme/app',
+  repoUrls: ['https://GitHub.com/acme/app'],
   revision: null,
   username: 'x-access-token',
   secret: 'ghp_secret',
@@ -67,9 +67,9 @@ describe('parseFetchAccess', () => {
 })
 
 describe('parseSourceAnswer', () => {
-  it('normalises the repository URL and keeps only full commit ids', () => {
+  it('normalises the repository URLs and keeps only full commit ids', () => {
     expect(parseSourceAnswer({ grant: GRANT })).toEqual({
-      grant: { ...GRANT, repoUrl: 'https://github.com/acme/app' },
+      grant: { ...GRANT, repoUrls: ['https://github.com/acme/app'] },
     })
     expect(parseSourceAnswer({ grant: { ...GRANT, revision: 'ABCDEF1' } })).toMatchObject({
       grant: { revision: null },
@@ -80,13 +80,32 @@ describe('parseSourceAnswer', () => {
     expect(parseSourceAnswer({ skip: 'no_repository' })).toEqual({ skip: 'no_repository' })
   })
 
-  it('refuses URLs with credentials, other schemes and malformed logins', () => {
+  it('accepts an anonymous grant with up to three candidates in order', () => {
+    const repoUrls = [
+      'https://gitlab.com/acme/group/app.git',
+      'https://gitlab.com/acme/group.git',
+      'https://gitlab.com/acme/other.git',
+    ]
+
+    expect(
+      parseSourceAnswer({ grant: { repoUrls, revision: null, username: null, secret: null } }),
+    ).toEqual({ grant: { repoUrls, revision: null, username: null, secret: null } })
+  })
+
+  it('refuses URLs with credentials, other schemes, half or malformed logins and too many URLs', () => {
     for (const grant of [
-      { ...GRANT, repoUrl: 'https://u:p@github.com/acme/app' },
-      { ...GRANT, repoUrl: 'http://github.com/acme/app' },
-      { ...GRANT, repoUrl: 'ext::sh -c id' },
-      { ...GRANT, repoUrl: 'https://github.com/acme/app?x=1' },
+      { ...GRANT, repoUrls: ['https://u:p@github.com/acme/app'] },
+      { ...GRANT, repoUrls: ['http://github.com/acme/app'] },
+      { ...GRANT, repoUrls: ['ext::sh -c id'] },
+      { ...GRANT, repoUrls: ['https://github.com/acme/app?x=1'] },
+      { ...GRANT, repoUrls: ['https://github.com/acme/app', 'http://github.com/acme/app'] },
+      { ...GRANT, repoUrls: [] },
+      { ...GRANT, repoUrls: 'https://github.com/acme/app' },
+      { ...GRANT, repoUrls: Array.from({ length: 4 }, (_, i) => `https://github.com/acme/a${i}`) },
       { ...GRANT, secret: 'a\r\nX-Evil: 1' },
+      { ...GRANT, username: null },
+      { ...GRANT, secret: null },
+      { ...GRANT, username: undefined, secret: undefined },
     ]) {
       expect(() => parseSourceAnswer({ grant })).toThrow(/^sieb sent an invalid source answer$/)
     }

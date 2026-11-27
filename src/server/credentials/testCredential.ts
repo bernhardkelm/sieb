@@ -1,6 +1,6 @@
 import type { AccessProvider } from '#core/privateAccess.ts'
 import type { CredentialContext } from '#server/credentials/credentialContext.ts'
-import { openCredential } from '#server/credentials/credentialCommands.ts'
+import { openCredential } from '#server/credentials/credentialSecrets.ts'
 import { loginOf } from '#server/credentials/credentialLogin.ts'
 import type { CredentialVault } from '#server/credentials/credentialVault.ts'
 import { runCredentialTest } from '#server/credentials/runCredentialTest.ts'

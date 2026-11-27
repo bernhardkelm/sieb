@@ -12,7 +12,18 @@ describe('validateCheckCreate', () => {
   it('keeps distinct ids in request order', () => {
     expect(validateCheckCreate({ findingIds: [3, 1, 3] })).toEqual({
       ok: true,
-      value: { findingIds: [3, 1] },
+      value: { findingIds: [3, 1], force: false },
+    })
+  })
+
+  it('reads an optional boolean force', () => {
+    expect(validateCheckCreate({ findingIds: [1], force: true })).toEqual({
+      ok: true,
+      value: { findingIds: [1], force: true },
+    })
+    expect(validateCheckCreate({ findingIds: [1], force: 'yes' })).toEqual({
+      ok: false,
+      errors: [{ field: 'force', code: 'invalid' }],
     })
   })
 

@@ -10,24 +10,30 @@ import {
 import { MAX_CREDENTIAL_LABEL_LENGTH } from '#core/credentialFieldReaders.ts'
 import ClaudeNotice from '@/components/access/ClaudeNotice.vue'
 import CredentialFacts from '@/components/access/CredentialFacts.vue'
+import CredentialFormActions from '@/components/access/CredentialFormActions.vue'
 import { credentialHostsOf } from '@/components/access/credentialHosts'
-import type { CredentialFormModel } from '@/components/access/credentialFormModel'
 import HostFields from '@/components/access/HostFields.vue'
 import PathPrefixField from '@/components/access/PathPrefixField.vue'
 import ProviderInstructions from '@/components/access/ProviderInstructions.vue'
+import CredentialTestOutcome from '@/components/access/CredentialTestOutcome.vue'
 import RepoMappingField from '@/components/access/RepoMappingField.vue'
 import UsesField from '@/components/access/UsesField.vue'
-import BaseButton from '@/components/common/BaseButton.vue'
 import TextField from '@/components/common/TextField.vue'
 import FieldErrors from '@/components/decision/FieldErrors.vue'
 import RadioChoice from '@/components/decision/RadioChoice.vue'
-import { useCredentialForm } from '@/composables/useCredentialForm'
+import {
+  useCredentialForm,
+  type SaveCredential,
+  type TestCredentialValues,
+} from '@/composables/useCredentialForm'
 
 const props = defineProps<{
   /** Credential to edit, null to add one */
   credential: AccessCredentialView | null
-  /** Saves the values, rejects with the server error */
-  save: (model: CredentialFormModel) => Promise<void>
+  /** Saves the values after their test, rejects with the server error */
+  save: SaveCredential
+  /** Tests the values without saving them */
+  testValues: TestCredentialValues
 }>()
 
 defineEmits<{ cancel: [] }>()
@@ -45,10 +51,9 @@ const USERNAME_HINTS: Record<AccessProvider, string> = {
 
 const id = useId()
 const form = ref<HTMLFormElement | null>(null)
-const { model, editing, errors, submitting, setProvider, setUse, submit } = useCredentialForm(
-  props.credential,
-  props.save,
-)
+const { model, editing, errors, submitting, tested, test, setProvider, setUse, submit, testOnly } =
+  useCredentialForm(props.credential, props.save, props.testValues)
+const { result, verdict, refused, running, confirmUntested } = test
 
 const spec = computed(() => PROVIDER_SPECS[model.value.provider])
 const hosts = computed(() => credentialHostsOf(model.value))
@@ -65,11 +70,12 @@ const focus = (): void => {
 }
 
 /**
- * Saves the form, or focuses the first invalid field when a check or the server refused it.
+ * Saves or tests the form, or focuses the first invalid field when a check or the server refused it.
+ * @param {() => Promise<boolean>} action - submit or testOnly
  * @returns {Promise<void>}
  */
-const onSubmit = async (): Promise<void> => {
-  if (await submit()) {
+const run = async (action: () => Promise<boolean>): Promise<void> => {
+  if (await action()) {
     return
   }
 
@@ -88,7 +94,7 @@ defineExpose({ focus })
     class="credential-form"
     novalidate
     :aria-labelledby="`${id}-title`"
-    @submit.prevent="onSubmit"
+    @submit.prevent="run(submit)"
   >
     <div class="top">
       <h2 :id="`${id}-title`" class="heading">{{ title }}</h2>
@@ -141,6 +147,8 @@ defineExpose({ focus })
         v-if="model.uses.includes('git')"
         v-model:registry-prefix="model.registryPrefix"
         v-model:repo-prefix="model.repoPrefix"
+        :provider="model.provider"
+        :both-uses="model.uses.length === 2"
         :registry-host="hosts.registry || 'registry.example.com'"
         :git-host="hosts.git"
         :errors="errors.repoMapping"
@@ -169,13 +177,21 @@ defineExpose({ focus })
         :errors="errors.secret"
       />
       <ClaudeNotice />
+      <CredentialTestOutcome
+        v-model:confirm-untested="confirmUntested"
+        :result="result"
+        :verdict="verdict"
+        :refused="refused"
+        :running="running"
+      />
       <FieldErrors :messages="errors.general" role="alert" />
-      <div class="actions">
-        <BaseButton @click="$emit('cancel')">Cancel</BaseButton>
-        <BaseButton type="submit" variant="primary" :disabled="submitting">
-          {{ editing ? 'Save changes' : 'Add credential' }}
-        </BaseButton>
-      </div>
+      <CredentialFormActions
+        :editing="editing"
+        :tested="tested"
+        :busy="submitting"
+        @cancel="$emit('cancel')"
+        @test="run(testOnly)"
+      />
     </div>
   </form>
 </template>

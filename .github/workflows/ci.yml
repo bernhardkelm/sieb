@@ -141,7 +141,7 @@ jobs:
             '{"jsonrpc":"2.0","method":"notifications/initialized"}' \
             '{"jsonrpc":"2.0","id":2,"method":"tools/list"}' \
             | "${run[@]}" -i --entrypoint node sieb-checker:ci src/checker/inspect/inspectMain.ts /app)"
-          for tool in strings readelf objdump unzip_list jq; do
+          for tool in strings readelf objdump unzip_list jq registry_tags registry_image; do
             grep -q "\"name\":\"$tool\"" <<<"$tools"
           done
 

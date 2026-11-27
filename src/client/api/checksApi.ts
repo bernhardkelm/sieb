@@ -13,10 +13,14 @@ export const fetchChecks = (): Promise<ChecksResponse> => apiRequest(CHECKS_URL)
 /**
  * Queues an Auto-check per finding, the server skips the ones it cannot check.
  * @param {number[]} findingIds - Finding ids, 1 to 100
+ * @param {boolean} force - Queues findings an open proposal already covers as related findings
  * @returns {Promise<CheckCreateResponse>} - Queued checks and the skipped findings with their reason
  */
-export const createChecks = (findingIds: number[]): Promise<CheckCreateResponse> =>
-  apiRequest(CHECKS_URL, 'POST', { findingIds } satisfies CheckCreateRequest)
+export const createChecks = (findingIds: number[], force = false): Promise<CheckCreateResponse> =>
+  apiRequest(CHECKS_URL, 'POST', {
+    findingIds,
+    ...(force ? { force: true } : {}),
+  } satisfies CheckCreateRequest)
 
 /**
  * Cancels a queued or running check.

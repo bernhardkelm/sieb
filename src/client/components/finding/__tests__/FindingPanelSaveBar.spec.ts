@@ -23,7 +23,8 @@ describe('FindingPanel Save bar', () => {
       decisions: [],
       events: [],
       kev: null,
-      sourceAccess: 'public',
+      imageVisibility: 'public',
+      ownership: 'third_party',
     })
     const { wrapper } = await mountWithRouter(FindingPanel, '/triage?finding=1')
 

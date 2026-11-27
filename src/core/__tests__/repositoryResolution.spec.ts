@@ -91,7 +91,7 @@ describe('resolveSourceTarget', () => {
         'https://github.com/acme/shop',
       ),
     ).toMatchObject({
-      repository: { repoUrl: 'https://github.com/acme/shop.git' },
+      repositories: [{ repoUrl: 'https://github.com/acme/shop.git' }],
       scope: { id: 2 },
       fromLabel: true,
     })
@@ -105,7 +105,7 @@ describe('resolveSourceTarget', () => {
         'https://github.com/nodejs/docker-node',
       ),
     ).toMatchObject({
-      repository: { repoUrl: 'https://gitlab.example.com/acme/team/shop.git' },
+      repositories: [{ repoUrl: 'https://gitlab.example.com/acme/team/shop.git' }],
       scope: { id: 1 },
       fromLabel: false,
     })
@@ -121,7 +121,7 @@ describe('resolveSourceTarget', () => {
         'https://github.com/other/secret',
       ),
     ).toMatchObject({
-      repository: { repoUrl: 'https://gitlab.example.com/acme/shop.git' },
+      repositories: [{ repoUrl: 'https://gitlab.example.com/acme/shop.git' }],
       fromLabel: false,
     })
     expect(
@@ -129,19 +129,56 @@ describe('resolveSourceTarget', () => {
     ).toEqual({ skip: 'foreign_repository' })
     expect(
       resolveSourceTarget([other], 'docker.io/other/x', 'https://github.com/other/x'),
-    ).toMatchObject({ repository: { repoUrl: 'https://github.com/other/x.git' }, fromLabel: true })
+    ).toMatchObject({
+      repositories: [{ repoUrl: 'https://github.com/other/x.git' }],
+      scope: { id: 4 },
+      fromLabel: true,
+    })
+  })
+
+  it('grants an own-owner label no credential covers for an anonymous clone on a known git host', () => {
+    expect(
+      resolveSourceTarget([], 'registry.example.com/acme/shop', 'https://github.com/acme/shop'),
+    ).toEqual({
+      repositories: [
+        { host: 'github.com', path: 'acme/shop', repoUrl: 'https://github.com/acme/shop.git' },
+      ],
+      scope: null,
+      fromLabel: true,
+    })
+    expect(
+      resolveSourceTarget(
+        [{ ...GITLAB, pathPrefix: 'other' }],
+        'registry.example.com/acme/shop',
+        'https://gitlab.example.com/acme/shop',
+      ),
+    ).toMatchObject({ scope: null, fromLabel: true })
+  })
+
+  it('never clones a label on another host or an internal name without a credential', () => {
+    for (const label of [
+      'https://gitlab.other.example/acme/x',
+      'https://git.svc.cluster.local/acme/x',
+      'https://git.internal/acme/x',
+    ]) {
+      expect(resolveSourceTarget([GITHUB], 'registry.example.com/acme/shop', label)).toEqual({
+        skip: 'no_credential',
+      })
+    }
+  })
+
+  it('needs a git credential for an explicit mapping', () => {
+    expect(
+      resolveSourceTarget(
+        [{ ...GITLAB, uses: ['registry'] }],
+        'registry.example.com/acme/shop',
+        null,
+        true,
+      ),
+    ).toEqual({ skip: 'no_credential' })
   })
 
   it('skips with the reason that applies', () => {
-    expect(
-      resolveSourceTarget(
-        [GITHUB],
-        'registry.example.com/acme/shop',
-        'https://gitlab.other.example/acme/x',
-      ),
-    ).toEqual({
-      skip: 'no_credential',
-    })
     expect(
       resolveSourceTarget([GITHUB], 'registry.example.com/acme/shop', 'git@github.com:acme/x.git'),
     ).toEqual({
@@ -187,10 +224,34 @@ describe('worker source validation', () => {
 
     expect(
       readCheckedSource(
-        { repoUrl: 'https://github.com/acme/app', revision: 'ABCDEF0', fromLabel: true },
+        {
+          repoUrl: 'https://github.com/acme/app',
+          revision: 'ABCDEF0',
+          fromLabel: true,
+          refKind: 'label',
+          ref: null,
+        },
         errors,
       ),
-    ).toEqual({ repoUrl: 'https://github.com/acme/app.git', revision: 'abcdef0', fromLabel: true })
+    ).toEqual({
+      repoUrl: 'https://github.com/acme/app.git',
+      revision: 'abcdef0',
+      fromLabel: true,
+      refKind: 'label',
+      ref: null,
+    })
+    expect(
+      readCheckedSource(
+        {
+          repoUrl: 'https://github.com/acme/app',
+          revision: null,
+          fromLabel: false,
+          refKind: 'tag',
+          ref: 'v1.1.3',
+        },
+        errors,
+      ),
+    ).toMatchObject({ refKind: 'tag', ref: 'v1.1.3' })
     expect(readCheckedSource(null, errors)).toBeNull()
     expect(readCheckedSource(undefined, errors)).toBeUndefined()
     expect(errors).toEqual([])
@@ -200,20 +261,38 @@ describe('worker source validation', () => {
     const errors: { field: string | null; code: string }[] = []
 
     readCheckedSource(
-      { repoUrl: 'http://github.com/acme/app', revision: null, fromLabel: true },
+      { repoUrl: 'http://github.com/acme/app', revision: null, fromLabel: true, refKind: 'label' },
       errors,
     )
     readCheckedSource(
-      { repoUrl: 'https://t:x@github.com/acme/app', revision: null, fromLabel: true },
+      {
+        repoUrl: 'https://t:x@github.com/acme/app',
+        revision: null,
+        fromLabel: true,
+        refKind: 'label',
+      },
       errors,
     )
     readCheckedSource(
-      { repoUrl: 'https://github.com/acme/app', revision: 'main', fromLabel: false },
+      {
+        repoUrl: 'https://github.com/acme/app',
+        revision: 'main',
+        fromLabel: false,
+        refKind: 'label',
+      },
       errors,
     )
-    readCheckedSource({ repoUrl: 'https://github.com/acme/app', revision: null }, errors)
     readCheckedSource(
-      { repoUrl: `https://github.com/acme/${'a'.repeat(500)}`, revision: null, fromLabel: true },
+      { repoUrl: 'https://github.com/acme/app', revision: null, refKind: 'default_branch' },
+      errors,
+    )
+    readCheckedSource(
+      {
+        repoUrl: `https://github.com/acme/${'a'.repeat(500)}`,
+        revision: null,
+        fromLabel: true,
+        refKind: 'label',
+      },
       errors,
     )
 
@@ -223,6 +302,26 @@ describe('worker source validation', () => {
       { field: 'source.revision', code: 'invalid' },
       { field: 'source.fromLabel', code: 'required' },
       { field: 'source.repoUrl', code: 'invalid' },
+    ])
+  })
+
+  it('refuses a missing refKind, a tag without a valid name and a ref outside refKind tag', () => {
+    const errors: { field: string | null; code: string }[] = []
+    const base = { repoUrl: 'https://github.com/acme/app', revision: null, fromLabel: false }
+
+    expect(readCheckedSource(base, errors)).toBeUndefined()
+    expect(readCheckedSource({ ...base, refKind: 'branch' }, errors)).toBeUndefined()
+    expect(readCheckedSource({ ...base, refKind: 'tag', ref: '-x' }, errors)).toBeUndefined()
+    expect(readCheckedSource({ ...base, refKind: 'tag', ref: 'a..b' }, errors)).toBeUndefined()
+    expect(
+      readCheckedSource({ ...base, refKind: 'default_branch', ref: 'v1' }, errors),
+    ).toBeUndefined()
+    expect(errors).toEqual([
+      { field: 'source.refKind', code: 'required' },
+      { field: 'source.refKind', code: 'invalid' },
+      { field: 'source.ref', code: 'invalid' },
+      { field: 'source.ref', code: 'invalid' },
+      { field: 'source.ref', code: 'invalid' },
     ])
   })
 

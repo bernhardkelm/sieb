@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 
 import { MAX_OPEN_CHECKS } from '#core/checkLimits.ts'
 import {
+  coveredReason,
   findingCheckReason,
   NOT_PUBLIC_REASON,
   queueRoomReason,
@@ -35,23 +36,46 @@ describe('findingCheckReason', () => {
   const target = {
     enabled: true,
     workerOnline: true,
-    sourceAccess: 'public' as const,
+    visibility: 'public' as const,
+    ownership: 'third_party' as const,
     resolved: false,
     open: null,
   }
 
-  it('names a resolved private finding as resolved, as the server does', () => {
-    expect(findingCheckReason({ ...target, resolved: true, sourceAccess: 'private' })).toBe(
+  it('names a resolved finding of a restricted image as resolved, as the server does', () => {
+    expect(findingCheckReason({ ...target, resolved: true, visibility: 'restricted' })).toBe(
       RESOLVED_REASON,
     )
   })
 
-  it('names an open private finding as not public', () => {
-    expect(findingCheckReason({ ...target, sourceAccess: 'private' })).toBe(NOT_PUBLIC_REASON)
+  it('names an open finding of a restricted image as not pullable', () => {
+    expect(findingCheckReason({ ...target, visibility: 'restricted' })).toBe(NOT_PUBLIC_REASON)
   })
 
-  it('lets an open public finding pass with the worker online', () => {
+  it('lets an open finding of a public or credential image pass with the worker online', () => {
     expect(findingCheckReason(target)).toBeNull()
+    expect(findingCheckReason({ ...target, visibility: 'credential', ownership: 'own' })).toBeNull()
+  })
+
+  it('names the covering proposal after lasting reasons and an open check', () => {
+    expect(findingCheckReason({ ...target, coveredByProposal: 12 })).toBe(coveredReason(12))
+    expect(findingCheckReason({ ...target, coveredByProposal: 12, resolved: true })).toBe(
+      RESOLVED_REASON,
+    )
+    expect(findingCheckReason({ ...target, coveredByProposal: null })).toBeNull()
+  })
+
+  it.each([
+    ['own', 'public', null],
+    ['own', 'credential', null],
+    ['own', 'restricted', NOT_PUBLIC_REASON],
+    ['own', 'unknown', null],
+    ['third_party', 'public', null],
+    ['third_party', 'credential', null],
+    ['third_party', 'restricted', NOT_PUBLIC_REASON],
+    ['third_party', 'unknown', NOT_PUBLIC_REASON],
+  ] as const)('decides an %s image with visibility %s', (ownership, visibility, reason) => {
+    expect(findingCheckReason({ ...target, ownership, visibility })).toBe(reason)
   })
 })
 
@@ -59,7 +83,8 @@ describe('findingCheckReason with check access', () => {
   const target = {
     enabled: true,
     workerOnline: true,
-    sourceAccess: 'private' as const,
+    visibility: 'restricted' as const,
+    ownership: 'own' as const,
     resolved: false,
     open: null,
   }
@@ -70,11 +95,17 @@ describe('findingCheckReason with check access', () => {
     credentialLabel: level === 'credential' ? 'Acme registry' : null,
   })
 
-  it('lets a private image pass that a registry credential covers', () => {
-    expect(findingCheckReason({ ...target, checkAccess: [access('credential')] })).toBeNull()
+  it('lets an own image pass that a registry credential covers', () => {
+    expect(
+      findingCheckReason({
+        ...target,
+        visibility: 'credential',
+        checkAccess: [access('credential')],
+      }),
+    ).toBeNull()
   })
 
-  it('names the missing credential instead of public images only', () => {
+  it('names the missing credential instead of the anonymous pull only', () => {
     expect(findingCheckReason({ ...target, checkAccess: [access('none')] })).toBe(NO_ACCESS_REASON)
     expect(findingCheckReason(target)).toBe(NOT_PUBLIC_REASON)
   })

@@ -1,7 +1,7 @@
 // @vitest-environment node
 import { describe, expect, it } from 'vitest'
 
-import { DEFAULT_PUBLIC_REGISTRIES } from '#core/sourceAccess.ts'
+import { DEFAULT_PUBLIC_REGISTRIES } from '#core/registryHost.ts'
 import { readConfig } from '#server/config.ts'
 
 describe('SIEB_PUBLIC_REGISTRIES', () => {

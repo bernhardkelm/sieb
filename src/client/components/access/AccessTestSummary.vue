@@ -1,30 +1,16 @@
 <script setup lang="ts">
-import { computed } from 'vue'
-
 import type { AccessTestResult } from '#core/privateAccess.ts'
+import AccessTestParts from '@/components/access/AccessTestParts.vue'
 import LoadingSpinner from '@/components/common/LoadingSpinner.vue'
 import RelativeTime from '@/components/common/RelativeTime.vue'
-import { testFailureText, testPartText } from '@/format/accessText'
+import { UNTESTED_NOTE } from '@/format/accessTestText'
 
-const props = defineProps<{
+defineProps<{
   /** Last test, null before the first one */
   result: AccessTestResult | null
   /** Whether a test runs right now */
   testing: boolean
 }>()
-
-const parts = computed(() => {
-  const result = props.result
-
-  if (result === null) {
-    return []
-  }
-
-  return [
-    result.registry === null ? null : { name: 'Images', part: result.registry },
-    result.git === null ? null : { name: 'Repositories', part: result.git },
-  ].filter((entry) => entry !== null)
-})
 </script>
 
 <template>
@@ -35,20 +21,8 @@ const parts = computed(() => {
     </p>
     <template v-else-if="result">
       <p class="when">Last test <RelativeTime :value="result.at" /></p>
-      <ul class="parts">
-        <li
-          v-for="entry in parts"
-          :key="entry.name"
-          :class="{ failed: entry.part.ok < entry.part.checked, idle: entry.part.checked === 0 }"
-        >
-          {{ entry.name }}: {{ testPartText(entry.part) }}
-          <ul v-if="entry.part.failures.length > 0" class="failures">
-            <li v-for="failure in entry.part.failures" :key="failure.target">
-              <code>{{ failure.target }}</code>: {{ testFailureText(failure.reason) }}
-            </li>
-          </ul>
-        </li>
-      </ul>
+      <p v-if="result.untested" class="untested">{{ UNTESTED_NOTE }}</p>
+      <AccessTestParts :result="result" />
     </template>
     <p v-else class="when">Not tested yet.</p>
   </div>
@@ -73,33 +47,7 @@ const parts = computed(() => {
   color: var(--color-text-subtle);
 }
 
-.parts,
-.failures {
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-
-.parts > li {
-  color: var(--color-success);
-}
-
-.parts > li.idle {
-  color: var(--color-text-muted);
-}
-
-.parts > li.failed {
-  color: var(--color-danger);
-}
-
-.failures {
-  margin-top: var(--space-0-5);
-  padding-left: var(--space-3);
-  color: var(--color-text-muted);
-}
-
-code {
-  font-family: var(--font-mono);
-  overflow-wrap: anywhere;
+.untested {
+  color: var(--color-warning);
 }
 </style>

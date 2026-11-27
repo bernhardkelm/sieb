@@ -8,6 +8,7 @@ import type { ServerConfig } from '#server/config.ts'
 import type { CredentialVault } from '#server/credentials/credentialVault.ts'
 import { createWorkerApp } from '#server/http/workerApp.ts'
 import { errorText } from '#server/logSafe.ts'
+import type { PullProber } from '#server/visibility/pullProber.ts'
 
 /** Interval of the timeout sweep, so a lost worker's token is revoked without any request */
 export const EXPIRY_INTERVAL_MS = 30 * 1000
@@ -21,7 +22,7 @@ export interface RunningChecks {
  * Starts Auto-check when SIEB_CHECKS_ENABLED is on: the shared check context, the worker
  * listener on SIEB_WORKER_PORT with the fetcher routes behind SIEB_FETCHER_SECRET, and the
  * timeout sweep.
- * @param {{ config: ServerConfig; db: DatabaseSync; clock: Clock; vault: CredentialVault | null }} deps - Configuration, database, clock and credential vault
+ * @param {{ config: ServerConfig; db: DatabaseSync; clock: Clock; vault: CredentialVault | null; pullProber?: PullProber | null }} deps - Configuration, database, clock, credential vault and pull prober
  * @returns {RunningChecks | null} - Context and stop function, null while checks are off
  */
 export const startChecks = ({
@@ -29,11 +30,13 @@ export const startChecks = ({
   db,
   clock,
   vault,
+  pullProber = null,
 }: {
   config: ServerConfig
   db: DatabaseSync
   clock: Clock
   vault: CredentialVault | null
+  pullProber?: PullProber | null
 }): RunningChecks | null => {
   if (config.checks === null || config.publicUrl === null) {
     return null
@@ -47,6 +50,7 @@ export const startChecks = ({
     publicUrl: config.publicUrl,
     config: config.checks,
     vault,
+    pullProber,
   })
   const server = serve(
     {

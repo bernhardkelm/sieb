@@ -7,7 +7,7 @@ import { NOW } from '#core/__tests__/coreBuilders.ts'
 import { buildProposalInput, PROPOSER } from '#core/__tests__/proposalBuilders.ts'
 import { validateAcceptEdits } from '#core/proposalAcceptEdits.ts'
 import type { ProposalInput } from '#core/proposalRecord.ts'
-import { DEFAULT_PUBLIC_REGISTRIES } from '#core/sourceAccess.ts'
+import { DEFAULT_PUBLIC_REGISTRIES } from '#core/registryHost.ts'
 import { acceptProposal } from '#server/db/acceptProposal.ts'
 import { createProposal } from '#server/db/createProposal.ts'
 import { listDecisions } from '#server/db/decisionRepository.ts'
@@ -165,7 +165,8 @@ describe('getProposalDetail', () => {
         vulnId: SIBLING_CVE,
         imageRef: NGINX,
         open: true,
-        sourceAccess: 'public',
+        imageVisibility: 'public',
+        ownership: 'third_party',
         versions: [
           {
             package: 'github.com/coredns/coredns',

@@ -1,6 +1,6 @@
 import { McpServer } from '@modelcontextprotocol/server'
 
-import { DEFAULT_PUBLIC_REGISTRIES } from '#core/sourceAccess.ts'
+import { DEFAULT_PUBLIC_REGISTRIES } from '#core/registryHost.ts'
 import { createDecision } from '#server/db/createDecision.ts'
 import { replaceKevCatalog } from '#server/db/kevCatalogRepository.ts'
 import { recordKevSuccess } from '#server/db/kevFeedRepository.ts'

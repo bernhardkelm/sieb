@@ -13,7 +13,6 @@ import type { Finding } from '#core/finding.ts'
 import type { FindingInstance } from '#core/instance.ts'
 import type { CredentialVault } from '#server/credentials/credentialVault.ts'
 import { getCheck } from '#server/db/checkRepository.ts'
-import { listUsableScopes } from '#server/db/credentialRepository.ts'
 import type { CheckRow, StoredCheck } from '#server/db/checkRows.ts'
 import { toStoredCheck } from '#server/db/checkRows.ts'
 import { mintCheckToken } from '#server/db/checkTokens.ts'
@@ -21,6 +20,7 @@ import { endCheck, failedOutcome } from '#server/db/endCheck.ts'
 import { getFinding } from '#server/db/findingRepository.ts'
 import { listInstances } from '#server/db/instanceRepository.ts'
 import { inTransaction } from '#server/db/inTransaction.ts'
+import { readImageAccessSources } from '#server/visibility/imageAccessSources.ts'
 
 export interface ClaimedCheck {
   check: StoredCheck
@@ -47,6 +47,8 @@ const BLOCKER_ERRORS: Record<CheckBlocker, string> = {
   not_found: 'The finding no longer exists.',
   resolved: 'The finding was resolved before the check started.',
   not_public: 'The image is no longer public or covered by a registry credential.',
+  visibility_unknown:
+    'sieb could not tell whether the image can be pulled anonymously, and no registry credential covers it.',
 }
 
 /**
@@ -106,7 +108,10 @@ const startCheck = (
 export const claimCheck = (db: DatabaseSync, context: ClaimContext, now: Date): ClaimResult =>
   inTransaction(db, () => {
     const skipped: StoredCheck[] = []
-    const scopes = listUsableScopes(db, context.credentialVault ?? null)
+    const sources = readImageAccessSources(db, {
+      publicRegistries: context.publicRegistries,
+      credentialVault: context.credentialVault ?? null,
+    })
 
     if (db.prepare(`SELECT 1 FROM checks WHERE state = 'running'`).get() !== undefined) {
       return { claimed: null, skipped }
@@ -114,9 +119,7 @@ export const claimCheck = (db: DatabaseSync, context: ClaimContext, now: Date): 
 
     for (let next = oldestQueued(db); next !== null; next = oldestQueued(db)) {
       const finding = getFinding(db, next.findingId)
-      const blocker = findingCheckBlocker(
-        eligibilityFactsOf(finding, context.publicRegistries, scopes),
-      )
+      const blocker = findingCheckBlocker(eligibilityFactsOf(finding, sources))
       const instances = finding === null ? [] : listInstances(db, finding.id)
       const pull = finding === null ? null : checkPullRef(finding.imageRef, instances)
 

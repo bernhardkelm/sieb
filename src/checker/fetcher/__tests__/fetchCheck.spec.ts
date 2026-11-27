@@ -15,6 +15,7 @@ import {
   fakeSieb,
   fetcherConfig,
   GIT_SECRET,
+  HEAD_COMMIT,
   REGISTRY_SECRET,
   REPO_URL,
   SECRET_FORMS,
@@ -105,7 +106,13 @@ describe('fetchCheck', () => {
     expect(pulled.map(({ digest }) => digest)).toEqual([DIGEST])
 
     expect(answer?.source).toEqual({
-      checked: { repoUrl: REPO_URL, revision: COMMIT, fromLabel: true },
+      checked: {
+        repoUrl: REPO_URL,
+        revision: COMMIT,
+        fromLabel: true,
+        refKind: 'label',
+        ref: null,
+      },
     })
     expect(answer?.images.prepared.map(({ dir }) => dir)).toEqual(['images/1-1.4'])
     expect(sieb.sourceRequests).toEqual([
@@ -175,11 +182,11 @@ describe('fetchCheck', () => {
     expect(spawned.some(({ spec }) => spec.args.includes(IMAGES[0]!.imageRef))).toBe(false)
   })
 
-  it('falls back to the default branch when the commit cannot be fetched', async () => {
+  it('falls back to the image tag and then the default branch when the commit cannot be fetched', async () => {
     const { answer, spawned } = await run({
       tools: {
         git: async (proc) => {
-          if (proc.spec.args[0] === 'fetch' && proc.spec.args.includes(COMMIT)) {
+          if (proc.spec.args[0] === 'fetch' && proc.spec.args.at(-1) !== 'HEAD') {
             proc.stderr.write('fatal: remote error: upload-pack: not our ref\n')
             proc.exit(128)
 
@@ -192,11 +199,17 @@ describe('fetchCheck', () => {
     })
 
     expect(answer?.source).toEqual({
-      checked: { repoUrl: REPO_URL, revision: null, fromLabel: true },
+      checked: {
+        repoUrl: REPO_URL,
+        revision: HEAD_COMMIT,
+        fromLabel: true,
+        refKind: 'default_branch',
+        ref: null,
+      },
     })
     expect(
       spawned.filter(({ spec }) => spec.args[0] === 'fetch').map(({ spec }) => spec.args.at(-1)),
-    ).toEqual([COMMIT, 'HEAD'])
+    ).toEqual([COMMIT, 'refs/tags/1.4', 'refs/tags/v1.4', 'HEAD'])
   })
 
   it('stops a fetch that passes the size cap and removes the partial checkout', async () => {

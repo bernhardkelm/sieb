@@ -59,7 +59,7 @@ describe('credentials changed outside sieb', () => {
     expect(listUsableScopes(db, vault)).toEqual([])
     expect(own.body.checkAccess).toMatchObject([{ level: 'none', credentialId: null }])
     expect(queueForUser(context, 'alice', [findings.own]).skipped).toEqual([
-      { findingId: findings.own, reason: 'not_public' },
+      { findingId: findings.own, reason: 'visibility_unknown' },
     ])
   })
 

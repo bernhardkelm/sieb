@@ -16,6 +16,10 @@ export interface PanelAutoCheck {
   run: () => Promise<boolean>
   /** Runs, or names the block reason in a toast, for the key that has no button to show it */
   runOrExplain: () => Promise<boolean>
+  /** Whether only an open proposal covering the finding blocks the check, which force overrides */
+  canCheckAnyway: ComputedRef<boolean>
+  /** Queues the check even though an open proposal covers the finding */
+  runAnyway: () => Promise<boolean>
 }
 
 /**
@@ -29,7 +33,12 @@ export const usePanelAutoCheck = (): PanelAutoCheck => {
   const checks = useChecksStore()
   const { submitting, submit } = useAutoCheck()
 
-  const blockedBy = computed(() => {
+  /**
+   * Returns why the panel finding cannot be checked.
+   * @param {boolean} counted - Whether a covering open proposal blocks the check
+   * @returns {string | null} - Reason, null while a check can be queued
+   */
+  const reasonOf = (counted: boolean): string | null => {
     const loaded = detail.detail
 
     if (loaded === null) {
@@ -39,12 +48,17 @@ export const usePanelAutoCheck = (): PanelAutoCheck => {
     return findingCheckReason({
       enabled: checks.enabled,
       workerOnline: checks.workerOnline,
-      sourceAccess: loaded.sourceAccess,
+      visibility: loaded.imageVisibility,
+      ownership: loaded.ownership,
       resolved: loaded.finding.resolvedAt !== null,
       open: checks.openFor(loaded.finding.id),
       checkAccess: loaded.checkAccess,
+      coveredByProposal: counted ? loaded.finding.coveredByProposal : null,
     })
-  })
+  }
+
+  const blockedBy = computed(() => reasonOf(true))
+  const canCheckAnyway = computed(() => blockedBy.value !== null && reasonOf(false) === null)
 
   /**
    * Queues a check of the panel finding unless blocked or a request is in flight.
@@ -73,5 +87,26 @@ export const usePanelAutoCheck = (): PanelAutoCheck => {
     return run()
   }
 
-  return { blockedBy, submitting: computed(() => submitting.value), run, runOrExplain }
+  /**
+   * Queues a check of the panel finding although an open proposal covers it.
+   * @returns {Promise<boolean>} - Whether a check was queued
+   */
+  const runAnyway = async (): Promise<boolean> => {
+    const id = detail.detail?.finding.id
+
+    if (id === undefined || !canCheckAnyway.value) {
+      return false
+    }
+
+    return submit([id], { force: true })
+  }
+
+  return {
+    blockedBy,
+    submitting: computed(() => submitting.value),
+    run,
+    runOrExplain,
+    canCheckAnyway,
+    runAnyway,
+  }
 }

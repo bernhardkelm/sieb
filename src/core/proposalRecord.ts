@@ -10,7 +10,7 @@ import type {
   ProposalVerdict,
 } from '#core/proposal.ts'
 import type { ProposalClientKind } from '#core/proposalClient.ts'
-import type { SourceAccess } from '#core/sourceAccess.ts'
+import type { ImageAccess } from '#core/imageVisibility.ts'
 
 /** How the proposer authenticated on the MCP endpoint */
 export type ProposalVia = 'token' | 'oauth'
@@ -72,14 +72,14 @@ export interface ProposalDecisionRef {
   updatedAt: string | null
 }
 
-export interface ProposalSourceAccess {
+/** Visibility and ownership of one target image when proposed */
+export interface ProposalImageAccess extends ImageAccess {
   imageRef: string
-  access: SourceAccess
 }
 
 export interface Proposal extends ProposalInput, ProposalProposer {
   id: number
-  sourceAccess: ProposalSourceAccess[] // per target image when proposed
+  imageAccess: ProposalImageAccess[] // per target image when proposed
   basisDecisions: ProposalDecisionRef[] // governing decisions when proposed
   state: ProposalState
   resolution: ProposalResolution | null

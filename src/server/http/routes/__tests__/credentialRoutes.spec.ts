@@ -1,7 +1,7 @@
 // @vitest-environment node
 import { describe, expect, it } from 'vitest'
 
-import type { AccessCredentialsResponse, AccessCredentialView } from '#core/privateAccess.ts'
+import type { AccessCredentialsResponse } from '#core/privateAccess.ts'
 import {
   GITLAB_INPUT,
   GITLAB_SECRET,
@@ -9,70 +9,17 @@ import {
   storeCredential,
   testVault,
 } from '#server/credentials/__tests__/credentialFixtures.ts'
-import { MAX_CREDENTIALS, openCredential } from '#server/credentials/credentialCommands.ts'
+import { openCredential } from '#server/credentials/credentialSecrets.ts'
+import { MAX_CREDENTIALS } from '#server/credentials/credentialWriteChecks.ts'
 import type { CredentialVault } from '#server/credentials/credentialVault.ts'
 import { getCredentialRow } from '#server/db/credentialRepository.ts'
-import { requestJson, testAppDeps } from '#server/http/__tests__/appFixtures.ts'
-import { createApp, type AppDeps } from '#server/http/createApp.ts'
-
-const ALICE = { 'X-authentik-username': 'alice' }
-const GITHUB_INPUT = {
-  provider: 'github',
-  label: 'GitHub',
-  uses: ['git'],
-  pathPrefix: 'acme',
-  secret: 'ghp_abcdef0123456789',
-}
-
-/**
- * Creates an app without a dev user over the test vault, collecting its log.
- * @param {{ vault?: CredentialVault | null; fetch?: typeof globalThis.fetch; testLimits?: { cooldownMs?: number; maxRunning?: number } } & Partial<AppDeps>} overrides - Vault, fetch, test limits and dependencies to replace
- * @returns {{ app: ReturnType<typeof createApp>; logs: string[]; deps: AppDeps; vault: CredentialVault | null }} - App, log, dependencies and vault
- */
-const credentialApp = ({
-  vault = testVault(),
-  fetch = (async () => new Response(null, { status: 404 })) as typeof globalThis.fetch,
-  testLimits = { cooldownMs: 0 },
-  ...overrides
-}: {
-  vault?: CredentialVault | null
-  fetch?: typeof globalThis.fetch
-  testLimits?: { cooldownMs?: number; maxRunning?: number }
-} & Partial<AppDeps> = {}) => {
-  const logs: string[] = []
-  const deps = testAppDeps({
-    devUser: null,
-    log: (line) => logs.push(line),
-    credentials: { vault, fetch, timings: { requestMs: 50, totalMs: 500 }, testLimits },
-    ...overrides,
-  })
-
-  return { app: createApp(deps), logs, deps, vault }
-}
-
-/**
- * Sends a request as alice and returns status, parsed body and raw text.
- * @param {ReturnType<typeof createApp>} app - App
- * @param {string} path - Path
- * @param {string} method - Method
- * @param {unknown} body - JSON body
- * @returns {Promise<{ status: number; body: T; text: string }>} - Answer
- */
-const send = async <T = AccessCredentialView>(
-  app: ReturnType<typeof createApp>,
-  path: string,
-  method = 'GET',
-  body?: unknown,
-): Promise<{ status: number; body: T; text: string }> => {
-  const response = await app.request(path, {
-    method,
-    headers: { 'Content-Type': 'application/json', ...ALICE },
-    ...(body === undefined ? {} : { body: JSON.stringify(body) }),
-  })
-  const text = await response.text()
-
-  return { status: response.status, body: (text === '' ? null : JSON.parse(text)) as T, text }
-}
+import { requestJson } from '#server/http/__tests__/appFixtures.ts'
+import {
+  ALICE,
+  credentialApp,
+  GITHUB_INPUT,
+  send,
+} from '#server/http/routes/__tests__/credentialRouteFixtures.ts'
 
 describe('credential routes', () => {
   it('needs a signed-in user and the same-origin JSON write rules', async () => {
@@ -138,7 +85,10 @@ describe('credential routes', () => {
       username: 'deploy-bot',
       createdBy: 'alice',
       lastUsedAt: null,
-      lastTest: null,
+      lastTest: {
+        registry: { checked: 2, ok: 2, failures: [] },
+        git: { checked: 2, ok: 2, failures: [] },
+      },
       secretReadable: true,
     })
     expect(list.body).toMatchObject({ enabled: true, credentials: [{ id: created.body.id }] })
@@ -276,7 +226,7 @@ describe('credential routes', () => {
     })
 
     expect(again.status).toBe(429)
-    expect(again.headers.get('retry-after')).toBe('30')
+    expect(again.headers.get('retry-after')).toBe('10')
     expect(await again.json()).toEqual({ error: 'test_cooldown' })
 
     expect((await send(app, `/api/credentials/${other.id}/test`, 'POST', {})).status).toBe(200)
@@ -360,8 +310,6 @@ describe('credential routes', () => {
   it('tests a credential, stores the outcome and answers it in the view', async () => {
     const fetch = (async () => new Response(null, { status: 401 })) as typeof globalThis.fetch
     const { app, deps, vault, logs } = credentialApp({ fetch })
-
-    await deps.sync.syncNow()
 
     const { id } = storeCredential(deps.db, vault as CredentialVault, {
       ...GITLAB_INPUT,

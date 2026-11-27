@@ -1,13 +1,29 @@
 import type { ValidationIssue } from '#core/errorApiTypes.ts'
-import type { CheckedSource } from '#core/privateAccess.ts'
+import { isGitTagName } from '#core/gitTagName.ts'
+import { CHECKED_REF_KINDS, type CheckedRefKind, type CheckedSource } from '#core/privateAccess.ts'
 import { commitRevision } from '#core/repositoryResolution.ts'
 import { parseRepositoryUrl } from '#core/repositoryUrl.ts'
 
 export const MAX_REPO_URL_LENGTH = 500
 
 /**
+ * Reads the git tag of a checked source: a valid tag name for refKind tag, null otherwise.
+ * @param {CheckedRefKind | undefined} refKind - Validated ref kind
+ * @param {unknown} value - Raw ref
+ * @returns {string | null | undefined} - Tag, null without one, undefined when invalid
+ */
+const refOf = (refKind: CheckedRefKind | undefined, value: unknown): string | null | undefined => {
+  if (refKind !== 'tag') {
+    return value === undefined || value === null ? null : undefined
+  }
+
+  return typeof value === 'string' && isGitTagName(value) ? value : undefined
+}
+
+/**
  * Reads the optional source of a worker result: an https repository URL without credentials,
- * a commit of 7 to 64 hex digits or null, and whether the image label named the repository.
+ * a commit of 7 to 64 hex digits or null, whether the image label named the repository, what
+ * chose the commit (refKind) and, for refKind tag only, the git tag.
  * @param {unknown} value - Raw source
  * @param {ValidationIssue[]} errors - Collected errors, appended to
  * @returns {CheckedSource | null | undefined} - Source with the normalised URL, null for none, undefined when absent or invalid
@@ -43,9 +59,29 @@ export const readCheckedSource = (
     })
   }
 
-  if (repository === null || repository === 'not_https' || typeof raw.fromLabel !== 'boolean') {
+  const refKind = CHECKED_REF_KINDS.find((kind) => kind === raw.refKind)
+  const ref = refOf(refKind, raw.ref)
+
+  if (refKind === undefined) {
+    errors.push({
+      field: 'source.refKind',
+      code: raw.refKind === undefined ? 'required' : 'invalid',
+    })
+  }
+
+  if (ref === undefined) {
+    errors.push({ field: 'source.ref', code: 'invalid' })
+  }
+
+  if (
+    repository === null ||
+    repository === 'not_https' ||
+    typeof raw.fromLabel !== 'boolean' ||
+    refKind === undefined ||
+    ref === undefined
+  ) {
     return undefined
   }
 
-  return { repoUrl: repository.repoUrl, revision, fromLabel: raw.fromLabel }
+  return { repoUrl: repository.repoUrl, revision, fromLabel: raw.fromLabel, refKind, ref }
 }

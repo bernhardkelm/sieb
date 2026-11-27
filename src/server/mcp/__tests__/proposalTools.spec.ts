@@ -149,7 +149,7 @@ describe('propose_decision', () => {
       clientLabel: 'laptop',
       clientKind: null,
       imageRefs: [REDIS],
-      sourceAccess: [{ imageRef: REDIS, access: 'public' }],
+      imageAccess: [{ imageRef: REDIS, imageVisibility: 'public', ownership: 'third_party' }],
     })
   })
 
@@ -359,16 +359,18 @@ describe('list_my_proposals', () => {
   })
 })
 
-describe('source access', () => {
-  it('marks own images private and public registry images public', async () => {
+describe('image access', () => {
+  it('marks own images own with unknown visibility and public registry images public', async () => {
     const client = await connect(['sieb:read'])
     const own = await client.callTool('check_vulnerability', { vulnId: KEV_CVE })
     const rows = await client.callTool('search_findings', { vulnIds: ['CVE-2025-1000'] })
 
-    expect(content(own).affected).toMatchObject([{ imageRef: AUTHENTIK, sourceAccess: 'private' }])
+    expect(content(own).affected).toMatchObject([
+      { imageRef: AUTHENTIK, ownership: 'own', imageVisibility: 'unknown' },
+    ])
     expect(content(rows).findings).toMatchObject([
-      { sourceAccess: 'public' },
-      { sourceAccess: 'public' },
+      { imageVisibility: 'public', ownership: 'third_party' },
+      { imageVisibility: 'public', ownership: 'third_party' },
     ])
   })
 })

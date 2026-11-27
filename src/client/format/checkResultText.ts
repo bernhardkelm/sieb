@@ -5,9 +5,14 @@ export const CHECK_SKIP_LABELS: Record<CheckSkipReason, string> = {
   not_found: 'not found',
   resolved: 'resolved',
   not_public: 'without access to the image',
+  visibility_unknown: 'with an image sieb could not probe yet',
   already_open: 'already queued or running',
+  covered_by_proposal: 'already covered by a proposal',
   queue_full: 'over the queue limit',
 }
+
+export const VISIBILITY_UNKNOWN_HINT =
+  'sieb could not yet tell whether the image can be pulled anonymously (the probe timed out or was rate limited); try again in a minute or add a registry credential.'
 
 export interface CheckCreateNotice {
   title: string
@@ -17,9 +22,40 @@ export interface CheckCreateNotice {
 }
 
 /**
+ * Returns the covering proposals of the findings skipped as covered_by_proposal.
+ * @param {CheckCreateResponse['skipped']} skipped - Skipped findings
+ * @returns {number[]} - Distinct proposal ids in answer order
+ */
+export const coveringProposals = (skipped: CheckCreateResponse['skipped']): number[] => [
+  ...new Set(
+    skipped.flatMap((entry) =>
+      entry.reason === 'covered_by_proposal' && entry.proposalId !== undefined
+        ? [entry.proposalId]
+        : [],
+    ),
+  ),
+]
+
+/**
+ * Names the covering proposals of skipped findings.
+ * @param {CheckCreateResponse['skipped']} skipped - Skipped findings
+ * @returns {string} - Such as "already covered by proposal #12", the generic label without ids
+ */
+const coveredLabel = (skipped: CheckCreateResponse['skipped']): string => {
+  const ids = coveringProposals(skipped)
+
+  if (ids.length === 0) {
+    return CHECK_SKIP_LABELS.covered_by_proposal
+  }
+
+  return `already covered by proposal${ids.length === 1 ? '' : 's'} ${ids.map((id) => `#${id}`).join(', ')}`
+}
+
+/**
  * Summarises the skipped findings of a create answer per reason.
  * @param {CheckCreateResponse['skipped']} skipped - Skipped findings
- * @returns {string} - Text such as "Skipped 2: 1 without access to the image, 1 resolved.", empty for none
+ * @returns {string} - Text such as "Skipped 2: 1 without access to the image, 1 resolved.", empty for none,
+ * with VISIBILITY_UNKNOWN_HINT appended when an image could not be probed yet
  */
 export const skippedSummary = (skipped: CheckCreateResponse['skipped']): string => {
   if (skipped.length === 0) {
@@ -32,9 +68,15 @@ export const skippedSummary = (skipped: CheckCreateResponse['skipped']): string 
     counts.set(entry.reason, (counts.get(entry.reason) ?? 0) + 1)
   }
 
-  const parts = [...counts].map(([reason, count]) => `${count} ${CHECK_SKIP_LABELS[reason]}`)
+  const parts = [...counts].map(([reason, count]) =>
+    reason === 'covered_by_proposal'
+      ? `${count} ${coveredLabel(skipped)}`
+      : `${count} ${CHECK_SKIP_LABELS[reason]}`,
+  )
 
-  return `Skipped ${skipped.length}: ${parts.join(', ')}.`
+  const hint = counts.has('visibility_unknown') ? ` ${VISIBILITY_UNKNOWN_HINT}` : ''
+
+  return `Skipped ${skipped.length}: ${parts.join(', ')}.${hint}`
 }
 
 /**

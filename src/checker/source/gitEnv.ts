@@ -1,10 +1,10 @@
 import { basicAuth } from '#checker/fetcher/basicAuth.ts'
 
-/** A git login, only the fetch step gets it */
+/** The repository of a fetch with its login, both login parts null for an anonymous fetch */
 export interface GitAuth {
   repoUrl: string
-  username: string
-  secret: string
+  username: string | null
+  secret: string | null
 }
 
 /** What every git run gets */
@@ -39,17 +39,18 @@ const GIT_SETTINGS: [string, string][] = [
 
 /**
  * Builds the environment of a git run from scratch: no system or global config, no prompts,
- * the settings above as GIT_CONFIG_* variables and, for the fetch, the login as an
+ * the settings above as GIT_CONFIG_* variables and, for a fetch with a login, the login as an
  * http.<url>.extraHeader of that repository only. The login is thereby neither on the command
- * line nor in a file; only processes of the fetcher's own user can read the environment.
+ * line nor in a file; only processes of the fetcher's own user can read the environment. An
+ * anonymous fetch gets no Authorization header at all.
  * @param {GitBase} base - PATH, HOME and TMPDIR
- * @param {GitAuth | null} auth - Login for the fetch, null for the local steps
+ * @param {GitAuth | null} auth - Repository and login of the fetch, null for the local steps
  * @returns {Record<string, string>} - Environment
  */
 export const gitEnv = (base: GitBase, auth: GitAuth | null): Record<string, string> => {
   const settings: [string, string][] = [...GIT_SETTINGS]
 
-  if (auth !== null) {
+  if (auth !== null && auth.username !== null && auth.secret !== null) {
     settings.push([
       `http.${auth.repoUrl}.extraHeader`,
       `Authorization: Basic ${basicAuth(auth.username, auth.secret)}`,

@@ -101,7 +101,7 @@ describe('POST /api/checks', () => {
     expect(body.queued.map((check) => [check.findingId, check.requestedBy])).toEqual([
       [findings.nginx, 'alice'],
     ])
-    expect(body.skipped).toEqual([{ findingId: findings.own, reason: 'not_public' }])
+    expect(body.skipped).toEqual([{ findingId: findings.own, reason: 'visibility_unknown' }])
   })
 
   it('validates the finding ids', async () => {

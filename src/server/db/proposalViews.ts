@@ -5,16 +5,16 @@ import type {
   ProposalImageFacts,
   ProposalListItem,
 } from '#core/proposalApiTypes.ts'
-import type { AccessScope } from '#core/accessScope.ts'
 import type { Finding } from '#core/finding.ts'
 import type { DecisionView, FindingView } from '#core/findingView.ts'
 import { imageCheckAccessOf } from '#core/imageCheckAccess.ts'
+import { imageAccessOf, type ImageAccessSources } from '#core/imageVisibility.ts'
 import { proposalDecisionValues } from '#core/proposalAccept.ts'
 import { currentDecisionRefs, isProposalOutdated } from '#core/proposalFreshness.ts'
 import type { Proposal } from '#core/proposalRecord.ts'
 import { toProposalView } from '#core/proposalView.ts'
 import { maxSeverity } from '#core/severity.ts'
-import { sourceAccess } from '#core/sourceAccess.ts'
+import type { CredentialVault } from '#server/credentials/credentialVault.ts'
 import { listDecisionsByVuln } from '#server/db/decisionRepository.ts'
 import { listFindingsByVuln } from '#server/db/findingRepository.ts'
 import { listCurrentVersions } from '#server/db/findingVersions.ts'
@@ -26,12 +26,13 @@ import {
   type ProposalListFilter,
 } from '#server/db/proposalRepository.ts'
 import { relatedFindingFacts } from '#server/db/relatedFindingFacts.ts'
+import { readImageAccessSources } from '#server/visibility/imageAccessSources.ts'
 
 export interface ProposalViewContext {
   now: Date
   publicRegistries: readonly string[]
   kevDetails: boolean // whether the stored CISA catalog is the KEV source
-  scopes?: readonly AccessScope[] // usable credentials, empty while private access is off
+  credentialVault?: CredentialVault | null // vault of usable credentials, null while private access is off
 }
 
 /**
@@ -91,7 +92,7 @@ const toImageFacts = (
   imageRef: string,
   finding: FindingView | undefined,
   decisions: readonly DecisionView[],
-  context: ProposalViewContext & { versions: Map<number, ProposalImageFacts['versions']> },
+  context: { versions: Map<number, ProposalImageFacts['versions']>; sources: ImageAccessSources },
 ): ProposalImageFacts => ({
   imageRef,
   findingId: finding?.id ?? null,
@@ -101,12 +102,8 @@ const toImageFacts = (
   kev: finding?.kev ?? false,
   exposure: finding?.exposure ?? null,
   owner: finding?.owner ?? null,
-  sourceAccess: sourceAccess(imageRef, finding?.owner ?? null, context.publicRegistries),
-  checkAccess: imageCheckAccessOf(
-    { imageRef, owner: finding?.owner ?? null },
-    context.publicRegistries,
-    context.scopes ?? [],
-  ),
+  ...imageAccessOf({ imageRef, owner: finding?.owner ?? null }, context.sources),
+  checkAccess: imageCheckAccessOf({ imageRef, owner: finding?.owner ?? null }, context.sources),
   versions: finding ? (context.versions.get(finding.id) ?? []) : [],
   workloads: finding?.workloads ?? [],
   decision: decisions.find((view) => view.decision.id === finding?.decision?.id) ?? null,
@@ -118,7 +115,7 @@ const toImageFacts = (
  * review panel.
  * @param {DatabaseSync} db - Open database
  * @param {number} id - Proposal id
- * @param {ProposalViewContext} context - Time, public registries, KEV source and usable credentials
+ * @param {ProposalViewContext} context - Time, public registries, KEV source and credential vault
  * @returns {ProposalDetail | null} - Detail, null for an unknown proposal
  */
 export const getProposalDetail = (
@@ -143,6 +140,10 @@ export const getProposalDetail = (
     db,
     [...findings, ...related].map((finding) => finding.id),
   )
+  const sources = readImageAccessSources(db, {
+    publicRegistries: context.publicRegistries,
+    credentialVault: context.credentialVault ?? null,
+  })
   const current = currentDecisionRefs(
     proposal,
     decisions.map((view) => view.decision),
@@ -153,7 +154,7 @@ export const getProposalDetail = (
     images: [...images]
       .sort()
       .map((imageRef) =>
-        toImageFacts(imageRef, byImage.get(imageRef), decisions, { ...context, versions }),
+        toImageFacts(imageRef, byImage.get(imageRef), decisions, { versions, sources }),
       ),
     allScopeDecision:
       decisions.find((view) => view.decision.scope === 'all' && view.decision.revokedAt === null) ??
@@ -164,7 +165,7 @@ export const getProposalDetail = (
     related: relatedFindingFacts(proposal.relatedFindings, {
       findings: new Map(related.map((finding) => [finding.id, finding])),
       versions,
-      publicRegistries: context.publicRegistries,
+      sources,
     }),
   }
 }

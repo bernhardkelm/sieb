@@ -134,6 +134,8 @@ describe('registry test', () => {
         checked: 2,
         ok: 1,
         failures: [{ target: 'ghcr.io/acme/tool', reason: 'not found' }],
+        denied: 0,
+        blocked: 0,
       },
       git: null,
     })
@@ -165,6 +167,8 @@ describe('registry test', () => {
       checked: 1,
       ok: 0,
       failures: [{ target: 'index.docker.io/acme/web', reason: '401 unauthorized' }],
+      denied: 1,
+      blocked: 0,
     })
   })
 
@@ -263,15 +267,46 @@ describe('git test', () => {
       now: NOW,
     })
 
-    expect(result.registry).toEqual({ checked: 1, ok: 1, failures: [] })
+    expect(result.registry).toEqual({ checked: 1, ok: 1, failures: [], denied: 0, blocked: 0 })
     expect(result.git).toEqual({
       checked: 2,
       ok: 1,
       failures: [{ target: 'https://gitlab.example.com/acme/lib.git', reason: '401 unauthorized' }],
+      denied: 1,
+      blocked: 0,
     })
     expect(calls.find((call) => call.url.includes('shop.git'))?.url).toBe(
       'https://gitlab.example.com/acme/shop.git/info/refs?service=git-upload-pack',
     )
+  })
+
+  it('derives the repositories of a git-only GitHub credential from the default mapping', async () => {
+    const git: AccessScope = {
+      ...GITHUB,
+      id: 2,
+      uses: ['git'],
+      registryHost: null,
+      gitHost: 'github.com',
+    }
+    const { fetch, calls } = fakeFetch({
+      'GET https://github.com/acme/app.git/info/refs': () =>
+        new Response('', { headers: ADVERTISEMENT }),
+    })
+    const result = await runCredentialTest(seeded(), {
+      scope: git,
+      provider: 'github',
+      scopes: [git],
+      login: LOGIN,
+      fetch,
+      timings: FAST,
+      now: NOW,
+    })
+
+    expect(result.git).toMatchObject({ checked: 2, ok: 1 })
+    expect(calls.map((call) => call.url.split('?')[0])).toEqual([
+      'https://github.com/acme/app.git/info/refs',
+      'https://github.com/acme/tool.git/info/refs',
+    ])
   })
 
   it('refuses a login page and a redirect instead of the refs advertisement', async () => {

@@ -11,7 +11,7 @@ import type {
 import type { StatsResponse } from '#core/statsApiTypes.ts'
 import type { FindingView } from '#core/findingView.ts'
 import { buildProposalInput, PROPOSER } from '#core/__tests__/proposalBuilders.ts'
-import { DEFAULT_PUBLIC_REGISTRIES } from '#core/sourceAccess.ts'
+import { DEFAULT_PUBLIC_REGISTRIES } from '#core/registryHost.ts'
 import { createProposal } from '#server/db/createProposal.ts'
 import type { AppEnv } from '#server/http/AppEnv.ts'
 import {

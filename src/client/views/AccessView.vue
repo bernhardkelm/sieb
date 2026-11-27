@@ -48,6 +48,7 @@ watch(formOpen, async (open) => {
         :key="formCredential?.id ?? 'new'"
         :credential="formCredential"
         :save="page.save"
+        :test-values="page.testValues"
         @cancel="page.closeForm()"
       />
       <section class="credentials" aria-labelledby="access-credentials">

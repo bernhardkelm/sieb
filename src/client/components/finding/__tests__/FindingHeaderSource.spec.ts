@@ -18,38 +18,63 @@ afterEach(() => {
   document.body.innerHTML = ''
 })
 
-describe('FindingHeader source access', () => {
-  it('shows public, private or unknown source access', () => {
-    for (const access of ['public', 'private', 'unknown'] as const) {
-      const wrapper = mountWithProviders(FindingHeader, {
-        finding: buildFindingView(),
-        sourceAccess: access,
-      })
+describe('FindingHeader image access', () => {
+  it.each([
+    [
+      'own and public',
+      { imageVisibility: 'public', ownership: 'own' },
+      ['Own image', 'Public image'],
+    ],
+    [
+      'own with a credential',
+      { imageVisibility: 'credential', ownership: 'own' },
+      ['Own image', 'Needs a credential'],
+    ],
+    [
+      'third-party and restricted',
+      { imageVisibility: 'restricted', ownership: 'third_party' },
+      ['Not pullable'],
+    ],
+    ['third-party and public', { imageVisibility: 'public', ownership: 'third_party' }, []],
+    ['own and unknown', { imageVisibility: 'unknown', ownership: 'own' }, ['Own image']],
+    ['third-party and unknown', { imageVisibility: 'unknown', ownership: 'third_party' }, []],
+  ] as const)('shows the chips of an image %s', (_, access, labels) => {
+    const wrapper = mountWithProviders(FindingHeader, { finding: buildFindingView(), access })
 
-      expect(wrapper.get(`[data-access="${access}"]`).text()).toMatch(/source/i)
-      wrapper.unmount()
-    }
+    expect(wrapper.findAll('.image-access-chip').map((chip) => chip.text())).toEqual(labels)
+    wrapper.unmount()
   })
 
-  it('hides the badge without source access', () => {
+  it('marks the chips with their fact', () => {
+    const wrapper = mountWithProviders(FindingHeader, {
+      finding: buildFindingView(),
+      access: { imageVisibility: 'restricted', ownership: 'own' },
+    })
+
+    expect(wrapper.get('[data-ownership="own"]').text()).toBe('Own image')
+    expect(wrapper.get('[data-visibility="restricted"]').attributes('tabindex')).toBe('0')
+  })
+
+  it('hides the chips without access facts', () => {
     const wrapper = mountWithProviders(FindingHeader, { finding: buildFindingView() })
 
-    expect(wrapper.find('.source-access-badge').exists()).toBe(false)
+    expect(wrapper.find('.image-access-chip').exists()).toBe(false)
   })
 
-  it('shows the badge in the panel only while the Claude integration is on', async () => {
+  it('shows the chips in the panel only while the Claude integration is on', async () => {
     vi.mocked(fetchFindingDetail).mockResolvedValue({
       finding: buildFindingView({ id: 1 }),
       instances: [],
       decisions: [],
       events: [],
       kev: null,
-      sourceAccess: 'private',
+      imageVisibility: 'unknown',
+      ownership: 'own',
     })
     const { wrapper } = await mountWithRouter(FindingPanel, '/inbox?finding=1')
 
     await flushPromises()
-    expect(wrapper.find('[data-access]').exists()).toBe(false)
+    expect(wrapper.find('[data-ownership]').exists()).toBe(false)
 
     useMcpStore().info = {
       enabled: true,
@@ -58,7 +83,7 @@ describe('FindingHeader source access', () => {
       claude: null,
     }
     await flushPromises()
-    expect(wrapper.get('[data-access="private"]').text()).toBe('Private source')
+    expect(wrapper.get('[data-ownership="own"]').text()).toBe('Own image')
     wrapper.unmount()
   })
 })

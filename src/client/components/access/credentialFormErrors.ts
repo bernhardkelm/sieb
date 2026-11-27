@@ -33,7 +33,10 @@ const CODE_MESSAGES: Record<string, string> = {
   secret_required:
     'Enter the token again to change the provider or a host, it never goes to a new host unasked.',
   outside_scope: 'Keep both prefixes within the hosts and path prefix of this credential.',
-  test_cooldown: 'This credential was tested a moment ago, try again in half a minute.',
+  test_cooldown: 'A test ran a moment ago, try again in a few seconds.',
+  test_failed: 'Not saved: the test of the token failed.',
+  nothing_to_test: 'Not saved: the path prefix covers no image or repository sieb has seen.',
+  untestable: 'Not saved: sieb cannot test these hosts, confirm saving without a test.',
   tests_busy: 'Other credential tests are running, try again in a moment.',
 }
 
@@ -125,4 +128,23 @@ export const credentialFormErrors = (error: unknown): CredentialFormErrors => {
   }
 
   return errors
+}
+
+/**
+ * Merges the messages of two error sets field by field.
+ * @param {CredentialFormErrors} first - Messages
+ * @param {CredentialFormErrors} second - More messages
+ * @returns {CredentialFormErrors} - Both
+ */
+export const mergeCredentialErrors = (
+  first: CredentialFormErrors,
+  second: CredentialFormErrors,
+): CredentialFormErrors => {
+  const merged = noCredentialErrors()
+
+  for (const field of Object.keys(merged) as (keyof CredentialFormErrors)[]) {
+    merged[field] = [...first[field], ...second[field]]
+  }
+
+  return merged
 }

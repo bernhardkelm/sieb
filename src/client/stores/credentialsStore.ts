@@ -1,6 +1,7 @@
 import { defineStore } from 'pinia'
 import { computed, ref, shallowRef } from 'vue'
 
+import type { AccessCredentialTestInput } from '#core/accessTestVerdict.ts'
 import type {
   AccessCredentialInput,
   AccessCredentialsResponse,
@@ -14,6 +15,7 @@ import {
   deleteCredential,
   fetchCredentials,
   testCredential,
+  testCredentialValues,
   updateCredential,
   type AccessCredentialPatch,
 } from '@/api/credentialsApi'
@@ -132,6 +134,15 @@ export const useCredentialsStore = defineStore('credentials', () => {
   }
 
   /**
+   * Tests entered values without storing them; the list stays as it is.
+   * @param {AccessCredentialTestInput} input - New credential, or { id, ...changes } of a stored one
+   * @returns {Promise<AccessTestResult>} - Outcome per use
+   * @throws {ApiError} - When the server cannot run the test
+   */
+  const testValues = (input: AccessCredentialTestInput): Promise<AccessTestResult> =>
+    testCredentialValues(input)
+
+  /**
    * Returns whether a test of the credential is in flight.
    * @param {number} id - Credential id
    * @returns {boolean} - True while testing
@@ -149,6 +160,7 @@ export const useCredentialsStore = defineStore('credentials', () => {
     update,
     remove,
     test,
+    testValues,
     isTesting,
   }
 })

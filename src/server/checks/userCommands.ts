@@ -5,22 +5,45 @@ import { expireAndLog } from '#server/checks/readChecks.ts'
 import { getCheck, listOpenChecks } from '#server/db/checkRepository.ts'
 import { toCheckView } from '#server/db/checkRows.ts'
 import { CANCELLED, endCheck } from '#server/db/endCheck.ts'
+import { getFinding } from '#server/db/findingRepository.ts'
 import { queueChecks } from '#server/db/queueChecks.ts'
 import { logSafe } from '#server/logSafe.ts'
 
 export type CancelResult = 'cancelled' | 'not_found' | 'finished'
+
+const QUEUE_PROBE_WAIT_MS = 6000
+
+/**
+ * Probes the own images of the findings to queue that have no fresh pull probe, waiting at most
+ * a few seconds; an image still unprobed then counts as visibility unknown.
+ * @param {CheckContext} context - Check context
+ * @param {readonly number[]} findingIds - Distinct finding ids
+ * @returns {Promise<void>}
+ */
+export const probeBeforeQueue = async (
+  context: CheckContext,
+  findingIds: readonly number[],
+): Promise<void> => {
+  const images = findingIds
+    .map((id) => getFinding(context.db, id))
+    .filter((finding) => finding !== null)
+
+  await context.pullProber?.probeOwn(images, QUEUE_PROBE_WAIT_MS)
+}
 
 /**
  * Queues checks of a user's findings and answers them with their queue positions.
  * @param {CheckContext} context - Check context
  * @param {string} actor - Requesting user
  * @param {readonly number[]} findingIds - Distinct finding ids
+ * @param {boolean} force - Queues findings an open proposal covers as related findings
  * @returns {CheckCreateResponse} - Queued checks and skipped findings
  */
 export const queueForUser = (
   context: CheckContext,
   actor: string,
   findingIds: readonly number[],
+  force = false,
 ): CheckCreateResponse => {
   const { queued, skipped } = queueChecks(
     context.db,
@@ -29,6 +52,7 @@ export const queueForUser = (
       requestedBy: actor,
       publicRegistries: context.publicRegistries,
       credentialVault: context.privateVault,
+      force,
     },
     context.clock(),
   )

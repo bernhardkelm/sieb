@@ -18,12 +18,14 @@ import { backfillMockStats } from '#server/sources/mock/backfillMockStats.ts'
 import { startupWarnings } from '#server/startupWarnings.ts'
 import { startSyncScheduler } from '#server/sync/syncScheduler.ts'
 import { createSyncService } from '#server/sync/syncService.ts'
+import { createProbeImage } from '#server/visibility/createProbeImage.ts'
+import { createPullProber } from '#server/visibility/pullProber.ts'
 
 /**
  * Opens the database, starts the sync scheduler, the KEV catalog refreshes and the HTTP server
  * with the configuration from the environment, plus the /metrics listener with
- * SIEB_METRICS_PORT, the /worker listener and timeout sweep with SIEB_CHECKS_ENABLED and the
- * session and token cleanup, seeds synthetic stats history after
+ * SIEB_METRICS_PORT, the /worker listener and timeout sweep with SIEB_CHECKS_ENABLED, the
+ * on-demand pull probe of own images outside mock mode and the session and token cleanup, seeds synthetic stats history after
  * the first mock sync, and shuts all of it down on SIGINT and SIGTERM.
  * @returns {void}
  */
@@ -34,7 +36,11 @@ const main = (): void => {
   const source = createSource(config, clock, () => readKevCatalogIds(db))
   const sync = createSyncService({ db, source, clock })
   const vault = config.credentialsKey === null ? null : createCredentialVault(config.credentialsKey)
-  const checks = startChecks({ config, db, clock, vault })
+  const pullProber =
+    config.source === 'mock'
+      ? null
+      : createPullProber({ db, clock, probeImage: createProbeImage() })
+  const checks = startChecks({ config, db, clock, vault, pullProber })
   const app = createApp({
     source: config.source,
     kevSource: config.kevSource,
@@ -54,6 +60,7 @@ const main = (): void => {
     oidc: config.oidc,
     metricsOnMainPort: config.metricsPort === null,
     publicRegistries: config.publicRegistries,
+    pullProber,
     sourceCodeUrl: config.sourceCodeUrl,
     checks: checks?.context ?? null,
     credentials: { vault },

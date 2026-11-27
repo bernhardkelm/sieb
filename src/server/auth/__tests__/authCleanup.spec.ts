@@ -103,7 +103,7 @@ describe('api token cleanup with proposals', () => {
       ...PROPOSER,
       proposedBy: 'alice',
       tokenId,
-      sourceAccess: [],
+      imageAccess: [],
       basisDecisions: [],
       createdAt: old,
     })

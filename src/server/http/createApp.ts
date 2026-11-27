@@ -7,7 +7,7 @@ import type { Clock } from '#core/clock.ts'
 import type { AuthMode } from '#core/authApiTypes.ts'
 import type { ErrorBody } from '#core/errorApiTypes.ts'
 import type { KevSourceKind } from '#core/kev.ts'
-import { DEFAULT_PUBLIC_REGISTRIES } from '#core/sourceAccess.ts'
+import { DEFAULT_PUBLIC_REGISTRIES } from '#core/registryHost.ts'
 import type { SourceKind } from '#core/types.ts'
 import type { CheckContext } from '#server/checks/checkContext.ts'
 import type { CredentialSetup } from '#server/http/routes/credentialRoutes.ts'
@@ -27,6 +27,7 @@ import type { OAuthConfig } from '#server/mcpConfigValues.ts'
 import type { OidcConfig } from '#server/oidcConfigValues.ts'
 import { sourceCodeUrlOf } from '#server/sourceCodeUrl.ts'
 import type { SyncService } from '#server/sync/syncService.ts'
+import type { PullProber } from '#server/visibility/pullProber.ts'
 
 export interface AppDeps {
   source: SourceKind
@@ -49,7 +50,8 @@ export interface AppDeps {
   oidc?: OidcConfig | null // login settings, required in oidc mode
   oidcFetch?: CustomFetch // replaces fetch towards the OIDC issuer, for tests
   metricsOnMainPort?: boolean // false when SIEB_METRICS_PORT serves /metrics, ignored in oidc mode
-  publicRegistries?: readonly string[] // registries whose images count as public, DEFAULT_PUBLIC_REGISTRIES by default
+  publicRegistries?: readonly string[] // third-party images on these registries count as public, DEFAULT_PUBLIC_REGISTRIES by default
+  pullProber?: PullProber | null // probes own images on demand, null in mock mode and by default
   sourceCodeUrl?: string | null // source code link of a fork, null links the upstream release tag
   checks?: CheckContext | null // Auto-check context shared with the worker listener, null disables /api/checks writes
   credentials?: CredentialSetup // credential vault, a test fetch and limits, no vault by default
@@ -72,7 +74,7 @@ export interface AppDeps {
  * 9. /metrics scrape target, unauthenticated, when served on this port
  * 10. with a static directory, the built client with a fallback to index.html for client routes
  * 11. JSON 404 for unknown paths and a logged JSON 500 for errors
- * @param {AppDeps} deps - Data and KEV source, database, sync service, clock, dev user, user header, allowed hosts, static dir, logger, MCP settings, version, auth mode and OIDC settings, metrics placement, public registries, source code link, check context, credential setup
+ * @param {AppDeps} deps - Data and KEV source, database, sync service, clock, dev user, user header, allowed hosts, static dir, logger, MCP settings, version, auth mode and OIDC settings, metrics placement, public registries, pull prober, source code link, check context, credential setup
  * @returns {Hono<AppEnv>} - App
  */
 export const createApp = ({
@@ -97,6 +99,7 @@ export const createApp = ({
   oidcFetch,
   metricsOnMainPort = true,
   publicRegistries = DEFAULT_PUBLIC_REGISTRIES,
+  pullProber = null,
   sourceCodeUrl = null,
   checks = null,
   credentials = { vault: null },
@@ -125,6 +128,8 @@ export const createApp = ({
       ...deps,
       allowedOrigins: mcpAllowedOrigins,
       publicRegistries,
+      credentialVault: checks?.privateVault ?? null,
+      pullProber,
       publicUrl,
       oauth,
       version,
@@ -145,6 +150,7 @@ export const createApp = ({
     publicUrl,
     oauthEnabled: mcpEnabled && oauth !== null,
     publicRegistries,
+    pullProber,
     build: { version, sourceCodeUrl: sourceCodeUrlOf(version, sourceCodeUrl) },
     checks,
     credentials,

@@ -3,11 +3,14 @@ import { z } from 'zod'
 
 import { OBJDUMP_MODES, READELF_MODES, SYMBOL_PATTERN } from '#checker/inspect/inspectArgs.ts'
 import type { InspectHandlers } from '#checker/inspect/inspectHandlers.ts'
+import { DEFAULT_PLATFORM } from '#checker/inspect/registryHandlers.ts'
+import { MAX_REF_LENGTH } from '#checker/inspect/registryRef.ts'
 
 /** Name of the inspect server in the MCP config, its tools are mcp__inspect__<tool> */
 export const INSPECT_SERVER_NAME = 'inspect'
 
 const READ_ONLY: ToolAnnotations = { readOnlyHint: true, openWorldHint: false }
+const REGISTRY: ToolAnnotations = { readOnlyHint: true, openWorldHint: true }
 const path = z
   .string()
   .min(1)
@@ -20,7 +23,8 @@ const filterShape = {
 }
 
 /**
- * Creates the inspect MCP server: read-only binary and archive inspection on workspace files.
+ * Creates the inspect MCP server: read-only binary and archive inspection on workspace files,
+ * and anonymous reads of public images in well-known registries.
  * @param {InspectHandlers} handlers - Tool handlers bound to the workspace
  * @returns {McpServer} - Server, connected to stdio by the entry point
  */
@@ -94,6 +98,34 @@ export const createInspectServer = (handlers: InspectHandlers): McpServer => {
       inputSchema: z.object({ path, filter: z.string().min(1).max(500) }),
     },
     (input) => handlers.jq(input),
+  )
+  server.registerTool(
+    'registry_tags',
+    {
+      annotations: REGISTRY,
+      title: 'Image tags',
+      description:
+        'Lists the tags of a public image repository anonymously with crane ls, such as nginx/nginx-unprivileged or ghcr.io/owner/name, without tag or digest. prefix keeps only tags starting with it, limit caps the answer (default 100). Only well-known public registries.',
+      inputSchema: z.object({
+        repository: z.string().min(1).max(MAX_REF_LENGTH),
+        prefix: z.string().max(128).optional(),
+        limit: z.number().int().min(1).max(500).optional(),
+      }),
+    },
+    (input) => handlers.registry_tags(input),
+  )
+  server.registerTool(
+    'registry_image',
+    {
+      annotations: REGISTRY,
+      title: 'Image details',
+      description: `Reads a public image by tag or digest anonymously with crane: the digest the reference points to now, its platforms, and for one platform (default ${DEFAULT_PLATFORM}) the creation time, labels, OCI base image labels and build history. Use it to check whether a tag was rebuilt after a fix, for example nginx/nginx-unprivileged:1.31.8-alpine.`,
+      inputSchema: z.object({
+        ref: z.string().min(1).max(MAX_REF_LENGTH),
+        platform: z.string().max(50).optional().describe('such as linux/arm64 or linux/arm/v7'),
+      }),
+    },
+    (input) => handlers.registry_image(input),
   )
 
   return server

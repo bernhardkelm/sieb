@@ -8,9 +8,9 @@ import type { ImageCheckAccess } from '#core/privateAccess.ts'
 import type { ProposalState } from '#core/proposal.ts'
 import type { AcceptedDecisionValues } from '#core/proposalAccept.ts'
 import type { ExpectedDecisionId } from '#core/proposalFreshness.ts'
+import type { ImageOwnership, ImageVisibility } from '#core/imageVisibility.ts'
 import type { ProposalView } from '#core/proposalView.ts'
 import type { Severity } from '#core/severity.ts'
-import type { SourceAccess } from '#core/sourceAccess.ts'
 
 /** Filter of GET /api/proposals?state=, all lists every state */
 export type ProposalStateFilter = ProposalState | 'all'
@@ -34,7 +34,8 @@ export interface ProposalImageFacts {
   kev: boolean
   exposure: Exposure | null
   owner: string | null
-  sourceAccess: SourceAccess // now, the proposal keeps its own snapshot in proposal.sourceAccess
+  imageVisibility: ImageVisibility // now, the proposal keeps its own snapshot in proposal.imageAccess
+  ownership: ImageOwnership
   checkAccess?: ImageCheckAccess // how Auto-check reaches the image now, the server always sets it
   versions: PackageVersion[] // package, installed and fixed version of the current instances
   workloads: string[] // namespace/kind/name
@@ -48,7 +49,8 @@ export interface ProposalRelatedFacts {
   vulnId: string | null // null once sieb no longer holds the finding
   imageRef: string | null
   open: boolean
-  sourceAccess: SourceAccess | null
+  imageVisibility: ImageVisibility | null // null once sieb no longer holds the finding
+  ownership: ImageOwnership | null
   versions: PackageVersion[] // package, installed and fixed version of the current instances
   decision: Decision | null // decision governing the finding now
   effective: EffectiveDecision | null

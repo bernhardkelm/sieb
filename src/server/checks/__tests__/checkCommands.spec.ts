@@ -44,7 +44,7 @@ describe('queueForUser', () => {
     ])
     expect(result.queued[0]).toMatchObject({ imageRef: NGINX, requestedBy: 'alice', phase: null })
     expect(result.skipped).toEqual([
-      { findingId: findings.own, reason: 'not_public' },
+      { findingId: findings.own, reason: 'visibility_unknown' },
       { findingId: findings.other, reason: 'not_public' },
       { findingId: findings.resolved, reason: 'resolved' },
       { findingId: 9999, reason: 'not_found' },

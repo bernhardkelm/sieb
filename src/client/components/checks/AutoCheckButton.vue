@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import BaseButton from '@/components/common/BaseButton.vue'
 import IconButton from '@/components/common/IconButton.vue'
 import AppIcon from '@/components/icons/AppIcon.vue'
 import { usePanelAutoCheck } from '@/composables/usePanelAutoCheck'
@@ -6,7 +7,7 @@ import { AUTO_CHECK_SHORTCUT } from '@/keyboard/handoffKeymap'
 import { useChecksStore } from '@/stores/checksStore'
 
 const checks = useChecksStore()
-const { blockedBy, submitting, run } = usePanelAutoCheck()
+const { blockedBy, submitting, run, canCheckAnyway, runAnyway } = usePanelAutoCheck()
 </script>
 
 <template>
@@ -24,4 +25,13 @@ const { blockedBy, submitting, run } = usePanelAutoCheck()
   >
     <AppIcon name="auto-check" />
   </IconButton>
+  <BaseButton
+    v-if="checks.enabled && canCheckAnyway"
+    variant="ghost"
+    class="check-anyway"
+    :disabled="submitting"
+    @click="runAnyway()"
+  >
+    Check anyway
+  </BaseButton>
 </template>

@@ -1,6 +1,7 @@
 import type { DatabaseSync } from 'node:sqlite'
 
 import { coveringScope, type AccessScope } from '#core/accessScope.ts'
+import { defaultCandidates } from '#core/defaultSourceTarget.ts'
 import { splitImageRef } from '#core/imageRefParts.ts'
 import { mappedRepository } from '#core/repositoryResolution.ts'
 import { parseRepositoryUrl, type RepositoryRef } from '#core/repositoryUrl.ts'
@@ -71,7 +72,8 @@ export const registryTestTargets = (db: DatabaseSync, scope: AccessScope): Regis
 
 /**
  * Lists up to MAX_TEST_TARGETS repositories a credential covers: those the repository mappings
- * of all credentials derive from sieb's images, then those checks reported as checked out.
+ * of all credentials derive from sieb's images, then those the default mappings name for them,
+ * then those checks reported as checked out.
  * @param {DatabaseSync} db - Open database
  * @param {AccessScope} scope - Credential under test
  * @param {readonly AccessScope[]} scopes - All credentials, for their repository mappings
@@ -91,8 +93,12 @@ export const gitTestTargets = (
       url: unknown
     }[]
   ).map((row) => (typeof row.url === 'string' ? parseRepositoryUrl(row.url) : null))
+  const imageRefs = listImageRefs(db)
   const candidates = [
-    ...listImageRefs(db).map((imageRef) => mappedRepository(scopes, imageRef)),
+    ...imageRefs.map((imageRef) => mappedRepository(scopes, imageRef)),
+    ...imageRefs.flatMap(
+      (imageRef) => defaultCandidates(scopes, imageRef, true)?.repositories ?? [],
+    ),
     ...checked,
   ]
   const targets = new Map<string, RepositoryRef>()

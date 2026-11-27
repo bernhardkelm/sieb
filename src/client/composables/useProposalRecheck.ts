@@ -1,5 +1,6 @@
 import { computed, type ComputedRef } from 'vue'
 
+import { findingCheckBlocker } from '#core/checkEligibility.ts'
 import type { ProposalDetail } from '#core/proposalApiTypes.ts'
 import {
   buildHandoffPrompts,
@@ -36,15 +37,17 @@ export interface ProposalRecheck {
 }
 
 /**
- * Returns whether Auto-check reaches a target image: public, or covered by a registry
- * credential as the server reports it in checkAccess, as the side panel decides.
+ * Returns whether Auto-check may reach a target image, as the side panel decides: public,
+ * covered by a registry credential, or an own image sieb probes when the check is queued.
  * @param {RecheckImage} image - Target image with an open finding
- * @returns {boolean} - True when an Auto-check can pull it
+ * @returns {boolean} - True when an Auto-check can be queued for it
  */
-const isCheckable = (image: RecheckImage): boolean =>
-  image.checkAccess === undefined
-    ? image.sourceAccess === 'public'
-    : image.checkAccess.level !== 'none'
+const isReachable = (image: RecheckImage): boolean =>
+  findingCheckBlocker({
+    resolved: false,
+    visibility: image.imageVisibility,
+    ownership: image.ownership,
+  }) !== 'not_public'
 
 /**
  * Re-checks the target findings of a proposal: with Auto-check switched on and a target image
@@ -59,7 +62,7 @@ export const useProposalRecheck = (detail: () => ProposalDetail): ProposalRechec
   const { submitting, submit } = useAutoCheck()
 
   const images = computed(() => recheckImages(detail()))
-  const reachable = computed(() => images.value.filter(isCheckable))
+  const reachable = computed(() => images.value.filter(isReachable))
   const queueable = computed(() =>
     reachable.value.filter((image) => checks.openFor(image.findingId) === null),
   )
@@ -82,7 +85,8 @@ export const useProposalRecheck = (detail: () => ProposalDetail): ProposalRechec
     return findingCheckReason({
       enabled: checks.enabled,
       workerOnline: checks.workerOnline,
-      sourceAccess: first.sourceAccess,
+      visibility: first.imageVisibility,
+      ownership: first.ownership,
       resolved: false,
       open: checks.openFor(first.findingId),
       ...(first.checkAccess === undefined ? {} : { checkAccess: [first.checkAccess] }),

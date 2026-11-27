@@ -61,4 +61,19 @@ describe('gitEnv', () => {
       'GIT_ASKPASS',
     )
   })
+
+  it('adds no Authorization header for an anonymous fetch', () => {
+    const env = gitEnv(BASE, {
+      repoUrl: 'https://github.com/example/app.git',
+      username: null,
+      secret: null,
+    })
+
+    expect(JSON.stringify(env)).not.toContain('Authorization')
+    expect(JSON.stringify(env)).not.toContain('extraHeader')
+    expect(settings(env)).toMatchObject({
+      'protocol.allow': 'never',
+      'http.followRedirects': 'false',
+    })
+  })
 })

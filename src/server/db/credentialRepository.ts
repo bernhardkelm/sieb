@@ -117,8 +117,7 @@ export const insertCredentialRow = (
 }
 
 /**
- * Replaces the fields of a credential and its sealed secret and drops the last test, which no
- * longer describes it.
+ * Replaces the fields of a credential and its sealed secret, keeping the last test.
  * @param {DatabaseSync} db - Open database
  * @param {{ id: number; fields: CredentialFields; sealed: SealedSecret }} row - Id, fields and sealed secret
  * @param {Date} now - Update time
@@ -132,7 +131,7 @@ export const updateCredentialRow = (
   db.prepare(
     `UPDATE access_credentials SET provider = ?, label = ?, uses = ?, registry_host = ?, git_host = ?,
        path_prefix = ?, repo_mapping = ?, username = ?, secret_ciphertext = ?, secret_nonce = ?,
-       key_id = ?, updated_at = ?, last_test = NULL
+       key_id = ?, updated_at = ?
      WHERE id = ?`,
   ).run(
     ...fieldValues(fields),

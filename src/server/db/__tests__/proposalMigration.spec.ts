@@ -9,7 +9,7 @@ import { MIGRATION_9 } from '#server/db/migrations/migration9.ts'
 import { MEMORY_DB } from '#server/db/openDatabase.ts'
 
 const PROPOSAL_COLUMNS = `vuln_id, scope, image_refs, target_key, verdict, justification, summary,
-  confidence, evidence, unknowns, refs, evidence_basis, source_access, proposed_by, proposed_via,
+  confidence, evidence, unknowns, refs, evidence_basis, image_access, proposed_by, proposed_via,
   token_id, client_label, basis_decisions, created_at, state, resolution, resolution_note,
   resolved_at, resolved_by`
 
@@ -65,7 +65,7 @@ const insertProposal = (
     unknowns: '[]',
     refs: '[]',
     evidence_basis: '["image"]',
-    source_access: '[]',
+    image_access: '[]',
     proposed_by: 'u',
     proposed_via: 'token',
     token_id: 1,

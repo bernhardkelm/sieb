@@ -15,7 +15,9 @@ export const CHECK_SKIP_REASONS = [
   'not_found',
   'resolved',
   'not_public',
+  'visibility_unknown', // an own image the pull probe has not answered for, no credential covers it
   'already_open',
+  'covered_by_proposal', // listed in relatedFindings of an open proposal, force queues it anyway
   'queue_full',
 ] as const
 
@@ -92,12 +94,20 @@ export interface ChecksResponse {
 /** POST /api/checks body */
 export interface CheckCreateRequest {
   findingIds: number[] // 1 to MAX_CHECK_FINDINGS
+  force?: boolean // queues findings an open proposal already covers as related findings
+}
+
+/** A finding POST /api/checks did not queue */
+export interface CheckSkip {
+  findingId: number
+  reason: CheckSkipReason
+  proposalId?: number // the covering open proposal, only for covered_by_proposal
 }
 
 /** POST /api/checks answer */
 export interface CheckCreateResponse {
   queued: CheckView[]
-  skipped: { findingId: number; reason: CheckSkipReason }[]
+  skipped: CheckSkip[]
 }
 
 /** One image of a claim */

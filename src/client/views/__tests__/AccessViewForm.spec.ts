@@ -1,3 +1,4 @@
+import { flushPromises } from '@vue/test-utils'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import {
@@ -17,6 +18,7 @@ import {
   deleteCredential,
   fetchCredentials,
   testCredential,
+  testCredentialValues,
   updateCredential,
 } from '@/api/credentialsApi'
 import { notifySuccess } from '@/toast/toastManager'
@@ -27,6 +29,7 @@ vi.mock('@/api/credentialsApi', () => ({
   updateCredential: vi.fn<typeof updateCredential>(),
   deleteCredential: vi.fn<typeof deleteCredential>(),
   testCredential: vi.fn<typeof testCredential>(),
+  testCredentialValues: vi.fn<typeof testCredentialValues>(),
 }))
 
 vi.mock('@/toast/toastManager', async (importOriginal) => ({
@@ -77,6 +80,7 @@ describe('AccessView form', () => {
     expect(formText()).toContain('Contents: Read-only')
     expect(formText()).toContain('read:packages')
     expect(formText()).toContain('add two credentials')
+    expect(formText()).toContain('Default: ghcr.io/<owner>/<name> → github.com/<owner>/<name>;')
     expect(formText()).toContain('sent to Anthropic')
     expect(field('Token')!.type).toBe('password')
   })
@@ -90,6 +94,14 @@ describe('AccessView form', () => {
     expect(field('Username')).not.toBeNull()
     expect(formText()).toContain('read_registry')
     expect(formText()).toContain('registry.gitlab.com/your-group/* and gitlab.com/your-group/*')
+    expect(formText()).toContain(
+      'Default: registry.gitlab.com/<path> → gitlab.com/<path>, the longest project path first; images are matched to the git tag of the same name',
+    )
+
+    type('Registry prefix', 'registry.gitlab.com/your-group/')
+    await flushPromises()
+
+    expect(formText()).not.toContain('Default:')
 
     await pickProvider('Docker Hub')
 
@@ -100,6 +112,7 @@ describe('AccessView form', () => {
     expect(field('Registry host')).toBeNull()
     expect(formText()).not.toContain('Repository mapping')
     expect(formText()).toContain('Public Repo Read-only cannot pull private images')
+    expect(formText()).not.toContain('Default:')
   })
 
   it('checks the form locally before sending it', async () => {

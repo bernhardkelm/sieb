@@ -45,7 +45,7 @@ export const findingFilterShape = {
     .array(z.enum(EXPOSURE_FILTERS))
     .optional()
     .describe(
-      'public, gated (behind an SSO proxy or IP allowlist), internal, or unknown for findings without exposure label; "public" in a question means this public unless the user says registry or source, which is sourceAccess',
+      'public, gated (behind an SSO proxy or IP allowlist), internal, or unknown for findings without exposure label; "public" in a question means this public unless the user says registry or source, which is imageVisibility',
     ),
   owner: z
     .array(z.string().trim().min(1).max(OWNER_MAX_LENGTH))

@@ -1,7 +1,7 @@
 import { registryScopeFor } from '#core/accessScope.ts'
 import { checkPullRef } from '#core/checkPull.ts'
 import type { FetchAccess } from '#core/privateAccess.ts'
-import { registryOf } from '#core/sourceAccess.ts'
+import { registryOf } from '#core/registryHost.ts'
 import type { CheckContext } from '#server/checks/checkContext.ts'
 import { handOut, runningCheck, type FetcherResult } from '#server/checks/fetcherCheck.ts'
 import { listUsableScopes } from '#server/db/credentialRepository.ts'

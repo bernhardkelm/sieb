@@ -2,13 +2,13 @@
 import { computed } from 'vue'
 
 import type { FindingView } from '#core/findingView.ts'
-import type { SourceAccess } from '#core/sourceAccess.ts'
+import type { ImageAccess } from '#core/imageVisibility.ts'
 import BaseChip from '@/components/chips/BaseChip.vue'
 import ExposureChip from '@/components/chips/ExposureChip.vue'
+import ImageAccessChips from '@/components/chips/ImageAccessChips.vue'
 import KevChip from '@/components/chips/KevChip.vue'
 import OwnerBadge from '@/components/chips/OwnerBadge.vue'
 import SeverityChip from '@/components/chips/SeverityChip.vue'
-import SourceAccessBadge from '@/components/chips/SourceAccessBadge.vue'
 import ExternalLink from '@/components/common/ExternalLink.vue'
 import FactItem from '@/components/common/FactItem.vue'
 import FactList from '@/components/common/FactList.vue'
@@ -20,10 +20,10 @@ import { useLabelsStore } from '@/stores/labelsStore'
 const props = withDefaults(
   defineProps<{
     finding: FindingView
-    /** What Claude can check of the image source, null hides the badge */
-    sourceAccess?: SourceAccess | null
+    /** Visibility and ownership of the image, null hides their chips */
+    access?: ImageAccess | null
   }>(),
-  { sourceAccess: null },
+  { access: null },
 )
 
 const labels = useLabelsStore()
@@ -44,7 +44,7 @@ const links = computed(() =>
       <KevChip v-if="labels.showKev && finding.kev" />
       <ExposureChip v-if="labels.showExposure && finding.exposure" :exposure="finding.exposure" />
       <OwnerBadge v-if="labels.showOwner && finding.owner" :owner="finding.owner" />
-      <SourceAccessBadge v-if="sourceAccess" :access="sourceAccess" />
+      <ImageAccessChips v-if="access" :access="access" />
       <span class="score">{{ finding.score === null ? 'no score' : `CVSS ${finding.score}` }}</span>
       <BaseChip v-if="finding.resolvedAt !== null" variant="outline">resolved</BaseChip>
     </div>

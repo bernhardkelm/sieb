@@ -56,7 +56,7 @@ export const proposeDecisionInput = z.object({
   confidence: z
     .enum(PROPOSAL_CONFIDENCES)
     .describe(
-      'low for thin evidence that still supports the verdict; medium at most for a private image' +
+      'low for thin evidence that still supports the verdict; medium at most for an own image' +
         ' you could not inspect',
     ),
   presence: text(LIMITS.narrative)

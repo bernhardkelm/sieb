@@ -16,6 +16,7 @@ import { READ_ONLY_TOOL, toolError, toolResult } from '#server/mcp/toolResult.ts
 import { exposureNoteSchema } from '#server/mcp/views/exposureNote.ts'
 import { findingRowSchema, toFindingRow } from '#server/mcp/views/findingRow.ts'
 import { lastSyncSchema, readLastSync } from '#server/mcp/views/lastSync.ts'
+import { toolImageSources } from '#server/mcp/mcpImageAccess.ts'
 
 const MAX_FINDINGS = 50
 
@@ -92,6 +93,7 @@ export const registerGetImageTool = (
       }
 
       const base = linkBase(deps.baseUrl)
+      const sources = toolImageSources(deps)
       const shown = findings.slice(0, MAX_FINDINGS)
       const versions = listCurrentVersions(
         deps.db,
@@ -114,7 +116,7 @@ export const registerGetImageTool = (
           url: imageUrl(base, image.imageRef),
         },
         findings: shown.map((finding) =>
-          toFindingRow(finding, versions.get(finding.id) ?? [], base, deps.publicRegistries),
+          toFindingRow(finding, versions.get(finding.id) ?? [], base, sources),
         ),
         totalOpen: findings.length,
         exposureNote: exposureNote(findings.map((finding) => finding.exposure)),

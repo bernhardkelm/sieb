@@ -54,7 +54,8 @@ const openPanel = async (
     decisions: [],
     events: [],
     kev: null,
-    sourceAccess: 'public',
+    imageVisibility: 'public',
+    ownership: 'third_party',
   })
   const { wrapper } = await mountWithRouter(FindingPanel, '/inbox?finding=1')
 

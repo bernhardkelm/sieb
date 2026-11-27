@@ -46,6 +46,8 @@ export const createMcpServer = (
     clock: deps.clock,
     kevSource: deps.kevSource,
     publicRegistries: deps.publicRegistries,
+    credentialVault: deps.credentialVault ?? null,
+    pullProber: deps.pullProber ?? null,
     log: deps.log,
     proposalLimiter: deps.proposalLimiter,
     checksEnabled: deps.checksEnabled ?? false,

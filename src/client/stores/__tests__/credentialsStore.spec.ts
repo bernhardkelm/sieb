@@ -12,6 +12,7 @@ import {
   deleteCredential,
   fetchCredentials,
   testCredential,
+  testCredentialValues,
   updateCredential,
 } from '@/api/credentialsApi'
 import { useCredentialsStore } from '@/stores/credentialsStore'
@@ -22,6 +23,7 @@ vi.mock('@/api/credentialsApi', () => ({
   updateCredential: vi.fn<typeof updateCredential>(),
   deleteCredential: vi.fn<typeof deleteCredential>(),
   testCredential: vi.fn<typeof testCredential>(),
+  testCredentialValues: vi.fn<typeof testCredentialValues>(),
 }))
 
 beforeEach(() => {
@@ -113,5 +115,18 @@ describe('credentialsStore', () => {
     expect(result?.git?.ok).toBe(0)
     expect(store.credentials[0]?.lastTest?.git?.ok).toBe(0)
     expect(testCredential).toHaveBeenCalledTimes(1)
+  })
+
+  it('tests entered values and leaves the list as it is', async () => {
+    const store = await loadedStore()
+    const before = store.credentials
+
+    vi.mocked(testCredentialValues).mockResolvedValue(buildTestResult())
+
+    expect(await store.testValues({ id: 1, pathPrefix: 'your-group/shop' })).toEqual(
+      buildTestResult(),
+    )
+    expect(testCredentialValues).toHaveBeenCalledWith({ id: 1, pathPrefix: 'your-group/shop' })
+    expect(store.credentials).toBe(before)
   })
 })

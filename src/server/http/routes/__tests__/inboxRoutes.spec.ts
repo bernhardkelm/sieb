@@ -207,7 +207,7 @@ describe('inbox routes', () => {
       insertProposal(deps.db, {
         ...buildProposalInput(),
         ...PROPOSER,
-        sourceAccess: [],
+        imageAccess: [],
         basisDecisions: [{ imageRef: NGINX, decisionId: null, updatedAt: null }],
         createdAt,
       })

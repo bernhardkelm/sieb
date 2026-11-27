@@ -15,7 +15,13 @@ import { CheckFailure } from '#checker/CheckFailure.ts'
 import { CREDENTIAL_HINT, localPreparer } from '#checker/prepare/localPreparer.ts'
 import type { PreparedCheck, WorkspacePreparer } from '#checker/prepare/prepareTypes.ts'
 
-const SOURCE = { repoUrl: 'https://github.com/acme/app', revision: 'c'.repeat(40), fromLabel: true }
+const SOURCE = {
+  repoUrl: 'https://github.com/acme/app',
+  revision: 'c'.repeat(40),
+  fromLabel: true,
+  refKind: 'label' as const,
+  ref: null,
+}
 const PREPARED: PreparedCheck = {
   images: { prepared: [{ ...PULLED, dir: 'images/1-1.27' }], skipped: [] },
   source: { checked: SOURCE },

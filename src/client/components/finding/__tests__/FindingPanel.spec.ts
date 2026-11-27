@@ -36,7 +36,8 @@ const detailWith = (kev: KevDetails | null): FindingDetailResponse => ({
   decisions: [],
   events: [],
   kev,
-  sourceAccess: 'public',
+  imageVisibility: 'public',
+  ownership: 'third_party',
 })
 
 /**

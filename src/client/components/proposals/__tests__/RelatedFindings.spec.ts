@@ -43,7 +43,8 @@ const facts = (overrides: Partial<ProposalRelatedFacts> = {}): ProposalRelatedFa
   vulnId: 'CVE-2099-00002',
   imageRef: COREDNS,
   open: true,
-  sourceAccess: 'public',
+  imageVisibility: 'public',
+  ownership: 'third_party',
   versions: [
     { package: 'github.com/coredns/coredns', installedVersion: PSEUDO, fixedVersion: null },
   ],
@@ -62,7 +63,14 @@ const RELATED: ProposalRelatedFacts[] = [
     effective: { state: 'active' },
   }),
   facts({ findingId: 24, vulnId: 'CVE-2099-00006', open: false }),
-  facts({ findingId: 25, vulnId: null, imageRef: null, sourceAccess: null, versions: [] }),
+  facts({
+    findingId: 25,
+    vulnId: null,
+    imageRef: null,
+    imageVisibility: null,
+    ownership: null,
+    versions: [],
+  }),
 ]
 
 /**

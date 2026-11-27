@@ -13,6 +13,7 @@ import {
   deleteCredential,
   fetchCredentials,
   testCredential,
+  testCredentialValues,
   updateCredential,
 } from '@/api/credentialsApi'
 import { notifyNotice, notifySuccess } from '@/toast/toastManager'
@@ -23,6 +24,7 @@ vi.mock('@/api/credentialsApi', () => ({
   updateCredential: vi.fn<typeof updateCredential>(),
   deleteCredential: vi.fn<typeof deleteCredential>(),
   testCredential: vi.fn<typeof testCredential>(),
+  testCredentialValues: vi.fn<typeof testCredentialValues>(),
 }))
 
 vi.mock('@/toast/toastManager', async (importOriginal) => ({

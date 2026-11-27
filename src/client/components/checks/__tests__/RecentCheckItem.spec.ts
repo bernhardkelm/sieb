@@ -36,6 +36,8 @@ describe('RecentCheckItem source', () => {
         repoUrl: 'https://gitlab.example.com/acme/shop.git',
         revision: '3f2a9c1d8e7b6a5f4e3d2c1b0a9f8e7d6c5b4a39',
         fromLabel: true,
+        refKind: 'label',
+        ref: null,
       },
     })
 
@@ -45,7 +47,13 @@ describe('RecentCheckItem source', () => {
   it('names the default branch without a revision and leaves the fact out without source', async () => {
     expect(
       await renderText({
-        source: { repoUrl: 'https://github.com/acme/shop', revision: null, fromLabel: false },
+        source: {
+          repoUrl: 'https://github.com/acme/shop',
+          revision: null,
+          fromLabel: false,
+          refKind: 'default_branch',
+          ref: null,
+        },
       }),
     ).toContain('github.com/acme/shop, default branch')
     mounted?.wrapper.unmount()

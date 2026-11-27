@@ -19,7 +19,7 @@ import type { Validation } from '#core/validation.ts'
 
 /**
  * Validates the body of POST /api/checks: 1 to MAX_CHECK_FINDINGS positive integer ids, repeated
- * ids collapse into the first.
+ * ids collapse into the first, and an optional boolean force.
  * @param {Record<string, unknown>} raw - Parsed request body
  * @returns {Validation<CheckCreateRequest>} - Distinct ids in request order, or the errors
  */
@@ -46,7 +46,11 @@ export const validateCheckCreate = (
     return { ok: false, errors: [{ field: 'findingIds', code: 'too_many' }] }
   }
 
-  return { ok: true, value: { findingIds } }
+  if (raw.force !== undefined && typeof raw.force !== 'boolean') {
+    return { ok: false, errors: [{ field: 'force', code: 'invalid' }] }
+  }
+
+  return { ok: true, value: { findingIds, force: raw.force === true } }
 }
 
 /**

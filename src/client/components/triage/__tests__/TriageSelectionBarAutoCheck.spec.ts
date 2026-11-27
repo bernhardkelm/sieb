@@ -8,21 +8,33 @@ import { buildCheck, buildChecksResponse } from '@/__tests__/checkBuilders'
 import { visibleText } from '@/__tests__/visibleText'
 import { createChecks } from '@/api/checksApi'
 import TriageSelectionBar from '@/components/triage/TriageSelectionBar.vue'
-import { ALL_OPEN_REASON, OPEN_SKIP_REASON, WORKER_OFFLINE_REASON } from '@/format/checkBlockReason'
+import {
+  ALL_OPEN_REASON,
+  COVERED_SKIP_REASON,
+  OPEN_SKIP_REASON,
+  WORKER_OFFLINE_REASON,
+} from '@/format/checkBlockReason'
 import { useChecksStore } from '@/stores/checksStore'
 import { useSelectionStore } from '@/stores/selectionStore'
 import { useMcpStore } from '@/stores/mcpStore'
-import { notifyNotice, notifySuccess } from '@/toast/toastManager'
+import {
+  notifyNotice,
+  notifySuccess,
+  notifyWithAction,
+  type ToastActionChoice,
+} from '@/toast/toastManager'
 
 vi.mock('@/api/checksApi', () => ({
   fetchChecks: vi.fn<() => Promise<ChecksResponse>>(),
-  createChecks: vi.fn<(ids: number[]) => Promise<CheckCreateResponse>>(),
+  createChecks: vi.fn<(ids: number[], force?: boolean) => Promise<CheckCreateResponse>>(),
   cancelCheck: vi.fn<(id: number) => Promise<void>>(),
 }))
 vi.mock('@/toast/toastManager', () => ({
   notifyError: vi.fn<(title: string, error: unknown) => void>(),
   notifySuccess: vi.fn<(title: string, description?: string) => void>(),
   notifyNotice: vi.fn<(title: string, description?: string) => void>(),
+  notifyWithAction:
+    vi.fn<(id: string, title: string, description: string, action: unknown) => void>(),
 }))
 
 let wrapper: VueWrapper | null = null
@@ -30,14 +42,17 @@ let wrapper: VueWrapper | null = null
 /**
  * Mounts the bar with checked findings in the selection store and the Claude integration on.
  * @param {number[]} ids - Checked finding ids
+ * @param {number[]} covered - Ids an open proposal, #12, covers
  * @returns {VueWrapper} - Bar wrapper
  */
-const mountBar = (ids: number[]): VueWrapper => {
+const mountBar = (ids: number[], covered: number[] = []): VueWrapper => {
   const pinia = createPinia()
 
   setActivePinia(pinia)
   useMcpStore().info = { enabled: true, mcpUrl: null, oauth: false, claude: null }
-  useSelectionStore().register(() => ids.map((id) => buildFindingView({ id })))
+  useSelectionStore().register(() =>
+    ids.map((id) => buildFindingView({ id, coveredByProposal: covered.includes(id) ? 12 : null })),
+  )
   wrapper = mount(TriageSelectionBar, {
     props: { count: ids.length },
     global: { plugins: [pinia] },
@@ -105,6 +120,37 @@ describe('TriageSelectionBar Auto-check', () => {
     })
     await flushPromises()
     expect(autoCheck().title).toBe(WORKER_OFFLINE_REASON)
+  })
+
+  it('counts rows an open proposal covers as skipped and re-sends them with force', async () => {
+    vi.mocked(createChecks).mockResolvedValueOnce({
+      queued: [buildCheck({ id: 7, findingId: 1 })],
+      skipped: [{ findingId: 2, reason: 'covered_by_proposal', proposalId: 12 }],
+    })
+    vi.mocked(createChecks).mockResolvedValueOnce({ queued: [buildCheck()], skipped: [] })
+    mountBar([1, 2], [2])
+    useChecksStore().response = buildChecksResponse()
+    await flushPromises()
+
+    expect(visibleText(autoCheck())).toBe('Auto-check 1')
+    expect(autoCheck().title).toBe(`1 of 2 selected. ${COVERED_SKIP_REASON}`)
+
+    autoCheck().click()
+    await flushPromises()
+    expect(createChecks).toHaveBeenCalledWith([1, 2])
+
+    const [, title, description, action] = vi.mocked(notifyWithAction).mock.calls.at(-1)!
+
+    expect([title, description]).toEqual([
+      'Auto-check queued at #1',
+      'Skipped 1: 1 already covered by proposal #12.',
+    ])
+    const choice = action as ToastActionChoice
+
+    expect(choice.label).toBe('Check anyway')
+    choice.onClick()
+    await flushPromises()
+    expect(createChecks).toHaveBeenLastCalledWith([2], true)
   })
 
   it('is blocked with a reason while the worker is offline or every row has an open check', async () => {

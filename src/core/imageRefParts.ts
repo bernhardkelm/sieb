@@ -1,5 +1,5 @@
 import { normalizeHost } from '#core/privateAccess.ts'
-import { registryOf } from '#core/sourceAccess.ts'
+import { registryOf } from '#core/registryHost.ts'
 
 // OCI distribution repository name: lower-case components separated by slashes
 const REPOSITORY_PATH =

@@ -22,7 +22,8 @@ const detailOf = (id: number): FindingDetailResponse => ({
   decisions: [],
   events: [],
   kev: null,
-  sourceAccess: 'public',
+  imageVisibility: 'public',
+  ownership: 'third_party',
 })
 
 beforeEach(() => {

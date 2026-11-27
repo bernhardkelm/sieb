@@ -248,6 +248,10 @@ them. The git server has to allow fetching a commit by its id (Git protocol v2, 
   public addresses, so a host that resolves to the pod network, the cluster or a metadata
   endpoint is never reached. A registry or GitLab on a private address or an internal name, such
   as an in-cluster registry, cannot be tested from sieb; the fetcher still uses its credentials.
+- **Pull probe egress.** sieb probes on demand whether an own image can be pulled anonymously
+  (see [Image access](api.md#image-access)), over the same guarded HTTPS to the image's registry
+  and its token realm. Without that egress the probe fails and own images stay `unknown`, which
+  Auto-check accepts only with a registry credential.
 
 ## Kubernetes
 
@@ -627,7 +631,8 @@ If you also restrict egress, allow DNS, the Kubernetes API, Prometheus, for the 
 HTTPS to `www.cisa.gov`, in oidc mode (or with MCP OAuth) HTTPS to the issuer host, which sieb
 contacts for discovery, the token exchange and the key set, and with
 [private access](#private-access) HTTPS to the registries and git hosts of the stored
-credentials, which the credential test reaches. When authentik runs in the same
+credentials, which the credential test reaches, and HTTPS to the registries of your own images
+for the pull probe. When authentik runs in the same
 cluster, allow its namespace and port instead; when it is reached through its public hostname,
 the traffic leaves through the ingress controller's address. A NetworkPolicy cannot match host
 names, so either allow port 443 to addresses outside the cluster, use an egress proxy or a CNI with

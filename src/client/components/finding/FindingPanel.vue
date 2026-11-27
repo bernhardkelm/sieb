@@ -97,10 +97,7 @@ useWindowKeydown(onWindowKeydown)
       <CloseButton label="Close panel" @click="closeFinding" />
     </header>
     <div v-if="store.detail" class="body">
-      <FindingHeader
-        :finding="store.detail.finding"
-        :source-access="mcp.enabled ? store.detail.sourceAccess : null"
-      />
+      <FindingHeader :finding="store.detail.finding" :access="mcp.enabled ? store.detail : null" />
       <FindingInboxLine :finding="store.detail.finding" />
       <FindingCheckLine :finding-id="store.detail.finding.id" />
       <CheckAccessFact

@@ -144,6 +144,7 @@ export const registerProposeDecisionTool = (
         },
         checkId: caller.check?.checkId ?? null,
         publicRegistries: deps.publicRegistries,
+        credentialVault: deps.credentialVault ?? null,
         now,
       })
 

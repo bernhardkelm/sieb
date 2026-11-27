@@ -4,6 +4,7 @@ import type { JWTVerifyGetKey } from 'jose'
 
 import type { ErrorBody } from '#core/errorApiTypes.ts'
 import { USER_AGENT_MAX } from '#core/proposalClient.ts'
+import type { CredentialVault } from '#server/credentials/credentialVault.ts'
 import { createBearerVerifier, type BearerVerifiers } from '#server/auth/bearerVerifier.ts'
 import { createDiscoveredJwks } from '#server/auth/discoveredJwks.ts'
 import { createJwtVerifier } from '#server/auth/jwtVerifier.ts'
@@ -30,6 +31,7 @@ import {
   PROPOSE_RATE_WINDOW_MS,
 } from '#server/mcp/mcpGuards.ts'
 import type { OAuthConfig } from '#server/mcpConfigValues.ts'
+import type { PullProber } from '#server/visibility/pullProber.ts'
 
 export interface McpRouteDeps extends RouteDeps {
   publicUrl: string | null // origin sieb is reached at, null derives it from each request
@@ -37,7 +39,9 @@ export interface McpRouteDeps extends RouteDeps {
   version: string // sieb version reported in serverInfo
   log: (message: string) => void
   jwtKeys?: JWTVerifyGetKey // replaces the discovered issuer key set, for tests
-  publicRegistries: readonly string[] // registries whose images count as public for source access
+  publicRegistries: readonly string[] // third-party images on these registries count as public
+  credentialVault?: CredentialVault | null // vault of usable credentials, null while private access is off
+  pullProber?: PullProber | null // probes own images on demand, null in mock mode
   checksEnabled?: boolean // Auto-check on, search_findings then reads the open checks for pending
 }
 

@@ -62,12 +62,15 @@ export interface AccessTestPart {
   checked: number
   ok: number
   failures: AccessTestFailure[] // at most a few, capped by the server
+  denied?: number // targets refused with 401 or 403, over all failures; absent in tests before 0.6.1
+  blocked?: number // targets on a private or in-cluster address sieb does not test; absent before 0.6.1
 }
 
 export interface AccessTestResult {
   at: string // ISO time of the test
   registry: AccessTestPart | null // null when the credential has no registry use
   git: AccessTestPart | null // null when the credential has no git use
+  untested?: boolean // true when saved with confirmUntested because sieb may not reach its hosts
 }
 
 /** A stored credential as the API shows it; the secret never leaves the server except to the fetcher */
@@ -100,6 +103,7 @@ export interface AccessCredentialInput {
   repoMapping?: RepoMapping | null
   username?: string | null
   secret: string
+  confirmUntested?: boolean // stores a credential whose hosts sieb may not test, see testVerdict
 }
 
 /** Registry login the fetcher uses for one check's images */
@@ -125,10 +129,10 @@ export interface SourceRequest {
 
 /** Clone instructions for one repository; the secret reaches only the fetcher */
 export interface SourceGrant {
-  repoUrl: string // https URL without credentials
-  revision: string | null // commit to check out, null for the default branch
-  username: string
-  secret: string
+  repoUrls: string[] // https URLs without credentials, 1 to 3, tried in order until one clones
+  revision: string | null // commit of the revision label, null to try the image tag, then the default branch
+  username: string | null // null together with secret: anonymous clone of a public repository
+  secret: string | null
 }
 
 export const SOURCE_SKIP_REASONS = [
@@ -145,9 +149,16 @@ export type SourceAnswer = { grant: SourceGrant } | { skip: SourceSkipReason }
 /** What the worker reports about the source it checked out, part of the result */
 export interface CheckedSource {
   repoUrl: string
-  revision: string | null // commit checked out, null when only the default branch was available
+  revision: string | null // commit checked out, null when git did not name it
   fromLabel: boolean // true when the image's source label named the repository
+  refKind: CheckedRefKind
+  ref: string | null // the git tag for refKind tag, else null
 }
+
+/** What chose the checked-out commit: the revision label, a git tag matching the image tag, or the default branch */
+export const CHECKED_REF_KINDS = ['label', 'tag', 'default_branch'] as const
+
+export type CheckedRefKind = (typeof CHECKED_REF_KINDS)[number]
 
 const DOCKER_HUB_HOSTS = new Set(['docker.io', 'index.docker.io', 'registry-1.docker.io'])
 

@@ -8,6 +8,7 @@ import type { FetchLayout } from '#checker/fetcher/fetchLayout.ts'
 import type { SecretList } from '#checker/fetcher/secretList.ts'
 import type { SourceOutcome } from '#checker/prepare/prepareTypes.ts'
 import type { ProcessRunner } from '#checker/process/processRunner.ts'
+import { cloneRefs } from '#checker/source/cloneRefs.ts'
 import { cloneSource } from '#checker/source/cloneSource.ts'
 import { labelNamesRepo, readSourceLabels } from '#checker/source/imageLabels.ts'
 import { tidySource } from '#checker/source/tidySource.ts'
@@ -36,10 +37,12 @@ export interface SourceDeps {
 
 /**
  * Asks sieb for the source of the primary image, from its OCI labels, and checks it out into
- * source/ of the workspace. Every way to end without source is an outcome, never a failure of
- * the check, except an abort.
+ * source/ of the workspace: at the revision label's commit, else at the git tag matching the
+ * image tag, else at the default branch. An anonymous grant whose candidates all fail to clone
+ * means a repository that is not public, needs_credential. Every way to end without source is an
+ * outcome, never a failure of the check, except an abort.
  * @param {number} checkId - Check id
- * @param {PreparedImage} primary - Pulled primary image
+ * @param {PreparedImage} primary - Pulled primary image, its tag names the git tags to try
  * @param {SourceDeps} deps - sieb client, runner, config, paths, abort signal, deadline, secrets and log
  * @returns {Promise<SourceOutcome>} - The checkout or why there is none
  * @throws {CheckFailure} - When the check was aborted
@@ -76,10 +79,13 @@ export const fetchSource = async (
   }
 
   const { grant } = answer
+  const anonymous = grant.username === null || grant.secret === null
 
-  deps.secrets.add(grant.username, grant.secret)
+  if (grant.username !== null && grant.secret !== null) {
+    deps.secrets.add(grant.username, grant.secret)
+  }
 
-  const clone = await cloneSource(layout.source, grant, grant.revision, {
+  const clone = await cloneSource(layout.source, grant, cloneRefs(grant.revision, primary.tag), {
     runner: deps.runner,
     base: { PATH: config.path, HOME: layout.home, TMPDIR: layout.tmp },
     signal: deps.signal,
@@ -90,10 +96,17 @@ export const fetchSource = async (
   })
 
   if (!clone.ok) {
-    deps.log(`[sieb-fetcher] check ${checkId}: no source from ${grant.repoUrl}: ${clone.detail}`)
+    deps.log(
+      `[sieb-fetcher] check ${checkId}: no source from ${grant.repoUrls.join(', ')}: ${clone.detail}`,
+    )
     await rm(layout.source, { recursive: true, force: true })
 
-    return { missing: clone.reason }
+    return {
+      missing:
+        anonymous && clone.reason === 'clone_failed' && clone.timedOut !== true
+          ? 'needs_credential'
+          : clone.reason,
+    }
   }
 
   if (!(await tidySource(layout.source, config.sourceMaxBytes))) {
@@ -104,9 +117,11 @@ export const fetchSource = async (
 
   return {
     checked: {
-      repoUrl: grant.repoUrl,
+      repoUrl: clone.repoUrl,
       revision: clone.revision,
-      fromLabel: labelNamesRepo(labels.sourceLabel, grant.repoUrl),
+      fromLabel: labelNamesRepo(labels.sourceLabel, clone.repoUrl),
+      refKind: clone.kind,
+      ref: clone.ref,
     },
   }
 }

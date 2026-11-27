@@ -15,7 +15,7 @@ import {
   safeReferences,
   verdictLabel,
 } from '@/components/proposals/proposalText'
-import { isWeakEvidence, uninspectedPrivateImages } from '@/components/proposals/proposalWarnings'
+import { isWeakEvidence, uninspectedOwnImages } from '@/components/proposals/proposalWarnings'
 
 describe('proposalText', () => {
   it('labels a not affected verdict with its justification', () => {
@@ -160,15 +160,24 @@ describe('proposalWarnings', () => {
     ).toBe(false)
   })
 
-  it('lists private images unless the own source was checked', () => {
-    const images = [buildImageFacts({ imageRef: OWN_IMAGE, sourceAccess: 'private' })]
+  it('lists own images, now or when proposed, unless the own source was checked', () => {
+    const images = [buildImageFacts({ imageRef: OWN_IMAGE, ownership: 'own' })]
 
-    expect(uninspectedPrivateImages(buildProposalDetail({ images }))).toEqual([OWN_IMAGE])
+    expect(uninspectedOwnImages(buildProposalDetail({ images }))).toEqual([OWN_IMAGE])
     expect(
-      uninspectedPrivateImages(
+      uninspectedOwnImages(
+        buildProposalDetail({
+          proposal: buildProposal({
+            imageAccess: [{ imageRef: OWN_IMAGE, imageVisibility: 'public', ownership: 'own' }],
+          }),
+        }),
+      ),
+    ).toEqual([OWN_IMAGE])
+    expect(
+      uninspectedOwnImages(
         buildProposalDetail({ images, proposal: buildProposal({ evidenceBasis: ['own_source'] }) }),
       ),
     ).toEqual([])
-    expect(uninspectedPrivateImages(buildProposalDetail())).toEqual([])
+    expect(uninspectedOwnImages(buildProposalDetail())).toEqual([])
   })
 })

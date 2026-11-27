@@ -26,6 +26,7 @@ import { createStatsRoutes } from '#server/http/routes/statsRoutes.ts'
 import { createSyncRoutes } from '#server/http/routes/syncRoutes.ts'
 import { createMcpDisabledRoutes, createTokenRoutes } from '#server/http/routes/tokenRoutes.ts'
 import type { SyncService } from '#server/sync/syncService.ts'
+import type { PullProber } from '#server/visibility/pullProber.ts'
 
 export interface ApiRouteSetup extends RouteDeps {
   source: SourceKind
@@ -35,7 +36,8 @@ export interface ApiRouteSetup extends RouteDeps {
   mcpEnabled: boolean // mounts the token routes, otherwise /api/tokens answers 404 mcp_disabled
   publicUrl: string | null // origin for links, null derives it per request
   oauthEnabled: boolean // MCP accepts OAuth tokens besides personal ones
-  publicRegistries: readonly string[] // registries whose images count as public
+  publicRegistries: readonly string[] // third-party images on these registries count as public
+  pullProber: PullProber | null // probes own images when a finding detail opens
   build: BuildInfo // version and source code link /api/me answers
   checks: CheckContext | null // Auto-check context, null serves the disabled stand-in
   credentials: CredentialSetup // credential vault, a test fetch and limits
@@ -45,7 +47,7 @@ export interface ApiRouteSetup extends RouteDeps {
  * Mounts the health check and the resource routers under /api, the token routes only with MCP
  * and the check routes only with checks.
  * @param {Hono<AppEnv>} app - App, after the /api guards are mounted
- * @param {ApiRouteSetup} setup - Route dependencies, data source, sync service, auth mode, logger, MCP settings, public registries, build info, check context, credential setup
+ * @param {ApiRouteSetup} setup - Route dependencies, data source, sync service, auth mode, logger, MCP settings, public registries, pull prober, build info, check context, credential setup
  * @returns {void}
  */
 export const useApiRoutes = (
@@ -62,6 +64,7 @@ export const useApiRoutes = (
     publicUrl,
     oauthEnabled,
     publicRegistries,
+    pullProber,
     build,
     checks,
     credentials,
@@ -76,6 +79,7 @@ export const useApiRoutes = (
     createFindingRoutes({
       ...deps,
       publicRegistries,
+      pullProber,
       checksEnabled: checks !== null,
       credentialVault: checks?.privateVault ?? null,
     }),

@@ -1,4 +1,4 @@
-import { registryOf } from '#core/sourceAccess.ts'
+import { registryOf } from '#core/registryHost.ts'
 
 interface CodeHost {
   host: string

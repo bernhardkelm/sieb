@@ -1,6 +1,6 @@
 import { computed, nextTick, onMounted, shallowRef, type ComputedRef, type Ref } from 'vue'
 
-import type { AccessCredentialView } from '#core/privateAccess.ts'
+import type { AccessCredentialView, AccessTestResult } from '#core/privateAccess.ts'
 import { credentialErrorMessage } from '@/components/access/credentialFormErrors'
 import {
   credentialInputOf,
@@ -22,7 +22,9 @@ export interface AccessPage {
   /** Closes the form and returns focus to where it was opened */
   closeForm: () => void
   /** Adds or changes the credential of the form, rejects with the server error */
-  save: (model: CredentialFormModel) => Promise<void>
+  save: (model: CredentialFormModel, confirmUntested: boolean) => Promise<void>
+  /** Tests the values of the form without storing them */
+  testValues: (model: CredentialFormModel) => Promise<AccessTestResult>
   /** Tests a credential and names the outcome in a toast */
   test: (credential: AccessCredentialView) => Promise<void>
   confirmOpen: Ref<boolean>
@@ -92,15 +94,17 @@ export const useAccessPage = (): AccessPage => {
   /**
    * Adds or changes the credential of the form and focuses it in the list.
    * @param {CredentialFormModel} model - Form values
+   * @param {boolean} confirmUntested - Whether hosts sieb cannot test may be saved untested
    * @returns {Promise<void>}
-   * @throws {ApiError} - When the server refuses it, the form shows the errors
+   * @throws {ApiError} - When the server or the test refuses it, the form shows why
    */
-  const save = async (model: CredentialFormModel): Promise<void> => {
+  const save = async (model: CredentialFormModel, confirmUntested: boolean): Promise<void> => {
     const current = target.value
+    const confirm = confirmUntested ? { confirmUntested } : {}
     const saved =
       current === 'new' || current === null
-        ? await store.create(credentialInputOf(model))
-        : await store.update(current.id, credentialPatchOf(model))
+        ? await store.create({ ...credentialInputOf(model), ...confirm })
+        : await store.update(current.id, { ...credentialPatchOf(model), ...confirm })
 
     notifySuccess(current === 'new' ? 'Credential added' : 'Credential saved', saved.label)
     target.value = null
@@ -130,6 +134,20 @@ export const useAccessPage = (): AccessPage => {
     }
   }
 
+  /**
+   * Tests the values of the form, a stored credential's changes over its stored token.
+   * @param {CredentialFormModel} model - Form values
+   * @returns {Promise<AccessTestResult>} - Outcome per use
+   * @throws {ApiError} - When the server cannot run the test
+   */
+  const testValues = (model: CredentialFormModel): Promise<AccessTestResult> => {
+    const current = target.value
+
+    return current === 'new' || current === null
+      ? store.testValues(credentialInputOf(model))
+      : store.testValues({ id: current.id, ...credentialPatchOf(model) })
+  }
+
   onMounted(() => {
     void store.load()
   })
@@ -141,6 +159,7 @@ export const useAccessPage = (): AccessPage => {
     openEdit: (credential) => open(credential),
     closeForm,
     save,
+    testValues,
     test,
     confirmOpen: deletion.open,
     deleteTarget: deletion.target,

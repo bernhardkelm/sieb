@@ -3,10 +3,10 @@ import type { ProposalImageFacts } from '#core/proposalApiTypes.ts'
 import BaseChip from '@/components/chips/BaseChip.vue'
 import DecisionStateChip from '@/components/chips/DecisionStateChip.vue'
 import ExposureChip from '@/components/chips/ExposureChip.vue'
+import ImageAccessChips from '@/components/chips/ImageAccessChips.vue'
 import KevChip from '@/components/chips/KevChip.vue'
 import OwnerBadge from '@/components/chips/OwnerBadge.vue'
 import SeverityChip from '@/components/chips/SeverityChip.vue'
-import SourceAccessBadge from '@/components/chips/SourceAccessBadge.vue'
 import FactItem from '@/components/common/FactItem.vue'
 import FactList from '@/components/common/FactList.vue'
 import { countOf } from '@/format/count'
@@ -29,7 +29,7 @@ defineProps<{
       <SeverityChip v-if="image.severity" :severity="image.severity" :score="image.score" />
       <KevChip v-if="image.kev" />
       <ExposureChip v-if="image.exposure" :exposure="image.exposure" focusable />
-      <SourceAccessBadge :access="image.sourceAccess" />
+      <ImageAccessChips :access="image" />
       <BaseChip v-if="!image.open" variant="outline">resolved</BaseChip>
     </div>
     <FactList layout="grid">

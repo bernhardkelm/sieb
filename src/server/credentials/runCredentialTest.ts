@@ -1,6 +1,7 @@
 import type { DatabaseSync } from 'node:sqlite'
 
 import type { AccessScope } from '#core/accessScope.ts'
+import { ADDRESS_NOT_ALLOWED, DENIED_REASONS } from '#core/accessTestVerdict.ts'
 import type {
   AccessProvider,
   AccessTestFailure,
@@ -34,7 +35,8 @@ export interface CredentialTestInput {
 }
 
 /**
- * Probes targets a few at a time and sums the outcomes, keeping the first MAX_TEST_FAILURES failures.
+ * Probes targets a few at a time and sums the outcomes, keeping the first MAX_TEST_FAILURES
+ * failures and counting the refused logins and refused addresses over all of them.
  * @param {readonly T[]} targets - Targets in order
  * @param {(target: T) => Promise<ProbeOutcome>} probe - Probes one target
  * @param {(target: T) => string} nameOf - Target name for a failure
@@ -68,6 +70,8 @@ const probeAll = async <T>(
     checked: targets.length,
     ok: targets.length - failures.length,
     failures: failures.slice(0, MAX_TEST_FAILURES),
+    denied: failures.filter((failure) => DENIED_REASONS.includes(failure.reason)).length,
+    blocked: failures.filter((failure) => failure.reason === ADDRESS_NOT_ALLOWED).length,
   }
 }
 

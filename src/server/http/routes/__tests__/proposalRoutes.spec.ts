@@ -12,7 +12,7 @@ import type {
 import type { StatsResponse } from '#core/statsApiTypes.ts'
 import type { FindingView } from '#core/findingView.ts'
 import { buildProposalInput, PROPOSER } from '#core/__tests__/proposalBuilders.ts'
-import { DEFAULT_PUBLIC_REGISTRIES } from '#core/sourceAccess.ts'
+import { DEFAULT_PUBLIC_REGISTRIES } from '#core/registryHost.ts'
 import { createProposal } from '#server/db/createProposal.ts'
 import type { AppEnv } from '#server/http/AppEnv.ts'
 import type { AppDeps } from '#server/http/createApp.ts'
@@ -236,12 +236,14 @@ describe('proposal routes', () => {
     )
   })
 
-  it('answers the source access in the finding detail', async () => {
+  it('answers visibility and ownership in the finding detail', async () => {
     const { app, finding } = await appWithProposal()
+    const { body } = await requestJson<{ imageVisibility: string; ownership: string }>(
+      app,
+      `/api/findings/${finding.id}`,
+    )
 
-    expect(
-      (await requestJson<{ sourceAccess: string }>(app, `/api/findings/${finding.id}`)).body
-        .sourceAccess,
-    ).toMatch(/^(public|private|unknown)$/)
+    expect(body.imageVisibility).toMatch(/^(public|credential|restricted|unknown)$/)
+    expect(body.ownership).toMatch(/^(own|third_party)$/)
   })
 })

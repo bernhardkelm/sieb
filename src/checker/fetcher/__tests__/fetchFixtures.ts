@@ -10,6 +10,8 @@ import type { FetcherConfig } from '#checker/fetcher/fetcherConfig.ts'
 export const REGISTRY_SECRET = 'registry-secret-value-1234'
 export const GIT_SECRET = 'git-secret-value-5678'
 export const COMMIT = 'c'.repeat(40)
+/** Commit the fake git reports for a fetched tag or branch */
+export const HEAD_COMMIT = 'b'.repeat(40)
 export const REPO_URL = 'https://gitlab.example.com/acme/app.git'
 export const LOCAL_SECRET = 'l'.repeat(32)
 const DIGEST = `sha256:${'a'.repeat(64)}`
@@ -77,7 +79,7 @@ export const fakeSieb = (
           ? options.source()
           : {
               grant: {
-                repoUrl: REPO_URL,
+                repoUrls: [REPO_URL],
                 revision: COMMIT,
                 username: 'deploy',
                 secret: GIT_SECRET,
@@ -89,8 +91,8 @@ export const fakeSieb = (
 }
 
 /**
- * Acts like git: init creates .git, fetch writes a pack, checkout writes a small tree with
- * ignore files and symlinks.
+ * Acts like git: init creates .git, fetch writes a pack and remembers its ref, checkout writes a
+ * small tree with ignore files and symlinks, rev-parse names the fetched commit, else HEAD_COMMIT.
  * @param {FakeProcess} proc - Fake git process
  * @returns {Promise<void>}
  */
@@ -101,6 +103,11 @@ export const fakeGit: Behaviour = async (proc) => {
     await mkdir(join(cwd, '.git'), { recursive: true })
   } else if (args[0] === 'fetch') {
     await writeFile(join(cwd, '.git/pack'), 'p'.repeat(1024))
+    await writeFile(join(cwd, '.git/fetched'), args.at(-1) ?? '')
+  } else if (args[0] === 'rev-parse') {
+    const fetched = await readFile(join(cwd, '.git/fetched'), 'utf8')
+
+    proc.stdout.write(`${/^[0-9a-f]{40}$/u.test(fetched) ? fetched : HEAD_COMMIT}\n`)
   } else if (args[0] === 'checkout') {
     await mkdir(join(cwd, 'src/sub'), { recursive: true })
     await writeFile(join(cwd, 'Dockerfile'), 'FROM alpine:3.21\n')

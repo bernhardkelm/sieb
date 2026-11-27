@@ -14,7 +14,7 @@ import type {
   ProposalDecisionRef,
   ProposalRelatedFinding,
   ProposalReview,
-  ProposalSourceAccess,
+  ProposalImageAccess,
   ProposalVia,
 } from '#core/proposalRecord.ts'
 
@@ -38,7 +38,7 @@ export interface ProposalRow {
   missing: string
   refs: string
   evidence_basis: string
-  source_access: string
+  image_access: string
   proposed_by: string
   proposed_via: string
   token_id: number | null
@@ -121,7 +121,7 @@ export const toProposal = (row: ProposalRow): Proposal => ({
   agent: row.agent,
   relatedFindings: parsed<ProposalRelatedFinding[]>(row.related_findings),
   relatedReason: row.related_reason,
-  sourceAccess: parsed<ProposalSourceAccess[]>(row.source_access),
+  imageAccess: parsed<ProposalImageAccess[]>(row.image_access),
   proposedBy: row.proposed_by,
   proposedVia: row.proposed_via as ProposalVia,
   tokenId: row.token_id,

@@ -36,7 +36,8 @@ const openPanel = async (): Promise<HTMLElement> => {
     decisions: [],
     events: [],
     kev: null,
-    sourceAccess: 'private',
+    imageVisibility: 'unknown',
+    ownership: 'own',
   })
   mounted = await mountWithRouter(FindingPanel, '/triage?finding=1')
   useMcpStore().info = {

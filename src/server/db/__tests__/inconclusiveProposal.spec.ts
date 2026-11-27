@@ -7,7 +7,7 @@ import { NOW } from '#core/__tests__/coreBuilders.ts'
 import { buildProposalInput, PROPOSER } from '#core/__tests__/proposalBuilders.ts'
 import { validateAcceptEdits } from '#core/proposalAcceptEdits.ts'
 import type { ProposalInput } from '#core/proposalRecord.ts'
-import { DEFAULT_PUBLIC_REGISTRIES } from '#core/sourceAccess.ts'
+import { DEFAULT_PUBLIC_REGISTRIES } from '#core/registryHost.ts'
 import { acceptProposal } from '#server/db/acceptProposal.ts'
 import { createProposal } from '#server/db/createProposal.ts'
 import { findCurrentDecision } from '#server/db/decisionRepository.ts'
@@ -175,7 +175,7 @@ describe('migration 16', () => {
     const insert = (verdict: string, missing: string, proposedBy = 'alice'): void => {
       db.prepare(
         `INSERT INTO decision_proposals (vuln_id, scope, image_refs, target_key, verdict,
-         summary, confidence, evidence, unknowns, missing, refs, evidence_basis, source_access,
+         summary, confidence, evidence, unknowns, missing, refs, evidence_basis, image_access,
          proposed_by, proposed_via, token_id, client_label, basis_decisions, created_at)
          VALUES ('CVE-1', 'image', '["img/a"]', '["img/a"]', ?, 'Unclear.', 'low', '[]', '[]',
          ?, '[]', '["advisory"]', '[]', ?, 'token', 1, 'laptop', '[]', 't')`,

@@ -116,7 +116,7 @@ export const insertProposal = (
     .prepare(
       `INSERT INTO decision_proposals (vuln_id, scope, image_refs, target_key, verdict,
          justification, summary, confidence, presence, reachability, exposure, evidence, fix,
-         review, unknowns, missing, refs, evidence_basis, source_access, proposed_by,
+         review, unknowns, missing, refs, evidence_basis, image_access, proposed_by,
          proposed_via, token_id, client_label, client_kind, agent, basis_decisions, created_at,
          check_id, related_findings, related_reason)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
@@ -140,7 +140,7 @@ export const insertProposal = (
       JSON.stringify(proposal.missing),
       JSON.stringify(proposal.references),
       JSON.stringify(proposal.evidenceBasis),
-      JSON.stringify(proposal.sourceAccess),
+      JSON.stringify(proposal.imageAccess),
       proposal.proposedBy,
       proposal.proposedVia,
       proposal.tokenId,
